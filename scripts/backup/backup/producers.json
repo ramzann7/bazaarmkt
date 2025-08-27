@@ -1,0 +1,58 @@
+[
+  {
+    "_id": "68a9303b405bcd47daf31e17",
+    "user": "68a733164b78eb31b9af9ef3",
+    "type": "bakery",
+    "name": "Ramzan's farm",
+    "description": "Bread and pastries",
+    "category": "bread",
+    "specialties": [
+      "Bread"
+    ],
+    "address": {
+      "street": "3440 rue alexandra",
+      "city": "Saint-Hubert",
+      "state": "Quebec",
+      "zipCode": "J4T 3E9"
+    },
+    "rating": {
+      "average": 0,
+      "count": 0
+    },
+    "operationDetails": {
+      "certifications": []
+    },
+    "businessHours": {
+      "monday": {
+        "closed": false
+      },
+      "tuesday": {
+        "closed": false
+      },
+      "wednesday": {
+        "closed": false
+      },
+      "thursday": {
+        "closed": false
+      },
+      "friday": {
+        "closed": false
+      },
+      "saturday": {
+        "closed": false
+      },
+      "sunday": {
+        "closed": false
+      }
+    },
+    "deliveryOptions": {
+      "pickup": true,
+      "delivery": false,
+      "deliveryFee": 0
+    },
+    "isActive": true,
+    "photos": [],
+    "createdAt": "2025-08-23T03:06:35.262Z",
+    "__v": 0
+  }
+]

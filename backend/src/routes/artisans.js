@@ -1,0 +1,201 @@
+const express = require('express');
+const router = express.Router();
+const Artisan = require('../models/artisan');
+const verifyToken = require('../middleware/authMiddleware');
+
+// Get all artisans
+router.get('/', async (req, res) => {
+  try {
+    const { category, type, location, search, includeProducts } = req.query;
+    console.log('Artisan query parameters:', { category, type, location, search, includeProducts });
+    let query = { isActive: true };
+
+    if (category) query.category = new RegExp(category, 'i');
+    if (type && type !== 'all') query.type = type;
+    if (location) query['address.city'] = new RegExp(location, 'i');
+    
+    // Add search functionality
+    if (search) {
+      query.$or = [
+        { artisanName: new RegExp(search, 'i') },
+        { description: new RegExp(search, 'i') },
+        { type: new RegExp(search, 'i') },
+        { category: new RegExp(search, 'i') }
+      ];
+    }
+    
+    console.log('Final query:', query);
+
+    const artisans = await Artisan.find(query)
+      .populate('user', 'firstName lastName email phone')
+      .sort({ rating: -1 });
+    
+    console.log(`Found ${artisans.length} artisans for query:`, query);
+
+    // If includeProducts is requested, add product count and sample products
+    if (includeProducts === 'true') {
+      const Product = require('../models/product');
+      const artisansWithProducts = await Promise.all(
+        artisans.map(async (artisan) => {
+          // Check if artisan has a valid user reference
+          if (!artisan.user || !artisan.user._id) {
+            return {
+              ...artisan.toObject(),
+              products: [],
+              productCount: 0
+            };
+          }
+
+          try {
+            const products = await Product.find({ 
+              seller: artisan.user._id, 
+              status: 'active' 
+            }).limit(3);
+            
+            const productCount = await Product.countDocuments({ 
+              seller: artisan.user._id, 
+              status: 'active' 
+            });
+
+            return {
+              ...artisan.toObject(),
+              products: products,
+              productCount: productCount
+            };
+          } catch (error) {
+            console.error(`Error fetching products for artisan ${artisan._id}:`, error);
+            return {
+              ...artisan.toObject(),
+              products: [],
+              productCount: 0
+            };
+          }
+        })
+      );
+      
+      return res.json(artisansWithProducts);
+    }
+
+    res.json(artisans);
+  } catch (error) {
+    console.error('Error fetching artisans:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get artisan by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const { includeProducts } = req.query;
+    console.log('Route /:id - includeProducts:', includeProducts);
+    console.log('Route /:id - req.query:', req.query);
+    
+    const artisan = await Artisan.findById(req.params.id)
+      .populate('user', 'firstName lastName email phone');
+    
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan not found' });
+    }
+
+    // If includeProducts is requested, add products
+    if (includeProducts === 'true') {
+      const Product = require('../models/product');
+      
+      console.log('Artisan user ID:', artisan.user?._id);
+      console.log('IncludeProducts parameter:', includeProducts);
+      
+      // Check if artisan has a valid user reference
+      if (artisan.user && artisan.user._id) {
+        try {
+          console.log('Searching for products with seller:', artisan.user._id);
+          const products = await Product.find({ 
+            seller: artisan.user._id, 
+            status: 'active' 
+          });
+          
+          console.log('Found products:', products.length);
+          console.log('Product names:', products.map(p => p.name));
+          
+          const productCount = await Product.countDocuments({ 
+            seller: artisan.user._id, 
+            status: 'active' 
+          });
+
+          console.log('Product count:', productCount);
+
+          return res.json({
+            ...artisan.toObject(),
+            products: products,
+            productCount: productCount
+          });
+        } catch (error) {
+          console.error(`Error fetching products for artisan ${artisan._id}:`, error);
+          return res.json({
+            ...artisan.toObject(),
+            products: [],
+            productCount: 0
+          });
+        }
+      } else {
+        console.log('No valid user reference found');
+        return res.json({
+          ...artisan.toObject(),
+          products: [],
+          productCount: 0
+        });
+      }
+    }
+
+    res.json(artisan);
+  } catch (error) {
+    console.error('Error fetching artisan:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create new artisan (requires authentication)
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const artisanData = {
+      ...req.body,
+      user: req.user._id
+    };
+
+    const artisan = new Artisan(artisanData);
+    await artisan.save();
+
+    res.status(201).json(artisan);
+  } catch (error) {
+    console.error('Error creating artisan:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update artisan (requires authentication and ownership)
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const artisan = await Artisan.findById(req.params.id);
+    
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan not found' });
+    }
+
+    if (artisan.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const updatedArtisan = await Artisan.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.json(updatedArtisan);
+  } catch (error) {
+    console.error('Error updating artisan:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;
+

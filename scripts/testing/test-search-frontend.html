@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Search Test</title>
+</head>
+<body>
+    <h1>Frontend Search Test</h1>
+    <button onclick="testDirectAPI()">Test Direct API</button>
+    <button onclick="testProxyAPI()">Test Proxy API</button>
+    <div id="results"></div>
+
+    <script>
+        async function testDirectAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Testing Direct API...</h2>';
+            
+            try {
+                console.log('Testing direct API call...');
+                const response = await fetch('http://localhost:4000/api/products/search?q=eggs');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Search results:', data);
+                
+                resultsDiv.innerHTML = `
+                    <h2>Direct API Test Results</h2>
+                    <p>Status: ${response.status}</p>
+                    <p>Products found: ${data.products?.length || 0}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Direct API test failed:', error);
+                resultsDiv.innerHTML = `
+                    <h2>Direct API Test Failed</h2>
+                    <p style="color: red;">${error.message}</p>
+                `;
+            }
+        }
+        
+        async function testProxyAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Testing Proxy API...</h2>';
+            
+            try {
+                console.log('Testing proxy API call...');
+                const response = await fetch('/api/products/search?q=eggs');
+                console.log('Proxy response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Proxy search results:', data);
+                
+                resultsDiv.innerHTML = `
+                    <h2>Proxy API Test Results</h2>
+                    <p>Status: ${response.status}</p>
+                    <p>Products found: ${data.products?.length || 0}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Proxy API test failed:', error);
+                resultsDiv.innerHTML = `
+                    <h2>Proxy API Test Failed</h2>
+                    <p style="color: red;">${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

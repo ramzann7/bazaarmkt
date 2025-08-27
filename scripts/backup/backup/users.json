@@ -1,0 +1,119 @@
+[
+  {
+    "_id": "68a72cf14b78eb31b9af9e45",
+    "firstName": "Test",
+    "lastName": "User",
+    "email": "test@example.com",
+    "password": "$2b$10$QoJn4/9dBKRZ5gAzG5s39eM4KdawlfMjvs47uvkOEptwB/PvRZrlG",
+    "phone": "1234567890",
+    "role": "buyer",
+    "profilePicture": null,
+    "notificationPreferences": {
+      "email": {
+        "marketing": true,
+        "orderUpdates": true,
+        "promotions": true,
+        "security": true
+      },
+      "push": {
+        "orderUpdates": true,
+        "promotions": true,
+        "newProducers": true,
+        "nearbyOffers": true
+      },
+      "sms": {
+        "orderUpdates": false,
+        "promotions": false
+      }
+    },
+    "accountSettings": {
+      "language": "en",
+      "currency": "CAD",
+      "timezone": "America/Toronto",
+      "twoFactorEnabled": false
+    },
+    "addresses": [],
+    "paymentMethods": [],
+    "createdAt": "2025-08-21T14:28:01.730Z",
+    "updatedAt": "2025-08-21T14:28:01.841Z",
+    "__v": 0
+  },
+  {
+    "_id": "68a72f074b78eb31b9af9e75",
+    "firstName": "Ramzan",
+    "lastName": "Ali",
+    "email": "ramzan.7@hotmail.com",
+    "password": "$2b$10$q4DIRvp80qSZftkXunon/OvLNfDFG4aDJV.ZzvGPEi3vxYJoU5BSq",
+    "phone": "15149663325",
+    "role": "producer",
+    "profilePicture": null,
+    "notificationPreferences": {
+      "email": {
+        "marketing": true,
+        "orderUpdates": true,
+        "promotions": true,
+        "security": true
+      },
+      "push": {
+        "orderUpdates": true,
+        "promotions": true,
+        "newProducers": true,
+        "nearbyOffers": true
+      },
+      "sms": {
+        "orderUpdates": false,
+        "promotions": false
+      }
+    },
+    "accountSettings": {
+      "language": "en",
+      "currency": "CAD",
+      "timezone": "America/Toronto",
+      "twoFactorEnabled": false
+    },
+    "addresses": [],
+    "paymentMethods": [],
+    "createdAt": "2025-08-21T14:36:55.133Z",
+    "updatedAt": "2025-08-21T14:36:55.222Z",
+    "__v": 0
+  },
+  {
+    "_id": "68a733164b78eb31b9af9ef3",
+    "firstName": "Ramzan",
+    "lastName": "Ali",
+    "email": "ramz@hotmail.com",
+    "password": "$2b$10$BcfyLplKU/xfngCtwDUWlOQzG3.Ii2v9OeYL06tv6oufqNFbMha9S",
+    "phone": "5148296989",
+    "role": "producer",
+    "profilePicture": null,
+    "notificationPreferences": {
+      "email": {
+        "marketing": true,
+        "orderUpdates": true,
+        "promotions": true,
+        "security": true
+      },
+      "push": {
+        "orderUpdates": true,
+        "promotions": true,
+        "newProducers": true,
+        "nearbyOffers": true
+      },
+      "sms": {
+        "orderUpdates": false,
+        "promotions": false
+      }
+    },
+    "accountSettings": {
+      "language": "en",
+      "currency": "CAD",
+      "timezone": "America/Toronto",
+      "twoFactorEnabled": false
+    },
+    "addresses": [],
+    "paymentMethods": [],
+    "createdAt": "2025-08-21T14:54:14.519Z",
+    "updatedAt": "2025-08-21T14:54:14.601Z",
+    "__v": 0
+  }
+]

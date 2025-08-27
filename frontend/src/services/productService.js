@@ -1,0 +1,227 @@
+import axios from 'axios';
+
+const API_URL = '/api/products';
+
+// Get all products (for discover page)
+export const getAllProducts = async (filters = {}) => {
+  const params = new URLSearchParams();
+  
+  Object.keys(filters).forEach(key => {
+    if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+      params.append(key, filters[key]);
+    }
+  });
+  
+  const response = await axios.get(`${API_URL}?${params.toString()}`);
+  return response.data;
+};
+
+// Search products with enhanced filters
+export const searchProducts = async (searchQuery, filters = {}) => {
+  // Use the simple search endpoint for now
+  if (searchQuery) {
+    const response = await axios.get(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
+    return response.data;
+  }
+  
+  // For non-search queries, use the main endpoint
+  const params = new URLSearchParams();
+  
+  // Add other filters
+  Object.keys(filters).forEach(key => {
+    if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+      params.append(key, filters[key]);
+    }
+  });
+  
+  const response = await axios.get(`${API_URL}?${params.toString()}`);
+  return response.data;
+};
+
+// Get search suggestions
+export const getSearchSuggestions = async (query) => {
+  if (!query || query.length < 2) {
+    return { suggestions: [] };
+  }
+  
+  const response = await axios.get(`${API_URL}/suggestions?q=${encodeURIComponent(query)}`);
+  return response.data;
+};
+
+// Get seller's products
+export const getMyProducts = async () => {
+  const token = localStorage.getItem('token');
+  const response = await axios.get(`${API_URL}/my-products`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+// Get products by producer ID
+export const getProductsByProducer = async (producerId) => {
+  const response = await axios.get(`${API_URL}/producer/${producerId}`);
+  return response.data;
+};
+
+// Get single product by ID
+export const getProductById = async (productId) => {
+  const response = await axios.get(`${API_URL}/${productId}`);
+  return response.data;
+};
+
+// Create new product
+export const createProduct = async (productData) => {
+  const token = localStorage.getItem('token');
+  
+  let requestData;
+  let headers = { 
+    Authorization: `Bearer ${token}`
+  };
+  
+  // Check if there's an image file to upload
+  if (productData.image instanceof File) {
+    // Use FormData for file upload
+    requestData = new FormData();
+    
+    Object.keys(productData).forEach(key => {
+      if (key === 'image') {
+        requestData.append('image', productData.image);
+      } else if (key === 'tags' && Array.isArray(productData[key])) {
+        requestData.append('tags', JSON.stringify(productData[key]));
+      } else if (productData[key] !== undefined && productData[key] !== null) {
+        requestData.append(key, productData[key]);
+      }
+    });
+    
+    // Don't set Content-Type for FormData, let browser set it with boundary
+  } else {
+    // Use JSON for data without files
+    requestData = productData;
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  const response = await axios.post(API_URL, requestData, { headers });
+  return response.data;
+};
+
+// Update product
+export const updateProduct = async (productId, productData) => {
+  const token = localStorage.getItem('token');
+  
+  let requestData;
+  let headers = { Authorization: `Bearer ${token}` };
+  
+  // Check if there's an image file to upload
+  const hasImageFile = productData.image instanceof File;
+  
+  if (hasImageFile) {
+    // Use FormData for image upload
+    const formData = new FormData();
+    
+    Object.keys(productData).forEach(key => {
+      if (key === 'image' && productData[key] instanceof File) {
+        formData.append('image', productData[key]);
+      } else if (key === 'tags' && Array.isArray(productData[key])) {
+        formData.append('tags', JSON.stringify(productData[key]));
+      } else if (productData[key] !== undefined && productData[key] !== null) {
+        formData.append(key, productData[key]);
+      }
+    });
+    
+    requestData = formData;
+    // Don't set Content-Type for FormData, let browser set it with boundary
+  } else {
+    // Use JSON for data without files
+    requestData = productData;
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  const response = await axios.put(`${API_URL}/${productId}`, requestData, { headers });
+  return response.data;
+};
+
+// Update product inventory
+export const updateInventory = async (productId, inventoryData) => {
+  const token = localStorage.getItem('token');
+  const response = await axios.patch(`${API_URL}/${productId}/inventory`, inventoryData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+// Reduce product inventory (for purchases)
+export const reduceInventory = async (productId, quantity) => {
+  const token = localStorage.getItem('token');
+  const response = await axios.patch(`${API_URL}/${productId}/reduce-inventory`, 
+    { quantity },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data;
+};
+
+// Delete product
+export const deleteProduct = async (productId) => {
+  const token = localStorage.getItem('token');
+  const response = await axios.delete(`${API_URL}/${productId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return response.data;
+};
+
+// Update product stock (for purchases)
+export const updateProductStock = async (productId, quantity) => {
+  const token = localStorage.getItem('token');
+  const response = await axios.patch(`${API_URL}/${productId}/stock`, 
+    { quantity },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return response.data;
+};
+
+// Get product categories
+export const getProductCategories = async () => {
+  const response = await axios.get(`${API_URL}/categories/list`);
+  return response.data;
+};
+
+// Upload image to server (if you have image upload endpoint)
+export const uploadImage = async (file) => {
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  formData.append('photo', file);
+  
+  const response = await axios.post('/api/upload/photo', formData, {
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
+
+// Convert file to base64 for preview (fallback if no upload endpoint)
+export const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+};
+
+// Export all functions as a productService object for backward compatibility
+export const productService = {
+  getAllProducts,
+  getMyProducts,
+  getProductsByProducer,
+  getProductById,
+  createProduct,
+  updateProduct,
+  updateInventory,
+  reduceInventory,
+  deleteProduct,
+  updateProductStock,
+  getProductCategories,
+  uploadImage,
+  fileToBase64
+};

@@ -21,6 +21,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { profileService } from '../services/profileService';
 import { productService } from '../services/productService';
+import { getProfile } from '../services/authService';
+import { onboardingService } from '../services/onboardingService';
 import toast from 'react-hot-toast';
 
 // Helper function to format artisan type for display
@@ -929,6 +931,15 @@ function OperationsContactTab({ artisanProfile, onUpdate }) {
           contactInfo: formData.contactInfo
         })
       ]);
+      // Mark onboarding as completed when profile is saved
+      try {
+        const userProfile = await getProfile();
+        const userId = userProfile._id;
+        onboardingService.markOnboardingCompleted(userId);
+      } catch (error) {
+        console.error('Error marking onboarding completed:', error);
+      }
+      
       toast.success('Operations and contact information updated successfully!');
       onUpdate();
     } catch (error) {
@@ -1617,6 +1628,16 @@ function PersonalInfoTab({ profile, onUpdate }) {
     setIsSaving(true);
     try {
       await profileService.updateBasicProfile(formData);
+      
+      // Mark onboarding as completed when profile is saved
+      try {
+        const userProfile = await getProfile();
+        const userId = userProfile._id;
+        onboardingService.markOnboardingCompleted(userId);
+      } catch (error) {
+        console.error('Error marking onboarding completed:', error);
+      }
+      
       toast.success('Personal information updated successfully!');
       onUpdate();
     } catch (error) {

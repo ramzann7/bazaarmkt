@@ -1,13 +1,58 @@
-# Bazarmkt - Artisan Marketplace
+# 🍽️ Food Finder App - Bazaar Marketplace
 
-A full-stack web application connecting local artisans with customers, built with React, Node.js, and MongoDB.
+A modern marketplace platform connecting local artisans, food makers, and customers. Built with React, Node.js, and MongoDB Atlas.
+
+## 🌟 Features
+
+### For Customers
+- **Product Discovery**: Browse products by category, search, and filters
+- **Artisan Profiles**: View detailed profiles of local artisans and food makers
+- **Product Reviews**: Read and write reviews for products
+- **Shopping Cart**: Add products to cart and manage orders
+- **User Authentication**: Secure login and registration system
+
+### For Artisans/Food Makers
+- **Product Management**: Add, edit, and manage product listings
+- **Profile Management**: Create and customize artisan profiles
+- **Order Management**: Track and manage incoming orders
+- **Analytics**: View sales and performance metrics
+
+### For Administrators
+- **Admin Dashboard**: Comprehensive analytics and management tools
+- **User Management**: Manage users, roles, and permissions
+- **Content Moderation**: Review and approve products/reviews
+- **System Monitoring**: Monitor platform health and performance
+
+## 🛠️ Technology Stack
+
+### Frontend
+- **React 18** - Modern UI framework
+- **Vite** - Fast build tool and dev server
+- **Tailwind CSS** - Utility-first CSS framework
+- **React Router** - Client-side routing
+- **React Hot Toast** - Toast notifications
+- **Heroicons** - Beautiful SVG icons
+
+### Backend
+- **Node.js** - JavaScript runtime
+- **Express.js** - Web application framework
+- **MongoDB Atlas** - Cloud database
+- **Mongoose** - MongoDB object modeling
+- **JWT** - Authentication tokens
+- **Multer** - File upload handling
+- **CORS** - Cross-origin resource sharing
+
+### Development Tools
+- **Nodemon** - Auto-restart server during development
+- **Concurrently** - Run multiple commands simultaneously
+- **Dotenv** - Environment variable management
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js (v16 or higher)
-- MongoDB (local or Atlas)
 - npm or yarn
+- MongoDB Atlas account
 
 ### Installation
 
@@ -30,215 +75,159 @@ A full-stack web application connecting local artisans with customers, built wit
    ```
 
 3. **Environment Setup**
-   ```bash
-   # Copy environment file
-   cp backend/.env.example backend/.env
    
-   # Update with your MongoDB connection string
-   # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+   Create `.env` file in the `backend` directory:
+   ```env
+   PORT=4000
+   MONGODB_URI=mongodb+srv://your-username:your-password@your-cluster.mongodb.net/your-database
+   JWT_SECRET=your-jwt-secret-key
+   NODE_ENV=development
    ```
 
 4. **Start the application**
    ```bash
-   # Start both backend and frontend
-   npm start
+   # Development mode (both frontend and backend)
+   npm run dev
    
    # Or start individually:
-   # Backend: cd backend && npm start
-   # Frontend: cd frontend && npm run dev
+   npm run dev:backend  # Backend only
+   npm run dev:frontend # Frontend only
    ```
+
+5. **Access the application**
+   - Frontend: http://localhost:5178
+   - Backend API: http://localhost:4000/api
+   - Health Check: http://localhost:4000/api/health
 
 ## 📁 Project Structure
 
 ```
 food-finder-app/
-├── backend/                 # Node.js/Express backend
+├── backend/                 # Backend server
 │   ├── src/
-│   │   ├── models/         # Mongoose schemas
-│   │   ├── routes/         # API routes
+│   │   ├── config/         # Configuration files
 │   │   ├── controllers/    # Route controllers
 │   │   ├── middleware/     # Custom middleware
+│   │   ├── models/         # Database models
+│   │   ├── routes/         # API routes
 │   │   └── services/       # Business logic
 │   ├── public/             # Static files
 │   └── server.js           # Main server file
-├── frontend/               # React frontend
+├── frontend/               # React application
 │   ├── src/
 │   │   ├── components/     # React components
+│   │   ├── pages/          # Page components
 │   │   ├── services/       # API services
-│   │   └── pages/          # Page components
-│   └── vite.config.js      # Vite configuration
-├── scripts/                # Utility scripts
-│   ├── migration/          # Database migration scripts
-│   ├── testing/            # Testing and debugging scripts
-│   ├── debug/              # Database debugging scripts
-│   ├── backup/             # Backup data and scripts
-│   └── cleanup/            # Database cleanup scripts
+│   │   ├── data/           # Static data
+│   │   └── utils/          # Utility functions
+│   └── public/             # Public assets
 ├── documentation/          # Project documentation
-└── package.json            # Root package configuration
+└── scripts/               # Utility scripts
 ```
 
-## 🔧 Scripts Directory
+## 🔧 API Endpoints
 
-The `scripts/` directory contains organized utility scripts:
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `GET /api/auth/profile` - Get user profile
 
-### Migration Scripts (`scripts/migration/`)
-- Database migration to MongoDB Atlas
-- Data backup and restore
-- Data structure fixes
+### Products
+- `GET /api/products` - Get all products
+- `GET /api/products/:id` - Get product by ID
+- `GET /api/products/featured` - Get featured products
+- `POST /api/products` - Create new product (authenticated)
+- `PUT /api/products/:id` - Update product (authenticated)
+- `DELETE /api/products/:id` - Delete product (authenticated)
 
-### Testing Scripts (`scripts/testing/`)
-- API endpoint testing
-- Frontend functionality testing
-- Search functionality validation
+### Artisans
+- `GET /api/artisans` - Get all artisans
+- `GET /api/artisans/:id` - Get artisan by ID
+- `POST /api/artisans` - Create artisan profile (authenticated)
 
-### Debug Scripts (`scripts/debug/`)
-- Database connectivity testing
-- Mongoose population debugging
-- Data verification tools
+### Orders
+- `GET /api/orders` - Get user orders (authenticated)
+- `POST /api/orders` - Create new order (authenticated)
+- `PUT /api/orders/:id` - Update order status (authenticated)
 
-### Backup Scripts (`scripts/backup/`)
-- Database backup data
-- Backup management tools
-
-### Cleanup Scripts (`scripts/cleanup/`)
-- Database cleanup operations
-- Development environment reset
-
-## 🌟 Features
-
-### User Management
-- User registration and authentication
-- Role-based access (buyer, seller, producer)
-- Profile management
-
-### Product Management
-- Product creation and editing
-- Image upload and management
-- Inventory tracking
-- Category and tag system
-
-### Search and Discovery
-- Advanced search algorithm
-- Category filtering
-- Price and distance sorting
-- Geolocation-based results
-
-### Order Management
-- Shopping cart functionality
-- Order tracking
-- Payment integration (future)
-
-## 🔍 Search Functionality
-
-The application features a robust search system:
-
-### Search Algorithm
-- **Exact Match**: Products with exact name matches
-- **Partial Match**: Products containing search terms
-- **Synonym Matching**: Related terms and variations
-- **Typo Tolerance**: Handles common misspellings
-- **Relevance Scoring**: Intelligent result ranking
-
-### Search Features
-- Real-time search suggestions
-- Category-based filtering
-- Price range filtering
-- Distance-based sorting
-- Seller information display
+### Reviews
+- `GET /api/reviews/product/:id` - Get product reviews
+- `POST /api/reviews` - Create review (authenticated)
 
 ## 🗄️ Database Schema
 
-### Users Collection
-```javascript
-{
-  _id: ObjectId,
-  firstName: String,
-  lastName: String,
-  email: String,
-  phone: String,
-  role: String, // 'buyer', 'seller', 'producer'
-  addresses: Array,
-  paymentMethods: Array,
-  notificationPreferences: Object,
-  accountSettings: Object
-}
-```
+### Users
+- Basic user information
+- Role-based access (customer, artisan, admin)
+- Authentication data
 
-### Products Collection
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  description: String,
-  price: Number,
-  category: String,
-  subcategory: String,
-  stock: Number,
-  unit: String,
-  image: String,
-  tags: Array,
-  seller: ObjectId, // Reference to Users collection
-  status: String, // 'active', 'inactive'
-  leadTimeHours: Number,
-  isOrganic: Boolean,
-  isGlutenFree: Boolean,
-  isVegan: Boolean,
-  isHalal: Boolean
-}
-```
+### Products
+- Product details (name, description, price)
+- Category and subcategory classification
+- Image URLs and metadata
+- Seller reference
+
+### Artisans
+- Artisan profile information
+- Business details and contact info
+- Product catalog reference
+
+### Orders
+- Order details and status
+- Customer and product references
+- Payment and shipping information
+
+### Reviews
+- Product and artisan reviews
+- Rating and comment system
+- User reference
+
+## 🔐 Security Features
+
+- **JWT Authentication** - Secure token-based authentication
+- **Password Hashing** - Bcrypt password encryption
+- **CORS Protection** - Cross-origin request handling
+- **Input Validation** - Request data validation
+- **File Upload Security** - Secure file handling
+- **Environment Variables** - Sensitive data protection
 
 ## 🚀 Deployment
 
 ### Backend Deployment
-1. Set environment variables
-2. Configure MongoDB Atlas connection
-3. Deploy to your preferred platform (Heroku, AWS, etc.)
+1. Set up MongoDB Atlas cluster
+2. Configure environment variables
+3. Deploy to your preferred platform (Heroku, Vercel, AWS, etc.)
 
 ### Frontend Deployment
-1. Build the application: `npm run build`
-2. Deploy the `dist/` folder to your hosting service
-
-## 🧪 Testing
-
-### API Testing
-```bash
-cd scripts/testing
-node test-search-api.js
-```
-
-### Frontend Testing
-```bash
-# Open test files in browser
-open scripts/testing/test-search.html
-```
-
-### Database Testing
-```bash
-cd scripts/debug
-node test-population.js
-```
-
-## 📚 Documentation
-
-- [Migration Guide](documentation/MIGRATION_GUIDE.md)
-- [Atlas Migration Summary](documentation/ATLAS_MIGRATION_SUMMARY.md)
-- [Scripts Documentation](scripts/README.md)
+1. Build the production version: `npm run build`
+2. Deploy the `dist` folder to your hosting platform
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
+2. Create a feature branch: `git checkout -b feature-name`
+3. Commit your changes: `git commit -am 'Add feature'`
+4. Push to the branch: `git push origin feature-name`
 5. Submit a pull request
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
 For support and questions:
-- Check the documentation
-- Review the scripts directory for debugging tools
-- Open an issue on GitHub
+- Create an issue in the GitHub repository
+- Contact the development team
+- Check the documentation in the `/documentation` folder
+
+## 🔄 Version History
+
+- **v1.0.0** - Initial release with core marketplace features
+- **v1.1.0** - Added admin dashboard and analytics
+- **v1.2.0** - Enhanced search and filtering capabilities
+- **v1.3.0** - Improved user experience and performance
+
+---
+
+**Built with ❤️ for local artisans and food makers**

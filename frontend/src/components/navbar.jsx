@@ -6,11 +6,13 @@ import {
   MagnifyingGlassIcon,
   Bars3Icon,
   XMarkIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  ChevronDownIcon
 } from "@heroicons/react/24/outline";
 import { authToken, logoutUser, getProfile } from "../services/authService";
 import { cartService } from "../services/cartService";
 import { guestService } from "../services/guestService";
+import enhancedSearchService from "../services/enhancedSearchService";
 import toast from "react-hot-toast";
 
 export default function Navbar() {
@@ -23,6 +25,9 @@ export default function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showPopularSearches, setShowPopularSearches] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -121,13 +126,164 @@ export default function Navbar() {
     navigate('/');
   };
 
-  const handleSearch = (e) => {
+  // Product Categories (matching actual database categories)
+  const categories = [
+    { id: 'all', name: 'All Products', icon: '🌟' },
+    { id: 'Bakery', name: 'Bakery', icon: '🥖' },
+    { id: 'Dairy & Eggs', name: 'Dairy & Eggs', icon: '🥛' },
+    { id: 'Fresh Produce', name: 'Fresh Produce', icon: '🍎' },
+    { id: 'Meat & Poultry', name: 'Meat & Poultry', icon: '🍗' },
+    { id: 'Honey & Jams', name: 'Honey & Jams', icon: '🍯' },
+    { id: 'Herbs & Spices', name: 'Herbs & Spices', icon: '🌿' },
+    { id: 'Artisan Cakes', name: 'Artisan Cakes', icon: '🎂' },
+    { id: 'Small-Batch Coffee', name: 'Small-Batch Coffee', icon: '☕' },
+    { id: 'Artisan Tea', name: 'Artisan Tea', icon: '🫖' },
+    { id: 'Homemade Jams', name: 'Homemade Jams', icon: '🍓' },
+    { id: 'Pickles & Preserves', name: 'Pickles & Preserves', icon: '🥒' },
+    { id: 'Artisan Sauces', name: 'Artisan Sauces', icon: '🍅' },
+    { id: 'Fresh Spices', name: 'Fresh Spices', icon: '🧂' },
+    { id: 'Nuts & Seeds', name: 'Nuts & Seeds', icon: '🥜' },
+    { id: 'Grains & Flour', name: 'Grains & Flour', icon: '🌾' },
+    { id: 'Fresh Pasta', name: 'Fresh Pasta', icon: '🍝' },
+    { id: 'Artisan Oils', name: 'Artisan Oils', icon: '🫒' },
+    { id: 'Specialty Vinegars', name: 'Specialty Vinegars', icon: '🍷' },
+    { id: 'Artisan Cheese', name: 'Artisan Cheese', icon: '🧀' },
+    { id: 'Fresh Yogurt', name: 'Fresh Yogurt', icon: '🥛' },
+    { id: 'Handmade Butter', name: 'Handmade Butter', icon: '🧈' },
+    { id: 'Artisan Ice Cream', name: 'Artisan Ice Cream', icon: '🍦' },
+    { id: 'Handcrafted Chocolate', name: 'Handcrafted Chocolate', icon: '🍫' },
+    { id: 'Homemade Candies', name: 'Homemade Candies', icon: '🍬' },
+    { id: 'Artisan Snacks', name: 'Artisan Snacks', icon: '🥨' },
+    { id: 'Craft Beverages', name: 'Craft Beverages', icon: '🥤' },
+    { id: 'Small-Batch Alcohol', name: 'Small-Batch Alcohol', icon: '🍺' },
+    { id: 'Fresh Flowers', name: 'Fresh Flowers', icon: '🌸' },
+    { id: 'Plants & Herbs', name: 'Plants & Herbs', icon: '🌱' },
+    { id: 'Garden Seeds', name: 'Garden Seeds', icon: '🌱' },
+    { id: 'Organic Fertilizers', name: 'Organic Fertilizers', icon: '🌿' },
+    { id: 'Other', name: 'Other', icon: '📦' }
+  ];
+
+  // Popular searches
+  const popularSearches = [
+    'fresh eggs', 'sourdough bread', 'maple syrup', 'organic honey', 
+    'artisan cheese', 'fresh herbs', 'homemade pasta', 'farm vegetables'
+  ];
+
+  const handleSearch = async (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+      try {
+        // Get user location for enhanced search
+        const userLocation = await enhancedSearchService.getUserLocation();
+        
+        // Navigate to search with enhanced parameters
+        const searchParams = new URLSearchParams({
+          q: searchQuery.trim(),
+          enhanced: 'true'
+        });
+        
+        if (userLocation) {
+          searchParams.append('lat', userLocation.latitude);
+          searchParams.append('lng', userLocation.longitude);
+        }
+        
+        navigate(`/search?${searchParams.toString()}`);
+        setSearchQuery('');
+      } catch (error) {
+        console.error('Enhanced search error:', error);
+        // Fallback to basic search
+        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        setSearchQuery('');
+      }
     }
   };
+
+  const handleCategorySelect = async (categoryId) => {
+    setSelectedCategory(categoryId);
+    setShowCategoryDropdown(false);
+    
+    try {
+      // Get user location for enhanced search
+      const userLocation = await enhancedSearchService.getUserLocation();
+      
+      if (categoryId === 'all') {
+        navigate('/search');
+      } else {
+        const categoryName = categories.find(c => c.id === categoryId)?.name;
+        const searchParams = new URLSearchParams({
+          category: categoryId,
+          q: categoryName || '',
+          enhanced: 'true'
+        });
+        
+        if (userLocation) {
+          searchParams.append('lat', userLocation.latitude);
+          searchParams.append('lng', userLocation.longitude);
+        }
+        
+        navigate(`/search?${searchParams.toString()}`);
+      }
+    } catch (error) {
+      console.error('Enhanced category search error:', error);
+      // Fallback to basic search
+      if (categoryId === 'all') {
+        navigate('/search');
+      } else {
+        const categoryName = categories.find(c => c.id === categoryId)?.name;
+        navigate(`/search?category=${categoryId}&q=${encodeURIComponent(categoryName || '')}`);
+      }
+    }
+  };
+
+  const handlePopularSearch = async (search) => {
+    try {
+      // Get user location for enhanced search
+      const userLocation = await enhancedSearchService.getUserLocation();
+      
+      const searchParams = new URLSearchParams({
+        q: search,
+        enhanced: 'true'
+      });
+      
+      if (userLocation) {
+        searchParams.append('lat', userLocation.latitude);
+        searchParams.append('lng', userLocation.longitude);
+      }
+      
+      navigate(`/search?${searchParams.toString()}`);
+      setShowPopularSearches(false);
+    } catch (error) {
+      console.error('Enhanced popular search error:', error);
+      // Fallback to basic search
+      navigate(`/search?q=${encodeURIComponent(search)}`);
+      setShowPopularSearches(false);
+    }
+  };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.search-container')) {
+        setShowCategoryDropdown(false);
+        setShowPopularSearches(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowCategoryDropdown(false);
+        setShowPopularSearches(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   return (
     <nav className="bg-white shadow-lg border-b border-stone-200 sticky top-0 z-50">
@@ -138,7 +294,7 @@ export default function Navbar() {
             <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
               <BuildingStorefrontIcon className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-gradient">The Bazar</span>
+            <span className="text-2xl font-bold text-gradient">The Bazaar</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -154,18 +310,73 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-md mx-8">
+          {/* Enhanced Search Bar with Category Dropdown */}
+          <div className="hidden md:flex flex-1 max-w-lg mx-8 search-container">
             <form onSubmit={handleSearch} className="w-full">
               <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search for products..."
-                  className="search-bar pl-12 pr-4"
-                />
-                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-stone-400" />
+                <div className="flex">
+                  {/* Category Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-r-0 border-gray-300 rounded-l-full hover:bg-gray-100 transition-colors"
+                    >
+                      <span className="text-lg">{categories.find(c => c.id === selectedCategory)?.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {categories.find(c => c.id === selectedCategory)?.name}
+                      </span>
+                      <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                    </button>
+                    
+                                     {showCategoryDropdown && (
+                   <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                     {categories.map((category) => (
+                       <button
+                         key={category.id}
+                         onClick={() => handleCategorySelect(category.id)}
+                         className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                       >
+                         <span className="text-lg">{category.icon}</span>
+                         <span className="text-sm font-medium text-gray-700">{category.name}</span>
+                       </button>
+                     ))}
+                   </div>
+                 )}
+                  </div>
+                  
+                  {/* Search Input */}
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setShowPopularSearches(true)}
+                    placeholder="Search for anything from local artisans..."
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-r-full focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                  />
+                </div>
+                
+                {/* Popular Searches Dropdown */}
+                {showPopularSearches && searchQuery === '' && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
+                    <div className="p-4">
+                      <p className="text-sm font-medium text-gray-700 mb-3">Popular searches:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {popularSearches.map((search) => (
+                          <button
+                            key={search}
+                            onClick={() => handlePopularSearch(search)}
+                            className="px-3 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-700 rounded-full text-sm transition-colors"
+                          >
+                            {search}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <MagnifyingGlassIcon className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
               </div>
             </form>
           </div>
@@ -182,8 +393,17 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* User Menu */}
-            {isAuthenticated ? (
+            {/* Sign In / User Menu */}
+            {!isAuthenticated ? (
+              <div className="flex items-center space-x-3">
+                <Link to="/login" className="text-gray-700 hover:text-amber-600 transition-colors text-sm font-medium">
+                  Sign In
+                </Link>
+                <Link to="/register" className="bg-amber-600 text-white px-4 py-2 rounded-full hover:bg-amber-700 transition-colors text-sm font-medium">
+                  Join Now
+                </Link>
+              </div>
+            ) : (
               <div className="relative group">
                 <button className="flex items-center space-x-2 p-2 text-stone-700 hover:text-amber-600 transition-colors duration-300">
                   <UserIcon className="w-6 h-6" />
@@ -194,17 +414,30 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-stone-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   {!isGuest && (
                     <>
-                      <Link to={userRole === 'artisan' ? "/profile" : "/account"} className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                        My Profile
-                      </Link>
-                      {userRole === 'artisan' && (
-                        <Link to="/products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                          My Products
-                        </Link>
+                      {/* Admin Dashboard Link */}
+                      {userRole === 'admin' && (
+                        <>
+                          <Link to="/admin" className="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium">
+                            Admin Dashboard
+                          </Link>
+                          <hr className="my-2 border-stone-200" />
+                        </>
                       )}
-                      <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                        My Orders
-                      </Link>
+                      {userRole !== 'admin' && (
+                        <>
+                          <Link to={userRole === 'artisan' ? "/profile" : "/account"} className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                            My Profile
+                          </Link>
+                          {userRole === 'artisan' && (
+                            <Link to="/products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              My Products
+                            </Link>
+                          )}
+                          <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                            My Orders
+                          </Link>
+                        </>
+                      )}
                       <hr className="my-2 border-stone-200" />
                     </>
                   )}
@@ -215,20 +448,6 @@ export default function Navbar() {
                     {isGuest ? 'Clear Session' : 'Sign Out'}
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-3">
-                {cartCount > 0 && (
-                  <Link to="/guest-checkout" className="btn-primary bg-green-600 hover:bg-green-700">
-                    Guest Checkout ({cartCount})
-                  </Link>
-                )}
-                <Link to="/login" className="btn-secondary">
-                  Sign In
-                </Link>
-                <Link to="/register" className="btn-primary">
-                  Join Now
-                </Link>
               </div>
             )}
 
@@ -247,17 +466,67 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Search */}
-        <div className="md:hidden py-4">
+        <div className="md:hidden py-4 search-container">
           <form onSubmit={handleSearch} className="w-full">
             <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for products..."
-                className="search-bar pl-12 pr-4"
-              />
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-stone-400" />
+              <div className="flex">
+                {/* Mobile Category Dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                    className="flex items-center space-x-2 px-3 py-2 bg-gray-50 border border-r-0 border-gray-300 rounded-l-lg text-sm"
+                  >
+                    <span className="text-lg">{categories.find(c => c.id === selectedCategory)?.icon}</span>
+                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                  </button>
+                  
+                  {showCategoryDropdown && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                      {categories.map((category) => (
+                        <button
+                          key={category.id}
+                          onClick={() => handleCategorySelect(category.id)}
+                          className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="text-lg">{category.icon}</span>
+                          <span className="text-sm font-medium text-gray-700">{category.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Mobile Search Input */}
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowPopularSearches(true)}
+                  placeholder="Search products..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+              </div>
+              
+              {/* Mobile Popular Searches */}
+              {showPopularSearches && searchQuery === '' && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Popular searches:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {popularSearches.map((search) => (
+                        <button
+                          key={search}
+                          onClick={() => handlePopularSearch(search)}
+                          className="px-2 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-700 rounded text-xs transition-colors"
+                        >
+                          {search}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </div>
@@ -290,33 +559,49 @@ export default function Navbar() {
             </Link>
             {isAuthenticated && (
               <>
-                <Link
-                  to={userRole === 'artisan' ? "/profile" : "/account"}
-                  className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  My Profile
-                </Link>
-                {userRole === 'artisan' && (
+                {/* Admin Dashboard Link */}
+                {userRole === 'admin' && (
                   <Link
-                    to="/products"
-                    className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                    to="/admin"
+                    className="block px-3 py-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-300"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    My Products
+                    Admin Dashboard
                   </Link>
+                )}
+                {userRole !== 'admin' && (
+                  <>
+                    <Link
+                      to={userRole === 'artisan' ? "/profile" : "/account"}
+                      className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      My Profile
+                    </Link>
+                    {userRole === 'artisan' && (
+                      <Link
+                        to="/products"
+                        className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        My Products
+                      </Link>
+                    )}
+                  </>
                 )}
               </>
             )}
             {isAuthenticated && (
               <>
-                <Link
-                  to="/orders"
-                  className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  My Orders
-                </Link>
+                {userRole !== 'admin' && (
+                  <Link
+                    to="/orders"
+                    className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    My Orders
+                  </Link>
+                )}
                 <button
                   onClick={() => {
                     handleLogout();

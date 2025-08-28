@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
 
@@ -74,6 +75,175 @@ function expandSearchTerms(searchTerm) {
   }
   
   return [...new Set(expanded)]; // Remove duplicates
+}
+
+// Enhanced ranking algorithm
+async function applyEnhancedRanking(products, searchQuery, userLat, userLng, proximityRadius) {
+  if (!products || products.length === 0) return products;
+
+  const searchTerms = searchQuery ? searchQuery.toLowerCase().trim().split(/\s+/) : [];
+  const expandedTerms = searchTerms.flatMap(term => expandSearchTerms(term));
+
+  return products.map(product => {
+    let score = 0;
+    const productName = (product.name || '').toLowerCase();
+    const productDesc = (product.description || '').toLowerCase();
+    const productTags = Array.isArray(product.tags) ? product.tags.map(tag => (tag || '').toLowerCase()) : [];
+    const productCategory = (product.category || '').toLowerCase();
+    const productSubcategory = (product.subcategory || '').toLowerCase();
+
+    // 1. Exact Match + Keyword Tags (Highest Priority)
+    if (searchQuery) {
+      const fullSearchQuery = searchQuery.toLowerCase();
+      
+      // Exact name match
+      if (productName === fullSearchQuery) {
+        score += 1000;
+      }
+      
+      // Name starts with search term
+      if (productName.startsWith(fullSearchQuery)) {
+        score += 500;
+      }
+      
+      // Individual term exact matches
+      searchTerms.forEach(term => {
+        if (productName === term) {
+          score += 800;
+        }
+        if (productName.startsWith(term)) {
+          score += 400;
+        }
+        if (productName.includes(term)) {
+          score += 200;
+        }
+      });
+      
+      // Tag exact matches
+      searchTerms.forEach(term => {
+        if (productTags.includes(term)) {
+          score += 300;
+        }
+        if (productTags.some(tag => tag.includes(term))) {
+          score += 150;
+        }
+      });
+      
+      // Category exact match
+      if (productCategory === fullSearchQuery) {
+        score += 500;
+      }
+      
+      // Word boundary matches
+      searchTerms.forEach(term => {
+        if (new RegExp(`\\b${term}\\b`, 'i').test(productName)) {
+          score += 150;
+        }
+      });
+    }
+
+    // 2. Proximity Weighting (Geo-based)
+    if (userLat && userLng && product.artisan?.location?.coordinates) {
+      const distance = calculateDistance(
+        parseFloat(userLat),
+        parseFloat(userLng),
+        product.artisan.location.coordinates[1], // latitude
+        product.artisan.location.coordinates[0]  // longitude
+      );
+      
+      // Score based on distance (closer = higher score)
+      if (distance <= 5) score += 200;      // Within 5km
+      else if (distance <= 10) score += 150; // Within 10km
+      else if (distance <= 25) score += 100; // Within 25km
+      else if (distance <= 50) score += 50;  // Within 50km
+    }
+
+    // 3. Product Popularity & Engagement
+    if (product.totalSales) {
+      score += Math.min(product.totalSales * 10, 200); // Max 200 points
+    }
+    
+    if (product.rating?.average) {
+      score += product.rating.average * 20; // 5-star = 100 points
+    }
+    
+    if (product.rating?.count) {
+      score += Math.min(product.rating.count * 2, 100); // Max 100 points
+    }
+    
+    if (product.favoriteCount) {
+      score += Math.min(product.favoriteCount * 5, 100); // Max 100 points
+    }
+
+    // 4. Seller Quality Score
+    if (product.artisan?.rating?.average) {
+      score += product.artisan.rating.average * 30; // 5-star = 150 points
+    }
+    
+    if (product.artisan?.isVerified) {
+      score += 50;
+    }
+    
+    if (product.artisan?.deliveryStats?.onTimeRate) {
+      score += product.artisan.deliveryStats.onTimeRate * 100; // 100% = 100 points
+    }
+    
+    if (product.artisan?.complaintRate) {
+      score -= product.artisan.complaintRate * 200; // Penalty for complaints
+    }
+
+    // 5. Recency of Listing
+    const daysSinceCreated = (Date.now() - new Date(product.createdAt)) / (1000 * 60 * 60 * 24);
+    if (daysSinceCreated <= 7) score += 50;      // First week
+    else if (daysSinceCreated <= 30) score += 30; // First month
+    else if (daysSinceCreated <= 90) score += 15; // First quarter
+
+    // 6. Featured/Curated Products
+    if (product.isFeatured) score += 200;
+    if (product.isSeasonal) score += 100;
+    if (product.isCurated) score += 150;
+    
+    // Special badges
+    if (product.badges?.includes('trending')) score += 100;
+    if (product.badges?.includes('bestseller')) score += 150;
+    if (product.badges?.includes('new')) score += 80;
+
+    // 7. Quality Indicators
+    if (product.isOrganic) score += 30;
+    if (productName.includes('fresh')) score += 20;
+    if (productName.includes('organic')) score += 20;
+    if (productName.includes('artisan')) score += 20;
+    if (productName.includes('homemade')) score += 20;
+    
+    // 8. Stock and Availability
+    if (product.image) score += 10;
+    if (product.stock > 10) score += 5;
+    
+    // 9. Starter boost for new products (first 30 days)
+    if (daysSinceCreated <= 30) {
+      score += Math.max(50 - daysSinceCreated, 0); // Decreasing boost over time
+    }
+
+    return { ...product.toObject(), enhancedScore: Math.round(score) };
+  }).sort((a, b) => b.enhancedScore - a.enhancedScore);
+}
+
+// Calculate distance between two points (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  return distance;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI/180);
 }
 
 // Configure multer for file uploads
@@ -308,6 +478,196 @@ router.get('/search', async (req, res) => {
   }
 });
 
+// Enhanced search endpoint with sophisticated ranking
+router.get('/enhanced-search', async (req, res) => {
+  try {
+    const { 
+      search, 
+      userLat, 
+      userLng, 
+      proximityRadius = 10,
+      category, 
+      subcategory, 
+      tags, 
+      organic, 
+      glutenFree, 
+      vegan, 
+      halal,
+      minPrice,
+      maxPrice,
+      enhancedRanking = 'true'
+    } = req.query;
+
+    let query = { status: 'active' };
+    
+    // Build search query with exact matching priority
+    if (search) {
+      const searchTerms = search.toLowerCase().trim().split(/\s+/);
+      const expandedTerms = searchTerms.flatMap(term => expandSearchTerms(term));
+      
+      // Prioritize exact matches
+      query.$or = [
+        // 1. Exact name matches (highest priority)
+        { name: { $regex: `^${search}$`, $options: 'i' } },
+        // 2. Name starts with search term
+        { name: { $regex: `^${search}`, $options: 'i' } },
+        // 3. Exact word boundary matches
+        ...searchTerms.map(term => ({ name: { $regex: `\\b${term}\\b`, $options: 'i' } })),
+        // 4. Name contains search term
+        { name: { $regex: search, $options: 'i' } },
+        // 5. Expanded term matches in name
+        ...expandedTerms.map(term => ({ name: { $regex: term, $options: 'i' } })),
+        // 6. Tag exact matches
+        { tags: { $in: searchTerms.map(term => new RegExp(`^${term}$`, 'i')) } },
+        // 7. Tag contains matches
+        { tags: { $in: searchTerms.map(term => new RegExp(term, 'i')) } },
+        // 8. Category exact match
+        { category: { $regex: `^${search}$`, $options: 'i' } },
+        // 9. Category contains
+        { category: { $regex: search, $options: 'i' } },
+        // 10. Description matches (lowest priority)
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Apply filters
+    if (category) query.category = category;
+    if (subcategory) query.subcategory = subcategory;
+    if (tags) {
+      const tagArray = tags.split(',').map(tag => tag.trim());
+      query.tags = { $in: tagArray };
+    }
+    if (organic === 'true') query.isOrganic = true;
+    if (glutenFree === 'true') query.isGlutenFree = true;
+    if (vegan === 'true') query.isVegan = true;
+    if (halal === 'true') query.isHalal = true;
+    
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
+    }
+
+    // Get products with artisan information
+    let products = await Product.find(query)
+      .populate('seller', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type description location rating isVerified');
+
+    // Enhanced ranking algorithm
+    if (enhancedRanking === 'true') {
+      products = await applyEnhancedRanking(products, search, userLat, userLng, proximityRadius);
+    }
+
+    res.json({
+      products,
+      searchMetadata: {
+        query: search,
+        totalResults: products.length,
+        userLocation: userLat && userLng ? 'available' : 'unavailable',
+        enhancedRanking: enhancedRanking === 'true',
+        rankingFactors: {
+          exactMatch: true,
+          proximity: !!userLat,
+          quality: true,
+          engagement: true,
+          recency: true,
+          featured: true
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Enhanced search error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Enhanced search suggestions
+router.get('/enhanced-suggestions', async (req, res) => {
+  try {
+    const { q, userLat, userLng } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+    
+    const searchTerm = q.toLowerCase().trim();
+    const expandedTerms = expandSearchTerms(searchTerm);
+    
+    // Get suggestions with ranking
+    const suggestions = await Product.aggregate([
+      {
+        $match: {
+          status: 'active',
+          $or: [
+            { name: { $regex: `^${searchTerm}`, $options: 'i' } },
+            { name: { $regex: `\\b${searchTerm}`, $options: 'i' } },
+            { category: { $regex: `^${searchTerm}$`, $options: 'i' } },
+            { tags: { $in: expandedTerms.map(term => new RegExp(`^${term}$`, 'i')) } }
+          ]
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'seller',
+          foreignField: 'user',
+          as: 'artisan'
+        }
+      },
+      {
+        $unwind: { path: '$artisan', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $addFields: {
+          relevanceScore: {
+            $sum: [
+              // Exact name match
+              { $cond: [{ $eq: [{ $toLower: '$name' }, searchTerm] }, 1000, 0] },
+              // Name starts with
+              { $cond: [{ $regexMatch: { input: { $toLower: '$name' }, regex: `^${searchTerm}` } }, 500, 0] },
+              // Category exact match
+              { $cond: [{ $eq: [{ $toLower: '$category' }, searchTerm] }, 300, 0] },
+              // Tag exact match
+              { $cond: [{ $in: [searchTerm, '$tags'] }, 200, 0] },
+              // Rating boost
+              { $multiply: ['$rating.average', 20] },
+              // Recent boost
+              { $cond: [{ $lt: [{ $subtract: [new Date(), '$createdAt'] }, 7 * 24 * 60 * 60 * 1000] }, 50, 0] }
+            ]
+          }
+        }
+      },
+      {
+        $sort: { relevanceScore: -1 }
+      },
+      {
+        $limit: 10
+      },
+      {
+        $group: {
+          _id: '$name',
+          category: { $first: '$category' },
+          relevanceScore: { $first: '$relevanceScore' },
+          artisan: { $first: '$artisan' }
+        }
+      },
+      {
+        $project: {
+          name: '$_id',
+          category: 1,
+          relevanceScore: 1,
+          artisan: 1
+        }
+      }
+    ]);
+    
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Enhanced suggestions error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get search suggestions
 router.get('/suggestions', async (req, res) => {
   try {
@@ -360,6 +720,8 @@ router.get('/suggestions', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+
 
 // Get all products (for discover page)
 router.get('/', async (req, res) => {
@@ -655,6 +1017,33 @@ router.get('/artisan/:artisanId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching artisan products:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get featured products
+router.get('/featured', async (req, res) => {
+  try {
+    const featuredProducts = await Product.find({ 
+      isFeatured: true, 
+      status: 'active'
+    })
+    .populate('seller', 'firstName lastName artisanName')
+    .populate('artisan', 'artisanName')
+    .sort({ createdAt: -1 })
+    .limit(12)
+    .lean(); // Use lean() for better performance
+
+    res.json({
+      success: true,
+      products: featuredProducts,
+      count: featuredProducts.length
+    });
+  } catch (error) {
+    console.error('Error fetching featured products:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching featured products' 
+    });
   }
 });
 

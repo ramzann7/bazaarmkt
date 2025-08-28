@@ -1,9 +1,45 @@
 const API_BASE_URL = '/api';
 
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache helper functions
+const getCacheKey = (endpoint, params = {}) => {
+  return `${endpoint}?${JSON.stringify(params)}`;
+};
+
+const getFromCache = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+};
+
+const setCache = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
+
+const clearCache = () => {
+  cache.clear();
+};
+
 export const artisanService = {
   // Get all artisans with optional filters
   async getAllArtisans(filters = {}) {
     try {
+      const cacheKey = getCacheKey('all-artisans', filters);
+      const cached = getFromCache(cacheKey);
+      
+      if (cached) {
+        return cached;
+      }
+      
       const queryParams = new URLSearchParams();
       
       if (filters.category) queryParams.append('category', filters.category);
@@ -12,8 +48,8 @@ export const artisanService = {
       if (filters.search) queryParams.append('search', filters.search);
       if (filters.includeProducts) queryParams.append('includeProducts', 'true');
 
-          const url = `${API_BASE_URL}/artisans?${queryParams}`;
-    console.log('Fetching artisans from:', url);
+      const url = `${API_BASE_URL}/artisans?${queryParams}`;
+      console.log('Fetching artisans from:', url);
       console.log('Filters applied:', filters);
       
       const response = await fetch(url);
@@ -26,6 +62,8 @@ export const artisanService = {
 
       const data = await response.json();
       console.log('Artisans fetched successfully:', data.length, 'artisans');
+      
+      setCache(cacheKey, data);
       return data;
     } catch (error) {
       console.error('Error fetching artisans:', error);

@@ -7,7 +7,6 @@ const verifyToken = require('../middleware/authMiddleware');
 router.get('/', async (req, res) => {
   try {
     const { category, type, location, search, includeProducts } = req.query;
-    console.log('Artisan query parameters:', { category, type, location, search, includeProducts });
     let query = { isActive: true };
 
     if (category) query.category = new RegExp(category, 'i');
@@ -23,14 +22,11 @@ router.get('/', async (req, res) => {
         { category: new RegExp(search, 'i') }
       ];
     }
-    
-    console.log('Final query:', query);
 
     const artisans = await Artisan.find(query)
       .populate('user', 'firstName lastName email phone')
-      .sort({ rating: -1 });
-    
-    console.log(`Found ${artisans.length} artisans for query:`, query);
+      .sort({ rating: -1 })
+      .lean(); // Use lean() for better performance
 
     // If includeProducts is requested, add product count and sample products
     if (includeProducts === 'true') {
@@ -40,32 +36,33 @@ router.get('/', async (req, res) => {
           // Check if artisan has a valid user reference
           if (!artisan.user || !artisan.user._id) {
             return {
-              ...artisan.toObject(),
+              ...artisan,
               products: [],
               productCount: 0
             };
           }
 
           try {
-            const products = await Product.find({ 
-              seller: artisan.user._id, 
-              status: 'active' 
-            }).limit(3);
-            
-            const productCount = await Product.countDocuments({ 
-              seller: artisan.user._id, 
-              status: 'active' 
-            });
+            const [products, productCount] = await Promise.all([
+              Product.find({ 
+                seller: artisan.user._id, 
+                status: 'active' 
+              }).limit(3).lean(),
+              Product.countDocuments({ 
+                seller: artisan.user._id, 
+                status: 'active' 
+              })
+            ]);
 
             return {
-              ...artisan.toObject(),
+              ...artisan,
               products: products,
               productCount: productCount
             };
           } catch (error) {
             console.error(`Error fetching products for artisan ${artisan._id}:`, error);
             return {
-              ...artisan.toObject(),
+              ...artisan,
               products: [],
               productCount: 0
             };

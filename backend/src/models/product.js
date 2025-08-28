@@ -90,6 +90,14 @@ const productSchema = new mongoose.Schema({
     enum: ['active', 'inactive', 'out_of_stock'],
     default: 'active'
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  isFeatured: {
+    type: Boolean,
+    default: false
+  },
   
   // Lead time for orders (in hours)
   leadTimeHours: {

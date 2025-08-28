@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
-import { loginUser } from "../services/authService";
+import { loginUser, getProfile } from "../services/authService";
+import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
 
 export default function Login() {
@@ -28,7 +29,21 @@ export default function Login() {
     try {
       await loginUser(formData);
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      
+      // Get user profile to determine redirect
+      const profile = await getProfile();
+      const userId = profile._id;
+      
+      // Check if user is new
+      const isNewUser = onboardingService.isNewUser(userId);
+      
+      if (isNewUser) {
+        // New user - redirect to profile setup
+        navigate("/profile");
+      } else {
+        // Returning user - redirect to homepage
+        navigate("/");
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Login failed. Please try again.");
     } finally {
@@ -129,7 +144,7 @@ export default function Login() {
               to="/register?type=business"
               className="btn-outline w-full"
             >
-              Become a Seller
+              Become an Artisan
             </Link>
           </div>
         </div>

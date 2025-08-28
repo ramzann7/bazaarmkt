@@ -13,7 +13,13 @@ import {
 } from '@heroicons/react/24/outline';
 import { getMyProducts, createProduct, updateProduct, deleteProduct, uploadImage, updateInventory, getAllProducts } from '../services/productService';
 import { getProfile } from '../services/authService';
+import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 import toast from 'react-hot-toast';
+
+// Debug imports
+console.log('Products component - PRODUCT_CATEGORIES:', PRODUCT_CATEGORIES);
+console.log('Products component - getAllCategories:', getAllCategories);
+console.log('Products component - getAllSubcategories:', getAllSubcategories);
 
 export default function Products() {
   const navigate = useNavigate();
@@ -48,29 +54,60 @@ export default function Products() {
   const nameInputRef = useRef(null);
   const suggestionsRef = useRef(null);
 
-  // Comprehensive product categories aligned with artisan types
-  const categories = {
-    'Fresh Produce & Vegetables': ['Leafy Greens', 'Root Vegetables', 'Tomatoes', 'Peppers', 'Cucumbers', 'Squash', 'Onions & Garlic', 'Carrots', 'Potatoes', 'Other Vegetables'],
-    'Fruits & Berries': ['Apples', 'Berries', 'Stone Fruits', 'Citrus', 'Melons', 'Grapes', 'Tropical Fruits', 'Other Fruits'],
-    'Dairy & Eggs': ['Milk', 'Cheese', 'Yogurt', 'Butter', 'Eggs', 'Cream', 'Ice Cream', 'Other Dairy'],
-    'Meat & Poultry': ['Beef', 'Pork', 'Chicken', 'Turkey', 'Lamb', 'Game Meat', 'Processed Meat', 'Other Meat'],
-    'Seafood & Fish': ['Fresh Fish', 'Shellfish', 'Smoked Fish', 'Canned Fish', 'Other Seafood'],
-    'Bread & Pastries': ['Bread', 'Pastries', 'Cakes', 'Cookies', 'Pies', 'Sourdough', 'Gluten-Free', 'Other Bakery'],
-    'Beverages & Drinks': ['Coffee', 'Tea', 'Juice', 'Wine', 'Beer', 'Spirits', 'Kombucha', 'Other Beverages'],
-    'Preserves & Jams': ['Jams', 'Jellies', 'Pickles', 'Sauces', 'Syrups', 'Chutneys', 'Other Preserves'],
-    'Herbs & Spices': ['Fresh Herbs', 'Dried Herbs', 'Spices', 'Herb Plants', 'Medicinal Herbs', 'Other Herbs'],
-    'Grains & Cereals': ['Wheat', 'Rice', 'Oats', 'Corn', 'Quinoa', 'Barley', 'Other Grains'],
-    'Nuts & Seeds': ['Almonds', 'Walnuts', 'Pecans', 'Sunflower Seeds', 'Pumpkin Seeds', 'Other Nuts'],
-    'Honey & Sweeteners': ['Honey', 'Maple Syrup', 'Agave', 'Molasses', 'Other Sweeteners'],
-    'Mushrooms': ['Button Mushrooms', 'Portobello', 'Shiitake', 'Oyster', 'Wild Mushrooms', 'Other Mushrooms'],
-    'Microgreens & Sprouts': ['Alfalfa', 'Broccoli', 'Radish', 'Pea Shoots', 'Other Microgreens'],
-    'Prepared Foods': ['Ready-to-Eat Meals', 'Soups', 'Salads', 'Dips', 'Other Prepared'],
-    'Specialty Items': ['Organic Products', 'Gluten-Free', 'Vegan', 'Keto', 'Paleo', 'Other Specialty'],
-    'Artisan Products': ['Chocolate', 'Artisan Cheese', 'Olive Oil', 'Vinegar', 'Mustard', 'Hot Sauce', 'Fermented Products'],
-    'Seasonal Products': ['Spring Products', 'Summer Products', 'Fall Products', 'Winter Products', 'Holiday Specialties']
-  };
+  // Comprehensive product categories from reference data
+  const categories = (() => {
+    try {
+      const categoryData = {};
+      const allCategories = getAllCategories();
+      
+      if (allCategories && Array.isArray(allCategories)) {
+        allCategories.forEach(category => {
+          const subcategories = getAllSubcategories().filter(sub => sub.categoryKey === category.key);
+          categoryData[category.name] = subcategories.map(sub => sub.subcategoryName);
+        });
+      }
+      
+      return categoryData;
+    } catch (error) {
+      console.error('Error initializing categories:', error);
+      // Return a fallback structure
+      return {
+        "Food & Beverages": ["Baked Goods", "Dairy Products", "Preserves & Jams", "Beverages"],
+        "Handmade Crafts": ["Jewelry", "Pottery & Ceramics", "Textiles & Fiber Arts", "Woodworking"],
+        "Clothing & Accessories": ["Clothing", "Accessories", "Shoes & Footwear", "Baby & Kids"]
+      };
+    }
+  })();
 
   const units = ['piece', 'kg', 'lb', 'g', 'oz', 'dozen', 'bunch', 'pack', 'bottle', 'jar'];
+
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return imagePath;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    
+    // Handle paths without leading slash
+    return `/${imagePath}`;
+  };
 
   useEffect(() => {
     loadUserAndProducts();
@@ -714,10 +751,11 @@ export default function Products() {
                     {product.image ? (
                       <>
                         <img 
-                          src={product.image.startsWith('http') ? product.image : `http://localhost:4000${product.image}`} 
+                          src={getImageUrl(product.image)} 
                           alt={product.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
+                            console.error('Image failed to load:', product.image);
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
                           }}
@@ -986,11 +1024,11 @@ export default function Products() {
                       />
                       {(editingProduct.imagePreview || editingProduct.image) && (
                         <div className="relative">
-                          <img 
-                            src={editingProduct.imagePreview || (editingProduct.image.startsWith('http') ? editingProduct.image : `http://localhost:4000${editingProduct.image}`)} 
-                            alt="Preview"
-                            className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                          />
+                                                <img 
+                        src={editingProduct.imagePreview || getImageUrl(editingProduct.image)} 
+                        alt="Preview"
+                        className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                      />
                           <button
                             type="button"
                             onClick={() => setEditingProduct({...editingProduct, image: null, imagePreview: null})}

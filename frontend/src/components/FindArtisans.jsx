@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -6,12 +6,31 @@ import {
   BuildingStorefrontIcon,
   PhoneIcon,
   EnvelopeIcon,
-  SparklesIcon
+  SparklesIcon,
+  FunnelIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { artisanService } from '../services/artisanService';
+import { 
+  PRODUCT_CATEGORIES, 
+  getAllCategories, 
+  getAllSubcategories 
+} from '../data/productReference';
+
+// Skeleton loading component
+const ArtisanSkeleton = () => (
+  <div className="animate-pulse">
+    <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
+    <div className="space-y-2">
+      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+    </div>
+  </div>
+);
 
 export default function FindArtisans() {
   const [artisans, setArtisans] = useState([]);
@@ -21,94 +40,90 @@ export default function FindArtisans() {
   const [selectedType, setSelectedType] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState('name');
+  const [showFilters, setShowFilters] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Artisan types for filtering
-  const artisanTypes = [
-    { value: 'all', label: 'All Artisan Types' },
-    { value: 'farm', label: 'Farm' },
-    { value: 'bakery', label: 'Bakery' },
-    { value: 'dairy', label: 'Dairy' },
-    { value: 'cheese_maker', label: 'Cheese Maker' },
-    { value: 'winery', label: 'Winery' },
-    { value: 'vineyard', label: 'Vineyard' },
-    { value: 'honey_producer', label: 'Honey Producer' },
-    { value: 'chocolate_maker', label: 'Chocolate Maker' },
-    { value: 'coffee_roaster', label: 'Coffee Roaster' },
-    { value: 'fish_market', label: 'Fish Market' },
-    { value: 'herb_garden', label: 'Herb Garden' },
-    { value: 'mushroom_farm', label: 'Mushroom Farm' },
-    { value: 'orchard', label: 'Orchard' }
-  ];
+  // Memoize static data to prevent re-renders
+  const artisanTypes = useMemo(() => {
+    const categories = getAllCategories();
+    return [
+      { value: 'all', label: 'All Artisan Types' },
+      ...categories.map(cat => ({
+        value: cat.key,
+        label: cat.name
+      }))
+    ];
+  }, []);
 
-  // Artisan type cards for selection
-  const artisanTypeCards = [
-    { id: 'all', name: 'All Artisans', icon: '🏪', description: 'Discover all local artisans' },
-    { id: 'bakery', name: 'Bakeries', icon: '🥖', description: 'Fresh breads and pastries' },
-    { id: 'farm', name: 'Local Farms', icon: '🌾', description: 'Fresh produce and farm goods' },
-    { id: 'dairy', name: 'Dairy & Cheese', icon: '🧀', description: 'Fresh dairy products' },
-    { id: 'cheese_maker', name: 'Cheese Makers', icon: '🧀', description: 'Artisan cheese products' },
-    { id: 'winery', name: 'Wineries', icon: '🍷', description: 'Local wines and vineyards' },
-    { id: 'vineyard', name: 'Vineyards', icon: '🍇', description: 'Premium wine grapes' },
-    { id: 'honey_producer', name: 'Honey Producers', icon: '🍯', description: 'Pure local honey' },
-    { id: 'chocolate_maker', name: 'Chocolate Makers', icon: '🍫', description: 'Artisan chocolates' },
-    { id: 'coffee_roaster', name: 'Coffee Roasters', icon: '☕', description: 'Fresh roasted coffee' },
-    { id: 'fish_market', name: 'Fish Markets', icon: '🐟', description: 'Fresh seafood' },
-    { id: 'herb_garden', name: 'Herb Gardens', icon: '🌿', description: 'Fresh herbs and spices' },
-    { id: 'mushroom_farm', name: 'Mushroom Farms', icon: '🍄', description: 'Fresh mushrooms' },
-    { id: 'orchard', name: 'Orchards', icon: '🍎', description: 'Fresh fruits and nuts' }
-  ];
+  // Extended artisan type cards for selection (Uber Eats style)
+  const artisanTypeCards = useMemo(() => {
+    const categories = getAllCategories();
+    return [
+      { id: 'all', name: 'All Artisans', icon: '🏪', description: 'Discover all local artisans' },
+      ...categories.map(cat => ({
+        id: cat.key,
+        name: cat.name,
+        icon: cat.icon,
+        description: cat.description
+      }))
+    ];
+  }, []);
 
   // Categories for filtering
-  const categories = [
-    { value: '', label: 'All Categories' },
-    { value: 'fresh_produce', label: 'Fresh Produce & Vegetables' },
-    { value: 'fruits', label: 'Fruits & Berries' },
-    { value: 'dairy', label: 'Dairy & Eggs' },
-    { value: 'meat', label: 'Meat & Poultry' },
-    { value: 'seafood', label: 'Seafood & Fish' },
-    { value: 'bakery', label: 'Bread & Pastries' },
-    { value: 'beverages', label: 'Beverages & Drinks' },
-    { value: 'preserves', label: 'Preserves & Jams' },
-    { value: 'herbs', label: 'Herbs & Spices' },
-    { value: 'grains', label: 'Grains & Cereals' },
-    { value: 'nuts', label: 'Nuts & Seeds' },
-    { value: 'honey', label: 'Honey & Sweeteners' },
-    { value: 'mushrooms', label: 'Mushrooms' },
-    { value: 'microgreens', label: 'Microgreens & Sprouts' },
-    { value: 'prepared_foods', label: 'Prepared Foods' },
-    { value: 'specialty_items', label: 'Specialty Items' },
-  ];
+  const categories = useMemo(() => {
+    const allSubcategories = getAllSubcategories();
+    return [
+      { value: '', label: 'All Categories' },
+      ...allSubcategories.map(sub => ({
+        value: sub.subcategoryKey,
+        label: sub.subcategoryName
+      }))
+    ];
+  }, []);
 
   // Load all artisans when component mounts
   useEffect(() => {
-    loadAllArtisans();
+    const startTime = performance.now();
+    loadAllArtisans().finally(() => {
+      const endTime = performance.now();
+      console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
+    });
   }, []);
 
-
-
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      // Search through API
-      await searchArtisans();
-    } else {
-      // If search is empty, reload all artisans
-      await loadAllArtisans();
+  const loadAllArtisans = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await artisanService.getAllArtisans();
+      setArtisans(data);
+      setFilteredArtisans(data);
+    } catch (error) {
+      console.error('Error loading artisans:', error);
+      setError('Failed to load artisans');
+      toast.error('Failed to load artisans');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const searchArtisans = async () => {
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) {
+      loadAllArtisans();
+      return;
+    }
+
     try {
       setIsLoading(true);
-      const response = await artisanService.getAllArtisans({ 
-        includeProducts: false,
-        search: searchTerm
-      });
-      setArtisans(response || []);
+      setError(null);
+      console.log('Searching for:', searchTerm);
+      const response = await artisanService.searchArtisans(searchTerm);
+      console.log('Search response:', response);
       setFilteredArtisans(response || []);
     } catch (error) {
       console.error('Error searching artisans:', error);
+      setError('Failed to search artisans');
       toast.error('Failed to search artisans');
       setArtisans([]);
       setFilteredArtisans([]);
@@ -117,87 +132,17 @@ export default function FindArtisans() {
     }
   };
 
-  const applyFilters = () => {
+  const handleArtisanTypeSelect = async (artisanType) => {
+    setSelectedType(artisanType);
     
-    let filtered = artisans || [];
-
-    // Apply search term filter
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(artisan =>
-        artisan.artisanName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artisan.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        artisan.type?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (artisanType === 'all') {
+      loadAllArtisans();
+      return;
     }
 
-    // Apply artisan type filter
-    if (selectedType && selectedType !== 'all') {
-      filtered = filtered.filter(artisan => artisan.type === selectedType);
-    }
-
-    // Apply category filter
-    if (selectedCategory) {
-      filtered = filtered.filter(artisan =>
-        artisan.categories?.includes(selectedCategory)
-      );
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          return (a.artisanName || '').localeCompare(b.artisanName || '');
-        case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
-        case 'distance':
-          return (a.distance || 0) - (b.distance || 0);
-        default:
-          return 0;
-      }
-    });
-
-    setFilteredArtisans(filtered);
-  };
-
-  useEffect(() => {
-    applyFilters();
-  }, [artisans, selectedType, selectedCategory, sortBy]);
-
-  const handleArtisanTypeSelect = async (typeId) => {
-    setSelectedType(typeId);
-    setSelectedCategory('');
-    
-    // Load artisans when a category is selected
-    if (typeId && typeId !== 'all') {
-      await loadArtisansByType(typeId);
-    } else {
-      // Load all artisans when "All Artisans" is selected
-      await loadAllArtisans();
-    }
-  };
-
-  const loadAllArtisans = async () => {
     try {
       setIsLoading(true);
-      const response = await artisanService.getAllArtisans({ 
-        includeProducts: false
-      });
-      setArtisans(response || []);
-      setFilteredArtisans(response || []);
-      setSelectedType('all'); // Set selectedType to 'all' when loading all artisans
-    } catch (error) {
-      console.error('Error loading all artisans:', error);
-      toast.error('Failed to load artisans');
-      setArtisans([]);
-      setFilteredArtisans([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadArtisansByType = async (artisanType) => {
-    try {
-      setIsLoading(true);
+      setError(null);
       console.log('Loading artisans for type:', artisanType);
       const response = await artisanService.getAllArtisans({ 
         includeProducts: false,
@@ -208,6 +153,7 @@ export default function FindArtisans() {
       setFilteredArtisans(response || []);
     } catch (error) {
       console.error('Error loading artisans by type:', error);
+      setError('Failed to load artisans by type');
       toast.error('Failed to load artisans');
       setArtisans([]);
       setFilteredArtisans([]);
@@ -226,29 +172,40 @@ export default function FindArtisans() {
     setIsLoading(false);
   };
 
+  // Enhanced image URL handling
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
     // Handle different photo data structures
     if (typeof imagePath === 'object' && imagePath.url) {
-      // Handle object format with url property
       return imagePath.url;
     }
     
     // Handle string format
     if (typeof imagePath === 'string') {
-      if (imagePath.startsWith('http')) return imagePath;
-      if (imagePath.startsWith('/')) return `http://localhost:4000${imagePath}`;
-      return `http://localhost:4000/${imagePath}`;
+      // Handle base64 data URLs
+      if (imagePath.startsWith('data:image/')) {
+        return imagePath;
+      }
+      // Handle HTTP URLs
+      if (imagePath.startsWith('http')) {
+        return imagePath;
+      }
+      // Handle relative paths
+      if (imagePath.startsWith('/')) {
+        return imagePath;
+      }
+              return `/${imagePath}`;
     }
     
     return null;
   };
 
+  // Enhanced artisan images handling
   const getArtisanImages = (artisan) => {
     if (!artisan) return [];
     
-    // Handle different photo data structures
+    // Handle photos array
     if (artisan.photos && Array.isArray(artisan.photos)) {
       return artisan.photos
         .map(photo => getImageUrl(photo))
@@ -271,7 +228,6 @@ export default function FindArtisans() {
   };
 
   const getDefaultArtisanImage = (artisanType) => {
-    // Return appropriate default images based on artisan type
     const defaultImages = {
       bakery: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop",
       farm: "https://images.unsplash.com/photo-1506806732259-39c2d0268443?w=400&h=300&fit=crop",
@@ -291,62 +247,124 @@ export default function FindArtisans() {
     return defaultImages[artisanType] || "https://images.unsplash.com/photo-1506806732259-39c2d0268443?w=400&h=300&fit=crop";
   };
 
-  const formatBusinessHours = (businessHours) => {
-    if (!businessHours) return null;
+  // Check if artisan is currently open
+  const isArtisanOpen = (artisan) => {
+    if (!artisan.artisanHours) return null;
     
-    // Handle different data structures
-    if (Array.isArray(businessHours)) {
-      if (businessHours.length === 0) return null;
-      
-      const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      const openDays = businessHours.filter(day => day && day.isOpen);
-      
-      if (openDays.length === 0) return null;
-      
-      return openDays.map(day => {
-        const dayName = days[day.dayOfWeek - 1];
-        return `${dayName}: ${day.openTime} - ${day.closeTime}`;
-      });
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const currentTime = now.getHours() * 100 + now.getMinutes(); // Convert to 24hr format (e.g., 1430 for 2:30 PM)
+    
+    // Map day index to artisan hours keys
+    const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const currentDayKey = dayMap[currentDay];
+    
+    const todayHours = artisan.artisanHours[currentDayKey];
+    
+    if (!todayHours || todayHours.closed) {
+      return false;
     }
     
-    // Handle object format (old format)
-    if (typeof businessHours === 'object') {
-      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      const openDays = [];
-      
-      days.forEach((day) => {
-        const dayData = businessHours[day];
-        if (dayData && !dayData.closed && dayData.open && dayData.close) {
-          const dayName = day.charAt(0).toUpperCase() + day.slice(1);
-          openDays.push(`${dayName}: ${dayData.open} - ${dayData.close}`);
-        }
-      });
-      
-      return openDays.length > 0 ? openDays : null;
+    // Convert time strings to numbers for comparison
+    const openTime = convertTimeToNumber(todayHours.open);
+    const closeTime = convertTimeToNumber(todayHours.close);
+    
+    if (openTime === null || closeTime === null) {
+      return null; // Unable to determine
     }
     
-    return null;
+    return currentTime >= openTime && currentTime <= closeTime;
+  };
+
+  // Helper function to convert time string to number
+  const convertTimeToNumber = (timeStr) => {
+    if (!timeStr) return null;
+    
+    // Handle formats like "9:00 AM", "14:30", "2:30 PM"
+    const time = timeStr.toLowerCase().replace(/\s/g, '');
+    
+    if (time.includes('am') || time.includes('pm')) {
+      // 12-hour format
+      const [timePart, period] = time.split(/(am|pm)/);
+      let [hours, minutes] = timePart.split(':').map(Number);
+      
+      if (period === 'pm' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'am' && hours === 12) {
+        hours = 0;
+      }
+      
+      return hours * 100 + (minutes || 0);
+    } else {
+      // 24-hour format
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 100 + (minutes || 0);
+    }
+  };
+
+  // Enhanced rating display
+  const getRatingDisplay = (artisan) => {
+    const { average, count } = artisan.rating || {};
+    const createdAt = new Date(artisan.createdAt);
+    const now = new Date();
+    const daysSinceCreation = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+    
+    // If artisan has a rating, show it regardless of age
+    if (average && average > 0) {
+      return { 
+        text: average.toFixed(1), 
+        isNew: false,
+        count: count || 0
+      };
+    }
+    
+    // If no rating and within first 30 days, show "New"
+    if (daysSinceCreation <= 30) {
+      return { text: 'New', isNew: true };
+    }
+    
+    // If no rating and older than 30 days, show "No ratings yet"
+    return { text: 'No ratings yet', isNew: false };
   };
 
   const renderArtisanCard = (artisan) => {
     if (!artisan) return null;
     
-    const artisanHours = formatBusinessHours(artisan.artisanHours);
+    const isOpen = isArtisanOpen(artisan);
     const artisanImages = getArtisanImages(artisan);
     const primaryImage = artisanImages.length > 0 ? artisanImages[0] : getDefaultArtisanImage(artisan.type);
+    const ratingDisplay = getRatingDisplay(artisan);
     
     // Debug logging
     console.log('Artisan:', artisan.artisanName, 'Photos:', artisan.photos, 'Images:', artisanImages, 'Primary Image:', primaryImage);
 
     return (
-      <div key={artisan._id} className="artisan-card group">
+      <div 
+        key={artisan._id} 
+        className={`rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 group cursor-pointer ${
+          isOpen === false 
+            ? 'bg-gray-50 opacity-75 hover:opacity-90 hover:shadow-md' 
+            : 'bg-white hover:shadow-lg hover:border-amber-200'
+        }`}
+        onClick={() => navigate(`/artisan/${artisan._id}`)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            navigate(`/artisan/${artisan._id}`);
+          }
+        }}
+      >
         <div className="relative">
           {/* Artisan Image */}
-          <div className="aspect-w-16 aspect-h-9 bg-stone-100 rounded-t-2xl overflow-hidden relative">
+          <div className="aspect-w-16 aspect-h-9 bg-gray-100 rounded-t-xl overflow-hidden relative group">
             <img
               src={primaryImage}
               alt={artisan.artisanName}
-              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+              className={`w-full h-48 object-cover transition-all duration-500 ${
+                isOpen === false ? 'grayscale opacity-60' : 'group-hover:scale-105'
+              }`}
               onError={(e) => {
                 console.log('Image failed to load:', primaryImage);
                 e.target.style.display = 'none';
@@ -358,6 +376,17 @@ export default function FindArtisans() {
               }}
               style={{ opacity: 1, transition: 'opacity 0.3s ease-in-out' }}
             />
+            
+            {/* Image Preview Overlay */}
+            {isOpen !== false && (
+              <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300 ease-in-out">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="bg-white rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                    <EyeIcon className="w-6 h-6 text-gray-800" />
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Fallback placeholder */}
             <div 
@@ -384,59 +413,60 @@ export default function FindArtisans() {
               <span className="badge-handmade">Handmade</span>
             )}
           </div>
+
+
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {/* Artisan Name and Rating */}
           <div className="flex items-start justify-between mb-3">
-            <h3 className="text-xl font-semibold text-stone-900 group-hover:text-amber-600 transition-colors duration-300">
+            <h3 className={`text-lg font-semibold transition-colors duration-300 ${
+              isOpen === false 
+                ? 'text-gray-600 group-hover:text-gray-800' 
+                : 'text-gray-900 group-hover:text-amber-600'
+            }`}>
               {artisan.artisanName || 'Unnamed Artisan'}
             </h3>
             <div className="flex items-center space-x-1">
-              <StarIconSolid className="w-5 h-5 text-amber-400" />
-              <span className="text-sm font-medium text-stone-700">
-                {artisan.rating?.average ? artisan.rating.average.toFixed(1) : 'New'}
+              <StarIconSolid className="w-4 h-4 text-amber-500" />
+              <span className={`text-sm font-medium ${
+                ratingDisplay.isNew ? 'text-amber-600' : 'text-gray-900'
+              }`}>
+                {ratingDisplay.text}
               </span>
-              {artisan.rating?.count && (
-                <span className="text-xs text-stone-500">({artisan.rating.count})</span>
+              {!ratingDisplay.isNew && ratingDisplay.count > 0 && (
+                <span className="text-xs text-gray-500">({ratingDisplay.count})</span>
               )}
             </div>
           </div>
 
           {/* Artisan Type */}
-          <p className="text-sm text-amber-600 font-medium mb-2 capitalize">
+          <p className={`text-sm font-medium mb-2 capitalize ${
+            isOpen === false ? 'text-gray-500' : 'text-amber-600'
+          }`}>
             {artisan.type?.replace('_', ' ') || 'Local Artisan'}
           </p>
 
           {/* Description */}
-          <p className="text-stone-600 text-sm mb-4 line-clamp-2">
+          <p className={`text-sm mb-4 line-clamp-2 ${
+            isOpen === false ? 'text-gray-500' : 'text-gray-600'
+          }`}>
             {artisan.description || 'Discover amazing local products from this artisan.'}
           </p>
 
-          {/* Artisan Hours */}
-          {artisanHours && artisanHours.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-stone-800 mb-2">Open Today</h4>
-              <div className="space-y-1">
-                {artisanHours.slice(0, 3).map((hours, index) => (
-                  <p key={index} className="text-xs text-stone-600">{hours}</p>
-                ))}
-                {artisanHours.length > 3 && (
-                  <p className="text-xs text-amber-600 font-medium">+{artisanHours.length - 3} more days</p>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Location */}
-          <div className="flex items-center text-stone-500 text-sm mb-4">
+          <div className={`flex items-center text-sm mb-4 ${
+            isOpen === false ? 'text-gray-400' : 'text-gray-500'
+          }`}>
             <MapPinIcon className="w-4 h-4 mr-1" />
             <span>{artisan.address?.city || 'Location not specified'}</span>
           </div>
 
           {/* Contact Info */}
           {artisan.contactInfo?.phone && (
-            <div className="flex items-center text-stone-500 text-sm mb-4">
+            <div className={`flex items-center text-sm mb-4 ${
+              isOpen === false ? 'text-gray-400' : 'text-gray-500'
+            }`}>
               <PhoneIcon className="w-4 h-4 mr-1" />
               <span>{artisan.contactInfo.phone}</span>
             </div>
@@ -444,32 +474,50 @@ export default function FindArtisans() {
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(`/artisan/${artisan._id}`)}
-              className="btn-primary btn-small"
-            >
-              Visit Artisan
-            </button>
+            <div className="flex items-center space-x-1">
+              <span className={`text-sm font-medium ${
+                isOpen === false ? 'text-gray-500' : 'text-amber-600'
+              }`}>
+                {isOpen ? 'Open Now' : 'Currently Closed'}
+              </span>
+              <span className="text-gray-400">•</span>
+              <span className="text-sm text-gray-600">Click to visit shop</span>
+            </div>
             <div className="flex items-center space-x-2">
               {artisan.contactInfo?.phone && (
                 <a
                   href={`tel:${artisan.contactInfo.phone}`}
-                  className="p-2 text-stone-400 hover:text-amber-600 transition-colors duration-300"
+                  className={`p-2 transition-colors duration-300 ${
+                    isOpen === false 
+                      ? 'text-gray-300 cursor-not-allowed' 
+                      : 'text-gray-400 hover:text-amber-600'
+                  }`}
                   title="Call artisan"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isOpen === false) e.preventDefault();
+                  }}
                 >
-                  <PhoneIcon className="w-5 h-5" />
+                  <PhoneIcon className="w-4 h-4" />
                 </a>
               )}
               {artisan.contactInfo?.email && (
                 <a
                   href={`mailto:${artisan.contactInfo.email}`}
-                  className="p-2 text-stone-400 hover:text-amber-600 transition-colors duration-300"
+                  className={`p-2 transition-colors duration-300 ${
+                    isOpen === false 
+                      ? 'text-gray-300 cursor-not-allowed' 
+                      : 'text-gray-400 hover:text-amber-600'
+                  }`}
                   title="Email artisan"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isOpen === false) e.preventDefault();
+                  }}
                 >
-                  <EnvelopeIcon className="w-5 h-5" />
+                  <EnvelopeIcon className="w-4 h-4" />
                 </a>
               )}
-
             </div>
           </div>
         </div>
@@ -487,127 +535,149 @@ export default function FindArtisans() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-stone-900 via-amber-900 to-stone-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold text-white mb-4">Find Artisan</h1>
-          <p className="text-xl text-stone-200 mb-8 max-w-3xl mx-auto">
-            Connect with exceptional local artisans offering premium products and authentic experiences
-          </p>
-          
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="max-w-2xl mx-auto">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search for artisans, products, or categories..."
-                className="search-bar pl-12 pr-4 w-full"
-              />
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-stone-400" />
+    <div className="min-h-screen bg-amber-50">
+      {/* Subtle Search Section */}
+      <div className="bg-white shadow-sm border-b border-amber-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Find Local Artisans</h1>
+              <p className="text-gray-600 mt-1">
+                Discover exceptional local artisans and their premium products
+              </p>
             </div>
-          </form>
+            
+            {/* Subtle Search Bar */}
+            <div className="flex items-center space-x-4">
+              <form onSubmit={handleSearch} className="relative">
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search artisans..."
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              </form>
+              
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 px-4 py-2 border border-amber-200 rounded-lg hover:bg-amber-50"
+              >
+                <FunnelIcon className="w-5 h-5" />
+                <span>Filters</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Artisan Type Cards */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Horizontal Scrollable Category Section (Uber Eats Style) */}
         <div className="mb-12">
-          <h2 className="text-3xl font-bold text-stone-900 mb-8 text-center">Explore by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {artisanTypeCards.map((type) => (
-              <button
-                key={type.id}
-                onClick={() => handleArtisanTypeSelect(type.id)}
-                className={`category-card p-4 text-center transition-all duration-300 ${
-                  selectedType === type.id
-                    ? 'border-amber-500 bg-amber-50 text-amber-700'
-                    : 'hover:border-stone-300'
-                }`}
-              >
-                <div className="text-3xl mb-2">{type.icon}</div>
-                <h3 className="font-semibold text-sm mb-1">{type.name}</h3>
-                <p className="text-xs text-stone-600">{type.description}</p>
-              </button>
-            ))}
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Explore by Category</h2>
+          <div className="relative">
+            {/* Horizontal Scrollable Container */}
+            <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
+              {artisanTypeCards.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => handleArtisanTypeSelect(type.id)}
+                  className={`group flex-shrink-0 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 min-w-[140px] ${
+                    selectedType === type.id
+                      ? 'ring-2 ring-amber-500 bg-amber-50'
+                      : 'hover:border-amber-200'
+                  }`}
+                >
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform text-center">{type.icon}</div>
+                  <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors text-sm text-center">
+                    {type.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1 text-center line-clamp-2">{type.description}</p>
+                </button>
+              ))}
+            </div>
+            
+            {/* Gradient Overlay for Scroll Indication */}
+            <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-amber-50 to-transparent pointer-events-none"></div>
           </div>
         </div>
 
         {/* Filters and Results */}
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex gap-8">
           {/* Filters Sidebar */}
-          <div className="lg:w-1/4">
-            <div className="bg-white rounded-2xl shadow-lg border border-stone-200 p-6 sticky top-24">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-stone-900">Filters</h3>
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-amber-600 hover:text-amber-700 font-medium"
-                >
-                  Clear All
-                </button>
-              </div>
+          {showFilters && (
+            <div className="w-64 flex-shrink-0">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-24">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                  >
+                    Clear All
+                  </button>
+                </div>
 
-              {/* Artisan Type Filter */}
-              <div className="mb-6">
-                <label className="form-label">Artisan Type</label>
-                <select
-                  value={selectedType}
-                  onChange={(e) => handleArtisanTypeSelect(e.target.value)}
-                  className="form-select"
-                >
-                  {artisanTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Artisan Type Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Artisan Type</label>
+                  <select
+                    value={selectedType}
+                    onChange={(e) => handleArtisanTypeSelect(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    {artisanTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              {/* Category Filter */}
-              <div className="mb-6">
-                <label className="form-label">Product Category</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="form-select"
-                >
-                  {categories.map((category) => (
-                    <option key={category.value} value={category.value}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {/* Category Filter */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Category</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    {categories.map((category) => (
+                      <option key={category.value} value={category.value}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              {/* Sort By */}
-              <div className="mb-6">
-                <label className="form-label">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="name">Name (A-Z)</option>
-                  <option value="rating">Highest Rated</option>
-                  <option value="distance">Distance</option>
-                </select>
+                {/* Sort By */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  >
+                    <option value="name">Name (A-Z)</option>
+                    <option value="rating">Highest Rated</option>
+                    <option value="distance">Distance</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Results */}
-          <div className="lg:w-3/4">
+          <div className="flex-1">
             {/* Results Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-stone-900">
-                  {selectedType ? `${filteredArtisans.length} Local Artisans` : 'Select a Category'}
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedType && selectedType !== 'all' ? `${filteredArtisans.length} Local Artisans` : 'All Local Artisans'}
                 </h2>
-                <p className="text-stone-600">
-                  {selectedType && `Showing ${artisanTypes.find(t => t.value === selectedType)?.label}`}
+                <p className="text-gray-600 text-sm">
+                  {selectedType && selectedType !== 'all' && `Showing ${artisanTypes.find(t => t.value === selectedType)?.label}`}
                   {selectedCategory && ` • ${categories.find(c => c.value === selectedCategory)?.label}`}
                 </p>
               </div>
@@ -616,28 +686,34 @@ export default function FindArtisans() {
             {/* Artisan Grid */}
             {isLoading ? (
               renderLoadingSkeleton()
-            ) : !selectedType ? (
+            ) : error ? (
               <div className="text-center py-12">
-                <BuildingStorefrontIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-stone-900 mb-2">Select a Category</h3>
-                <p className="text-stone-600 mb-6">
-                  Choose an artisan category above to discover local artisans
+                <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Error: {error}</h3>
+                <p className="text-gray-600 mb-6">
+                  Please try again later or refresh the page.
                 </p>
+                <button
+                  onClick={loadAllArtisans}
+                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Retry
+                </button>
               </div>
             ) : filteredArtisans.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredArtisans.map(renderArtisanCard)}
               </div>
             ) : (
               <div className="text-center py-12">
-                <BuildingStorefrontIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-stone-900 mb-2">No artisans found</h3>
-                <p className="text-stone-600 mb-6">
+                <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No artisans found</h3>
+                <p className="text-gray-600 mb-6">
                   Try adjusting your search criteria or select a different category
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="btn-primary"
+                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors"
                 >
                   View All Categories
                 </button>

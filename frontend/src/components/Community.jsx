@@ -236,14 +236,14 @@ export default function Community() {
     const isFull = event.attendees >= event.maxAttendees;
 
     return (
-      <div key={event.id} className="event-card group">
+      <div key={event.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-300 group">
         <div className="relative">
           {/* Event Image */}
-          <div className="aspect-w-16 aspect-h-9 bg-stone-100 rounded-t-2xl overflow-hidden">
+          <div className="aspect-w-16 aspect-h-9 bg-gray-100 rounded-t-xl overflow-hidden">
             <img
               src={event.images[0]}
               alt={event.title}
-              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
             />
             
             {/* Favorite Button */}
@@ -254,30 +254,30 @@ export default function Community() {
               {isFavorite ? (
                 <HeartIconSolid className="w-5 h-5 text-rose-500" />
               ) : (
-                <HeartIcon className="w-5 h-5 text-stone-600" />
+                <HeartIcon className="w-5 h-5 text-gray-600" />
               )}
             </button>
 
             {/* Featured Badge */}
             {event.featured && (
-              <div className="absolute top-3 left-3 bg-amber-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+              <div className="absolute top-3 left-3 bg-amber-600 text-white text-xs px-2 py-1 rounded-full font-medium">
                 Featured
               </div>
             )}
 
             {/* Photo count indicator if multiple photos */}
             {event.images.length > 1 && (
-              <div className="photo-count">
+              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full">
                 +{event.images.length - 1} more
               </div>
             )}
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {/* Event Title and Price */}
           <div className="flex items-start justify-between mb-3">
-            <h3 className="text-xl font-semibold text-stone-900 group-hover:text-amber-600 transition-colors duration-300">
+            <h3 className="text-lg font-semibold text-gray-900 group-hover:text-amber-600 transition-colors duration-300">
               {event.title}
             </h3>
             <span className="text-lg font-bold text-amber-600">
@@ -286,13 +286,13 @@ export default function Community() {
           </div>
 
           {/* Event Description */}
-          <p className="text-stone-600 text-sm mb-4 line-clamp-2">
+          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
             {event.description}
           </p>
 
           {/* Event Details */}
           <div className="space-y-2 mb-4">
-            <div className="flex items-center text-stone-500 text-sm">
+            <div className="flex items-center text-gray-500 text-sm">
               <CalendarIcon className="w-4 h-4 mr-2" />
               <span>{formatDate(event.date)}</span>
               {daysUntil > 0 && (
@@ -302,12 +302,12 @@ export default function Community() {
               )}
             </div>
             
-            <div className="flex items-center text-stone-500 text-sm">
+            <div className="flex items-center text-gray-500 text-sm">
               <ClockIcon className="w-4 h-4 mr-2" />
               <span>{event.time}</span>
             </div>
             
-            <div className="flex items-center text-stone-500 text-sm">
+            <div className="flex items-center text-gray-500 text-sm">
               <MapPinIcon className="w-4 h-4 mr-2" />
               <span>{event.location}</span>
             </div>
@@ -321,15 +321,15 @@ export default function Community() {
               className="w-8 h-8 rounded-full object-cover mr-3"
             />
             <div>
-              <p className="text-sm font-medium text-stone-900">{event.organizer}</p>
-              <p className="text-xs text-stone-500">Organizer</p>
+              <p className="text-sm font-medium text-gray-900">{event.organizer}</p>
+              <p className="text-xs text-gray-500">Organizer</p>
             </div>
           </div>
 
           {/* Tags */}
           <div className="flex flex-wrap gap-2 mb-4">
             {event.tags.map((tag, index) => (
-              <span key={index} className="badge-premium text-xs">
+              <span key={index} className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
                 {tag}
               </span>
             ))}
@@ -337,7 +337,7 @@ export default function Community() {
 
           {/* Attendance and Action */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center text-stone-500 text-sm">
+            <div className="flex items-center text-gray-500 text-sm">
               <UserGroupIcon className="w-4 h-4 mr-1" />
               <span>{event.attendees}/{event.maxAttendees} attending</span>
             </div>
@@ -345,7 +345,7 @@ export default function Community() {
             <button
               onClick={() => navigate(`/event/${event.id}`)}
               disabled={isFull}
-              className={`btn-primary btn-small ${isFull ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium ${isFull ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {isFull ? 'Event Full' : 'Learn More'}
               <ArrowRightIcon className="w-4 h-4 ml-1" />
@@ -357,93 +357,110 @@ export default function Community() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-stone-900 via-amber-900 to-stone-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl font-bold text-white mb-4">Community Events</h1>
-          <p className="text-xl text-stone-200 mb-8 max-w-3xl mx-auto">
-            Connect with local artisans, learn new skills, and discover the stories behind your favorite local products
-          </p>
-          
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-amber-400 mb-2">{events.length}</div>
-              <div className="text-stone-300">Upcoming Events</div>
+    <div className="min-h-screen bg-amber-50">
+      {/* Community Dashboard Header */}
+      <div className="bg-white shadow-sm border-b border-amber-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Community Events</h1>
+              <p className="text-gray-600 mt-1">
+                Connect with local artisans and discover upcoming events
+              </p>
             </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-amber-400 mb-2">{events.reduce((sum, event) => sum + event.attendees, 0)}</div>
-              <div className="text-stone-300">Community Members</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-amber-400 mb-2">{events.filter(e => e.featured).length}</div>
-              <div className="text-stone-300">Featured Events</div>
+            
+            {/* Community Stats */}
+            <div className="flex items-center space-x-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-600">{events.length}</div>
+                <div className="text-sm text-gray-600">Events</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-600">{events.reduce((sum, event) => sum + event.attendees, 0)}</div>
+                <div className="text-sm text-gray-600">Members</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-600">{events.filter(e => e.featured).length}</div>
+                <div className="text-sm text-gray-600">Featured</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Featured Events */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Featured Events Dashboard */}
         {featuredEvents.length > 0 && (
           <div className="mb-12">
-            <div className="flex items-center mb-8">
-              <SparklesIcon className="w-8 h-8 text-amber-600 mr-3" />
-              <h2 className="text-3xl font-bold text-stone-900">Featured Events</h2>
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center">
+                <SparklesIcon className="w-8 h-8 text-amber-600 mr-3" />
+                <h2 className="text-3xl font-bold text-gray-900">Featured Events</h2>
+              </div>
+              <div className="text-sm text-gray-600">
+                {featuredEvents.length} featured events
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {featuredEvents.map(renderEventCard)}
             </div>
           </div>
         )}
 
-        {/* Category Filter */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-stone-900 mb-6">Browse by Category</h2>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`category-card p-4 text-center transition-all duration-300 ${
-                  selectedCategory === category.id
-                    ? 'border-amber-500 bg-amber-50 text-amber-700'
-                    : 'hover:border-stone-300'
-                }`}
-              >
-                <div className="text-2xl mb-2">{category.icon}</div>
-                <h3 className="font-semibold text-sm">{category.name}</h3>
-              </button>
-            ))}
+        {/* Horizontal Scrollable Category Filter */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Browse by Category</h2>
+          <div className="relative">
+            {/* Horizontal Scrollable Container */}
+            <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`group flex-shrink-0 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 min-w-[140px] ${
+                    selectedCategory === category.id
+                      ? 'ring-2 ring-amber-500 bg-amber-50'
+                      : 'hover:border-amber-200'
+                  }`}
+                >
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform text-center">{category.icon}</div>
+                  <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors text-sm text-center">
+                    {category.name}
+                  </h3>
+                </button>
+              ))}
+            </div>
+            
+            {/* Gradient Overlay for Scroll Indication */}
+            <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-amber-50 to-transparent pointer-events-none"></div>
           </div>
         </div>
 
-        {/* All Events */}
-        <div>
+        {/* All Events Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-stone-900">
+            <h2 className="text-2xl font-bold text-gray-900">
               {selectedCategory === 'all' ? 'All Events' : `${categories.find(c => c.id === selectedCategory)?.name}`}
             </h2>
-            <p className="text-stone-600">
+            <div className="text-sm text-gray-600">
               {upcomingEvents.length} upcoming events
-            </p>
+            </div>
           </div>
 
           {upcomingEvents.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {upcomingEvents.map(renderEventCard)}
             </div>
           ) : (
             <div className="text-center py-12">
-              <BuildingStorefrontIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-stone-900 mb-2">No events found</h3>
-              <p className="text-stone-600 mb-6">
+              <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No events found</h3>
+              <p className="text-gray-600 mb-6">
                 Try selecting a different category or check back later for new events
               </p>
               <button
                 onClick={() => setSelectedCategory('all')}
-                className="btn-primary"
+                className="bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors font-medium"
               >
                 View All Events
               </button>

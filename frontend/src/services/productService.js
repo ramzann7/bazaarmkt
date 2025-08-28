@@ -2,8 +2,44 @@ import axios from 'axios';
 
 const API_URL = '/api/products';
 
+// Simple in-memory cache
+const cache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache helper functions
+const getCacheKey = (endpoint, params = {}) => {
+  return `${endpoint}?${JSON.stringify(params)}`;
+};
+
+const getFromCache = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+};
+
+const setCache = (key, data) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
+
+const clearCache = () => {
+  cache.clear();
+};
+
 // Get all products (for discover page)
 export const getAllProducts = async (filters = {}) => {
+  const cacheKey = getCacheKey('all-products', filters);
+  const cached = getFromCache(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
   const params = new URLSearchParams();
   
   Object.keys(filters).forEach(key => {
@@ -13,27 +49,41 @@ export const getAllProducts = async (filters = {}) => {
   });
   
   const response = await axios.get(`${API_URL}?${params.toString()}`);
+  setCache(cacheKey, response.data);
+  return response.data;
+};
+
+// Get featured products
+export const getFeaturedProducts = async () => {
+  const cacheKey = getCacheKey('featured-products');
+  const cached = getFromCache(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
+  const response = await axios.get(`${API_URL}/featured`);
+  setCache(cacheKey, response.data);
   return response.data;
 };
 
 // Search products with enhanced filters
 export const searchProducts = async (searchQuery, filters = {}) => {
-  // Use the simple search endpoint for now
-  if (searchQuery) {
-    const response = await axios.get(`${API_URL}/search?q=${encodeURIComponent(searchQuery)}`);
-    return response.data;
-  }
-  
-  // For non-search queries, use the main endpoint
   const params = new URLSearchParams();
   
-  // Add other filters
+  // Add search query if provided
+  if (searchQuery) {
+    params.append('search', searchQuery);
+  }
+  
+  // Add all filters
   Object.keys(filters).forEach(key => {
     if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
       params.append(key, filters[key]);
     }
   });
   
+  // Use the main endpoint which supports both search and filters
   const response = await axios.get(`${API_URL}?${params.toString()}`);
   return response.data;
 };

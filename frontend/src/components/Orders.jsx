@@ -233,7 +233,7 @@ export default function Orders() {
                           <div className="flex items-center space-x-3">
                             {item.product?.image && (
                               <img 
-                                src={item.product.image.startsWith('http') ? item.product.image : `http://localhost:4000${item.product.image}`}
+                                src={item.product.image.startsWith('http') ? item.product.image : item.product.image}
                                 alt={item.product.name}
                                 className="w-10 h-10 object-cover rounded"
                                 onError={(e) => {

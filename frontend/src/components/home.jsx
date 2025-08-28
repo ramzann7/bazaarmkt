@@ -1,328 +1,768 @@
 // src/components/Home.jsx
-import React, { useState } from 'react';
-import { MagnifyingGlassIcon, MapPinIcon, TruckIcon, HeartIcon, StarIcon, UserGroupIcon, ChartBarIcon, CreditCardIcon, CogIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  MagnifyingGlassIcon, 
+  MapPinIcon, 
+  TruckIcon, 
+  HeartIcon, 
+  StarIcon, 
+  UserGroupIcon, 
+  ChartBarIcon, 
+  CreditCardIcon, 
+  CogIcon,
+  ArrowRightIcon,
+  SparklesIcon,
+  BuildingStorefrontIcon,
+  EyeIcon,
+  XMarkIcon,
+  PlusIcon,
+  MinusIcon,
+  ShoppingCartIcon,
+  ClockIcon
+} from '@heroicons/react/24/outline';
 import { Link, useNavigate } from 'react-router-dom';
+import { getFeaturedProducts } from '../services/productService';
+import { cartService } from '../services/cartService';
+import { 
+  PRODUCT_CATEGORIES, 
+  getFeaturedCategories, 
+  getPopularProducts as getPopularProductNames 
+} from '../data/productReference';
+import toast from 'react-hot-toast';
+
+// Skeleton loading component
+const ProductSkeleton = () => (
+  <div className="animate-pulse">
+    <div className="bg-gray-200 rounded-lg h-64 mb-3"></div>
+    <div className="space-y-2">
+      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+    </div>
+  </div>
+);
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showCartPopup, setShowCartPopup] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+  // Test reference data imports
+  console.log('PRODUCT_CATEGORIES available:', !!PRODUCT_CATEGORIES);
+  console.log('getFeaturedCategories available:', !!getFeaturedCategories);
+  console.log('getPopularProductNames available:', !!getPopularProductNames);
+
+  // Memoize static data to prevent re-renders
+  const popularProducts = useMemo(() => [
+    {
+      id: 1,
+      name: "Artisan Bread",
+      price: 6.99,
+      image: null,
+      artisan: { artisanName: "Baker's Corner" },
+      rating: 4.9,
+      _id: "popular-1",
+      stock: 20,
+      unit: "loaf",
+      leadTimeHours: 12,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "food_beverages",
+      subcategory: "baked_goods"
+    },
+    {
+      id: 2,
+      name: "Handmade Jewelry",
+      price: 45.99,
+      image: null,
+      artisan: { artisanName: "Crystal Crafts" },
+      rating: 4.8,
+      _id: "popular-2",
+      stock: 5,
+      unit: "piece",
+      leadTimeHours: 72,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "handmade_crafts",
+      subcategory: "jewelry"
+    },
+    {
+      id: 3,
+      name: "Natural Soaps",
+      price: 8.99,
+      image: null,
+      artisan: { artisanName: "Pure Essentials" },
+      rating: 4.7,
+      _id: "popular-3",
+      stock: 25,
+      unit: "bar",
+      leadTimeHours: 48,
+      isOrganic: true,
+      isGlutenFree: true,
+      category: "beauty_wellness",
+      subcategory: "skincare"
+    },
+    {
+      id: 4,
+      name: "Handcrafted Furniture",
+      price: 299.99,
+      image: null,
+      artisan: { artisanName: "Wood Works Studio" },
+      rating: 4.9,
+      _id: "popular-4",
+      stock: 2,
+      unit: "piece",
+      leadTimeHours: 168,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "handmade_crafts",
+      subcategory: "woodworking"
+    }
+  ], []);
+
+  const localFavorites = useMemo(() => [
+    {
+      id: 5,
+      name: "Homemade Jam",
+      price: 7.99,
+      image: null,
+      artisan: { artisanName: "Berry Farm" },
+      rating: 4.6,
+      _id: "local-1",
+      stock: 15,
+      unit: "jar",
+      leadTimeHours: 24,
+      isOrganic: true,
+      isGlutenFree: true,
+      category: "food_beverages",
+      subcategory: "preserves_jams"
+    },
+    {
+      id: 6,
+      name: "Hand-knitted Scarves",
+      price: 25.99,
+      image: null,
+      artisan: { artisanName: "Warm Woolies" },
+      rating: 4.8,
+      _id: "local-2",
+      stock: 8,
+      unit: "piece",
+      leadTimeHours: 96,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "handmade_crafts",
+      subcategory: "textiles_fiber"
+    },
+    {
+      id: 7,
+      name: "Artisan Cheese",
+      price: 18.99,
+      image: null,
+      artisan: { artisanName: "Cheese Crafters" },
+      rating: 4.9,
+      _id: "local-3",
+      stock: 12,
+      unit: "wheel",
+      leadTimeHours: 72,
+      isOrganic: true,
+      isGlutenFree: true,
+      category: "food_beverages",
+      subcategory: "dairy_products"
+    },
+    {
+      id: 8,
+      name: "Handmade Candles",
+      price: 12.99,
+      image: null,
+      artisan: { artisanName: "Aromatherapy Co" },
+      rating: 4.7,
+      _id: "local-4",
+      stock: 20,
+      unit: "candle",
+      leadTimeHours: 48,
+      isOrganic: true,
+      isGlutenFree: true,
+      category: "beauty_wellness",
+      subcategory: "aromatherapy"
+    }
+  ], []);
+
+  const closeToYou = useMemo(() => [
+    {
+      id: 9,
+      name: "Fresh Baked Goods",
+      price: 4.99,
+      image: null,
+      artisan: { artisanName: "Local Bakery" },
+      rating: 4.5,
+      _id: "close-1",
+      stock: 30,
+      unit: "piece",
+      leadTimeHours: 6,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "food_beverages",
+      subcategory: "baked_goods"
+    },
+    {
+      id: 10,
+      name: "Handmade Cards",
+      price: 3.99,
+      image: null,
+      artisan: { artisanName: "Paper Crafts" },
+      rating: 4.6,
+      _id: "close-2",
+      stock: 50,
+      unit: "card",
+      leadTimeHours: 24,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "handmade_crafts",
+      subcategory: "paper_crafts"
+    },
+    {
+      id: 11,
+      name: "Natural Skincare",
+      price: 22.99,
+      image: null,
+      artisan: { artisanName: "Pure Beauty" },
+      rating: 4.8,
+      _id: "close-3",
+      stock: 10,
+      unit: "bottle",
+      leadTimeHours: 48,
+      isOrganic: true,
+      isGlutenFree: true,
+      category: "beauty_wellness",
+      subcategory: "skincare"
+    },
+    {
+      id: 12,
+      name: "Handcrafted Wood Items",
+      price: 35.99,
+      image: null,
+      artisan: { artisanName: "Timber Crafts" },
+      rating: 4.7,
+      _id: "close-4",
+      stock: 5,
+      unit: "piece",
+      leadTimeHours: 120,
+      isOrganic: false,
+      isGlutenFree: false,
+      category: "handmade_crafts",
+      subcategory: "woodworking"
+    }
+  ], []);
+
+  // Get featured categories from reference data
+  const featuredCategories = useMemo(() => {
+    const categoryKeys = getFeaturedCategories();
+    console.log('Featured category keys:', categoryKeys);
+    const result = categoryKeys.map(key => ({
+      key,
+      ...PRODUCT_CATEGORIES[key]
+    }));
+    console.log('Featured categories result:', result);
+    return result;
+  }, []);
+
+  useEffect(() => {
+    const startTime = performance.now();
+    loadFeaturedProducts().finally(() => {
+      const endTime = performance.now();
+      console.log(`Featured products loaded in ${(endTime - startTime).toFixed(2)}ms`);
+    });
+  }, []);
+
+  const loadFeaturedProducts = async () => {
+    try {
+      setIsLoadingFeatured(true);
+      setError(null);
+      const response = await getFeaturedProducts();
+      if (response.success) {
+        setFeaturedProducts(response.products || []);
+      } else {
+        console.error('Failed to load featured products:', response.message);
+        setFeaturedProducts([]);
+        setError('Failed to load featured products');
+      }
+    } catch (error) {
+      console.error('Error loading featured products:', error);
+      setFeaturedProducts([]);
+      setError('Failed to load featured products');
+      toast.error('Failed to load featured products');
+    } finally {
+      setIsLoadingFeatured(false);
     }
   };
 
-  const categories = [
-    {
-      name: "Fresh Produce",
-      img: "https://images.unsplash.com/photo-1506806732259-39c2d0268443?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Bakery",
-      img: "https://images.unsplash.com/photo-1608198093002-ad4e005484ec?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Dairy & Eggs",
-      img: "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Honey & Jams",
-      img: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Maple Syrup",
-      img: "https://images.unsplash.com/photo-1506619216599-9d16d0903dfd?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Artisan Cheese",
-      img: "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Fresh Pasta",
-      img: "https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Herbs & Spices",
-      img: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80",
-    },
-  ];
+  // Cart functionality
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setQuantity(1);
+    setShowCartPopup(true);
+  };
 
-  const artisans = [
-    {
-      name: "Jean's Artisan Farm",
-      desc: "Family-owned since 1985, known for premium organic apples.",
-      img: "https://images.unsplash.com/photo-1606788075761-87986d1a6018?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Rosewood Artisan Bakery",
-      desc: "Artisan sourdough and pastries, handcrafted daily.",
-      img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      name: "Maple Grove Artisan Syrup",
-      desc: "Locally tapped maple syrup, rich and authentic.",
-      img: "https://images.unsplash.com/photo-1615485925600-49d5c3b18e30?auto=format&fit=crop&w=600&q=80",
-    },
-  ];
+  const handleAddToCart = async () => {
+    if (!selectedProduct) return;
 
-  const artisanBenefits = [
-    {
-      icon: UserGroupIcon,
-      title: "Reach New Local Patrons",
-      description: "Connect with patrons in your area who are actively seeking local, quality products."
-    },
-    {
-      icon: TruckIcon,
-      title: "Flexible Delivery Models",
-      description: "Choose between direct delivery or hub-based distribution to fit your artisan business model."
-    },
-    {
-      icon: CogIcon,
-      title: "Simple Onboarding & Payments",
-      description: "Easy setup process and secure payment processing to get you selling quickly."
-    },
-    {
-      icon: ChartBarIcon,
-      title: "Analytics & Insights",
-      description: "Track your sales, understand patron preferences, and grow your artisan business with data-driven insights."
+    try {
+      // Use cartService to add to cart
+      await cartService.addToCart(selectedProduct, quantity, null); // null for guest user
+      
+      toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
+      setShowCartPopup(false);
+      setSelectedProduct(null);
+      setQuantity(1);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add item to cart');
     }
-  ];
+  };
 
-  const artisanSteps = [
-    {
-      step: "1",
-      title: "Sign Up",
-      description: "Create your artisan profile in minutes with our simple registration process."
-    },
-    {
-      step: "2",
-      title: "Add Products",
-      description: "Upload your products with photos, descriptions, and pricing information."
-    },
-    {
-      step: "3",
-      title: "Choose Delivery Model",
-      description: "Select between direct delivery or hub-based distribution based on your needs."
-    },
-    {
-      step: "4",
-      title: "Get Paid",
-      description: "Receive secure payments and track your earnings through our platform."
+  const handleQuantityChange = (newQuantity) => {
+    if (newQuantity >= 1 && newQuantity <= selectedProduct.stock) {
+      setQuantity(newQuantity);
     }
-  ];
+  };
 
-  return (
-    <div className="min-h-screen bg-neutral-50 text-gray-800">
-      {/* Hero Section */}
-      <section
-        className="relative h-[70vh] flex items-center justify-center bg-cover bg-center"
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1578662996442-48f60103fc96?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80')",
-        }}
-      >
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="relative z-10 text-center text-white px-4">
-          <h1 className="text-5xl font-bold mb-4">Exceptional Local Products</h1>
-          <p className="text-lg mb-6">
-            From fresh produce to artisanal creations — crafted by local hands,
-            delivered to your door.
-          </p>
-          
-          {/* Search Bar with Suggestions */}
-          <form onSubmit={handleSearch} className="max-w-md mx-auto mb-8">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for products..."
-                className="w-full px-6 py-4 pl-14 text-lg border-2 border-white/20 rounded-full focus:border-white focus:ring-2 focus:ring-white/20 transition-all bg-white/10 backdrop-blur-sm text-white placeholder-white/80"
-              />
-              <MagnifyingGlassIcon className="absolute left-5 top-1/2 transform -translate-y-1/2 w-6 h-6 text-white/80" />
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-amber-600 text-white px-6 py-2 rounded-full hover:bg-amber-700 transition-colors"
-              >
-                Search
-              </button>
-            </div>
-            {/* Search Suggestions */}
-            <div className="mt-4 text-center">
-              <p className="text-white/80 text-sm mb-2">Popular searches:</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['fresh eggs', 'sourdough bread', 'maple syrup', 'organic honey', 'artisan cheese'].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    onClick={() => setSearchQuery(suggestion)}
-                    className="px-3 py-1 bg-white/20 backdrop-blur-sm text-white text-sm rounded-full hover:bg-white/30 transition-colors"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+  const closeCartPopup = () => {
+    setShowCartPopup(false);
+    setSelectedProduct(null);
+    setQuantity(1);
+  };
+
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return imagePath;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    
+    // Handle paths without leading slash
+    return `/${imagePath}`;
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD'
+    }).format(price);
+  };
+
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<StarIcon key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />);
+    }
+    if (hasHalfStar) {
+      stars.push(<StarIcon key="half" className="w-4 h-4 fill-amber-400 text-amber-400" />);
+    }
+    const emptyStars = 5 - Math.ceil(rating);
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<StarIcon key={`empty-${i}`} className="w-4 h-4 text-gray-300" />);
+    }
+    return stars;
+  };
+
+  // ProductCard component with lazy loading
+  const ProductCard = ({ product, showImagePreview = false }) => (
+    <div className="group cursor-pointer relative" onClick={() => handleProductClick(product)}>
+      <div className="relative overflow-hidden rounded-lg bg-gray-100">
+        <img
+          src={getImageUrl(product.image)}
+          alt={product.name}
+          className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'flex';
+          }}
+        />
+        <div className="w-full h-64 flex items-center justify-center bg-gray-200" style={{ display: product.image ? 'none' : 'flex' }}>
+          <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
+        </div>
+        {product.isFeatured && (
+          <div className="absolute top-2 left-2 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10">
+            Featured
+          </div>
+        )}
+        {showImagePreview && (
+          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-opacity duration-300 ease-in-out z-20">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-white rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                <EyeIcon className="w-8 h-8 text-gray-800" />
               </div>
             </div>
-          </form>
+          </div>
+        )}
+      </div>
+      <div className="mt-3">
+        <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
+          {product.name}
+        </h3>
+        <p className="text-sm text-gray-500">
+          {product.artisan?.artisanName || product.artisan || `${product.seller?.firstName} ${product.seller?.lastName}`}
+        </p>
+        <div className="flex items-center justify-between mt-2">
+          <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
+          <div className="flex items-center space-x-1">
+            {renderStars(product.rating || 4.5)}
+            <span className="text-sm text-gray-500">({product.rating || 4.5})</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-          {/* Hero Split CTA */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link
-              to="/register"
-              className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-4 rounded-2xl shadow-lg text-lg font-semibold transition-colors"
+  return (
+    <div className="min-h-screen bg-amber-50">
+      {/* Featured Products Grid */}
+      <section className="py-12">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
+            <Link 
+              to="/search" 
+              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
             >
-              Start Shopping
+              <span>View all</span>
+              <ArrowRightIcon className="w-4 h-4" />
             </Link>
-            <Link
-              to="/artisan/register"
-              className="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-8 py-4 rounded-2xl shadow-lg text-lg font-semibold transition-colors border border-white/30"
+          </div>
+
+          {isLoadingFeatured ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          ) : featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {featuredProducts.slice(0, 8).map((product) => (
+                <ProductCard key={product._id} product={product} showImagePreview={true} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Featured Products</h3>
+              <p className="text-gray-500">Check back soon for featured products from our artisans.</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Popular Products Section */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Popular Products</h2>
+            <Link 
+              to="/search" 
+              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
             >
-                              Sell on The Bazar
+              <span>View all</span>
+              <ArrowRightIcon className="w-4 h-4" />
             </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {popularProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Local Favorites Section */}
+      <section className="py-12 bg-amber-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Local Favorites</h2>
+            <Link 
+              to="/search" 
+              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <span>View all</span>
+              <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {localFavorites.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Close to You Section */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900">Close to You</h2>
+            <Link 
+              to="/search" 
+              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <span>View all</span>
+              <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {closeToYou.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
           </div>
         </div>
       </section>
 
       {/* Categories Section */}
-      <section className="max-w-6xl mx-auto py-16 px-4">
-        <h2 className="text-3xl font-semibold text-center mb-10">
-          Browse by Category
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {categories.map((cat, idx) => (
-            <div
-              key={idx}
-              className="overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition cursor-pointer"
-            >
-              <img
-                src={cat.img}
-                alt={cat.name}
-                className="h-40 w-full object-cover"
-              />
-              <div className="text-center py-4 bg-white">
-                <h3 className="font-semibold text-lg">{cat.name}</h3>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Business Value Section */}
-      <section className="bg-white py-16 px-4">
-        <div className="max-w-6xl mx-auto">
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
-                            <h2 className="text-3xl font-semibold mb-4">Why Sell on The Bazar?</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Join our community of local artisans and farmers. We provide everything you need to reach new patrons and grow your artisan business.
-            </p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Browse Categories</h2>
+            <p className="text-lg text-gray-600">Discover amazing products across all categories</p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {artisanBenefits.map((benefit, idx) => (
-              <div key={idx} className="text-center">
-                <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <benefit.icon className="w-8 h-8 text-amber-600" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{benefit.title}</h3>
-                <p className="text-gray-600">{benefit.description}</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            {featuredCategories && featuredCategories.length > 0 ? (
+              featuredCategories.map((category) => (
+                <Link
+                  key={category.key}
+                  to={`/search?category=${category.key}`}
+                  className="group bg-gray-50 rounded-lg p-6 text-center hover:bg-amber-50 hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-amber-300"
+                >
+                  <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">
+                    {category.icon}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">
+                    {category.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 group-hover:text-gray-700">
+                    {category.description}
+                  </p>
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-gray-500">Loading categories...</p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works for Sellers */}
-      <section className="bg-neutral-100 py-16 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-semibold mb-4">How It Works for Artisans</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Get started in just a few simple steps and start selling your products to local patrons.
-            </p>
+            )}
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {artisanSteps.map((step, idx) => (
-              <div key={idx} className="text-center">
-                <div className="bg-amber-600 text-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  {step.step}
-                </div>
-                <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
-              </div>
-            ))}
+          <div className="text-center mt-8">
+            <Link
+              to="/search"
+              className="inline-flex items-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
+            >
+              View All Categories
+              <ArrowRightIcon className="w-4 h-4 ml-2" />
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Meet the Artisans */}
-      <section className="bg-white py-16 px-4">
-        <h2 className="text-3xl font-semibold text-center mb-10">
-          Meet the Artisans
-        </h2>
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {artisans.map((prod, idx) => (
-            <div
-              key={idx}
-              className="overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition cursor-pointer"
-            >
-              <img
-                src={prod.img}
-                alt={prod.name}
-                className="h-48 w-full object-cover"
-              />
-              <div className="p-4 bg-white">
-                <h3 className="font-semibold text-xl mb-2">{prod.name}</h3>
-                <p className="text-sm text-gray-600">{prod.desc}</p>
+      {/* Features Section */}
+      <section className="py-16 bg-amber-50">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose The Bazaar?</h2>
+            <p className="text-lg text-gray-600">Supporting local artisans and bringing you authentic, quality products</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <HeartIcon className="w-8 h-8 text-amber-600" />
               </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Local & Authentic</h3>
+              <p className="text-gray-600">Connect directly with local artisans and discover unique, handmade products.</p>
             </div>
-          ))}
+            
+            <div className="text-center">
+              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TruckIcon className="w-8 h-8 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Fresh Delivery</h3>
+              <p className="text-gray-600">Get fresh, local products delivered to your doorstep with care and attention.</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <SparklesIcon className="w-8 h-8 text-amber-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Quality Assured</h3>
+              <p className="text-gray-600">Every product is carefully curated and quality-checked for your satisfaction.</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Dedicated CTA Block for Businesses */}
-      <section className="bg-amber-600 text-white py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Grow Your Artisan Business?</h2>
-          <p className="text-xl mb-8 text-amber-100">
-                            Join hundreds of local artisans and farmers who are already selling on The Bazar. 
-            Start reaching new patrons today.
-          </p>
+      {/* CTA Section */}
+      <section className="py-16 bg-amber-600">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Selling?</h2>
+          <p className="text-xl text-amber-100 mb-8">Join our community of artisans and share your passion with customers</p>
           <Link
-            to="/artisan/register"
-            className="inline-block bg-white text-amber-600 hover:bg-gray-100 px-12 py-4 rounded-2xl shadow-lg text-xl font-bold transition-colors"
+            to="/signup"
+            className="inline-flex items-center px-8 py-3 bg-white text-amber-600 font-semibold rounded-full hover:bg-gray-100 transition-colors"
           >
             Become an Artisan
+            <ArrowRightIcon className="w-5 h-5 ml-2" />
           </Link>
         </div>
       </section>
 
-      {/* Call to Action for Customers */}
-      <section className="text-center py-16 bg-amber-50">
-        <h2 className="text-3xl font-semibold mb-6">
-          Local Quality. Delivered to You.
-        </h2>
-        <Link
-          to="/register"
-          className="inline-block bg-amber-700 hover:bg-amber-800 text-white px-8 py-4 rounded-2xl shadow-lg text-lg font-semibold transition-colors"
-        >
-          Start Shopping
-        </Link>
-      </section>
+      {/* Cart Popup */}
+      {showCartPopup && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Add to Cart</h3>
+              <button
+                onClick={closeCartPopup}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 text-center">
-        <div className="flex justify-center gap-6 mb-4">
-          <MapPinIcon className="w-6 h-6" />
-          <TruckIcon className="w-6 h-6" />
+            {/* Product Info */}
+            <div className="p-6">
+              <div className="flex space-x-4 mb-6">
+                <div className="flex-shrink-0">
+                  <img
+                    src={getImageUrl(selectedProduct.image)}
+                    alt={selectedProduct.name}
+                    className="w-20 h-20 object-cover rounded-lg"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center hidden">
+                    <BuildingStorefrontIcon className="w-8 h-8 text-gray-400" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
+                  <p className="text-sm text-gray-500 mb-2">
+                    {selectedProduct.artisan?.artisanName || selectedProduct.artisan || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
+                  </p>
+                  <div className="text-xl font-bold text-amber-600">{formatPrice(selectedProduct.price)}</div>
+                </div>
+              </div>
+
+              {/* Stock and Lead Time Info */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Stock Available:</span>
+                  <span className={`text-sm font-medium ${selectedProduct.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedProduct.stock} {selectedProduct.unit || 'piece'}
+                    {selectedProduct.stock > 0 ? '' : ' (Out of Stock)'}
+                  </span>
+                </div>
+                
+                {selectedProduct.leadTimeHours && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Lead Time:</span>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      {selectedProduct.leadTimeHours} hours
+                    </div>
+                  </div>
+                )}
+
+                {selectedProduct.isOrganic && (
+                  <div className="flex items-center text-sm text-green-600">
+                    <SparklesIcon className="w-4 h-4 mr-1" />
+                    Organic Product
+                  </div>
+                )}
+
+                {selectedProduct.isGlutenFree && (
+                  <div className="flex items-center text-sm text-blue-600">
+                    Gluten-Free
+                  </div>
+                )}
+              </div>
+
+              {/* Quantity Selector */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => handleQuantityChange(quantity - 1)}
+                    disabled={quantity <= 1}
+                    className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <MinusIcon className="w-4 h-4" />
+                  </button>
+                  <span className="text-lg font-semibold text-gray-900 min-w-[3rem] text-center">{quantity}</span>
+                  <button
+                    onClick={() => handleQuantityChange(quantity + 1)}
+                    disabled={quantity >= selectedProduct.stock}
+                    className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                  </button>
+                </div>
+                {quantity >= selectedProduct.stock && selectedProduct.stock > 0 && (
+                  <p className="text-sm text-amber-600 mt-1">Maximum available quantity reached</p>
+                )}
+              </div>
+
+              {/* Total Price */}
+              <div className="flex items-center justify-between mb-6 p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Total:</span>
+                <span className="text-lg font-bold text-amber-600">
+                  {formatPrice(selectedProduct.price * quantity)}
+                </span>
+              </div>
+
+              {/* Add to Cart Button */}
+              <button
+                onClick={handleAddToCart}
+                disabled={selectedProduct.stock <= 0}
+                className="w-full flex items-center justify-center px-4 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ShoppingCartIcon className="w-5 h-5 mr-2" />
+                {selectedProduct.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+              </button>
+            </div>
+          </div>
         </div>
-        <p className="text-sm">
-                      © {new Date().getFullYear()} The Bazar. Exceptional local products,
-          made close to home.
-        </p>
-      </footer>
+      )}
     </div>
   );
 }

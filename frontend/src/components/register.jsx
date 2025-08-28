@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon, UserIcon } from "@heroicons/react/24/outline";
-import { registerUser } from "../services/authService";
+import { registerUser, getProfile } from "../services/authService";
+import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
 
 export default function Register() {
@@ -53,8 +54,16 @@ export default function Register() {
     try {
       const { confirmPassword, ...registerData } = formData;
       await registerUser(registerData);
+      
+      // Get user profile to get userId
+      const profile = await getProfile();
+      const userId = profile._id;
+      
+      // Mark user as new (they haven't completed onboarding yet)
+      // Note: We don't mark onboarding as completed here, so they'll be redirected to profile
+      
       toast.success("Account created successfully!");
-      navigate("/dashboard");
+      navigate("/profile"); // Always redirect new users to profile setup
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
     } finally {
@@ -70,7 +79,7 @@ export default function Register() {
           <div className="mx-auto w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <BuildingStorefrontIcon className="w-10 h-10 text-white" />
           </div>
-                      <h2 className="text-4xl font-bold text-stone-900 mb-2">Join The Bazar</h2>
+                      <h2 className="text-4xl font-bold text-stone-900 mb-2">Join The Bazaar</h2>
           <p className="text-stone-600 text-lg">Create your account and start your journey</p>
         </div>
 
@@ -256,7 +265,7 @@ export default function Register() {
           {/* Business Benefits */}
                           {formData.role === 'artisan' && (
             <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-amber-200">
-                              <h4 className="font-semibold text-stone-800 mb-2">Why sell on The Bazar?</h4>
+                              <h4 className="font-semibold text-stone-800 mb-2">Why sell on The Bazaar?</h4>
               <ul className="text-sm text-stone-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>

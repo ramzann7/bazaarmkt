@@ -12,7 +12,8 @@ import {
   ShoppingBagIcon
 } from '@heroicons/react/24/outline';
 import { profileService } from '../services/profileService';
-import { authToken } from '../services/authService';
+import { authToken, getProfile } from '../services/authService';
+import { onboardingService } from '../services/onboardingService';
 import toast from 'react-hot-toast';
 
 export default function BuyerProfile() {
@@ -84,6 +85,16 @@ export default function BuyerProfile() {
       }
 
       setProfile(updatedProfile);
+      
+      // Mark onboarding as completed when profile is saved
+      try {
+        const userProfile = await getProfile();
+        const userId = userProfile._id;
+        onboardingService.markOnboardingCompleted(userId);
+      } catch (error) {
+        console.error('Error marking onboarding completed:', error);
+      }
+      
       toast.success('Profile updated successfully');
     } catch (error) {
       toast.error('Failed to update profile');

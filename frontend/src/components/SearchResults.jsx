@@ -11,6 +11,7 @@ import {
   TruckIcon
 } from '@heroicons/react/24/outline';
 import { searchProducts } from '../services/productService';
+import enhancedSearchService from '../services/enhancedSearchService';
 import { cartService } from '../services/cartService';
 import { authToken, getProfile } from '../services/authService';
 import toast from 'react-hot-toast';
@@ -28,43 +29,44 @@ export default function SearchResults() {
   const [showFilters, setShowFilters] = useState(false);
   const [addingToCart, setAddingToCart] = useState({});
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [productQuantities, setProductQuantities] = useState({});
 
   const query = searchParams.get('q') || '';
+  const categoryParam = searchParams.get('category') || '';
 
   const categories = [
-    { id: 'produce', name: 'Fresh Produce', icon: '🍎' },
-    { id: 'eggs', name: 'Fresh Eggs', icon: '🥚' },
-    { id: 'bread', name: 'Fresh Bread', icon: '🍞' },
-    { id: 'dairy', name: 'Dairy', icon: '🥛' },
-    { id: 'meat', name: 'Meat & Poultry', icon: '🍗' },
-    { id: 'honey', name: 'Honey & Jams', icon: '🍯' },
-    { id: 'herbs', name: 'Herbs & Spices', icon: '🌿' },
-    { id: 'cakes', name: 'Artisan Cakes', icon: '🎂' },
-    { id: 'coffee', name: 'Small-Batch Coffee', icon: '☕' },
-    { id: 'tea', name: 'Artisan Tea', icon: '🫖' },
-    { id: 'jams', name: 'Homemade Jams', icon: '🍓' },
-    { id: 'pickles', name: 'Pickles & Preserves', icon: '🥒' },
-    { id: 'sauces', name: 'Artisan Sauces', icon: '🍅' },
-    { id: 'spices', name: 'Fresh Spices', icon: '🧂' },
-    { id: 'nuts', name: 'Nuts & Seeds', icon: '🥜' },
-    { id: 'grains', name: 'Grains & Flour', icon: '🌾' },
-    { id: 'pasta', name: 'Fresh Pasta', icon: '🍝' },
-    { id: 'oils', name: 'Artisan Oils', icon: '🫒' },
-    { id: 'vinegars', name: 'Specialty Vinegars', icon: '🍷' },
-    { id: 'cheese', name: 'Artisan Cheese', icon: '🧀' },
-    { id: 'yogurt', name: 'Fresh Yogurt', icon: '🥛' },
-    { id: 'butter', name: 'Handmade Butter', icon: '🧈' },
-    { id: 'ice_cream', name: 'Artisan Ice Cream', icon: '🍦' },
-    { id: 'chocolate', name: 'Handcrafted Chocolate', icon: '🍫' },
-    { id: 'candies', name: 'Homemade Candies', icon: '🍬' },
-    { id: 'snacks', name: 'Artisan Snacks', icon: '🥨' },
-    { id: 'beverages', name: 'Craft Beverages', icon: '🥤' },
-    { id: 'alcohol', name: 'Small-Batch Alcohol', icon: '🍺' },
-    { id: 'flowers', name: 'Fresh Flowers', icon: '🌸' },
-    { id: 'plants', name: 'Plants & Herbs', icon: '🌱' },
-    { id: 'seeds', name: 'Garden Seeds', icon: '🌱' },
-    { id: 'fertilizers', name: 'Organic Fertilizers', icon: '🌿' },
-    { id: 'other', name: 'Other', icon: '📦' }
+    { id: 'Bakery', name: 'Bakery', icon: '🥖' },
+    { id: 'Dairy & Eggs', name: 'Dairy & Eggs', icon: '🥛' },
+    { id: 'Fresh Produce', name: 'Fresh Produce', icon: '🍎' },
+    { id: 'Meat & Poultry', name: 'Meat & Poultry', icon: '🍗' },
+    { id: 'Honey & Jams', name: 'Honey & Jams', icon: '🍯' },
+    { id: 'Herbs & Spices', name: 'Herbs & Spices', icon: '🌿' },
+    { id: 'Artisan Cakes', name: 'Artisan Cakes', icon: '🎂' },
+    { id: 'Small-Batch Coffee', name: 'Small-Batch Coffee', icon: '☕' },
+    { id: 'Artisan Tea', name: 'Artisan Tea', icon: '🫖' },
+    { id: 'Homemade Jams', name: 'Homemade Jams', icon: '🍓' },
+    { id: 'Pickles & Preserves', name: 'Pickles & Preserves', icon: '🥒' },
+    { id: 'Artisan Sauces', name: 'Artisan Sauces', icon: '🍅' },
+    { id: 'Fresh Spices', name: 'Fresh Spices', icon: '🧂' },
+    { id: 'Nuts & Seeds', name: 'Nuts & Seeds', icon: '🥜' },
+    { id: 'Grains & Flour', name: 'Grains & Flour', icon: '🌾' },
+    { id: 'Fresh Pasta', name: 'Fresh Pasta', icon: '🍝' },
+    { id: 'Artisan Oils', name: 'Artisan Oils', icon: '🫒' },
+    { id: 'Specialty Vinegars', name: 'Specialty Vinegars', icon: '🍷' },
+    { id: 'Artisan Cheese', name: 'Artisan Cheese', icon: '🧀' },
+    { id: 'Fresh Yogurt', name: 'Fresh Yogurt', icon: '🥛' },
+    { id: 'Handmade Butter', name: 'Handmade Butter', icon: '🧈' },
+    { id: 'Artisan Ice Cream', name: 'Artisan Ice Cream', icon: '🍦' },
+    { id: 'Handcrafted Chocolate', name: 'Handcrafted Chocolate', icon: '🍫' },
+    { id: 'Homemade Candies', name: 'Homemade Candies', icon: '🍬' },
+    { id: 'Artisan Snacks', name: 'Artisan Snacks', icon: '🥨' },
+    { id: 'Craft Beverages', name: 'Craft Beverages', icon: '🥤' },
+    { id: 'Small-Batch Alcohol', name: 'Small-Batch Alcohol', icon: '🍺' },
+    { id: 'Fresh Flowers', name: 'Fresh Flowers', icon: '🌸' },
+    { id: 'Plants & Herbs', name: 'Plants & Herbs', icon: '🌱' },
+    { id: 'Garden Seeds', name: 'Garden Seeds', icon: '🌱' },
+    { id: 'Organic Fertilizers', name: 'Organic Fertilizers', icon: '🌿' },
+    { id: 'Other', name: 'Other', icon: '📦' }
   ];
 
   useEffect(() => {
@@ -73,15 +75,15 @@ export default function SearchResults() {
   }, []);
 
   useEffect(() => {
-    if (query) {
+    if (query || categoryParam) {
       performSearch();
     } else {
-      // If no query, show empty state
+      // If no query or category, show empty state
       setProducts([]);
       setFilteredProducts([]);
       setIsLoading(false);
     }
-  }, [query, userLocation]);
+  }, [query, categoryParam, userLocation]);
 
   useEffect(() => {
     applyFiltersAndSort();
@@ -103,24 +105,22 @@ export default function SearchResults() {
     }
   };
 
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          // Default to a fallback location (e.g., city center)
-          setUserLocation({ lat: 45.5017, lng: -73.5673 }); // Montreal coordinates
-          toast.error('Unable to get your location. Showing results from default area.');
-        }
-      );
-    } else {
-      // Fallback for browsers that don't support geolocation
+  const getCurrentLocation = async () => {
+    try {
+      const location = await enhancedSearchService.getUserLocation();
+      if (location) {
+        setUserLocation({
+          lat: location.latitude,
+          lng: location.longitude
+        });
+      } else {
+        // Default to a fallback location (e.g., city center)
+        setUserLocation({ lat: 45.5017, lng: -73.5673 }); // Montreal coordinates
+        toast.error('Unable to get your location. Showing results from default area.');
+      }
+    } catch (error) {
+      console.error('Error getting location:', error);
+      // Default to a fallback location
       setUserLocation({ lat: 45.5017, lng: -73.5673 });
       toast.error('Location services not available. Showing results from default area.');
     }
@@ -129,29 +129,64 @@ export default function SearchResults() {
   const performSearch = async () => {
     try {
       setIsLoading(true);
-      console.log('Starting search for query:', query);
+      console.log('Starting enhanced search for query:', query, 'category:', categoryParam);
       
-      // Build search filters
-      const filters = {
-        minPrice: priceRange.min,
-        maxPrice: priceRange.max,
-        sortBy: sortBy === 'price-low' ? 'price' : sortBy === 'price-high' ? 'price' : 'createdAt',
-        sortOrder: sortBy === 'price-low' ? 'asc' : sortBy === 'price-high' ? 'desc' : 'desc'
-      };
+      // Check if enhanced search is requested
+      const enhancedSearch = searchParams.get('enhanced') === 'true';
+      const userLat = searchParams.get('lat');
+      const userLng = searchParams.get('lng');
       
-      // Add category filter if selected
-      if (selectedCategories.length > 0) {
-        filters.category = selectedCategories[0]; // For now, use first selected category
+      let searchResponse;
+      
+      if (enhancedSearch) {
+        // Use enhanced search service
+        const userLocation = userLat && userLng ? {
+          latitude: parseFloat(userLat),
+          longitude: parseFloat(userLng)
+        } : await enhancedSearchService.getUserLocation();
+        
+        // Build enhanced search filters
+        const filters = {
+          minPrice: priceRange.min,
+          maxPrice: priceRange.max
+        };
+        
+        // Add category filter from URL parameter or selected categories
+        if (categoryParam && categoryParam !== 'all') {
+          filters.category = categoryParam;
+          setSelectedCategories([categoryParam]);
+        } else if (selectedCategories.length > 0) {
+          filters.category = selectedCategories[0];
+        }
+        
+        console.log('Enhanced search filters:', filters);
+        console.log('User location for enhanced search:', userLocation);
+        
+        // Use enhanced search service
+        searchResponse = await enhancedSearchService.searchWithFilters(query, filters, userLocation);
+        
+        console.log('Enhanced search response:', searchResponse);
+      } else {
+        // Fallback to basic search
+        const filters = {
+          minPrice: priceRange.min,
+          maxPrice: priceRange.max,
+          sortBy: sortBy === 'price-low' ? 'price' : sortBy === 'price-high' ? 'price' : 'createdAt',
+          sortOrder: sortBy === 'price-low' ? 'asc' : sortBy === 'price-high' ? 'desc' : 'desc'
+        };
+        
+        if (categoryParam && categoryParam !== 'all') {
+          filters.category = categoryParam;
+          setSelectedCategories([categoryParam]);
+        } else if (selectedCategories.length > 0) {
+          filters.category = selectedCategories[0];
+        }
+        
+        console.log('Basic search filters:', filters);
+        searchResponse = await searchProducts(query, filters);
       }
       
-      console.log('Search filters:', filters);
-      
-      // Use the new search API
-      const searchResponse = await searchProducts(query, filters);
-      
-      console.log('Search response:', searchResponse);
-      
-      // Handle new response format with metadata
+      // Handle response format
       const searchResults = searchResponse.products || searchResponse;
       
       console.log('Search results:', searchResults);
@@ -159,16 +194,13 @@ export default function SearchResults() {
       // Add distance calculation if user location is available
       const productsWithDistance = searchResults.map(product => {
         let distance = null;
-        if (userLocation && product.seller?.addresses) {
-          const address = product.seller.addresses?.find(addr => addr.isDefault);
-          if (address && address.lat && address.lng) {
-            distance = calculateDistance(
-              userLocation.lat,
-              userLocation.lng,
-              address.lat,
-              address.lng
-            );
-          }
+        if (userLocation && product.artisan?.location?.coordinates) {
+          distance = enhancedSearchService.calculateDistance(
+            userLocation.lat || userLocation.latitude,
+            userLocation.lng || userLocation.longitude,
+            product.artisan.location.coordinates[1], // latitude
+            product.artisan.location.coordinates[0]  // longitude
+          );
         }
         return { ...product, distance };
       });
@@ -178,6 +210,8 @@ export default function SearchResults() {
       // Log search metadata for debugging
       if (searchResponse.searchMetadata) {
         console.log('Search Metadata:', searchResponse.searchMetadata);
+        console.log('Enhanced Ranking:', searchResponse.searchMetadata.enhancedRanking);
+        console.log('User Location:', searchResponse.searchMetadata.userLocation);
       }
     } catch (error) {
       console.error('Error searching products:', error);
@@ -265,11 +299,31 @@ export default function SearchResults() {
     }
   };
 
-  const handleAddToCart = async (product, quantity = 1, event) => {
+  const handleQuantityChange = (productId, newQuantity) => {
+    if (newQuantity < 1) return;
+    setProductQuantities(prev => ({
+      ...prev,
+      [productId]: newQuantity
+    }));
+  };
+
+  const getProductQuantity = (productId) => {
+    return productQuantities[productId] || 1;
+  };
+
+  const handleAddToCart = async (product, event) => {
     event.stopPropagation(); // Prevent product click
     
     if (!product.seller?._id) {
       toast.error('Cannot add product: Missing seller information');
+      return;
+    }
+
+    const quantity = getProductQuantity(product._id);
+    
+    // Check if quantity exceeds available stock
+    if (quantity > product.stock) {
+      toast.error(`Only ${product.stock} items available in stock`);
       return;
     }
 
@@ -279,6 +333,12 @@ export default function SearchResults() {
       // For guest users, pass null as userId to use guest cart
       await cartService.addToCart(product, quantity, currentUserId);
       toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart!`);
+      
+      // Reset quantity after successful add
+      setProductQuantities(prev => ({
+        ...prev,
+        [product._id]: 1
+      }));
     } catch (error) {
       console.error('Error adding to cart:', error);
       toast.error('Failed to add item to cart');
@@ -423,7 +483,7 @@ export default function SearchResults() {
                     <div className="relative h-48 bg-gray-100">
                       {product.image ? (
                         <img
-                          src={product.image.startsWith('http') ? product.image : `http://localhost:4000${product.image}`}
+                          src={product.image.startsWith('http') ? product.image : product.image}
                           alt={product.name}
                           className="w-full h-full object-cover rounded-t-lg"
                           onError={(e) => {
@@ -455,7 +515,7 @@ export default function SearchResults() {
                       </h3>
                       
                       <p className="text-sm text-emerald-600 mb-2">
-                        by {product.artisan?.artisanName ? product.artisan.artisanName : (product.seller?.firstName ? `${product.seller.firstName} ${product.seller.lastName}` : 'Unknown Seller')}
+                        by {product.artisan?.artisanName ? product.artisan.artisanName : (product.seller?.firstName ? `${product.seller.firstName} ${product.seller.lastName}` : 'Unknown Artisan')}
                         {product.artisan?.type && (
                           <span className="text-gray-500 ml-1">
                             • {product.artisan.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -511,26 +571,65 @@ export default function SearchResults() {
                         </span>
                       </div>
 
-                      {/* Add to Cart Button */}
-                      <button
-                        onClick={(e) => handleAddToCart(product, 1, e)}
-                        disabled={addingToCart[product._id] || !product.seller?._id}
-                        className="w-full btn-primary py-2 px-4 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
-                      >
-                        {addingToCart[product._id] ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Adding...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                            </svg>
-                            Bring it Home
-                          </>
-                        )}
-                      </button>
+                      {/* Quantity Selector and Add to Cart */}
+                      <div className="space-y-3">
+                        {/* Quantity Selector */}
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-gray-700">Quantity:</label>
+                          <div className="flex items-center border border-gray-300 rounded-lg">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentQty = getProductQuantity(product._id);
+                                if (currentQty > 1) {
+                                  handleQuantityChange(product._id, currentQty - 1);
+                                }
+                              }}
+                              className="px-3 py-1 text-gray-600 hover:bg-gray-100 transition-colors"
+                              disabled={getProductQuantity(product._id) <= 1}
+                            >
+                              -
+                            </button>
+                            <span className="px-3 py-1 text-gray-900 font-medium min-w-[2rem] text-center">
+                              {getProductQuantity(product._id)}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentQty = getProductQuantity(product._id);
+                                if (currentQty < product.stock) {
+                                  handleQuantityChange(product._id, currentQty + 1);
+                                }
+                              }}
+                              className="px-3 py-1 text-gray-600 hover:bg-gray-100 transition-colors"
+                              disabled={getProductQuantity(product._id) >= product.stock}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Add to Cart Button */}
+                        <button
+                          onClick={(e) => handleAddToCart(product, e)}
+                          disabled={addingToCart[product._id] || !product.seller?._id}
+                          className="w-full btn-primary py-2 px-4 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
+                        >
+                          {addingToCart[product._id] ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+                              </svg>
+                              Add {getProductQuantity(product._id)} to Cart
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

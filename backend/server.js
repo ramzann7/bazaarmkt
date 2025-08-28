@@ -24,7 +24,7 @@ app.use((req, res, next) => {
 });
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/bazarmkt')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/the-bazaar')
   .then(() => console.log('✅ MongoDB connected'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
@@ -40,6 +40,8 @@ const profileRoutes = require('./src/routes/profile');
 const productRoutes = require('./src/routes/products');
 const orderRoutes = require('./src/routes/orders');
 const uploadRoutes = require('./src/routes/upload');
+const adminRoutes = require('./src/routes/admin');
+const reviewRoutes = require('./src/routes/reviews');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -48,6 +50,8 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
@@ -56,7 +60,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    message: 'Bazarmkt API is running',
+    message: 'The Bazaar API is running',
     timestamp: new Date().toISOString()
   });
 });

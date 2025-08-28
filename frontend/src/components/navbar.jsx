@@ -12,7 +12,7 @@ import {
 import { authToken, logoutUser, getProfile } from "../services/authService";
 import { cartService } from "../services/cartService";
 import { guestService } from "../services/guestService";
-import enhancedSearchService from "../services/enhancedSearchService";
+// Enhanced search service removed - using basic functionality
 import toast from "react-hot-toast";
 
 export default function Navbar() {
@@ -172,29 +172,9 @@ export default function Navbar() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      try {
-        // Get user location for enhanced search
-        const userLocation = await enhancedSearchService.getUserLocation();
-        
-        // Navigate to search with enhanced parameters
-        const searchParams = new URLSearchParams({
-          q: searchQuery.trim(),
-          enhanced: 'true'
-        });
-        
-        if (userLocation) {
-          searchParams.append('lat', userLocation.latitude);
-          searchParams.append('lng', userLocation.longitude);
-        }
-        
-        navigate(`/search?${searchParams.toString()}`);
-        setSearchQuery('');
-      } catch (error) {
-        console.error('Enhanced search error:', error);
-        // Fallback to basic search
-        navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-        setSearchQuery('');
-      }
+      // Use basic search functionality
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
     }
   };
 
@@ -202,62 +182,18 @@ export default function Navbar() {
     setSelectedCategory(categoryId);
     setShowCategoryDropdown(false);
     
-    try {
-      // Get user location for enhanced search
-      const userLocation = await enhancedSearchService.getUserLocation();
-      
-      if (categoryId === 'all') {
-        navigate('/search');
-      } else {
-        const categoryName = categories.find(c => c.id === categoryId)?.name;
-        const searchParams = new URLSearchParams({
-          category: categoryId,
-          q: categoryName || '',
-          enhanced: 'true'
-        });
-        
-        if (userLocation) {
-          searchParams.append('lat', userLocation.latitude);
-          searchParams.append('lng', userLocation.longitude);
-        }
-        
-        navigate(`/search?${searchParams.toString()}`);
-      }
-    } catch (error) {
-      console.error('Enhanced category search error:', error);
-      // Fallback to basic search
-      if (categoryId === 'all') {
-        navigate('/search');
-      } else {
-        const categoryName = categories.find(c => c.id === categoryId)?.name;
-        navigate(`/search?category=${categoryId}&q=${encodeURIComponent(categoryName || '')}`);
-      }
+    if (categoryId === 'all') {
+      navigate('/search');
+    } else {
+      const categoryName = categories.find(c => c.id === categoryId)?.name;
+      navigate(`/search?category=${categoryId}&q=${encodeURIComponent(categoryName || '')}`);
     }
   };
 
   const handlePopularSearch = async (search) => {
-    try {
-      // Get user location for enhanced search
-      const userLocation = await enhancedSearchService.getUserLocation();
-      
-      const searchParams = new URLSearchParams({
-        q: search,
-        enhanced: 'true'
-      });
-      
-      if (userLocation) {
-        searchParams.append('lat', userLocation.latitude);
-        searchParams.append('lng', userLocation.longitude);
-      }
-      
-      navigate(`/search?${searchParams.toString()}`);
-      setShowPopularSearches(false);
-    } catch (error) {
-      console.error('Enhanced popular search error:', error);
-      // Fallback to basic search
-      navigate(`/search?q=${encodeURIComponent(search)}`);
-      setShowPopularSearches(false);
-    }
+    // Use basic search functionality
+    navigate(`/search?q=${encodeURIComponent(search)}`);
+    setShowPopularSearches(false);
   };
 
   // Close dropdowns when clicking outside

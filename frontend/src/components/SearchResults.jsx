@@ -11,7 +11,7 @@ import {
   TruckIcon
 } from '@heroicons/react/24/outline';
 import { searchProducts } from '../services/productService';
-import enhancedSearchService from '../services/enhancedSearchService';
+// Enhanced search service removed - using basic search functionality
 import { cartService } from '../services/cartService';
 import { authToken, getProfile } from '../services/authService';
 import toast from 'react-hot-toast';
@@ -107,16 +107,26 @@ export default function SearchResults() {
 
   const getCurrentLocation = async () => {
     try {
-      const location = await enhancedSearchService.getUserLocation();
-      if (location) {
-        setUserLocation({
-          lat: location.latitude,
-          lng: location.longitude
-        });
+      // Use browser geolocation API directly
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+            // Default to a fallback location
+            setUserLocation({ lat: 45.5017, lng: -73.5673 });
+            toast.error('Location services not available. Showing results from default area.');
+          }
+        );
       } else {
-        // Default to a fallback location (e.g., city center)
-        setUserLocation({ lat: 45.5017, lng: -73.5673 }); // Montreal coordinates
-        toast.error('Unable to get your location. Showing results from default area.');
+        // Default to a fallback location
+        setUserLocation({ lat: 45.5017, lng: -73.5673 });
+        toast.error('Geolocation not supported. Showing results from default area.');
       }
     } catch (error) {
       console.error('Error getting location:', error);
@@ -139,16 +149,15 @@ export default function SearchResults() {
       let searchResponse;
       
       if (enhancedSearch) {
-        // Use enhanced search service
-        const userLocation = userLat && userLng ? {
-          latitude: parseFloat(userLat),
-          longitude: parseFloat(userLng)
-        } : await enhancedSearchService.getUserLocation();
+        // Enhanced search functionality removed - fallback to basic search
+        console.log('Enhanced search requested but not available - using basic search');
         
-        // Build enhanced search filters
+        // Build basic search filters
         const filters = {
           minPrice: priceRange.min,
-          maxPrice: priceRange.max
+          maxPrice: priceRange.max,
+          sortBy: sortBy === 'price-low' ? 'price' : sortBy === 'price-high' ? 'price' : 'createdAt',
+          sortOrder: sortBy === 'price-low' ? 'asc' : sortBy === 'price-high' ? 'desc' : 'desc'
         };
         
         // Add category filter from URL parameter or selected categories
@@ -159,13 +168,8 @@ export default function SearchResults() {
           filters.category = selectedCategories[0];
         }
         
-        console.log('Enhanced search filters:', filters);
-        console.log('User location for enhanced search:', userLocation);
-        
-        // Use enhanced search service
-        searchResponse = await enhancedSearchService.searchWithFilters(query, filters, userLocation);
-        
-        console.log('Enhanced search response:', searchResponse);
+        console.log('Basic search filters (enhanced fallback):', filters);
+        searchResponse = await searchProducts(query, filters);
       } else {
         // Fallback to basic search
         const filters = {
@@ -195,7 +199,19 @@ export default function SearchResults() {
       const productsWithDistance = searchResults.map(product => {
         let distance = null;
         if (userLocation && product.artisan?.location?.coordinates) {
-          distance = enhancedSearchService.calculateDistance(
+          // Simple distance calculation using Haversine formula
+          const calculateDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371; // Earth's radius in kilometers
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+          };
+          
+          distance = calculateDistance(
             userLocation.lat || userLocation.latitude,
             userLocation.lng || userLocation.longitude,
             product.artisan.location.coordinates[1], // latitude

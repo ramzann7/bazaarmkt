@@ -16,6 +16,14 @@ export const profileService = {
     return response.data;
   },
 
+  // Update entire profile
+  updateProfile: async (profileData) => {
+    const response = await axios.put(API_URL, profileData, {
+      headers: getAuthHeaders()
+    });
+    return response.data;
+  },
+
   // Update basic profile information
   updateBasicProfile: async (profileData) => {
     const response = await axios.put(`${API_URL}/basic`, profileData, {
@@ -168,14 +176,6 @@ export const profileService = {
   // Change password (updated to accept object)
   changePassword: async (passwordData) => {
     const response = await axios.put(`${API_URL}/password`, passwordData, {
-      headers: getAuthHeaders()
-    });
-    return response.data;
-  },
-
-  // Update artisan hours
-  updateArtisanHours: async (artisanHours) => {
-    const response = await axios.put(`${API_URL}/artisan/hours`, { artisanHours }, {
       headers: getAuthHeaders()
     });
     return response.data;

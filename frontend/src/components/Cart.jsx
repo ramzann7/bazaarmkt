@@ -8,12 +8,16 @@ import {
   TruckIcon,
   CreditCardIcon,
   MapPinIcon,
-  CheckIcon
+  CheckIcon,
+  PlusCircleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { cartService } from '../services/cartService';
 import { orderService } from '../services/orderService';
 import { authToken, getProfile } from '../services/authService';
 import { guestService } from '../services/guestService';
+import { paymentService } from '../services/paymentService';
+import { deliveryService } from '../services/deliveryService';
 import toast from 'react-hot-toast';
 
 export default function Cart() {
@@ -24,6 +28,7 @@ export default function Cart() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
   const [checkoutStep, setCheckoutStep] = useState('cart'); // cart, delivery, payment, confirmation
   const [userProfile, setUserProfile] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -42,6 +47,11 @@ export default function Cart() {
     cvv: '',
     cardholderName: ''
   });
+  const [deliveryOptions, setDeliveryOptions] = useState({});
+  const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
+  const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -63,18 +73,60 @@ export default function Cart() {
       }
     };
     
+    // Listen for profile updates to refresh cart data
+    const handleProfileUpdate = () => {
+      console.log('🔄 Profile update detected, refreshing cart data...');
+      if (isAuthenticated && !isGuest) {
+        loadUserProfile();
+      }
+    };
+    
     window.addEventListener('cartUpdated', handleCartUpdate);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
-  }, [currentUserId]);
+    window.addEventListener('profileUpdated', handleProfileUpdate);
+    
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('profileUpdated', handleProfileUpdate);
+    };
+  }, [currentUserId, isAuthenticated, isGuest]);
 
   const loadUserProfile = async () => {
     try {
+      console.log('🔄 Loading user profile for cart...');
       const profile = await getProfile();
       setUserProfile(profile);
+      console.log('✅ User profile loaded:', profile);
       
-      // Set default address and payment method
+      // Load payment methods from profile
+      setIsLoadingPaymentMethods(true);
+      try {
+        // Use payment methods from profile directly
+        const methods = profile.paymentMethods || [];
+        setPaymentMethods(methods);
+        console.log('💳 Payment methods loaded:', methods);
+        
+        // Set default payment method
+        const defaultPayment = methods.find(pay => pay.isDefault) || methods[0];
+        if (defaultPayment) {
+          setSelectedPaymentMethod(defaultPayment);
+          setPaymentForm({
+            cardNumber: `**** **** **** ${defaultPayment.last4}`,
+            expiryMonth: defaultPayment.expiryMonth.toString().padStart(2, '0'),
+            expiryYear: defaultPayment.expiryYear.toString(),
+            cvv: '',
+            cardholderName: defaultPayment.cardholderName
+          });
+          console.log('💳 Default payment method set:', defaultPayment);
+        }
+      } catch (error) {
+        console.error('Error loading payment methods:', error);
+        setPaymentMethods([]);
+      } finally {
+        setIsLoadingPaymentMethods(false);
+      }
+      
+      // Set default address from profile
       const defaultAddress = profile.addresses?.find(addr => addr.isDefault) || profile.addresses?.[0];
-      const defaultPayment = profile.paymentMethods?.find(pay => pay.isDefault) || profile.paymentMethods?.[0];
       
       if (defaultAddress) {
         setSelectedAddress(defaultAddress);
@@ -85,25 +137,24 @@ export default function Cart() {
           zipCode: defaultAddress.zipCode,
           country: defaultAddress.country
         });
+        console.log('📍 Default address set from profile:', defaultAddress);
+      } else {
+        console.log('⚠️ No addresses found in profile');
       }
       
-      if (defaultPayment) {
-        setSelectedPaymentMethod(defaultPayment);
-        setPaymentForm({
-          cardNumber: `**** **** **** ${defaultPayment.last4}`,
-          expiryMonth: defaultPayment.expiryMonth.toString().padStart(2, '0'),
-          expiryYear: defaultPayment.expiryYear.toString(),
-          cvv: '',
-          cardholderName: defaultPayment.cardholderName
-        });
-      }
+      // Load delivery options for each artisan
+      loadDeliveryOptions();
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.error('❌ Error loading user profile:', error);
     }
   };
 
   const loadCart = () => {
     // Load cart for both authenticated users and guest users
+    console.log('Cart component loadCart - currentUserId:', currentUserId);
+    console.log('Cart component loadCart - isAuthenticated:', isAuthenticated);
+    console.log('Cart component loadCart - isGuest:', isGuest);
+    
     const cartItems = cartService.getCart(currentUserId);
     const groupedCart = cartService.getCartByArtisan(currentUserId);
     
@@ -123,15 +174,38 @@ export default function Cart() {
     if (token) {
       try {
         const profile = await getProfile();
-        setCurrentUserId(profile._id);
+        // Get userId from token
+        const token = authToken.getToken();
+        let userIdFromToken = null;
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userIdFromToken = payload.userId;
+          } catch (error) {
+            console.error('Error parsing token for userId:', error);
+          }
+        }
+        console.log('Cart component - profile._id:', profile._id, 'userIdFromToken:', userIdFromToken);
+        
+        setCurrentUserId(userIdFromToken || profile._id);
+        setUserRole(profile.role);
         setIsAuthenticated(true);
         setIsGuest(guestService.isGuestUser());
+        
+        // Check if user is an artisan (artisans cannot access cart)
+        if (profile.role === 'artisan') {
+          toast.error('Artisans cannot access the cart. You are a seller, not a buyer.');
+          navigate('/');
+          return;
+        }
+        
         loadCart();
         loadUserProfile();
       } catch (error) {
         console.error('Error loading user profile:', error);
         setIsAuthenticated(false);
         setCurrentUserId(null);
+        setUserRole(null);
         setIsGuest(false);
       }
     } else {
@@ -164,6 +238,27 @@ export default function Cart() {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  const loadDeliveryOptions = () => {
+    const cartByArtisan = cartService.getCartByArtisan(currentUserId);
+    const options = {};
+    const selectedMethods = {};
+    
+    Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
+      const deliveryOptions = deliveryService.getDeliveryOptions(artisanData.artisan);
+      options[artisanId] = deliveryOptions;
+      
+      // Set default delivery method (pickup if available, otherwise delivery)
+      if (deliveryOptions.pickup.available) {
+        selectedMethods[artisanId] = 'pickup';
+      } else if (deliveryOptions.delivery.available) {
+        selectedMethods[artisanId] = 'delivery';
+      }
+    });
+    
+    setDeliveryOptions(options);
+    setSelectedDeliveryMethods(selectedMethods);
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) {
       toast.error('Your cart is empty');
@@ -185,11 +280,22 @@ export default function Cart() {
     setCheckoutStep('delivery');
   };
 
-  const handleContinueToPayment = () => {
+  const handleContinueToPayment = async () => {
     // Validate delivery address
     if (!deliveryForm.street || !deliveryForm.city || !deliveryForm.state || !deliveryForm.zipCode) {
       toast.error('Please fill in all required delivery address fields');
       return;
+    }
+    
+    // For authenticated users, refresh profile data to ensure we have the latest
+    if (isAuthenticated && !isGuest) {
+      try {
+        console.log('🔄 Refreshing profile data before payment step...');
+        await loadUserProfile();
+      } catch (error) {
+        console.error('❌ Error refreshing profile data:', error);
+        // Continue with current data if refresh fails
+      }
     }
     
     // Set the selected address from the form
@@ -214,16 +320,24 @@ export default function Cart() {
         return;
       }
       
-      // For guest users, validate payment form fields
-      if (isGuest) {
-        if (!paymentForm.cardNumber || !paymentForm.expiryMonth || !paymentForm.expiryYear || !paymentForm.cvv || !paymentForm.cardholderName) {
-          toast.error('Please fill in all payment information fields');
+      // For authenticated users, validate against profile data
+      if (isAuthenticated && !isGuest) {
+        const checkoutValidation = await cartService.validateCheckoutData(
+          currentUserId, 
+          selectedAddress, 
+          selectedPaymentMethod
+        );
+        
+        if (!checkoutValidation.isValid) {
+          toast.error('Checkout validation failed: ' + checkoutValidation.errors.join(', '));
+          setIsLoading(false);
           return;
         }
       } else {
-        // For authenticated users, validate selected payment method
-        if (!selectedPaymentMethod) {
-          toast.error('Please select a payment method');
+        // For guest users, validate payment form fields
+        if (!paymentForm.cardNumber || !paymentForm.expiryMonth || !paymentForm.expiryYear || !paymentForm.cvv || !paymentForm.cardholderName) {
+          toast.error('Please fill in all payment information fields');
+          setIsLoading(false);
           return;
         }
       }
@@ -348,7 +462,7 @@ export default function Cart() {
                   {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
                     <div key={artisanId} className="border rounded-lg p-4">
                       <h4 className="font-medium text-gray-900 mb-2">
-                        {artisanData.artisan?.firstName} {artisanData.artisan?.lastName}
+                        {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                       </h4>
                       <div className="space-y-2">
                         {artisanData.items.map(item => (
@@ -381,48 +495,154 @@ export default function Cart() {
                 <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
                 
                 {/* Saved Payment Methods - Only show for authenticated users */}
-                {!isGuest && userProfile?.paymentMethods && userProfile.paymentMethods.length > 0 && (
+                {!isGuest && (
                   <div className="mb-6">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Saved Payment Methods</h4>
-                    <div className="space-y-2">
-                      {userProfile.paymentMethods.map((payment) => (
-                        <div
-                          key={payment._id}
-                          onClick={() => {
-                            setSelectedPaymentMethod(payment);
-                            setPaymentForm({
-                              cardNumber: `**** **** **** ${payment.last4}`,
-                              expiryMonth: payment.expiryMonth.toString().padStart(2, '0'),
-                              expiryYear: payment.expiryYear.toString(),
-                              cvv: '',
-                              cardholderName: payment.cardholderName
-                            });
-                          }}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedPaymentMethod?._id === payment._id
-                              ? 'border-orange-500 bg-orange-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {payment.type === 'credit_card' ? 'Credit Card' : 'Debit Card'} 
-                                {payment.isDefault && <span className="text-xs text-orange-600"> (Default)</span>}
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-gray-700">Payment Methods</h4>
+                      <button
+                        onClick={() => setShowAddPaymentMethod(!showAddPaymentMethod)}
+                        className="flex items-center text-sm text-orange-600 hover:text-orange-700"
+                      >
+                        <PlusCircleIcon className="w-4 h-4 mr-1" />
+                        Add New Card
+                      </button>
+                    </div>
+                    
+                    {isLoadingPaymentMethods ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>
+                        <p className="text-sm text-gray-600 mt-2">Loading payment methods...</p>
+                      </div>
+                    ) : paymentMethods.length > 0 ? (
+                      <div className="space-y-2">
+                        {paymentMethods.map((payment) => (
+                          <div
+                            key={payment._id}
+                            onClick={async () => {
+                              setSelectedPaymentMethod(payment);
+                              setPaymentForm({
+                                cardNumber: `**** **** **** ${payment.last4}`,
+                                expiryMonth: payment.expiryMonth.toString().padStart(2, '0'),
+                                expiryYear: payment.expiryYear.toString(),
+                                cvv: '',
+                                cardholderName: payment.cardholderName
+                              });
+                              
+                              // For authenticated users, ensure we have the latest profile data
+                              if (isAuthenticated && !isGuest) {
+                                try {
+                                  console.log('🔄 Refreshing profile data after payment method selection...');
+                                  await loadUserProfile();
+                                } catch (error) {
+                                  console.error('❌ Error refreshing profile data:', error);
+                                }
+                              }
+                            }}
+                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                              selectedPaymentMethod?._id === payment._id
+                                ? 'border-orange-500 bg-orange-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {payment.type === 'credit_card' ? 'Credit Card' : 'Debit Card'} 
+                                  {payment.isDefault && <span className="text-xs text-orange-600"> (Default)</span>}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  **** **** **** {payment.last4} • Expires {payment.expiryMonth}/{payment.expiryYear}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  {payment.cardholderName}
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-600">
-                                **** **** **** {payment.last4} • Expires {payment.expiryMonth}/{payment.expiryYear}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {payment.cardholderName}
-                              </div>
+                              {selectedPaymentMethod?._id === payment._id && (
+                                <CheckIcon className="w-5 h-5 text-orange-500" />
+                              )}
                             </div>
-                            {selectedPaymentMethod?._id === payment._id && (
-                              <CheckIcon className="w-5 h-5 text-orange-500" />
-                            )}
                           </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
+                        <CreditCardIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">No saved payment methods</p>
+                        <p className="text-xs text-gray-500">Add a payment method to speed up checkout</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Add New Payment Method Form */}
+                {!isGuest && showAddPaymentMethod && (
+                  <div className="mb-6 p-4 border border-orange-200 rounded-lg bg-orange-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-orange-800">Add New Payment Method</h4>
+                      <button
+                        onClick={() => setShowAddPaymentMethod(false)}
+                        className="text-orange-600 hover:text-orange-700"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-orange-700 mb-1">
+                          Card Number
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="1234 5678 9012 3456"
+                          className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs font-medium text-orange-700 mb-1">
+                            Expiry
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="MM/YY"
+                            className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
                         </div>
-                      ))}
+                        <div>
+                          <label className="block text-xs font-medium text-orange-700 mb-1">
+                            CVV
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="123"
+                            className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-orange-700 mb-1">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Cardholder Name"
+                            className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <button className="flex-1 bg-orange-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-orange-700 transition-colors">
+                          Save Card
+                        </button>
+                        <button 
+                          onClick={() => setShowAddPaymentMethod(false)}
+                          className="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm hover:bg-gray-300 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -554,7 +774,7 @@ export default function Cart() {
                   {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
                     <div key={artisanId} className="border rounded-lg p-4">
                       <h4 className="font-medium text-gray-900 mb-2">
-                        {artisanData.artisan?.firstName} {artisanData.artisan?.lastName}
+                        {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                       </h4>
                       <div className="space-y-2">
                         {artisanData.items.map(item => (
@@ -781,18 +1001,61 @@ export default function Cart() {
           <div className="space-y-6">
             {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
               <div key={artisanId} className="border rounded-lg p-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-orange-600 font-semibold">
-                      {artisanData.artisan?.firstName?.[0]}{artisanData.artisan?.lastName?.[0]}
-                    </span>
-                  </div>
-                  <div>
-                                          <h3 className="font-semibold text-gray-900">
-                        {artisanData.artisan?.artisanName || `${artisanData.artisan?.firstName} ${artisanData.artisan?.lastName}`}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-orange-600 font-semibold">
+                        {artisanData.artisan?.artisanName?.[0] || 'A'}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                       </h3>
-                      <p className="text-sm text-gray-600">Artisan</p>
+                      <p className="text-sm text-gray-600 capitalize">
+                        {artisanData.artisan?.type || 'Artisan'} • {deliveryOptions[artisanId]?.pickup?.available ? 'Pickup Available' : ''} {deliveryOptions[artisanId]?.delivery?.available ? '• Delivery Available' : ''}
+                      </p>
+                    </div>
                   </div>
+                  
+                  {/* Delivery Options */}
+                  {deliveryOptions[artisanId] && (
+                    <div className="flex space-x-2">
+                      {deliveryOptions[artisanId].pickup.available && (
+                        <button
+                          onClick={() => setSelectedDeliveryMethods({
+                            ...selectedDeliveryMethods,
+                            [artisanId]: 'pickup'
+                          })}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selectedDeliveryMethods[artisanId] === 'pickup'
+                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          🏪 Pickup
+                        </button>
+                      )}
+                      {deliveryOptions[artisanId].delivery.available && (
+                        <button
+                          onClick={() => setSelectedDeliveryMethods({
+                            ...selectedDeliveryMethods,
+                            [artisanId]: 'delivery'
+                          })}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selectedDeliveryMethods[artisanId] === 'delivery'
+                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          🚚 Delivery
+                          {deliveryOptions[artisanId].delivery.fee > 0 && (
+                            <span className="ml-1">(+${deliveryOptions[artisanId].delivery.fee})</span>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">

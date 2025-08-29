@@ -2,12 +2,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
-import { loginUser, getProfile } from "../services/authService";
+import { loginUser } from "../services/authService";
 import { onboardingService } from "../services/onboardingService";
+import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -27,15 +29,11 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      await loginUser(formData);
-      toast.success("Welcome back!");
-      
-      // Get user profile to determine redirect
-      const profile = await getProfile();
-      const userId = profile._id;
+      const userData = await loginUser(formData);
+      await login(userData);
       
       // Check if user is new
-      const isNewUser = onboardingService.isNewUser(userId);
+      const isNewUser = onboardingService.isNewUser(userData._id);
       
       if (isNewUser) {
         // New user - redirect to profile setup

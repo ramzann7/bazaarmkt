@@ -1,46 +1,201 @@
 // src/services/authService.js
-import axios from "axios";
+import axios from 'axios';
+import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService.js';
 
-const API_URL = "/api/auth"; // Using Vite proxy
+// Create axios instance with base configuration
+const api = axios.create({
+  baseURL: '/api',
+  timeout: 10000, // 10 second timeout
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// Custom event for auth state changes
-const AUTH_EVENT = 'authStateChanged';
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear cache and token on auth error
+      cacheService.delete(CACHE_KEYS.USER_PROFILE);
+      localStorage.removeItem('token');
+      window.dispatchEvent(new CustomEvent('authStateChanged', { 
+        detail: { isAuthenticated: false } 
+      }));
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Token management
 export const authToken = {
-  getToken: () => localStorage.getItem("token"),
+  getToken: () => localStorage.getItem('token'),
   setToken: (token) => {
-    localStorage.setItem("token", token);
-    // Dispatch custom event
-    window.dispatchEvent(new CustomEvent(AUTH_EVENT, { detail: { isAuthenticated: true } }));
+    localStorage.setItem('token', token);
+    // Clear user profile cache when token changes
+    cacheService.delete(CACHE_KEYS.USER_PROFILE);
   },
   removeToken: () => {
-    localStorage.removeItem("token");
-    // Dispatch custom event
-    window.dispatchEvent(new CustomEvent(AUTH_EVENT, { detail: { isAuthenticated: false } }));
-  },
+    localStorage.removeItem('token');
+    // Clear all cached data when logging out
+    cacheService.clear();
+  }
 };
 
+// Optimized getProfile with caching
+export const getProfile = async () => {
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+  
+  return cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      const response = await api.get('/auth/profile');
+      // The auth/profile endpoint returns { user: userObject }
+      return response.data.user;
+    },
+    CACHE_TTL.USER_PROFILE
+  );
+};
+
+// Preload profile data
+export const preloadProfile = () => {
+  if (authToken.getToken()) {
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+    cacheService.preload(cacheKey, async () => {
+      const response = await api.get('/auth/profile');
+      return response.data.user;
+    }, CACHE_TTL.USER_PROFILE);
+  }
+};
+
+// Login with optimized error handling
+export const loginUser = async (credentials) => {
+  try {
+    const response = await api.post('/auth/login', credentials);
+    const { token, user } = response.data;
+    
+    authToken.setToken(token);
+    
+    // Cache the profile immediately
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+    cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
+    
+    // Dispatch auth change event
+    window.dispatchEvent(new CustomEvent('authStateChanged', { 
+      detail: { isAuthenticated: true } 
+    }));
+    
+    return { user };
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Register with optimized error handling
 export const registerUser = async (userData) => {
-  const res = await axios.post(`${API_URL}/register`, userData);
-  authToken.setToken(res.data.token);
-  return res.data;
+  try {
+    const response = await api.post('/auth/register', userData);
+    const { token, user } = response.data;
+    
+    authToken.setToken(token);
+    
+    // Cache the profile immediately
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+    cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
+    
+    // Dispatch auth change event
+    window.dispatchEvent(new CustomEvent('authStateChanged', { 
+      detail: { isAuthenticated: true } 
+    }));
+    
+    return { user };
+  } catch (error) {
+    throw error;
+  }
 };
 
-export const loginUser = async (userData) => {
-  const res = await axios.post(`${API_URL}/login`, userData);
-  authToken.setToken(res.data.token);
-  return res.data;
-};
-
+// Logout with cache clearing
 export const logoutUser = () => {
   authToken.removeToken();
+  
+  // Clear all cached data
+  cacheService.clear();
+  
+  // Clear localStorage backup
+  localStorage.removeItem('user_profile_backup');
+  
+  // Dispatch auth change event
+  window.dispatchEvent(new CustomEvent('authStateChanged', { 
+    detail: { isAuthenticated: false } 
+  }));
 };
 
-// New: getProfile
-export const getProfile = async () => {
+// Check if user is authenticated (optimized)
+export const isAuthenticated = () => {
   const token = authToken.getToken();
-  const res = await axios.get(`/api/profile`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
+  if (!token) return false;
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+};
+
+// Get current user ID from token (optimized)
+export const getCurrentUserId = () => {
+  const token = authToken.getToken();
+  if (!token) return null;
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.userId;
+  } catch {
+    return null;
+  }
+};
+
+// Batch profile updates to reduce API calls
+let profileUpdateQueue = [];
+let profileUpdateTimeout = null;
+
+export const queueProfileUpdate = (updates) => {
+  profileUpdateQueue.push(updates);
+  
+  if (profileUpdateTimeout) {
+    clearTimeout(profileUpdateTimeout);
+  }
+  
+  profileUpdateTimeout = setTimeout(async () => {
+    if (profileUpdateQueue.length > 0) {
+      try {
+        const mergedUpdates = profileUpdateQueue.reduce((acc, update) => ({ ...acc, ...update }), {});
+        const response = await api.put('/auth/profile', mergedUpdates);
+        
+        // Update cache
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+        cacheService.set(cacheKey, response.data, CACHE_TTL.USER_PROFILE);
+        
+        profileUpdateQueue = [];
+      } catch (error) {
+        console.error('Batch profile update failed:', error);
+        throw error;
+      }
+    }
+  }, 1000); // Batch updates within 1 second
 };

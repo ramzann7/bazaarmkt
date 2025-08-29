@@ -384,27 +384,32 @@ export default function Products() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4 shadow-lg">
+              <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">Product Management</h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
+              Manage your product inventory, track sales, and keep your customers updated
+            </p>
+            <div className="flex items-center justify-center gap-4">
               <button
                 onClick={() => navigate('/profile')}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <ArrowLeftIcon className="w-5 h-5" />
-                <span>Back to Artisan Profile</span>
+                <span>Back to Profile</span>
               </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
-                <p className="text-gray-600">Manage your product inventory and listings</p>
-              </div>
+              <button 
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <PlusIcon className="w-5 h-5 mr-2" />
+                <span>{showAddForm ? 'Cancel' : 'Add New Product'}</span>
+              </button>
             </div>
-            <button 
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="flex items-center space-x-2 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              <PlusIcon className="w-4 h-4" />
-              <span>{showAddForm ? 'Cancel' : 'Add Product'}</span>
-            </button>
           </div>
         </div>
 
@@ -713,31 +718,37 @@ export default function Products() {
         {/* Products List */}
         {products.length > 0 ? (
           <div className="space-y-6">
-            {/* Inventory Summary */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-3">Inventory Summary</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">{products.length}</div>
-                  <div className="text-sm text-gray-600">Total Products</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {products.filter(p => p.status === 'active').length}
+            {/* Enhanced Inventory Summary */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+              <h4 className="text-xl font-bold text-gray-900 mb-6 text-center">Inventory Overview</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
+                  <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-white text-lg font-bold">{products.length}</span>
                   </div>
-                  <div className="text-sm text-gray-600">Active</div>
+                  <div className="text-lg font-bold text-gray-900">Total Products</div>
+                  <div className="text-sm text-gray-600">In your catalog</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {products.reduce((sum, p) => sum + p.stock, 0)}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
+                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-white text-lg font-bold">{products.filter(p => p.status === 'active').length}</span>
                   </div>
-                  <div className="text-sm text-gray-600">Total Stock</div>
+                  <div className="text-lg font-bold text-gray-900">Active</div>
+                  <div className="text-sm text-gray-600">Available for sale</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {products.reduce((sum, p) => sum + p.soldCount, 0)}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
+                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-white text-lg font-bold">{products.reduce((sum, p) => sum + p.stock, 0)}</span>
                   </div>
-                  <div className="text-sm text-gray-600">Total Sold</div>
+                  <div className="text-lg font-bold text-gray-900">Total Stock</div>
+                  <div className="text-sm text-gray-600">Units available</div>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
+                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <span className="text-white text-lg font-bold">{products.reduce((sum, p) => sum + p.soldCount, 0)}</span>
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">Total Sold</div>
+                  <div className="text-sm text-gray-600">Units sold</div>
                 </div>
               </div>
             </div>

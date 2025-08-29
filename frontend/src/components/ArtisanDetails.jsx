@@ -26,7 +26,6 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
-  EyeIcon,
   FunnelIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
@@ -34,6 +33,7 @@ import { artisanService } from '../services/artisanService';
 import { guestService } from '../services/guestService';
 import reviewService from '../services/reviewService';
 import { getProfile } from '../services/authService';
+import { favoriteService } from '../services/favoriteService';
 import toast from 'react-hot-toast';
 
 // Helper function to format business type for display
@@ -178,6 +178,8 @@ export default function BusinessDetails() {
   const [favorites, setFavorites] = useState([]);
   const [userId, setUserId] = useState(null);
   const [user, setUser] = useState(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedSubcategory, setSelectedSubcategory] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -216,15 +218,15 @@ export default function BusinessDetails() {
     
     loadBusinessDetails();
     loadFavorites();
-    updateCartCount();
+    updateCartCount().catch(console.error);
     loadReviews();
   }, [id]);
 
   const loadUserProfile = async () => {
     try {
       const userData = await getProfile();
-      setUser(userData.user);
-      setCanLeaveReview(reviewService.canUserLeaveReview(userData.user));
+      setUser(userData);
+      setCanLeaveReview(reviewService.canUserLeaveReview(userData));
     } catch (error) {
       console.error('Error loading user profile:', error);
       setUser(null);
@@ -255,32 +257,67 @@ export default function BusinessDetails() {
     }
   };
 
-  const loadFavorites = () => {
-    const savedFavorites = localStorage.getItem('favorite_businesses');
-    if (savedFavorites) {
-      setFavorites(JSON.parse(savedFavorites));
+  const loadFavorites = async () => {
+    if (userId) {
+      try {
+        setIsLoadingFavorite(true);
+        const isFav = await favoriteService.isArtisanFavorited(id);
+        setIsFavorited(isFav);
+      } catch (error) {
+        console.error('Error checking favorite status:', error);
+        setIsFavorited(false);
+      } finally {
+        setIsLoadingFavorite(false);
+      }
     }
   };
 
-  const toggleFavorite = () => {
-    const newFavorites = favorites.includes(id)
-      ? favorites.filter(businessId => businessId !== id)
-      : [...favorites, id];
-    
-    setFavorites(newFavorites);
-    localStorage.setItem('favorite_businesses', JSON.stringify(newFavorites));
-    
-    const action = favorites.includes(id) ? 'removed from' : 'added to';
-    toast.success(`${business?.artisanName || 'Business'} ${action} favorites`);
+  const toggleFavorite = async () => {
+    if (!userId) {
+      toast.error('Please log in to add favorites');
+      return;
+    }
+
+    try {
+      setIsLoadingFavorite(true);
+      const result = await favoriteService.toggleFavorite(id);
+      setIsFavorited(result.isFavorited);
+      
+      const action = result.action === 'added' ? 'added to' : 'removed from';
+      toast.success(`${business?.artisanName || 'Artisan'} ${action} favorites`);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorites');
+    } finally {
+      setIsLoadingFavorite(false);
+    }
   };
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = async (product, quantity = 1) => {
     console.log('BusinessDetails addToCart called:', { product: product.name, quantity, userId });
     
     if (quantity > product.stock) {
       toast.error(`Only ${product.stock} items available`);
       return;
     }
+    
+    // Ensure we have a valid userId for authenticated users
+    let currentUserId = userId;
+    if (!currentUserId) {
+      // Try to get userId from token if not set
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentUserId = payload.userId;
+          console.log('Retrieved userId from token:', currentUserId);
+        } catch (error) {
+          console.error('Error parsing token for userId:', error);
+        }
+      }
+    }
+    
+    console.log('Final userId for cart operation:', currentUserId);
     
     // Add seller information to product if not present
     const productWithSeller = {
@@ -295,19 +332,32 @@ export default function BusinessDetails() {
     
     console.log('Product with seller:', productWithSeller);
     
-    // Import cartService dynamically to avoid circular dependencies
-    import('../services/cartService').then(({ cartService }) => {
-      console.log('Calling cartService.addToCart with userId:', userId);
-      cartService.addToCart(productWithSeller, quantity, userId);
+    try {
+      // Import cartService dynamically to avoid circular dependencies
+      const { cartService } = await import('../services/cartService');
+      console.log('Calling cartService.addToCart with userId:', currentUserId);
+      await cartService.addToCart(productWithSeller, quantity, currentUserId);
       toast.success(`${quantity} ${product.name} added to cart`);
-      updateCartCount();
-    });
+      updateCartCount().catch(console.error);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      if (error.message.includes('Artisans cannot add products to cart')) {
+        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
+      } else {
+        toast.error('Failed to add item to cart. Please try again.');
+      }
+    }
   };
 
-  const updateCartCount = () => {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const count = cart.reduce((total, item) => total + item.quantity, 0);
-    setCartCount(count);
+  const updateCartCount = async () => {
+    try {
+      const { cartService } = await import('../services/cartService');
+      const count = cartService.getCartCount(userId);
+      setCartCount(count);
+    } catch (error) {
+      console.error('Error updating cart count:', error);
+      setCartCount(0);
+    }
   };
 
   const loadReviews = async () => {
@@ -542,9 +592,12 @@ export default function BusinessDetails() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={toggleFavorite}
-                className="p-2 text-gray-600 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+                disabled={isLoadingFavorite}
+                className="p-2 text-gray-600 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 disabled:opacity-50"
               >
-                {favorites.includes(id) ? (
+                {isLoadingFavorite ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-500"></div>
+                ) : isFavorited ? (
                   <HeartIconSolid className="h-6 w-6 text-red-500" />
                 ) : (
                   <HeartIcon className="h-6 w-6" />
@@ -1028,8 +1081,8 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
   const [quantity, setQuantity] = useState(1);
   const [showPopup, setShowPopup] = useState(false);
 
-  const handleAddToCart = () => {
-    onAddToCart(product, quantity);
+  const handleAddToCart = async () => {
+    await onAddToCart(product, quantity);
     setQuantity(1);
     setShowPopup(false);
   };
@@ -1037,8 +1090,9 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
   return (
     <>
       <div 
-        className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+        className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer hover:shadow-xl"
         onClick={() => setShowPopup(true)}
+        title="Select this artisan product"
       >
         {/* Product Image */}
         <div className="relative h-32 bg-gray-100 group">
@@ -1058,12 +1112,12 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
             <CameraIcon className="h-12 w-12 text-gray-400" />
           </div>
           
-          {/* Image Preview Overlay */}
+          {/* Artisan product overlay */}
           {product.image && (
             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300 ease-in-out">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-white rounded-full p-2 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
-                  <EyeIcon className="w-4 h-4 text-gray-800" />
+                <div className="bg-amber-600 rounded-full p-2 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                  <HeartIcon className="w-4 h-4 text-white" />
                 </div>
               </div>
             </div>

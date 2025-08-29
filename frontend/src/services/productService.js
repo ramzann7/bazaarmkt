@@ -31,6 +31,9 @@ const clearCache = () => {
   cache.clear();
 };
 
+// Export clearCache for debugging
+export { clearCache };
+
 // Get all products (for discover page)
 export const getAllProducts = async (filters = {}) => {
   const cacheKey = getCacheKey('all-products', filters);
@@ -49,8 +52,10 @@ export const getAllProducts = async (filters = {}) => {
   });
   
   const response = await axios.get(`${API_URL}?${params.toString()}`);
-  setCache(cacheKey, response.data);
-  return response.data;
+  // Extract products array from response if it exists, otherwise return the data as is
+  const productsData = response.data.products || response.data;
+  setCache(cacheKey, productsData);
+  return productsData;
 };
 
 // Get featured products
@@ -59,12 +64,48 @@ export const getFeaturedProducts = async () => {
   const cached = getFromCache(cacheKey);
   
   if (cached) {
+    console.log('Returning cached featured products:', cached);
     return cached;
   }
   
+  console.log('Fetching featured products from API...');
   const response = await axios.get(`${API_URL}/featured`);
+  console.log('Featured products API response:', response.data);
+  
+  // Return the full response data which includes success, products, and count
   setCache(cacheKey, response.data);
   return response.data;
+};
+
+// Clear featured products cache (for testing)
+export const clearFeaturedProductsCache = () => {
+  const cacheKey = getCacheKey('featured-products');
+  cache.delete(cacheKey);
+};
+
+// Get popular products
+export const getPopularProducts = async () => {
+  const cacheKey = getCacheKey('popular-products');
+  const cached = getFromCache(cacheKey);
+  
+  if (cached) {
+    console.log('Returning cached popular products:', cached);
+    return cached;
+  }
+  
+  console.log('Fetching popular products from API...');
+  const response = await axios.get(`${API_URL}/popular`);
+  console.log('Popular products API response:', response.data);
+  
+  // Return the full response data which includes success, products, and count
+  setCache(cacheKey, response.data);
+  return response.data;
+};
+
+// Clear popular products cache (for testing)
+export const clearPopularProductsCache = () => {
+  const cacheKey = getCacheKey('popular-products');
+  cache.delete(cacheKey);
 };
 
 // Search products with enhanced filters
@@ -85,7 +126,8 @@ export const searchProducts = async (searchQuery, filters = {}) => {
   
   // Use the main endpoint which supports both search and filters
   const response = await axios.get(`${API_URL}?${params.toString()}`);
-  return response.data;
+  // Extract products array from response if it exists, otherwise return the data as is
+  return response.data.products || response.data;
 };
 
 // Get search suggestions

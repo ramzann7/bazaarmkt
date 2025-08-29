@@ -1028,21 +1028,215 @@ router.get('/featured', async (req, res) => {
       status: 'active'
     })
     .populate('seller', 'firstName lastName artisanName')
-    .populate('artisan', 'artisanName')
     .sort({ createdAt: -1 })
     .limit(12)
     .lean(); // Use lean() for better performance
 
+    // Populate artisan information for each product
+    const Artisan = require('../models/artisan');
+    const productsWithArtisan = await Promise.all(
+      featuredProducts.map(async (product) => {
+        try {
+          const artisan = await Artisan.findOne({ user: product.seller._id }).lean();
+          console.log(`Product ${product.name}: Artisan found:`, artisan ? artisan.artisanName : 'No artisan profile');
+          
+          // If no artisan profile exists, create a fallback using the seller's name
+          let artisanInfo = null;
+          if (artisan && artisan.artisanName) {
+            artisanInfo = { artisanName: artisan.artisanName };
+          } else if (product.seller) {
+            // Fallback to seller's name if no artisan profile exists
+            artisanInfo = { 
+              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
+            };
+          }
+          
+          return {
+            ...product,
+            artisan: artisanInfo
+          };
+        } catch (error) {
+          console.error(`Error finding artisan for product ${product.name}:`, error);
+          return {
+            ...product,
+            artisan: product.seller ? { 
+              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
+            } : null
+          };
+        }
+      })
+    );
+
     res.json({
       success: true,
-      products: featuredProducts,
-      count: featuredProducts.length
+      products: productsWithArtisan,
+      count: productsWithArtisan.length
     });
   } catch (error) {
     console.error('Error fetching featured products:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching featured products' 
+    });
+  }
+});
+
+// Get popular products (most bought in the past month)
+router.get('/popular', async (req, res) => {
+  try {
+    const Order = require('../models/order');
+    
+    // Calculate date 30 days ago
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    // Aggregate orders to get product purchase counts from the past month
+    const popularProducts = await Order.aggregate([
+      // Match orders from the past 30 days with delivered status
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+          status: { $in: ['delivered', 'confirmed', 'preparing', 'ready', 'delivering'] }
+        }
+      },
+      // Unwind the items array to work with individual products
+      {
+        $unwind: '$items'
+      },
+      // Group by product and sum quantities
+      {
+        $group: {
+          _id: '$items.product',
+          totalQuantity: { $sum: '$items.quantity' },
+          totalOrders: { $sum: 1 },
+          totalRevenue: { $sum: '$items.totalPrice' }
+        }
+      },
+      // Sort by total orders (most popular first) - number of unique purchases
+      {
+        $sort: { totalOrders: -1 }
+      },
+      // Limit to top products
+      {
+        $limit: 20
+      },
+      // Lookup product details
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      // Unwind the product array
+      {
+        $unwind: '$product'
+      },
+      // Match only active products
+      {
+        $match: {
+          'product.status': 'active'
+        }
+      },
+      // Lookup seller information
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'product.seller',
+          foreignField: '_id',
+          as: 'seller'
+        }
+      },
+      // Unwind seller array
+      {
+        $unwind: '$seller'
+      },
+      // Project the final structure
+      {
+        $project: {
+          _id: '$product._id',
+          name: '$product.name',
+          description: '$product.description',
+          price: '$product.price',
+          category: '$product.category',
+          subcategory: '$product.subcategory',
+          stock: '$product.stock',
+          unit: '$product.unit',
+          weight: '$product.weight',
+          expiryDate: '$product.expiryDate',
+          image: '$product.image',
+          tags: '$product.tags',
+          isOrganic: '$product.isOrganic',
+          isGlutenFree: '$product.isGlutenFree',
+          isVegan: '$product.isVegan',
+          isHalal: '$product.isHalal',
+          leadTimeHours: '$product.leadTimeHours',
+          status: '$product.status',
+          createdAt: '$product.createdAt',
+          updatedAt: '$product.updatedAt',
+          seller: {
+            _id: '$seller._id',
+            firstName: '$seller.firstName',
+            lastName: '$seller.lastName',
+            email: '$seller.email',
+            phone: '$seller.phone'
+          },
+          popularity: {
+            totalQuantity: '$totalQuantity',
+            totalOrders: '$totalOrders',
+            totalRevenue: '$totalRevenue'
+          }
+        }
+      }
+    ]);
+
+    // Populate artisan information for each product
+    const Artisan = require('../models/artisan');
+    const productsWithArtisan = await Promise.all(
+      popularProducts.map(async (product) => {
+        try {
+          const artisan = await Artisan.findOne({ user: product.seller._id }).lean();
+          
+          // If no artisan profile exists, create a fallback using the seller's name
+          let artisanInfo = null;
+          if (artisan && artisan.artisanName) {
+            artisanInfo = { artisanName: artisan.artisanName };
+          } else if (product.seller) {
+            // Fallback to seller's name if no artisan profile exists
+            artisanInfo = { 
+              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
+            };
+          }
+          
+          return {
+            ...product,
+            artisan: artisanInfo
+          };
+        } catch (error) {
+          console.error(`Error finding artisan for popular product ${product.name}:`, error);
+          return {
+            ...product,
+            artisan: product.seller ? { 
+              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
+            } : null
+          };
+        }
+      })
+    );
+
+    res.json({
+      success: true,
+      products: productsWithArtisan,
+      count: productsWithArtisan.length,
+      timeRange: 'past_30_days',
+      popularityMetric: 'number_of_orders'
+    });
+  } catch (error) {
+    console.error('Error fetching popular products:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching popular products' 
     });
   }
 });
@@ -1123,6 +1317,10 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       }
     }
     
+    // Check if user has an artisan profile
+    const Artisan = require('../models/artisan');
+    const artisanProfile = await Artisan.findOne({ user: req.user._id });
+    
     const product = new Product({
       name,
       description,
@@ -1140,7 +1338,8 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       isVegan: isVegan === 'true' || isVegan === true,
       isHalal: isHalal === 'true' || isHalal === true,
       leadTimeHours: leadTimeHours ? parseInt(leadTimeHours) : 24,
-      seller: req.user._id
+      seller: req.user._id,
+      artisan: artisanProfile ? artisanProfile._id : null
     });
     
     await product.save();

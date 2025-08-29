@@ -1,70 +1,59 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import Navbar from "./components/navbar.jsx";
-import Home from "./components/home.jsx";
-import Login from "./components/login.jsx";
-import Register from "./components/register.jsx";
-import Dashboard from "./components/dashboard.jsx";
-import Artisans from "./components/artisans.jsx";
+import { performanceService } from "./services/performanceService";
+import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
+import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 
-import Profile from "./components/Profile.jsx";
-import Account from "./components/Account.jsx";
-import Products from "./components/Products.jsx";
-import Orders from "./components/Orders.jsx";
-import SearchResults from "./components/SearchResults.jsx";
-import Search from "./components/Search.jsx";
-import TestReferenceData from "./components/TestReferenceData.jsx";
-import SimpleTest from "./components/SimpleTest.jsx";
-import ArtisanDetails from "./components/ArtisanDetails.jsx";
-import FindArtisans from "./components/FindArtisans.jsx";
-import Community from "./components/Community.jsx";
-import EventDetails from "./components/EventDetails.jsx";
-import Cart from "./components/Cart.jsx";
-import GuestCheckout from "./components/GuestCheckout.jsx";
-import BuyingLocal from "./components/BuyingLocal.jsx";
-import SmartRedirect from "./components/SmartRedirect.jsx";
-import AdminDashboard from "./components/AdminDashboard.jsx";
-import AdminUserManagement from "./components/AdminUserManagement.jsx";
-import AdminProductManagement from "./components/AdminProductManagement.jsx";
-import AdminArtisanManagement from "./components/AdminArtisanManagement.jsx";
-import AdminAnalytics from "./components/AdminAnalytics.jsx";
-import { authToken } from "./services/authService";
+// Lazy load components for better performance
+const Home = lazy(() => import("./components/home.jsx"));
+const Login = lazy(() => import("./components/login.jsx"));
+const Register = lazy(() => import("./components/register.jsx"));
+const Dashboard = lazy(() => import("./components/dashboard.jsx"));
+const Artisans = lazy(() => import("./components/artisans.jsx"));
+const Profile = lazy(() => import("./components/Profile.jsx"));
+const Account = lazy(() => import("./components/Account.jsx"));
+const Products = lazy(() => import("./components/Products.jsx"));
+const Orders = lazy(() => import("./components/Orders.jsx"));
+const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
+const Search = lazy(() => import("./components/Search.jsx"));
+const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
+const SimpleTest = lazy(() => import("./components/SimpleTest.jsx"));
+const ArtisanDetails = lazy(() => import("./components/ArtisanDetails.jsx"));
+const FindArtisans = lazy(() => import("./components/FindArtisans.jsx"));
+const Community = lazy(() => import("./components/Community.jsx"));
+const EventDetails = lazy(() => import("./components/EventDetails.jsx"));
+const Cart = lazy(() => import("./components/Cart.jsx"));
+const GuestCheckout = lazy(() => import("./components/GuestCheckout.jsx"));
+const BuyingLocal = lazy(() => import("./components/BuyingLocal.jsx"));
+const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
+const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
+const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
+const AdminUserManagement = lazy(() => import("./components/AdminUserManagement.jsx"));
+const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
+const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
+const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!authToken.getToken());
-
+function AppRoutes() {
+  const { isAuthenticated, isLoading, isInitialized } = useAuth();
+  
+  // Performance tracking
   useEffect(() => {
-    // Check authentication status on mount and when localStorage changes
-    const checkAuth = () => {
-      setIsAuthenticated(!!authToken.getToken());
-    };
-
-    // Check on mount
-    checkAuth();
-
-    // Listen for storage changes (when user logs in/out in another tab)
-    const handleStorageChange = () => {
-      checkAuth();
-    };
-
-    // Listen for custom auth events
-    const handleAuthChange = (event) => {
-      setIsAuthenticated(event.detail.isAuthenticated);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('authStateChanged', handleAuthChange);
-
+    performanceService.startTimer('app_mount');
+    
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('authStateChanged', handleAuthChange);
+      performanceService.endTimer('app_mount');
     };
   }, []);
 
+  // Show loading spinner while auth is initializing
+  if (!isInitialized || isLoading) {
+    return <LoadingSpinner message="Initializing..." />;
+  }
+
   return (
-    <Router>
-      <Navbar />
+    <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route
@@ -95,22 +84,30 @@ function App() {
           path="/orders"
           element={isAuthenticated ? <Orders /> : <Navigate to="/login" />}
         />
-        <Route path="/artisans" element={<Artisans />} />
-        <Route path="/buying-local" element={<BuyingLocal />} />
+        <Route path="/search" element={<SearchResults />} />
+        <Route path="/search-page" element={<Search />} />
+        <Route path="/test-reference" element={<TestReferenceData />} />
+        <Route path="/simple-test" element={<SimpleTest />} />
+        <Route path="/artisan/:id" element={<ArtisanDetails />} />
         <Route path="/find-artisans" element={<FindArtisans />} />
         <Route path="/community" element={<Community />} />
         <Route path="/event/:id" element={<EventDetails />} />
-        <Route path="/search" element={<Search />} />
+        <Route
+          path="/cart"
+          element={isAuthenticated ? <Cart /> : <Navigate to="/login" />}
+        />
         <Route path="/guest-checkout" element={<GuestCheckout />} />
-        <Route path="/artisan/:id" element={<ArtisanDetails />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/test-reference-data" element={<TestReferenceData />} />
-        <Route path="/simple-test" element={<SimpleTest />} />
-
+        <Route path="/buying-local" element={<BuyingLocal />} />
+        <Route path="/artisans" element={<Artisans />} />
+        
         {/* Admin Routes */}
         <Route
           path="/admin"
           element={isAuthenticated ? <AdminDashboard /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin/revenue"
+          element={isAuthenticated ? <AdminRevenueManagement /> : <Navigate to="/login" />}
         />
         <Route
           path="/admin/users"
@@ -128,10 +125,21 @@ function App() {
           path="/admin/analytics"
           element={isAuthenticated ? <AdminAnalytics /> : <Navigate to="/login" />}
         />
-
-        <Route path="/map" element={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><h2 className="text-2xl font-bold mb-4">Map View</h2><p className="text-gray-600">Coming soon!</p></div></div>} />
+        
+        {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
+    </Suspense>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Navbar />
+        <AppRoutes />
+      </AuthProvider>
     </Router>
   );
 }

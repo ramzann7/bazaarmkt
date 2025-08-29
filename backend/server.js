@@ -42,6 +42,8 @@ const orderRoutes = require('./src/routes/orders');
 const uploadRoutes = require('./src/routes/upload');
 const adminRoutes = require('./src/routes/admin');
 const reviewRoutes = require('./src/routes/reviews');
+const favoritesRoutes = require('./src/routes/favorites');
+const userStatsRoutes = require('./src/routes/userStats');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -52,6 +54,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/favorites', favoritesRoutes);
+app.use('/api/user', userStatsRoutes);
 
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));

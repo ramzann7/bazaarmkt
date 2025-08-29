@@ -63,7 +63,7 @@ const userSchema = new mongoose.Schema({
   // Account Information
   role: {
     type: String,
-    enum: ['patron', 'artisan', 'admin'],
+    enum: ['patron', 'buyer', 'artisan', 'admin'], // 'buyer' for backward compatibility, 'patron' preferred
     default: 'patron'
   },
   isActive: {
@@ -136,6 +136,12 @@ const userSchema = new mongoose.Schema({
       default: false
     }
   },
+
+  // Favorite Artisans
+  favoriteArtisans: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Artisan'
+  }],
 
   // Timestamps
   createdAt: {

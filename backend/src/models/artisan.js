@@ -8,7 +8,7 @@ const artisanSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['farm', 'bakery', 'restaurant', 'cafe', 'market', 'butcher', 'dairy', 'winery', 'brewery', 'distillery', 'food_truck', 'catering', 'grocery', 'specialty_shop', 'fish_market', 'organic_store', 'coffee_roaster', 'tea_house', 'chocolate_maker', 'cheese_maker', 'honey_producer', 'maple_syrup', 'mushroom_farm', 'herb_garden', 'greenhouse', 'orchard', 'vineyard', 'microgreens', 'aquaponics', 'hydroponics', 'other'],
+    enum: ['food_beverages', 'handmade_crafts', 'clothing_accessories', 'home_garden', 'beauty_wellness', 'toys_games', 'pet_supplies', 'seasonal_holiday', 'art_collectibles', 'farm', 'bakery', 'restaurant', 'cafe', 'market', 'butcher', 'dairy', 'winery', 'brewery', 'distillery', 'food_truck', 'catering', 'grocery', 'specialty_shop', 'fish_market', 'organic_store', 'coffee_roaster', 'tea_house', 'chocolate_maker', 'cheese_maker', 'honey_producer', 'maple_syrup', 'mushroom_farm', 'herb_garden', 'greenhouse', 'orchard', 'vineyard', 'microgreens', 'aquaponics', 'hydroponics', 'other'],
     required: true
   },
   artisanName: {
@@ -16,7 +16,7 @@ const artisanSchema = new mongoose.Schema({
     required: true
   },
   description: String,
-  category: String,
+  category: [String],
   specialties: [String],
   address: {
     street: String,

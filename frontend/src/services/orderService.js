@@ -9,15 +9,15 @@ const getAuthHeaders = () => ({
 });
 
 export const orderService = {
-  // Get all orders for the current user (buyer)
-  getBuyerOrders: async () => {
+  // Get all orders for the current user (patron)
+  getPatronOrders: async () => {
     try {
       const response = await axios.get(`${API_URL}/buyer`, {
         headers: getAuthHeaders()
       });
       return response.data;
     } catch (error) {
-      console.error('Error fetching buyer orders:', error);
+      console.error('Error fetching patron orders:', error);
       throw error;
     }
   },
@@ -87,7 +87,7 @@ export const orderService = {
     }
   },
 
-  // Cancel order (buyer only)
+  // Cancel order (patron only)
   cancelOrder: async (orderId) => {
     try {
       const response = await axios.put(`${API_URL}/${orderId}/cancel`, {}, {

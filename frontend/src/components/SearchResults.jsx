@@ -8,7 +8,14 @@ import {
   FunnelIcon,
   AdjustmentsHorizontalIcon,
   HeartIcon,
-  TruckIcon
+  TruckIcon,
+  XMarkIcon,
+  PlusIcon,
+  MinusIcon,
+  ShoppingCartIcon,
+  ClockIcon,
+  BuildingStorefrontIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { searchProducts } from '../services/productService';
 // Enhanced search service removed - using basic search functionality
@@ -30,6 +37,11 @@ export default function SearchResults() {
   const [addingToCart, setAddingToCart] = useState({});
   const [currentUserId, setCurrentUserId] = useState(null);
   const [productQuantities, setProductQuantities] = useState({});
+  
+  // Cart popup state
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showCartPopup, setShowCartPopup] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const query = searchParams.get('q') || '';
   const categoryParam = searchParams.get('category') || '';
@@ -306,13 +318,45 @@ export default function SearchResults() {
     return `${distance.toFixed(1)}km away`;
   };
 
-  const handleProductClick = (product) => {
-    if (product.seller?._id) {
-                      navigate(`/artisan/${product.seller._id}?product=${product._id}`);
-    } else {
-      // Fallback to product details page if no seller info
-      navigate(`/product/${product._id}`);
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
     }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return imagePath;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return imagePath;
+    }
+    
+    // Handle paths without leading slash
+    return `/${imagePath}`;
+  };
+
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-CA', {
+      style: 'currency',
+      currency: 'CAD'
+    }).format(price);
+  };
+
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setQuantity(1);
+    setShowCartPopup(true);
   };
 
   const handleQuantityChange = (productId, newQuantity) => {
@@ -327,7 +371,41 @@ export default function SearchResults() {
     return productQuantities[productId] || 1;
   };
 
-  const handleAddToCart = async (product, event) => {
+  // Cart popup functionality
+  const handleAddToCart = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      // Use cartService to add to cart
+      await cartService.addToCart(selectedProduct, quantity, currentUserId);
+      
+      toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
+      setShowCartPopup(false);
+      setSelectedProduct(null);
+      setQuantity(1);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      if (error.message.includes('Artisans cannot add products to cart')) {
+        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
+      } else {
+        toast.error('Failed to add item to cart');
+      }
+    }
+  };
+
+  const handlePopupQuantityChange = (newQuantity) => {
+    if (newQuantity >= 1 && newQuantity <= selectedProduct.stock) {
+      setQuantity(newQuantity);
+    }
+  };
+
+  const closeCartPopup = () => {
+    setShowCartPopup(false);
+    setSelectedProduct(null);
+    setQuantity(1);
+  };
+
+  const handleAddToCartInline = async (product, event) => {
     event.stopPropagation(); // Prevent product click
     
     if (!product.seller?._id) {
@@ -357,7 +435,11 @@ export default function SearchResults() {
       }));
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
+      if (error.message.includes('Artisans cannot add products to cart')) {
+        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
+      } else {
+        toast.error('Failed to add item to cart');
+      }
     } finally {
       setAddingToCart(prev => ({ ...prev, [product._id]: false }));
     }
@@ -492,11 +574,12 @@ export default function SearchResults() {
                 {filteredProducts.map((product) => (
                   <div
                     key={product._id}
-                    className="product-card"
+                    className="product-card hover:shadow-lg transition-shadow duration-300"
                     onClick={() => handleProductClick(product)}
+                    title="Select this artisan product"
                   >
                     {/* Product Image */}
-                    <div className="relative h-48 bg-gray-100">
+                    <div className="relative h-48 bg-gray-100 group">
                       {product.image ? (
                         <img
                           src={product.image.startsWith('http') ? product.image : product.image}
@@ -510,6 +593,15 @@ export default function SearchResults() {
                       ) : null}
                       <div className="w-full h-full flex items-center justify-center" style={{ display: product.image ? 'none' : 'flex' }}>
                         <span className="text-4xl">📦</span>
+                      </div>
+                      
+                      {/* Artisan product overlay */}
+                      <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300 ease-in-out">
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="bg-amber-600 rounded-full p-3 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                            <HeartIcon className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Community Badges */}
@@ -627,7 +719,7 @@ export default function SearchResults() {
 
                         {/* Add to Cart Button */}
                         <button
-                          onClick={(e) => handleAddToCart(product, e)}
+                          onClick={(e) => handleAddToCartInline(product, e)}
                           disabled={addingToCart[product._id] || !product.seller?._id}
                           className="w-full btn-primary py-2 px-4 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center"
                         >
@@ -638,10 +730,8 @@ export default function SearchResults() {
                             </>
                           ) : (
                             <>
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                              </svg>
-                              Add {getProductQuantity(product._id)} to Cart
+                              <ShoppingCartIcon className="w-4 h-4 mr-2" />
+                              Quick Add to Cart
                             </>
                           )}
                         </button>
@@ -654,6 +744,128 @@ export default function SearchResults() {
           </div>
         </div>
       </div>
+
+      {/* Cart Popup */}
+      {showCartPopup && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Add to Cart</h3>
+              <button
+                onClick={closeCartPopup}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Product Info */}
+            <div className="p-6">
+              <div className="flex space-x-4 mb-6">
+                <div className="flex-shrink-0">
+                  <img
+                    src={getImageUrl(selectedProduct.image)}
+                    alt={selectedProduct.name}
+                    className="w-20 h-20 object-cover rounded-lg"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center hidden">
+                    <BuildingStorefrontIcon className="w-8 h-8 text-gray-400" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
+                  <p className="text-sm text-gray-500 mb-2">
+                    {selectedProduct.artisan?.artisanName || selectedProduct.artisan || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
+                  </p>
+                  <div className="text-xl font-bold text-amber-600">{formatPrice(selectedProduct.price)}</div>
+                </div>
+              </div>
+
+              {/* Stock and Lead Time Info */}
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Stock Available:</span>
+                  <span className={`text-sm font-medium ${selectedProduct.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {selectedProduct.stock} {selectedProduct.unit || 'piece'}
+                    {selectedProduct.stock > 0 ? '' : ' (Out of Stock)'}
+                  </span>
+                </div>
+                
+                {selectedProduct.leadTimeHours && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Lead Time:</span>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <ClockIcon className="w-4 h-4 mr-1" />
+                      {selectedProduct.leadTimeHours} hours
+                    </div>
+                  </div>
+                )}
+
+                {selectedProduct.isOrganic && (
+                  <div className="flex items-center text-sm text-green-600">
+                    <SparklesIcon className="w-4 h-4 mr-1" />
+                    Organic Product
+                  </div>
+                )}
+
+                {selectedProduct.isGlutenFree && (
+                  <div className="flex items-center text-sm text-blue-600">
+                    Gluten-Free
+                  </div>
+                )}
+              </div>
+
+              {/* Quantity Selector */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                <div className="flex items-center space-x-3">
+                  <button
+                                                onClick={() => handlePopupQuantityChange(quantity - 1)}
+                    disabled={quantity <= 1}
+                    className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <MinusIcon className="w-4 h-4" />
+                  </button>
+                  <span className="text-lg font-semibold text-gray-900 min-w-[3rem] text-center">{quantity}</span>
+                  <button
+                                                onClick={() => handlePopupQuantityChange(quantity + 1)}
+                    disabled={quantity >= selectedProduct.stock}
+                    className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                  </button>
+                </div>
+                {quantity >= selectedProduct.stock && selectedProduct.stock > 0 && (
+                  <p className="text-sm text-amber-600 mt-1">Maximum available quantity reached</p>
+                )}
+              </div>
+
+              {/* Total Price */}
+              <div className="flex items-center justify-between mb-6 p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm font-medium text-gray-700">Total:</span>
+                <span className="text-lg font-bold text-amber-600">
+                  {formatPrice(selectedProduct.price * quantity)}
+                </span>
+              </div>
+
+              {/* Add to Cart Button */}
+              <button
+                onClick={handleAddToCart}
+                disabled={selectedProduct.stock <= 0}
+                className="w-full flex items-center justify-center px-4 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ShoppingCartIcon className="w-5 h-5 mr-2" />
+                {selectedProduct.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

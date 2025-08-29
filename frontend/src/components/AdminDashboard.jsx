@@ -5,7 +5,8 @@ import {
   UserGroupIcon, 
   ChartBarIcon,
   CogIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { authToken, getProfile } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -75,6 +76,14 @@ export default function AdminDashboard() {
       icon: UserGroupIcon,
       color: 'bg-purple-500',
       path: '/admin/artisans'
+    },
+    {
+      id: 'revenue',
+      title: 'Revenue Management',
+      description: 'Track GMV, platform revenue, payouts, and financial metrics',
+      icon: CurrencyDollarIcon,
+      color: 'bg-emerald-500',
+      path: '/admin/revenue'
     },
     {
       id: 'analytics',

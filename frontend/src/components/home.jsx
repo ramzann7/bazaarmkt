@@ -13,7 +13,6 @@ import {
   ArrowRightIcon,
   SparklesIcon,
   BuildingStorefrontIcon,
-  EyeIcon,
   XMarkIcon,
   PlusIcon,
   MinusIcon,
@@ -21,13 +20,14 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { Link, useNavigate } from 'react-router-dom';
-import { getFeaturedProducts } from '../services/productService';
+import { getFeaturedProducts, getPopularProducts, clearCache, clearFeaturedProductsCache, clearPopularProductsCache } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { 
   PRODUCT_CATEGORIES, 
-  getFeaturedCategories, 
   getPopularProducts as getPopularProductNames 
 } from '../data/productReference';
+import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
+import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -46,85 +46,171 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [popularProducts, setPopularProducts] = useState([]);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
+  const [isLoadingPopular, setIsLoadingPopular] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Memoize reference data to prevent unnecessary re-computations
+  const productCategories = useMemo(() => PRODUCT_CATEGORIES, []);
+  const popularProductNames = useMemo(() => getPopularProductNames(), []);
+
+  // Optimized featured products loading with caching
+  const { execute: loadFeaturedProducts, isLoading: isFeaturedLoading } = useAsyncOperation(
+    async () => {
+      try {
+        setError(null);
+        const response = await getFeaturedProducts();
+        
+        if (response.success) {
+          setFeaturedProducts(response.products || []);
+          // Cache the results
+          cacheService.set(CACHE_KEYS.FEATURED_PRODUCTS, response.products, CACHE_TTL.FEATURED_PRODUCTS);
+        } else {
+          console.error('Failed to load featured products:', response.message);
+          setFeaturedProducts([]);
+        }
+      } catch (error) {
+        console.error('Error loading featured products:', error);
+        setFeaturedProducts([]);
+        setError('Failed to load featured products');
+      }
+    },
+    []
+  );
+
+  // Optimized popular products loading with caching
+  const { execute: loadPopularProducts, isLoading: isPopularLoading } = useAsyncOperation(
+    async () => {
+      try {
+        setError(null);
+        const response = await getPopularProducts();
+        
+        if (response.success) {
+          setPopularProducts(response.products || []);
+          // Cache the results
+          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
+        } else {
+          console.error('Failed to load popular products:', response.message);
+          setPopularProducts([]);
+          setError('Failed to load popular products');
+        }
+      } catch (error) {
+        console.error('Error loading popular products:', error);
+        setPopularProducts([]);
+        setError('Failed to load popular products');
+        toast.error('Failed to load popular products');
+      }
+    },
+    []
+  );
+
+  // Load data on component mount with caching
+  useOptimizedEffect(() => {
+    const startTime = performance.now();
+    
+    // Check cache first
+    const cachedFeatured = cacheService.get(CACHE_KEYS.FEATURED_PRODUCTS);
+    const cachedPopular = cacheService.get(CACHE_KEYS.POPULAR_PRODUCTS);
+    
+    if (cachedFeatured) {
+      setFeaturedProducts(cachedFeatured);
+      setIsLoadingFeatured(false);
+    } else {
+      loadFeaturedProducts();
+    }
+    
+    if (cachedPopular) {
+      setPopularProducts(cachedPopular);
+      setIsLoadingPopular(false);
+    } else {
+      loadPopularProducts();
+    }
+    
+    const endTime = performance.now();
+    console.log(`Home component data loading took ${(endTime - startTime).toFixed(2)}ms`);
+  }, [], { skipFirstRender: false });
+
+  // Memoized cart handler
+  const handleAddToCart = useMemo(() => {
+    return async () => {
+      if (!selectedProduct) return;
+
+      try {
+        // Get current user ID from token
+        let currentUserId = null;
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            currentUserId = payload.userId;
+          } catch (error) {
+            console.error('Error parsing token for userId:', error);
+          }
+        }
+
+        // Use cartService to add to cart
+        await cartService.addToCart(selectedProduct, quantity, currentUserId);
+        
+        toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
+        setShowCartPopup(false);
+        setSelectedProduct(null);
+        setQuantity(1);
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        if (error.message.includes('Artisans cannot add products to cart')) {
+          toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
+        } else {
+          toast.error('Failed to add item to cart');
+        }
+      }
+    };
+  }, [selectedProduct, quantity]);
+
+  // Memoized product click handler
+  const handleProductClick = useMemo(() => {
+    return (product) => {
+      setSelectedProduct(product);
+      setQuantity(1);
+      setShowCartPopup(true);
+    };
+  }, []);
+
+  // Memoized quantity handlers
+  const handleQuantityChange = useMemo(() => {
+    return (newQuantity) => {
+      if (newQuantity >= 1 && newQuantity <= 99) {
+        setQuantity(newQuantity);
+      }
+    };
+  }, []);
+
+  // Memoized search handler
+  const handleSearch = useMemo(() => {
+    return (e) => {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        navigate(`/search?q=${encodeURIComponent(searchQuery)}&category=${selectedCategory}`);
+      }
+    };
+  }, [searchQuery, selectedCategory, navigate]);
+
+  // Memoized category change handler
+  const handleCategoryChange = useMemo(() => {
+    return (category) => {
+      setSelectedCategory(category);
+    };
+  }, []);
+
   // Test reference data imports
   console.log('PRODUCT_CATEGORIES available:', !!PRODUCT_CATEGORIES);
-  console.log('getFeaturedCategories available:', !!getFeaturedCategories);
   console.log('getPopularProductNames available:', !!getPopularProductNames);
 
-  // Memoize static data to prevent re-renders
-  const popularProducts = useMemo(() => [
-    {
-      id: 1,
-      name: "Artisan Bread",
-      price: 6.99,
-      image: null,
-      artisan: { artisanName: "Baker's Corner" },
-      rating: 4.9,
-      _id: "popular-1",
-      stock: 20,
-      unit: "loaf",
-      leadTimeHours: 12,
-      isOrganic: false,
-      isGlutenFree: false,
-      category: "food_beverages",
-      subcategory: "baked_goods"
-    },
-    {
-      id: 2,
-      name: "Handmade Jewelry",
-      price: 45.99,
-      image: null,
-      artisan: { artisanName: "Crystal Crafts" },
-      rating: 4.8,
-      _id: "popular-2",
-      stock: 5,
-      unit: "piece",
-      leadTimeHours: 72,
-      isOrganic: false,
-      isGlutenFree: false,
-      category: "handmade_crafts",
-      subcategory: "jewelry"
-    },
-    {
-      id: 3,
-      name: "Natural Soaps",
-      price: 8.99,
-      image: null,
-      artisan: { artisanName: "Pure Essentials" },
-      rating: 4.7,
-      _id: "popular-3",
-      stock: 25,
-      unit: "bar",
-      leadTimeHours: 48,
-      isOrganic: true,
-      isGlutenFree: true,
-      category: "beauty_wellness",
-      subcategory: "skincare"
-    },
-    {
-      id: 4,
-      name: "Handcrafted Furniture",
-      price: 299.99,
-      image: null,
-      artisan: { artisanName: "Wood Works Studio" },
-      rating: 4.9,
-      _id: "popular-4",
-      stock: 2,
-      unit: "piece",
-      leadTimeHours: 168,
-      isOrganic: false,
-      isGlutenFree: false,
-      category: "handmade_crafts",
-      subcategory: "woodworking"
-    }
-  ], []);
+  // Popular products are now loaded from API
 
   const localFavorites = useMemo(() => [
     {
@@ -260,77 +346,11 @@ export default function Home() {
     }
   ], []);
 
-  // Get featured categories from reference data
-  const featuredCategories = useMemo(() => {
-    const categoryKeys = getFeaturedCategories();
-    console.log('Featured category keys:', categoryKeys);
-    const result = categoryKeys.map(key => ({
-      key,
-      ...PRODUCT_CATEGORIES[key]
-    }));
-    console.log('Featured categories result:', result);
-    return result;
-  }, []);
 
-  useEffect(() => {
-    const startTime = performance.now();
-    loadFeaturedProducts().finally(() => {
-      const endTime = performance.now();
-      console.log(`Featured products loaded in ${(endTime - startTime).toFixed(2)}ms`);
-    });
-  }, []);
 
-  const loadFeaturedProducts = async () => {
-    try {
-      setIsLoadingFeatured(true);
-      setError(null);
-      const response = await getFeaturedProducts();
-      if (response.success) {
-        setFeaturedProducts(response.products || []);
-      } else {
-        console.error('Failed to load featured products:', response.message);
-        setFeaturedProducts([]);
-        setError('Failed to load featured products');
-      }
-    } catch (error) {
-      console.error('Error loading featured products:', error);
-      setFeaturedProducts([]);
-      setError('Failed to load featured products');
-      toast.error('Failed to load featured products');
-    } finally {
-      setIsLoadingFeatured(false);
-    }
-  };
+  // Remove duplicate functions - they are now handled by the optimized hooks above
 
-  // Cart functionality
-  const handleProductClick = (product) => {
-    setSelectedProduct(product);
-    setQuantity(1);
-    setShowCartPopup(true);
-  };
-
-  const handleAddToCart = async () => {
-    if (!selectedProduct) return;
-
-    try {
-      // Use cartService to add to cart
-      await cartService.addToCart(selectedProduct, quantity, null); // null for guest user
-      
-      toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
-      setShowCartPopup(false);
-      setSelectedProduct(null);
-      setQuantity(1);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
-    }
-  };
-
-  const handleQuantityChange = (newQuantity) => {
-    if (newQuantity >= 1 && newQuantity <= selectedProduct.stock) {
-      setQuantity(newQuantity);
-    }
-  };
+  // Remove duplicate function - it's now handled by the memoized version above
 
   const closeCartPopup = () => {
     setShowCartPopup(false);
@@ -393,7 +413,11 @@ export default function Home() {
 
   // ProductCard component with lazy loading
   const ProductCard = ({ product, showImagePreview = false }) => (
-    <div className="group cursor-pointer relative" onClick={() => handleProductClick(product)}>
+    <div 
+      className="group cursor-pointer relative hover:shadow-lg transition-shadow duration-300" 
+      onClick={() => handleProductClick(product)}
+      title="Select this artisan product"
+    >
       <div className="relative overflow-hidden rounded-lg bg-gray-100">
         <img
           src={getImageUrl(product.image)}
@@ -416,8 +440,8 @@ export default function Home() {
         {showImagePreview && (
           <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-opacity duration-300 ease-in-out z-20">
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-white rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
-                <EyeIcon className="w-8 h-8 text-gray-800" />
+              <div className="bg-amber-600 rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                <HeartIcon className="w-8 h-8 text-white" />
               </div>
             </div>
           </div>
@@ -448,13 +472,24 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
-            <Link 
-              to="/search" 
-              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
-            >
-              <span>View all</span>
-              <ArrowRightIcon className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  clearFeaturedProductsCache();
+                  loadFeaturedProducts();
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Refresh
+              </button>
+              <Link 
+                to="/search" 
+                className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
+              >
+                <span>View all</span>
+                <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
 
           {isLoadingFeatured ? (
@@ -493,11 +528,25 @@ export default function Home() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {popularProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {isLoadingPopular ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          ) : popularProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {popularProducts.slice(0, 4).map((product) => (
+                <ProductCard key={product._id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Popular Products</h3>
+              <p className="text-gray-500">Check back soon for popular products from our artisans.</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -545,51 +594,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Browse Categories</h2>
-            <p className="text-lg text-gray-600">Discover amazing products across all categories</p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {featuredCategories && featuredCategories.length > 0 ? (
-              featuredCategories.map((category) => (
-                <Link
-                  key={category.key}
-                  to={`/search?category=${category.key}`}
-                  className="group bg-gray-50 rounded-lg p-6 text-center hover:bg-amber-50 hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-amber-300"
-                >
-                  <div className="text-4xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                    {category.icon}
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">
-                    {category.name}
-                  </h3>
-                  <p className="text-sm text-gray-600 group-hover:text-gray-700">
-                    {category.description}
-                  </p>
-                </Link>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8">
-                <p className="text-gray-500">Loading categories...</p>
-              </div>
-            )}
-          </div>
-          
-          <div className="text-center mt-8">
-            <Link
-              to="/search"
-              className="inline-flex items-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
-            >
-              View All Categories
-              <ArrowRightIcon className="w-4 h-4 ml-2" />
-            </Link>
-          </div>
-        </div>
-      </section>
+
 
       {/* Features Section */}
       <section className="py-16 bg-amber-50">

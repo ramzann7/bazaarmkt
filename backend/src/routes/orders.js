@@ -5,7 +5,7 @@ const User = require('../models/user');
 const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
 
-// Get all orders for the authenticated user (buyer)
+// Get all orders for the authenticated user (patron)
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
     const orders = await Order.find({ buyer: req.user._id })
@@ -15,7 +15,7 @@ router.get('/buyer', verifyToken, async (req, res) => {
 
     res.json(orders);
   } catch (error) {
-    console.error('Error fetching buyer orders:', error);
+    console.error('Error fetching patron orders:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -23,7 +23,7 @@ router.get('/buyer', verifyToken, async (req, res) => {
 // Get all orders for the authenticated artisan
 router.get('/artisan', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Only artisans can access artisan orders' });
     }
 
@@ -42,7 +42,7 @@ router.get('/artisan', verifyToken, async (req, res) => {
 // Get all orders for the authenticated business
 router.get('/business', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Only business owners can access business orders' });
     }
 
@@ -61,7 +61,7 @@ router.get('/business', verifyToken, async (req, res) => {
 // Get order statistics for artisan
 router.get('/artisan/stats', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Only artisans can access statistics' });
     }
 
@@ -210,9 +210,17 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Check if user is the artisan for this order
+    // Check if user is the artisan for this order (support multiple artisan roles)
     if (order.artisan.toString() !== req.user._id.toString()) {
+      console.log('❌ Order artisan ID:', order.artisan.toString());
+      console.log('❌ User ID:', req.user._id.toString());
+      console.log('❌ User role:', req.user.role);
       return res.status(403).json({ message: 'Only the artisan can update order status' });
+    }
+
+    // Additional role check for artisan-like roles
+    if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only artisans can update order status' });
     }
 
     // Validate status transition
@@ -238,8 +246,18 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
     // Update order
     order.status = status;
     if (preparationStage) order.preparationStage = preparationStage;
-    if (notes) order.notes.artisan = notes;
+    if (notes) {
+      order.notes = {
+        ...order.notes,
+        artisan: notes
+      };
+    }
     order.updatedAt = Date.now();
+    
+    // Set delivery time when status changes to delivered
+    if (status === 'delivered') {
+      order.actualDeliveryTime = new Date();
+    }
 
     await order.save();
 
@@ -291,7 +309,40 @@ router.put('/:orderId/payment', verifyToken, async (req, res) => {
   }
 });
 
-// Cancel order (buyer only, if order is still pending)
+// Get real-time order updates (for WebSocket integration)
+router.get('/:orderId/updates', verifyToken, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId)
+      .populate('buyer', 'firstName lastName email phone')
+      .populate('artisan', 'firstName lastName email phone')
+      .populate('items.product', 'name description image price unit');
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    // Check if user has access to this order
+    if (order.buyer._id.toString() !== req.user._id.toString() && 
+        order.artisan._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    res.json({
+      orderId: order._id,
+      status: order.status,
+      preparationStage: order.preparationStage,
+      paymentStatus: order.paymentStatus,
+      updatedAt: order.updatedAt,
+      estimatedDeliveryTime: order.estimatedDeliveryTime,
+      actualDeliveryTime: order.actualDeliveryTime
+    });
+  } catch (error) {
+    console.error('Error fetching order updates:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Cancel order (patron only, if order is still pending)
 router.put('/:orderId/cancel', verifyToken, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId);
@@ -300,9 +351,9 @@ router.put('/:orderId/cancel', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Check if user is the buyer for this order
+    // Check if user is the patron for this order
     if (order.buyer.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the buyer can cancel the order' });
+      return res.status(403).json({ message: 'Only the patron can cancel the order' });
     }
 
     // Only allow cancellation if order is still pending

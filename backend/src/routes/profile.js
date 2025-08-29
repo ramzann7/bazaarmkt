@@ -6,6 +6,25 @@ const Artisan = require('../models/artisan');
 const verifyToken = require('../middleware/authMiddleware');
 // const { geocodeAddress } = require('../services/geocodingService');
 
+// Test database connection
+router.get('/test-db', async (req, res) => {
+  try {
+    const User = require('../models/user');
+    const userCount = await User.countDocuments();
+    res.json({ 
+      message: 'Database connection working',
+      userCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Database test error:', error);
+    res.status(500).json({ 
+      message: 'Database connection failed', 
+      error: error.message 
+    });
+  }
+});
+
 // Get user profile
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -13,6 +32,38 @@ router.get('/', verifyToken, async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update entire profile
+router.put('/', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update allowed fields
+    const allowedFields = [
+      'firstName', 'lastName', 'phone', 'addresses', 
+      'notificationPreferences', 'accountSettings', 'paymentMethods'
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        user[field] = req.body[field];
+      }
+    });
+
+    await user.save();
+    
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    
+    res.json(userResponse);
+  } catch (error) {
+    console.error('Error updating profile:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -232,11 +283,14 @@ router.get('/payment-methods', verifyToken, async (req, res) => {
 router.post('/payment-methods', verifyToken, async (req, res) => {
   try {
     const newPaymentMethod = req.body;
+    console.log('Adding payment method:', newPaymentMethod);
     
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    console.log('Current user payment methods:', user.paymentMethods);
 
     // If this is the first payment method, make it default
     if (user.paymentMethods.length === 0) {
@@ -244,7 +298,12 @@ router.post('/payment-methods', verifyToken, async (req, res) => {
     }
 
     user.paymentMethods.push(newPaymentMethod);
+    console.log('Before save - payment methods:', user.paymentMethods);
+    
     await user.save();
+    
+    console.log('After save - payment methods:', user.paymentMethods);
+    console.log('User document saved successfully');
     
     res.json(user.paymentMethods);
   } catch (error) {
@@ -269,6 +328,38 @@ router.delete('/payment-methods/:id', verifyToken, async (req, res) => {
     res.json(user.paymentMethods);
   } catch (error) {
     console.error('Error deleting payment method:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Set default payment method
+router.patch('/payment-methods/:id/default', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Reset all payment methods to not default
+    user.paymentMethods.forEach(method => {
+      method.isDefault = false;
+    });
+
+    // Set the specified payment method as default
+    const paymentMethod = user.paymentMethods.find(
+      method => method._id.toString() === req.params.id
+    );
+    
+    if (!paymentMethod) {
+      return res.status(404).json({ message: 'Payment method not found' });
+    }
+
+    paymentMethod.isDefault = true;
+    await user.save();
+    
+    res.json(user.paymentMethods);
+  } catch (error) {
+    console.error('Error setting default payment method:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -430,23 +521,51 @@ router.put('/producer/delivery', verifyToken, async (req, res) => {
 // Update payment methods
 router.put('/payment-methods', verifyToken, async (req, res) => {
   try {
-    const { paymentMethods } = req.body;
+    console.log('=== Payment Methods Update Request ===');
+    console.log('User ID:', req.user._id);
+    console.log('Request body:', req.body);
     
+    const { paymentMethods } = req.body;
+    console.log('Payment methods to update:', paymentMethods);
+    
+    if (!paymentMethods || !Array.isArray(paymentMethods)) {
+      console.error('Invalid payment methods data:', paymentMethods);
+      return res.status(400).json({ message: 'Invalid payment methods data' });
+    }
+    
+    console.log('Looking for user with ID:', req.user._id);
     const user = await User.findById(req.user._id);
     if (!user) {
+      console.error('User not found:', req.user._id);
       return res.status(404).json({ message: 'User not found' });
     }
+    console.log('User found:', user._id, user.email);
 
+    console.log('Current user payment methods:', user.paymentMethods);
+    console.log('User document before update:', user);
+    
     user.paymentMethods = paymentMethods;
+    console.log('New payment methods to save:', user.paymentMethods);
+    
+    console.log('About to save user...');
     await user.save();
+    console.log('User saved successfully');
     
     const userResponse = user.toObject();
     delete userResponse.password;
     
+    console.log('Sending response with payment methods:', userResponse.paymentMethods);
     res.json(userResponse);
   } catch (error) {
-    console.error('Error updating payment methods:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('=== Error updating payment methods ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', error);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -476,77 +595,108 @@ router.put('/security', verifyToken, async (req, res) => {
 // Get artisan profile
 router.get('/artisan', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    console.log('🔄 GET /artisan - User ID:', req.user._id);
+    console.log('🔄 User role:', req.user.role);
+    
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
+      console.log('❌ Access denied - User role:', req.user.role);
       return res.status(403).json({ message: 'Only artisans can access business profile' });
     }
 
     const artisan = await Artisan.findOne({ user: req.user._id });
+    console.log('🔄 Found artisan profile:', !!artisan);
+    
     if (!artisan) {
+      console.log('❌ Artisan profile not found for user:', req.user._id);
       return res.status(404).json({ message: 'Artisan profile not found' });
     }
 
+    console.log('✅ Returning artisan profile for user:', req.user._id);
     res.json(artisan);
   } catch (error) {
-    console.error('Error fetching artisan profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error fetching artisan profile:', error);
+    console.error('❌ Error details:', error.message);
+    res.status(500).json({ message: 'Server error: ' + error.message });
   }
 });
 
 // Create or update artisan profile
 router.post('/artisan', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    console.log('🔄 POST /artisan - User ID:', req.user._id);
+    console.log('🔄 User role:', req.user.role);
+    console.log('🔄 Request body:', req.body);
+    
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
+      console.log('❌ Access denied - User role:', req.user.role);
       return res.status(403).json({ message: 'Only artisans can create artisan profile' });
     }
 
     let artisan = await Artisan.findOne({ user: req.user._id });
+    console.log('🔄 Found existing artisan profile:', !!artisan);
     
     if (artisan) {
       // Update existing artisan profile
+      console.log('🔄 Updating existing artisan profile');
       Object.assign(artisan, req.body);
       await artisan.save();
+      console.log('✅ Existing artisan profile updated');
     } else {
       // Create new artisan profile
+      console.log('🔄 Creating new artisan profile');
       artisan = new Artisan({
         ...req.body,
         user: req.user._id
       });
       await artisan.save();
+      console.log('✅ New artisan profile created');
     }
 
     res.json(artisan);
   } catch (error) {
-    console.error('Error creating/updating artisan profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error creating/updating artisan profile:', error);
+    console.error('❌ Error details:', error.message);
+    res.status(500).json({ message: 'Server error: ' + error.message });
   }
 });
 
 // Update artisan profile
 router.put('/artisan', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    console.log('🔄 PUT /artisan - User ID:', req.user._id);
+    console.log('🔄 User role:', req.user.role);
+    console.log('🔄 Request body:', req.body);
+    
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
+      console.log('❌ Access denied - User role:', req.user.role);
       return res.status(403).json({ message: 'Only artisans can update artisan profile' });
     }
 
     const artisan = await Artisan.findOne({ user: req.user._id });
+    console.log('🔄 Found artisan profile:', !!artisan);
+    
     if (!artisan) {
+      console.log('❌ Artisan profile not found for user:', req.user._id);
       return res.status(404).json({ message: 'Artisan profile not found' });
     }
 
+    console.log('🔄 Updating artisan profile with data:', req.body);
     Object.assign(artisan, req.body);
     await artisan.save();
+    console.log('✅ Artisan profile updated successfully');
 
     res.json(artisan);
   } catch (error) {
-    console.error('Error updating artisan profile:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error updating artisan profile:', error);
+    console.error('❌ Error details:', error.message);
+    res.status(500).json({ message: 'Server error: ' + error.message });
   }
 });
 
 // Update artisan hours
 router.put('/artisan/hours', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
       return res.status(403).json({ message: 'Only artisans can update artisan hours' });
     }
 
@@ -569,7 +719,7 @@ router.put('/artisan/hours', verifyToken, async (req, res) => {
 // Update delivery options
 router.put('/artisan/delivery', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
       return res.status(403).json({ message: 'Only artisans can update delivery options' });
     }
 
@@ -592,7 +742,7 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
 // Update artisan operations
 router.put('/artisan/operations', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
       return res.status(403).json({ message: 'Only artisans can update artisan operations' });
     }
 
@@ -618,7 +768,7 @@ router.put('/artisan/operations', verifyToken, async (req, res) => {
 // Update artisan photos and contact information
 router.put('/artisan/photos-contact', verifyToken, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
+    if (req.user.role !== 'artisan' && req.user.role !== 'producer' && req.user.role !== 'food_maker') {
       return res.status(403).json({ message: 'Only artisans can update artisan photos and contact' });
     }
 

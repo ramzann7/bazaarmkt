@@ -11,7 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { cartService } from '../services/cartService';
 import { checkoutService } from '../services/checkoutService';
-import { authToken } from '../services/authService';
+import { authToken } from '../services/authservice';
 import toast from 'react-hot-toast';
 
 export default function Checkout() {

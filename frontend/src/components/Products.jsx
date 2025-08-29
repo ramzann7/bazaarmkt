@@ -9,11 +9,13 @@ import {
   XMarkIcon,
   CheckIcon,
   ExclamationTriangleIcon,
-  LightBulbIcon
+  LightBulbIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { getMyProducts, createProduct, updateProduct, deleteProduct, uploadImage, updateInventory, getAllProducts } from '../services/productService';
-import { getProfile } from '../services/authService';
+import { getProfile } from '../services/authservice';
 import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
+import ProductPromotions from './ProductPromotions';
 import toast from 'react-hot-toast';
 
 // Debug imports
@@ -25,6 +27,8 @@ export default function Products() {
   const navigate = useNavigate();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [showPromotions, setShowPromotions] = useState(false);
+  const [selectedProductForPromotions, setSelectedProductForPromotions] = useState(null);
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -294,6 +298,16 @@ export default function Products() {
       console.error('Error deleting product:', error);
       toast.error('Failed to delete product');
     }
+  };
+
+  const handlePromotionalFeatures = (product) => {
+    setSelectedProductForPromotions(product);
+    setShowPromotions(true);
+  };
+
+  const handlePromotionUpdate = () => {
+    // Refresh products to show updated promotional status
+    loadProducts();
   };
 
   const handleUpdateStock = async (productId, newStock) => {
@@ -804,12 +818,21 @@ export default function Products() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="text-lg font-medium text-gray-900">{product.name}</h4>
-                      <button
-                        onClick={() => handleDeleteProduct(product._id)}
-                        className="text-red-500 hover:text-red-700 ml-2"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handlePromotionalFeatures(product)}
+                          className="text-purple-500 hover:text-purple-700"
+                          title="Promotional Features"
+                        >
+                          <SparklesIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product._id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     
                     <p className="text-sm text-gray-600 mb-3 overflow-hidden text-ellipsis" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{product.description}</p>
@@ -1114,6 +1137,30 @@ export default function Products() {
                   </div>
                 </form>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Promotional Features Modal */}
+        {showPromotions && selectedProductForPromotions && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Promotional Features - {selectedProductForPromotions.name}
+                </h2>
+                <button
+                  onClick={() => setShowPromotions(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <ProductPromotions 
+                product={selectedProductForPromotions}
+                onPromotionUpdate={handlePromotionUpdate}
+              />
             </div>
           </div>
         )}

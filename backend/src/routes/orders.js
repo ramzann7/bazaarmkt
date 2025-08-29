@@ -4,6 +4,7 @@ const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
+const RevenueService = require('../services/revenueService');
 
 // Get all orders for the authenticated user (patron)
 router.get('/buyer', verifyToken, async (req, res) => {
@@ -180,6 +181,15 @@ router.post('/', verifyToken, async (req, res) => {
       });
 
       const savedOrder = await order.save();
+      
+      // Calculate revenue for this order
+      try {
+        await RevenueService.calculateOrderRevenue(savedOrder._id);
+      } catch (revenueError) {
+        console.error('Error calculating revenue for order:', savedOrder._id, revenueError);
+        // Don't fail the order creation if revenue calculation fails
+      }
+      
       const populatedOrder = await Order.findById(savedOrder._id)
         .populate('buyer', 'firstName lastName email phone')
         .populate('artisan', 'firstName lastName email phone')

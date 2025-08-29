@@ -31,6 +31,8 @@ const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
 const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
 const AdminUserManagement = lazy(() => import("./components/AdminUserManagement.jsx"));
+const ArtisanRevenueDashboard = lazy(() => import("./components/ArtisanRevenueDashboard.jsx"));
+const RevenueTransparency = lazy(() => import("./components/RevenueTransparency.jsx"));
 const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
@@ -125,6 +127,15 @@ function AppRoutes() {
           path="/admin/analytics"
           element={isAuthenticated ? <AdminAnalytics /> : <Navigate to="/login" />}
         />
+        
+        {/* Artisan Revenue Routes */}
+        <Route
+          path="/artisan/revenue"
+          element={isAuthenticated ? <ArtisanRevenueDashboard /> : <Navigate to="/login" />}
+        />
+        
+        {/* Transparency Route */}
+        <Route path="/transparency" element={<RevenueTransparency />} />
         
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" />} />

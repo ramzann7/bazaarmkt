@@ -1,0 +1,16 @@
+# Cursor Rules for Auto-Commit Workflow
+
+## Git Workflow
+- Always commit changes after making significant edits
+- Use descriptive commit messages
+- Push to GitHub regularly
+
+## Auto-Commit Commands
+- Run `./scripts/auto-commit.sh` to commit and push all changes
+- Run `./scripts/watch-and-commit.sh` to auto-watch for changes
+- Use `git add . && git commit -m "message" && git push` for manual commits
+
+## Best Practices
+- Test changes before committing
+- Review changes in git status before pushing
+- Keep commits focused and logical

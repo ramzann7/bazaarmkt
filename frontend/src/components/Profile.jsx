@@ -187,7 +187,7 @@ export default function Profile() {
 
   // Preload profile data when component mounts
   useEffect(() => {
-    preloadProfile();
+    loadProfile();
   }, []);
   
   // Listen for storage changes (token changes in other tabs)

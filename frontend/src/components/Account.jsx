@@ -19,7 +19,7 @@ import {
   HeartIcon,
   BuildingStorefrontIcon
 } from '@heroicons/react/24/outline';
-import { getProfile, logoutUser } from '../services/authService';
+import { getProfile, logoutUser } from '../services/authservice';
 import toast from 'react-hot-toast';
 
 export default function Account() {

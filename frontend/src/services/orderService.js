@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { authToken } from './authService';
+import { authToken } from './authservice';
 
 const API_URL = '/api/orders';
 

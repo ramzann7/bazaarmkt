@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { getFinancialDashboardData } from '../services/adminDashboardService';
+import { revenueService } from '../services/revenueService';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CurrencyDollarIcon, ArrowTrendingUpIcon, ChartBarIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 
 export default function AdminRevenueManagement() {
   const [financialData, setFinancialData] = useState({

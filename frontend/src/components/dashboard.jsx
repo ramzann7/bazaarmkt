@@ -14,7 +14,7 @@ import {
   CurrencyDollarIcon,
   CalendarIcon
 } from "@heroicons/react/24/outline";
-import { getProfile, logoutUser } from "../services/authService";
+import { getProfile, logoutUser } from "../services/authservice";
 import { userStatsService } from "../services/userStatsService";
 import { favoriteService } from "../services/favoriteService";
 import { cacheService, CACHE_KEYS, CACHE_TTL } from "../services/cacheService";

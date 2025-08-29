@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { authToken } from './authService';
+import { authToken } from './authservice';
 import { cartService } from './cartService';
 import { orderService } from './orderService';
 import toast from 'react-hot-toast';

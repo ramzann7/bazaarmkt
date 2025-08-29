@@ -8,7 +8,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { orderService } from '../services/orderService';
-import { getProfile } from '../services/authService';
+import { getProfile } from '../services/authservice';
 import toast from 'react-hot-toast';
 
 export default function Orders() {

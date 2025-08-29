@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { cartService } from '../services/cartService';
 import { orderService } from '../services/orderService';
-import { authToken, getProfile } from '../services/authService';
+import { authToken, getProfile } from '../services/authservice';
 import { guestService } from '../services/guestService';
 import { paymentService } from '../services/paymentService';
 import { deliveryService } from '../services/deliveryService';

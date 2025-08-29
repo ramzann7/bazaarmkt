@@ -68,6 +68,15 @@ const orderSchema = new mongoose.Schema({
   paymentMethodId: {
     type: mongoose.Schema.Types.ObjectId
   },
+  
+  // Revenue tracking
+  revenue: {
+    grossAmount: Number,
+    platformCommission: Number,
+    artisanEarnings: Number,
+    commissionRate: { type: Number, default: 0.10 }
+  },
+  
   notes: {
     buyer: String,
     artisan: String

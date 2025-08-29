@@ -395,9 +395,14 @@ export default function Navbar() {
                             My Profile
                           </Link>
                           {user?.role === 'artisan' && (
-                            <Link to="/products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                              My Products
-                            </Link>
+                            <>
+                              <Link to="/products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                My Products
+                              </Link>
+                              <Link to="/artisan/revenue" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                My Revenue
+                              </Link>
+                            </>
                           )}
                           <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
                             My Orders
@@ -584,13 +589,22 @@ export default function Navbar() {
                       My Profile
                     </Link>
                     {user?.role === 'artisan' && (
-                      <Link
-                        to="/products"
-                        className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                        onClick={toggleMobileMenu}
-                      >
-                        My Products
-                      </Link>
+                      <>
+                        <Link
+                          to="/products"
+                          className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                          onClick={toggleMobileMenu}
+                        >
+                          My Products
+                        </Link>
+                        <Link
+                          to="/artisan/revenue"
+                          className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                          onClick={toggleMobileMenu}
+                        >
+                          My Revenue
+                        </Link>
+                      </>
                     )}
                     <Link
                       to="/orders"

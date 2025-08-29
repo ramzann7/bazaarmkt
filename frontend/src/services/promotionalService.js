@@ -52,54 +52,7 @@ class PromotionalService {
     }
   }
 
-  // Get featured artisans for find artisans page
-  async getFeaturedArtisans(limit = 4) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/artisans/featured?limit=${limit}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch featured artisans');
-      }
-
-      const data = await response.json();
-      return data.data || [];
-    } catch (error) {
-      console.error('Error fetching featured artisans:', error);
-      return [];
-    }
-  }
-
-  // Get search boost products for enhanced search ranking
-  async getSearchBoostProducts(query, category = null) {
-    try {
-      const params = new URLSearchParams({ query });
-      if (category) {
-        params.append('category', category);
-      }
-
-      const response = await fetch(`${API_BASE_URL}/products/search-boost?${params}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch search boost products');
-      }
-
-      const data = await response.json();
-      return data.data || [];
-    } catch (error) {
-      console.error('Error fetching search boost products:', error);
-      return [];
-    }
-  }
 
   // Check if a product has active promotions
   async getProductPromotions(productId) {
@@ -150,14 +103,6 @@ class PromotionalService {
               icon: '✨'
             });
             break;
-          case 'search_boost':
-            badges.push({
-              type: 'boost',
-              label: 'Search Boost',
-              color: 'bg-blue-100 text-blue-800',
-              icon: '🔍'
-            });
-            break;
         }
       }
     });
@@ -184,13 +129,6 @@ class PromotionalService {
       
       if (aSponsored && !bSponsored) return -1;
       if (!aSponsored && bSponsored) return 1;
-      
-      // Search boost products get third priority
-      const aBoost = aPromotions.some(p => p.featureType === 'search_boost' && p.status === 'active');
-      const bBoost = bPromotions.some(p => p.featureType === 'search_boost' && p.status === 'active');
-      
-      if (aBoost && !bBoost) return -1;
-      if (!aBoost && bBoost) return 1;
       
       // Default sorting by name
       return a.name.localeCompare(b.name);

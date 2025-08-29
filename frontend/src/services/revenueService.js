@@ -175,10 +175,8 @@ class RevenueService {
   // Helper method to get placement for feature type
   getPlacementForFeature(featureType) {
     const placementMap = {
-      'product_featured': 'search_results',
-      'product_sponsored': 'search_results',
-      'artisan_spotlight': 'homepage',
-      'search_boost': 'search_results'
+      'product_featured': 'homepage_and_search',
+      'product_sponsored': 'search_results'
     };
 
     return placementMap[featureType] || 'search_results';

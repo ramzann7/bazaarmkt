@@ -258,40 +258,34 @@ class RevenueService {
     }
   }
 
-  // Get available promotional features
+  // Get available promotional features (product-level only)
   static async getAvailablePromotionalFeatures() {
     return [
       {
         type: 'product_featured',
         name: 'Featured Product',
-        description: 'Highlight your product at the top of search results',
+        description: 'Highlight your product on the homepage and at the top of search results for 7 days',
         price: 25,
         duration: '7 days',
-        benefits: ['Increased visibility', 'Higher search ranking', 'Featured badge']
+        benefits: [
+          'Featured placement on homepage',
+          'Higher search ranking',
+          'Featured badge on product',
+          'Increased visibility to customers'
+        ]
       },
       {
         type: 'product_sponsored',
         name: 'Sponsored Product',
-        description: 'Promote your product with sponsored placement',
+        description: 'Promote your product with sponsored placement in search results for 14 days',
         price: 50,
         duration: '14 days',
-        benefits: ['Premium placement', 'Sponsored label', 'Analytics dashboard']
-      },
-      {
-        type: 'artisan_spotlight',
-        name: 'Artisan Spotlight',
-        description: 'Featured artisan profile on homepage',
-        price: 100,
-        duration: '30 days',
-        benefits: ['Homepage exposure', 'Profile enhancement', 'Customer trust boost']
-      },
-      {
-        type: 'search_boost',
-        name: 'Search Boost',
-        description: 'Improve your products\' search ranking',
-        price: 35,
-        duration: '21 days',
-        benefits: ['Better search visibility', 'Organic traffic increase', 'Competitive advantage']
+        benefits: [
+          'Sponsored placement in search results',
+          'Sponsored label on product',
+          'Priority ranking in search',
+          'Enhanced product visibility'
+        ]
       }
     ];
   }

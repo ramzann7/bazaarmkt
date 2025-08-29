@@ -83,10 +83,6 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
         return <StarIcon className="h-5 w-5 text-yellow-500" />;
       case 'product_sponsored':
         return <SparklesIcon className="h-5 w-5 text-purple-500" />;
-      case 'search_boost':
-        return <MagnifyingGlassIcon className="h-5 w-5 text-blue-500" />;
-      case 'artisan_spotlight':
-        return <UserGroupIcon className="h-5 w-5 text-green-500" />;
       default:
         return <StarIcon className="h-5 w-5 text-gray-500" />;
     }

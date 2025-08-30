@@ -133,10 +133,11 @@ router.post('/', verifyToken, async (req, res) => {
     const ordersByArtisan = {};
     
     for (const item of items) {
-      const product = await Product.findById(item.productId).populate('seller');
+      const productId = item.productId || item.product;
+      const product = await Product.findById(productId).populate('seller');
       
       if (!product) {
-        return res.status(400).json({ message: `Product ${item.productId} not found` });
+        return res.status(400).json({ message: `Product ${productId} not found` });
       }
 
       if (!product.seller) {
@@ -213,12 +214,28 @@ router.post('/', verifyToken, async (req, res) => {
 router.put('/:orderId/status', verifyToken, async (req, res) => {
   try {
     const { status, preparationStage, notes } = req.body;
+    
+    console.log('🔍 Backend Debug - Order Status Update Request:', {
+      orderId: req.params.orderId,
+      status,
+      preparationStage,
+      notes,
+      userId: req.user._id,
+      userRole: req.user.role
+    });
 
     const order = await Order.findById(req.params.orderId);
     
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
+
+    console.log('🔍 Backend Debug - Order found:', {
+      orderId: order._id,
+      orderArtisanId: order.artisan.toString(),
+      requestUserId: req.user._id.toString(),
+      orderStatus: order.status
+    });
 
     // Check if user is the artisan for this order (support multiple artisan roles)
     if (order.artisan.toString() !== req.user._id.toString()) {
@@ -273,7 +290,7 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
-      .populate('producer', 'firstName lastName email phone')
+      .populate('artisan', 'firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json(updatedOrder);
@@ -308,7 +325,7 @@ router.put('/:orderId/payment', verifyToken, async (req, res) => {
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
-      .populate('producer', 'firstName lastName email phone')
+      .populate('artisan', 'firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json(updatedOrder);
@@ -380,53 +397,13 @@ router.put('/:orderId/cancel', verifyToken, async (req, res) => {
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
-      .populate('producer', 'firstName lastName email phone')
-      .populate('items.product', 'name description image price unit');
-
-    res.json(updatedOrder);
-
-  } catch (error) {
-    console.error('Error cancelling order:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Update order status (business endpoint)
-router.put('/:orderId/status', verifyToken, async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    const order = await Order.findById(req.params.orderId);
-    
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    // Check if user is the artisan/business for this order
-    if (order.artisan.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the business owner can update order status' });
-    }
-
-    // Validate status
-    const validStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
-    }
-
-    order.status = status;
-    order.updatedAt = Date.now();
-
-    await order.save();
-
-    const updatedOrder = await Order.findById(order._id)
-      .populate('buyer', 'firstName lastName email phone')
       .populate('artisan', 'firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json(updatedOrder);
 
   } catch (error) {
-    console.error('Error updating order status:', error);
+    console.error('Error cancelling order:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

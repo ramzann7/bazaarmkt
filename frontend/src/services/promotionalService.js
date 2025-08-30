@@ -3,8 +3,8 @@ import { authToken } from './authservice';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 class PromotionalService {
-  // Get featured products for homepage
-  async getFeaturedProducts(limit = 6) {
+  // Get premium showcase products for homepage
+  async getPremiumShowcaseProducts(limit = 6) {
     try {
       const response = await fetch(`${API_BASE_URL}/products/featured?limit=${limit}`, {
         method: 'GET',
@@ -14,19 +14,19 @@ class PromotionalService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch featured products');
+        throw new Error('Failed to fetch premium showcase products');
       }
 
       const data = await response.json();
       return data.data || [];
     } catch (error) {
-      console.error('Error fetching featured products:', error);
+      console.error('Error fetching premium showcase products:', error);
       return [];
     }
   }
 
-  // Get sponsored products for search results
-  async getSponsoredProducts(category = null, limit = 3) {
+  // Get artisan spotlight products for search results
+  async getArtisanSpotlightProducts(category = null, limit = 3) {
     try {
       const params = new URLSearchParams({ limit });
       if (category) {
@@ -41,18 +41,16 @@ class PromotionalService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch sponsored products');
+        throw new Error('Failed to fetch artisan spotlight products');
       }
 
       const data = await response.json();
       return data.data || [];
     } catch (error) {
-      console.error('Error fetching sponsored products:', error);
+      console.error('Error fetching artisan spotlight products:', error);
       return [];
     }
   }
-
-
 
   // Check if a product has active promotions
   async getProductPromotions(productId) {
@@ -80,7 +78,7 @@ class PromotionalService {
     }
   }
 
-  // Get promotion badges for display
+  // Get promotion badges for display with artisanal terminology
   getPromotionBadges(promotions) {
     const badges = [];
     
@@ -89,18 +87,20 @@ class PromotionalService {
         switch (promotion.featureType) {
           case 'product_featured':
             badges.push({
-              type: 'featured',
-              label: 'Featured',
-              color: 'bg-yellow-100 text-yellow-800',
-              icon: '⭐'
+              type: 'premium_showcase',
+              label: 'Premium Showcase',
+              color: 'bg-amber-100 text-amber-800 border-amber-200',
+              icon: '⭐',
+              description: 'Featured on homepage and search results'
             });
             break;
           case 'product_sponsored':
             badges.push({
-              type: 'sponsored',
-              label: 'Sponsored',
-              color: 'bg-purple-100 text-purple-800',
-              icon: '✨'
+              type: 'artisan_spotlight',
+              label: 'Artisan Spotlight',
+              color: 'bg-purple-100 text-purple-800 border-purple-200',
+              icon: '✨',
+              description: 'Highlighted in search results'
             });
             break;
         }
@@ -116,19 +116,19 @@ class PromotionalService {
       const aPromotions = promotions.filter(p => p.productId === a._id);
       const bPromotions = promotions.filter(p => p.productId === b._id);
       
-      // Featured products get highest priority
-      const aFeatured = aPromotions.some(p => p.featureType === 'product_featured' && p.status === 'active');
-      const bFeatured = bPromotions.some(p => p.featureType === 'product_featured' && p.status === 'active');
+      // Premium showcase products get highest priority
+      const aPremiumShowcase = aPromotions.some(p => p.featureType === 'product_featured' && p.status === 'active');
+      const bPremiumShowcase = bPromotions.some(p => p.featureType === 'product_featured' && p.status === 'active');
       
-      if (aFeatured && !bFeatured) return -1;
-      if (!aFeatured && bFeatured) return 1;
+      if (aPremiumShowcase && !bPremiumShowcase) return -1;
+      if (!aPremiumShowcase && bPremiumShowcase) return 1;
       
-      // Sponsored products get second priority
-      const aSponsored = aPromotions.some(p => p.featureType === 'product_sponsored' && p.status === 'active');
-      const bSponsored = bPromotions.some(p => p.featureType === 'product_sponsored' && p.status === 'active');
+      // Artisan spotlight products get second priority
+      const aArtisanSpotlight = aPromotions.some(p => p.featureType === 'product_sponsored' && p.status === 'active');
+      const bArtisanSpotlight = bPromotions.some(p => p.featureType === 'product_sponsored' && p.status === 'active');
       
-      if (aSponsored && !bSponsored) return -1;
-      if (!aSponsored && bSponsored) return 1;
+      if (aArtisanSpotlight && !bArtisanSpotlight) return -1;
+      if (!aArtisanSpotlight && bArtisanSpotlight) return 1;
       
       // Default sorting by name
       return a.name.localeCompare(b.name);
@@ -158,6 +158,35 @@ class PromotionalService {
     } catch (error) {
       console.error('Error fetching promotion analytics:', error);
       return null;
+    }
+  }
+
+  // Get artisanal promotional features (for My Revenue page)
+  async getArtisanalPromotionalFeatures() {
+    try {
+      const token = authToken.getToken();
+      if (!token) return [];
+
+      const response = await fetch(`${API_BASE_URL}/revenue/promotional/artisan-features`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch artisanal promotional features');
+      }
+
+      const data = await response.json();
+      // Filter to only include artisan-specific features (not product-specific)
+      return (data.data || []).filter(feature => 
+        !feature.productId && feature.featureType !== 'product_featured' && feature.featureType !== 'product_sponsored'
+      );
+    } catch (error) {
+      console.error('Error fetching artisanal promotional features:', error);
+      return [];
     }
   }
 }

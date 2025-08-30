@@ -10,7 +10,21 @@ scripts/
 ├── testing/       # API and frontend testing scripts
 ├── debug/         # Database debugging and troubleshooting scripts
 ├── backup/        # Data backup scripts and files
-└── cleanup/       # Database cleanup and maintenance scripts
+├── cleanup/       # Database cleanup and maintenance scripts
+└── manual-commit.sh  # Manual commit script (requires user approval)
+```
+
+## Git Workflow
+
+### Manual Commits Only
+- **manual-commit.sh**: Interactive commit script that requires user review and approval
+- All commits must be reviewed and tested by the user before being pushed
+- Auto-commit scripts have been deprecated and moved to `.deprecated` files
+
+### Usage
+```bash
+# Review and commit changes with user approval
+./scripts/manual-commit.sh
 ```
 
 ## Usage

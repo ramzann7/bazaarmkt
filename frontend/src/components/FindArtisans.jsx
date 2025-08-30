@@ -14,6 +14,8 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { artisanService } from '../services/artisanService';
+import { promotionalService } from '../services/promotionalService';
+import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { 
   PRODUCT_CATEGORIES, 
   getAllCategories, 
@@ -42,6 +44,7 @@ export default function FindArtisans() {
   const [sortBy, setSortBy] = useState('name');
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
+  const [artisanPromotions, setArtisanPromotions] = useState({});
   const navigate = useNavigate();
 
   // Memoize static data to prevent re-renders
@@ -82,22 +85,65 @@ export default function FindArtisans() {
     ];
   }, []);
 
-  // Load all artisans when component mounts
+  // Load all artisans when component mounts with optimized caching
   useEffect(() => {
     const startTime = performance.now();
-    loadAllArtisans().finally(() => {
-      const endTime = performance.now();
-      console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
-    });
+    
+    // Check cache first for instant loading
+    const cacheKey = `${CACHE_KEYS.ARTISAN_DETAILS}_all`;
+    const cachedArtisans = cacheService.getFast(cacheKey);
+    
+    if (cachedArtisans) {
+      console.log('✅ Using cached artisans for instant loading');
+      setArtisans(cachedArtisans);
+      setFilteredArtisans(cachedArtisans);
+      setIsLoading(false);
+      
+      // Load fresh data in background
+      loadAllArtisans().finally(() => {
+        const endTime = performance.now();
+        console.log(`Background refresh completed in ${(endTime - startTime).toFixed(2)}ms`);
+      });
+    } else {
+      // No cache, load normally
+      loadAllArtisans().finally(() => {
+        const endTime = performance.now();
+        console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
+      });
+    }
   }, []);
 
   const loadAllArtisans = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await artisanService.getAllArtisans();
+      
+      // Use cache service for better performance
+      const cacheKey = `${CACHE_KEYS.ARTISAN_DETAILS}_all`;
+      const data = await cacheService.getOrSet(
+        cacheKey,
+        async () => {
+          return await artisanService.getAllArtisans({ includeProducts: false });
+        },
+        CACHE_TTL.ARTISAN_DETAILS
+      );
       setArtisans(data);
       setFilteredArtisans(data);
+      
+      // Load promotional data for artisans
+      const promotionalData = {};
+      for (const artisan of data) {
+        try {
+          // Get artisan's promotional features (non-product specific)
+          const promotions = await promotionalService.getArtisanalPromotionalFeatures();
+          const artisanPromotions = promotions.filter(p => p.artisanId === artisan._id);
+          promotionalData[artisan._id] = artisanPromotions;
+        } catch (error) {
+          console.error(`Error loading promotions for artisan ${artisan._id}:`, error);
+          promotionalData[artisan._id] = [];
+        }
+      }
+      setArtisanPromotions(promotionalData);
     } catch (error) {
       console.error('Error loading artisans:', error);
       setError('Failed to load artisans');
@@ -411,6 +457,35 @@ export default function FindArtisans() {
             <span className="badge-local">Local</span>
             {(artisan.type === 'bakery' || artisan.type === 'chocolate_maker') && (
               <span className="badge-handmade">Handmade</span>
+            )}
+            
+            {/* Promotional Badges */}
+            {artisanPromotions[artisan._id] && artisanPromotions[artisan._id].length > 0 && (
+              <>
+                {artisanPromotions[artisan._id].map((promotion, index) => {
+                  if (promotion.status === 'active' && new Date(promotion.endDate) > new Date()) {
+                    switch (promotion.featureType) {
+                      case 'artisan_verified':
+                        return (
+                          <span key={index} className="badge-verified" title="Verified Artisan">
+                            <SparklesIcon className="w-3 h-3 mr-1" />
+                            Verified
+                          </span>
+                        );
+                      case 'artisan_premium':
+                        return (
+                          <span key={index} className="badge-premium" title="Premium Artisan">
+                            <StarIcon className="w-3 h-3 mr-1" />
+                            Premium
+                          </span>
+                        );
+                      default:
+                        return null;
+                    }
+                  }
+                  return null;
+                })}
+              </>
             )}
           </div>
 

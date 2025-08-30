@@ -8,7 +8,9 @@ import {
   CurrencyDollarIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon
+  ClockIcon,
+  EyeIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
 import { revenueService } from '../services/revenueService';
 import toast from 'react-hot-toast';
@@ -80,11 +82,33 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
   const getFeatureIcon = (featureType) => {
     switch (featureType) {
       case 'product_featured':
-        return <StarIcon className="h-5 w-5 text-yellow-500" />;
+        return <StarIcon className="h-6 w-6 text-amber-500" />;
       case 'product_sponsored':
-        return <SparklesIcon className="h-5 w-5 text-purple-500" />;
+        return <SparklesIcon className="h-6 w-6 text-purple-500" />;
       default:
-        return <StarIcon className="h-5 w-5 text-gray-500" />;
+        return <StarIcon className="h-6 w-6 text-gray-500" />;
+    }
+  };
+
+  const getFeatureDisplayName = (featureType) => {
+    switch (featureType) {
+      case 'product_featured':
+        return 'Premium Showcase';
+      case 'product_sponsored':
+        return 'Artisan Spotlight';
+      default:
+        return featureType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  };
+
+  const getFeatureDescription = (featureType) => {
+    switch (featureType) {
+      case 'product_featured':
+        return 'Your product will be prominently featured on the homepage and search results, giving it maximum visibility to potential customers.';
+      case 'product_sponsored':
+        return 'Your product will be highlighted in search results with special placement to increase discoverability.';
+      default:
+        return 'Boost your product visibility and increase sales.';
     }
   };
 
@@ -126,36 +150,47 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Active Promotions */}
+    <div className="space-y-8">
+      {/* Prominent Header */}
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-amber-100 to-purple-100 rounded-full mb-4">
+          <FireIcon className="h-8 w-8 text-amber-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Boost Your Product Visibility</h2>
+        <p className="text-gray-600 max-w-2xl mx-auto">
+          Make your product stand out and reach more customers with our premium promotional features
+        </p>
+      </div>
+
+      {/* Active Promotions - More Prominent */}
       {activePromotions.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <SparklesIcon className="h-5 w-5 text-purple-500 mr-2" />
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center justify-center">
+            <CheckCircleIcon className="h-6 w-6 text-green-600 mr-2" />
             Active Promotions
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {activePromotions.map((promotion) => (
-              <div key={promotion._id} className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+              <div key={promotion._id} className="bg-white border-2 border-green-300 rounded-lg p-4 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-4">
                     {getFeatureIcon(promotion.featureType)}
                     <div>
-                      <h4 className="font-medium text-gray-900">
-                        {promotion.featureType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      <h4 className="font-bold text-gray-900 text-lg">
+                        {getFeatureDisplayName(promotion.featureType)}
                       </h4>
                       <p className="text-sm text-gray-600">
                         ${promotion.price} • {new Date(promotion.startDate).toLocaleDateString()} - {new Date(promotion.endDate).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(promotion.status)}`}>
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(promotion.status)}`}>
                       {promotion.status.replace(/_/g, ' ')}
                     </span>
                     {promotion.status === 'active' && (
-                      <div className="flex items-center text-xs text-green-600">
-                        <ClockIcon className="h-3 w-3 mr-1" />
+                      <div className="flex items-center text-sm text-green-600 font-medium">
+                        <ClockIcon className="h-4 w-4 mr-1" />
                         {Math.ceil((new Date(promotion.endDate) - new Date()) / (1000 * 60 * 60 * 24))} days left
                       </div>
                     )}
@@ -167,55 +202,61 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
         </div>
       )}
 
-      {/* Available Features */}
+      {/* Available Features - Enhanced Visibility */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Promote This Product</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Choose Your Promotion</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {availableFeatures.map((feature) => {
             const isActive = isFeatureActive(feature.type);
             
             return (
-              <div key={feature.type} className={`border rounded-lg p-4 transition-all ${
+              <div key={feature.type} className={`border-2 rounded-xl p-6 transition-all transform hover:scale-105 ${
                 isActive 
-                  ? 'border-green-300 bg-green-50' 
-                  : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
+                  ? 'border-green-300 bg-green-50 shadow-lg' 
+                  : 'border-gray-200 hover:border-amber-300 hover:shadow-xl bg-white'
               }`}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
                     {getFeatureIcon(feature.type)}
-                    <h4 className="font-medium text-gray-900">{feature.name}</h4>
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-lg">{getFeatureDisplayName(feature.type)}</h4>
+                      <p className="text-sm text-gray-500">{feature.duration}</p>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-purple-600">${feature.price}</div>
-                    <div className="text-xs text-gray-500">{feature.duration}</div>
+                    <div className="text-2xl font-bold text-amber-600">${feature.price}</div>
+                    <div className="text-xs text-gray-500">One-time payment</div>
                   </div>
                 </div>
                 
-                <p className="text-sm text-gray-600 mb-3">{feature.description}</p>
+                <p className="text-gray-700 mb-4 leading-relaxed">{getFeatureDescription(feature.type)}</p>
                 
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-700 mb-1">Benefits:</p>
-                  <ul className="text-xs text-gray-600 space-y-1">
+                <div className="mb-4">
+                  <p className="text-sm font-semibold text-gray-800 mb-2">What you'll get:</p>
+                  <ul className="text-sm text-gray-600 space-y-2">
                     {feature.benefits.map((benefit, index) => (
-                      <li key={index} className="flex items-center">
-                        <CheckCircleIcon className="h-3 w-3 text-green-500 mr-2" />
-                        {benefit}
+                      <li key={index} className="flex items-start">
+                        <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span>{benefit}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
                 {isActive ? (
-                  <div className="flex items-center text-green-600 text-sm">
-                    <CheckCircleIcon className="h-4 w-4 mr-2" />
+                  <div className="flex items-center justify-center text-green-600 text-sm font-medium bg-green-100 py-3 px-4 rounded-lg">
+                    <CheckCircleIcon className="h-5 w-5 mr-2" />
                     Active Promotion
                   </div>
                 ) : (
                   <button
                     onClick={() => handlePurchaseFeature(feature)}
-                    className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-white py-3 px-6 rounded-lg hover:from-amber-600 hover:to-amber-700 transition-all duration-200 text-sm font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
-                    Purchase Feature
+                    <div className="flex items-center justify-center">
+                      <EyeIcon className="h-4 w-4 mr-2" />
+                      Boost Visibility Now
+                    </div>
                   </button>
                 )}
               </div>
@@ -227,43 +268,46 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
       {/* Purchase Modal */}
       {showPurchaseModal && selectedFeature && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Purchase {selectedFeature.name}
-            </h3>
+          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center mb-6">
+              {getFeatureIcon(selectedFeature.type)}
+              <h3 className="text-xl font-bold text-gray-900 mt-3">
+                Purchase {getFeatureDisplayName(selectedFeature.type)}
+              </h3>
+            </div>
             
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Product:</span>
-                <span className="font-medium">{product.name}</span>
+            <div className="space-y-4 mb-6">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-600 font-medium">Product:</span>
+                <span className="font-bold">{product.name}</span>
               </div>
               
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Feature:</span>
-                <span className="font-medium">{selectedFeature.name}</span>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-600 font-medium">Feature:</span>
+                <span className="font-bold">{getFeatureDisplayName(selectedFeature.type)}</span>
               </div>
               
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Duration:</span>
-                <span className="font-medium">{selectedFeature.duration}</span>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-gray-600 font-medium">Duration:</span>
+                <span className="font-bold">{selectedFeature.duration}</span>
               </div>
               
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Price:</span>
-                <span className="text-lg font-bold text-purple-600">${selectedFeature.price}</span>
+              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border-2 border-amber-200">
+                <span className="text-gray-700 font-bold">Total Price:</span>
+                <span className="text-2xl font-bold text-amber-600">${selectedFeature.price}</span>
               </div>
             </div>
 
-            <div className="mt-6 flex space-x-3">
+            <div className="flex space-x-3">
               <button
                 onClick={() => setShowPurchaseModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmPurchase}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-lg hover:from-amber-600 hover:to-amber-700 transition-colors font-bold"
               >
                 Confirm Purchase
               </button>

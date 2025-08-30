@@ -45,7 +45,7 @@ class CacheService {
     return this.cache.size;
   }
 
-  // Cache with promise (for async operations)
+  // Cache with promise (for async operations) - Optimized for performance
   async getOrSet(key, fetchFunction, ttl = this.defaultTTL) {
     const cached = this.get(key);
     if (cached) {
@@ -60,6 +60,15 @@ class CacheService {
       console.error('Cache fetch error:', error);
       throw error;
     }
+  }
+
+  // Fast cache check without async overhead
+  getFast(key) {
+    const expiry = this.cacheExpiry.get(key);
+    if (!expiry || Date.now() > expiry) {
+      return null;
+    }
+    return this.cache.get(key);
   }
 
   // Preload cache
@@ -87,20 +96,22 @@ export const CACHE_KEYS = {
   PRODUCT_DETAILS: 'product_details',
   FAVORITE_ARTISANS: 'favorite_artisans',
   USER_ORDERS: 'user_orders',
-  USER_STATS: 'user_stats'
+  USER_STATS: 'user_stats',
+  PENDING_ORDERS: 'pending_orders'
 };
 
-// Cache TTLs (in milliseconds)
+// Cache TTL constants
 export const CACHE_TTL = {
   USER_PROFILE: 10 * 60 * 1000, // 10 minutes
   FEATURED_PRODUCTS: 15 * 60 * 1000, // 15 minutes
   POPULAR_PRODUCTS: 15 * 60 * 1000, // 15 minutes
-  CATEGORIES: 60 * 60 * 1000, // 1 hour
-  SUBCATEGORIES: 60 * 60 * 1000, // 1 hour
-  CART_COUNT: 30 * 1000, // 30 seconds
-  ARTISAN_DETAILS: 5 * 60 * 1000, // 5 minutes
-  PRODUCT_DETAILS: 5 * 60 * 1000, // 5 minutes
+  CATEGORIES: 60 * 60 * 1000, // 1 hour (static data)
+  SUBCATEGORIES: 60 * 60 * 1000, // 1 hour (static data)
+  CART_COUNT: 2 * 60 * 1000, // 2 minutes
+  ARTISAN_DETAILS: 10 * 60 * 1000, // 10 minutes
+  PRODUCT_DETAILS: 10 * 60 * 1000, // 10 minutes
   FAVORITE_ARTISANS: 5 * 60 * 1000, // 5 minutes
-  USER_ORDERS: 2 * 60 * 1000, // 2 minutes
-  USER_STATS: 5 * 60 * 1000 // 5 minutes
+  USER_ORDERS: 5 * 60 * 1000, // 5 minutes
+  USER_STATS: 5 * 60 * 1000, // 5 minutes
+  ORDER_STATUS: 30 * 1000 // 30 seconds
 };

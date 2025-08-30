@@ -23,10 +23,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/the-bazaar')
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+// Database connection - Atlas only
+if (!process.env.MONGODB_URI) {
+  console.error('❌ MONGODB_URI environment variable is required');
+  console.error('❌ Please ensure your .env file contains the Atlas connection string');
+  process.exit(1);
+}
+
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ MongoDB Atlas connected successfully');
+    console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);
+  })
+  .catch(err => {
+    console.error('❌ MongoDB Atlas connection error:', err);
+    process.exit(1);
+  });
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);

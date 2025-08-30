@@ -122,10 +122,15 @@ export default function Checkout() {
         
         // Save checkout preferences
         if (userId) {
-          await checkoutService.saveCheckoutPreferences({
-            deliveryAddress: checkoutData.deliveryAddress,
-            paymentMethod: checkoutData.paymentMethod
-          });
+          try {
+            await checkoutService.saveCheckoutPreferences({
+              deliveryAddress: checkoutData.deliveryAddress,
+              paymentMethod: checkoutData.paymentMethod
+            });
+          } catch (prefError) {
+            console.warn('Failed to save checkout preferences:', prefError);
+            // Don't fail the order if preferences save fails
+          }
         }
         
         // Redirect to order confirmation
@@ -138,7 +143,8 @@ export default function Checkout() {
       }
     } catch (error) {
       console.error('Error placing order:', error);
-      toast.error(error.message || 'Failed to place order');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to place order';
+      toast.error(errorMessage);
     } finally {
       setIsProcessing(false);
     }

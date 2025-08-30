@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authToken } from '../services/authservice';
 import { getProfile } from '../services/authservice';
+import { getProfileFast, updateProfileCache } from '../services/profileService';
+import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -19,15 +21,34 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize auth state on app load
+  // Initialize auth state on app load - Optimized for performance
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         const token = authToken.getToken();
+        
         if (token) {
+          // Set authenticated immediately for better UX
           setIsAuthenticated(true);
-          // Try to get user profile from cache first, then API
-          const profile = await getProfile();
+          
+          // Try to get cached profile first (fast path)
+          const cachedProfile = cacheService.getFast(`${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`);
+          if (cachedProfile) {
+            setUser(cachedProfile);
+            setIsLoading(false);
+            setIsInitialized(true);
+            
+            // Load fresh profile in background
+            getProfileFast().then(profile => {
+              setUser(profile);
+            }).catch(error => {
+              console.error('Background profile refresh failed:', error);
+            });
+            return;
+          }
+          
+          // No cache, load profile
+          const profile = await getProfileFast();
           setUser(profile);
         } else {
           setIsAuthenticated(false);
@@ -37,7 +58,6 @@ export const AuthProvider = ({ children }) => {
         console.error('Auth initialization error:', error);
         setIsAuthenticated(false);
         setUser(null);
-        // Clear invalid token
         authToken.removeToken();
       } finally {
         setIsLoading(false);
@@ -48,11 +68,19 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
-  // Login function
+  // Login function - Optimized for immediate response
   const login = async (userData) => {
     try {
-      setUser(userData);
+      // Handle both { user } and direct user object
+      const user = userData.user || userData;
+      
+      // Set user immediately for instant UI response
+      setUser(user);
       setIsAuthenticated(true);
+      
+      // Cache the user profile immediately
+      updateProfileCache(user);
+      
       toast.success('Login successful!');
     } catch (error) {
       console.error('Login error:', error);
@@ -69,10 +97,10 @@ export const AuthProvider = ({ children }) => {
     toast.success('Logged out successfully');
   };
 
-  // Update user profile
+  // Update user profile - Optimized
   const updateUser = async () => {
     try {
-      const profile = await getProfile();
+      const profile = await getProfileFast();
       setUser(profile);
       return profile;
     } catch (error) {
@@ -82,11 +110,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Refresh user data
+  // Refresh user data - Optimized
   const refreshUser = async () => {
     if (isAuthenticated) {
       try {
-        const profile = await getProfile();
+        const profile = await getProfileFast();
         setUser(profile);
         return profile;
       } catch (error) {

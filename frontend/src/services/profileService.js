@@ -1,4 +1,6 @@
+// Profile service for user profile management
 import axios from 'axios';
+import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 import { authToken } from './authservice';
 
 const API_URL = '/api/profile';
@@ -188,4 +190,68 @@ export const profileService = {
     });
     return response.data;
   }
+};
+
+// Fast profile loading with immediate cache return (for performance optimization)
+export const getProfileFast = async () => {
+  const token = authToken.getToken();
+  if (!token) {
+    throw new Error('No authentication token');
+  }
+
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  
+  // Try fast cache first (synchronous)
+  const cached = cacheService.getFast(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fallback to async cache with API call
+  return cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      const response = await axios.get('/api/auth/profile', {
+        headers: getAuthHeaders()
+      });
+      return response.data.user;
+    },
+    CACHE_TTL.USER_PROFILE
+  );
+};
+
+// Preload profile for instant access
+export const preloadProfileFast = () => {
+  const token = authToken.getToken();
+  if (!token) return;
+
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  
+  // Only preload if not already cached
+  if (!cacheService.getFast(cacheKey)) {
+    cacheService.preload(cacheKey, async () => {
+      const response = await axios.get('/api/auth/profile', {
+        headers: getAuthHeaders()
+      });
+      return response.data.user;
+    }, CACHE_TTL.USER_PROFILE);
+  }
+};
+
+// Update profile cache immediately
+export const updateProfileCache = (userData) => {
+  const token = authToken.getToken();
+  if (!token) return;
+
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  cacheService.set(cacheKey, userData, CACHE_TTL.USER_PROFILE);
+};
+
+// Clear profile cache
+export const clearProfileCache = () => {
+  const token = authToken.getToken();
+  if (!token) return;
+
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  cacheService.delete(cacheKey);
 };

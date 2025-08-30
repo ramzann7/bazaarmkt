@@ -64,12 +64,20 @@ export const orderService = {
   // Update order status (artisan only)
   updateOrderStatus: async (orderId, statusData) => {
     try {
+      console.log('🔍 Order Status Update Debug - Order ID:', orderId);
+      console.log('🔍 Order Status Update Debug - Status Data:', statusData);
+      console.log('🔍 Order Status Update Debug - API URL:', `${API_URL}/${orderId}/status`);
+      console.log('🔍 Order Status Update Debug - Auth Headers:', getAuthHeaders());
+      
       const response = await axios.put(`${API_URL}/${orderId}/status`, statusData, {
         headers: getAuthHeaders()
       });
+      
+      console.log('🔍 Order Status Update Debug - Response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error updating order status:', error);
+      console.error('❌ Error updating order status:', error);
+      console.error('❌ Error response:', error.response?.data);
       throw error;
     }
   },

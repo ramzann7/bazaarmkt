@@ -16,6 +16,7 @@ import { getMyProducts, createProduct, updateProduct, deleteProduct, uploadImage
 import { getProfile } from '../services/authservice';
 import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 import ProductPromotions from './ProductPromotions';
+import { promotionalService } from '../services/promotionalService';
 import toast from 'react-hot-toast';
 
 // Debug imports
@@ -55,6 +56,7 @@ export default function Products() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [allProducts, setAllProducts] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [productPromotions, setProductPromotions] = useState({});
   const nameInputRef = useRef(null);
   const suggestionsRef = useRef(null);
 
@@ -152,6 +154,19 @@ export default function Products() {
       ]);
       setUser(userData.user);
       setProducts(productsData);
+      
+      // Load promotional data for all products
+      const promotionalData = {};
+      for (const product of productsData) {
+        try {
+          const promotions = await promotionalService.getProductPromotions(product._id);
+          promotionalData[product._id] = promotions;
+        } catch (error) {
+          console.error(`Error loading promotions for product ${product._id}:`, error);
+          promotionalData[product._id] = [];
+        }
+      }
+      setProductPromotions(promotionalData);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load data');
@@ -306,8 +321,8 @@ export default function Products() {
   };
 
   const handlePromotionUpdate = () => {
-    // Refresh products to show updated promotional status
-    loadProducts();
+    // Refresh products and promotional data to show updated promotional status
+    loadUserAndProducts();
   };
 
   const handleUpdateStock = async (productId, newStock) => {
@@ -794,7 +809,7 @@ export default function Products() {
                         <CameraIcon className="w-12 h-12" />
                       </div>
                     )}
-                    <div className="absolute top-2 right-2 flex space-x-1">
+                    <div className="absolute top-2 right-2 flex flex-col space-y-1">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                         product.status === 'active' 
                           ? 'bg-green-100 text-green-800' 
@@ -802,6 +817,21 @@ export default function Products() {
                       }`}>
                         {product.status}
                       </span>
+                      
+                      {/* Promotional Badges */}
+                      {productPromotions[product._id] && productPromotions[product._id].length > 0 && (
+                        <div className="flex flex-col space-y-1">
+                          {promotionalService.getPromotionBadges(productPromotions[product._id]).map((badge, index) => (
+                            <span
+                              key={index}
+                              className={`px-2 py-1 text-xs font-bold rounded-full border ${badge.color} shadow-sm`}
+                              title={badge.description}
+                            >
+                              {badge.icon} {badge.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="absolute top-2 left-2">
                       <button
@@ -818,21 +848,22 @@ export default function Products() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
                       <h4 className="text-lg font-medium text-gray-900">{product.name}</h4>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handlePromotionalFeatures(product)}
-                          className="text-purple-500 hover:text-purple-700"
-                          title="Promotional Features"
-                        >
-                          <SparklesIcon className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(product._id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      </div>
+                                          <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handlePromotionalFeatures(product)}
+                        className="bg-gradient-to-r from-amber-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:from-amber-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                        title="Boost Product Visibility"
+                      >
+                        <SparklesIcon className="w-3 h-3 mr-1" />
+                        Boost
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(product._id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
                     </div>
                     
                     <p className="text-sm text-gray-600 mb-3 overflow-hidden text-ellipsis" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{product.description}</p>

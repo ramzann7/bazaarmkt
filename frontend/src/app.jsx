@@ -5,6 +5,10 @@ import Navbar from "./components/navbar.jsx";
 import { performanceService } from "./services/performanceService";
 import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
+import { preloadProfileFast } from "./services/profileService";
+import { preloadService } from "./services/preloadService";
+import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
+import { orderNotificationService } from "./services/orderNotificationService";
 
 // Lazy load components for better performance
 const Home = lazy(() => import("./components/home.jsx"));
@@ -40,14 +44,29 @@ const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
 function AppRoutes() {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
   
-  // Performance tracking
+  // Performance tracking and profile preloading
   useEffect(() => {
     performanceService.startTimer('app_mount');
     
+    // Preload profile for faster access
+    if (isAuthenticated) {
+      preloadProfileFast();
+    }
+    
+    // Preload critical data for current route
+    const currentPath = window.location.pathname;
+    preloadService.preloadForRoute(currentPath);
+    
+    // Initialize order notification service for artisans
+    if (isAuthenticated) {
+      orderNotificationService.connect();
+    }
+    
     return () => {
       performanceService.endTimer('app_mount');
+      orderNotificationService.disconnect();
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Show loading spinner while auth is initializing
   if (!isInitialized || isLoading) {
@@ -55,8 +74,9 @@ function AppRoutes() {
   }
 
   return (
-    <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
-      <Routes>
+    <>
+      <Suspense fallback={<LoadingSpinner message="Loading page..." />}>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route
           path="/register"
@@ -96,7 +116,7 @@ function AppRoutes() {
         <Route path="/event/:id" element={<EventDetails />} />
         <Route
           path="/cart"
-          element={isAuthenticated ? <Cart /> : <Navigate to="/login" />}
+          element={<Cart />}
         />
         <Route path="/guest-checkout" element={<GuestCheckout />} />
         <Route path="/buying-local" element={<BuyingLocal />} />
@@ -140,7 +160,9 @@ function AppRoutes() {
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-    </Suspense>
+      </Suspense>
+      <PerformanceMonitor />
+    </>
   );
 }
 

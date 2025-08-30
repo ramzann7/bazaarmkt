@@ -9,20 +9,35 @@ const getGuestCartKey = () => {
   return 'food_finder_guest_cart';
 };
 
+// Helper function to check if user is guest
+const isGuestUser = () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.isGuest === true;
+  } catch (error) {
+    return false;
+  }
+};
+
 export const cartService = {
   getCart: (userId) => {
     try {
-      // Reduce logging to prevent console spam
-      if (!userId) {
-        // Return guest cart if no userId
+      // If no userId or if it's a guest user, use guest cart
+      if (!userId || isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
+        console.log('🛒 Using guest cart:', guestCartKey, guestCart ? JSON.parse(guestCart) : []);
         return guestCart ? JSON.parse(guestCart) : [];
       }
+      
+      // For authenticated non-guest users, use user-specific cart
       const cartKey = getCartKey(userId);
       const cart = localStorage.getItem(cartKey);
-      const parsedCart = cart ? JSON.parse(cart) : [];
-      return parsedCart;
+      console.log('🛒 Using user cart:', cartKey, cart ? JSON.parse(cart) : []);
+      return cart ? JSON.parse(cart) : [];
     } catch (error) {
       console.error('Error getting cart:', error);
       return [];
@@ -34,9 +49,9 @@ export const cartService = {
       console.log('Adding to cart:', { product: product.name, quantity, userId });
       
       // Check if user is an artisan (artisans cannot add to cart)
-      if (userId) {
+      if (userId && !isGuestUser()) {
         try {
-          const { getProfile } = await import('./authService');
+          const { getProfile } = await import('./authservice');
           const userProfile = await getProfile();
           if (userProfile.role === 'artisan') {
             throw new Error('Artisans cannot add products to cart. They are sellers, not buyers.');
@@ -94,7 +109,12 @@ export const cartService = {
       
       console.log('Updated cart:', cart);
       
-      if (userId) {
+      // Save to appropriate cart (guest or user)
+      if (isGuestUser()) {
+        const guestCartKey = getGuestCartKey();
+        localStorage.setItem(guestCartKey, JSON.stringify(cart));
+        console.log('Saved to guest cart:', guestCartKey);
+      } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.setItem(cartKey, JSON.stringify(cart));
         console.log('Saved to user cart:', cartKey);
@@ -129,7 +149,11 @@ export const cartService = {
           // Remove item if quantity is 0 or negative
           const updatedCart = cart.filter(cartItem => cartItem._id !== productId);
           
-          if (userId) {
+          // Save to appropriate cart
+          if (isGuestUser()) {
+            const guestCartKey = getGuestCartKey();
+            localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
+          } else if (userId) {
             const cartKey = getCartKey(userId);
             localStorage.setItem(cartKey, JSON.stringify(updatedCart));
           } else {
@@ -147,7 +171,11 @@ export const cartService = {
           // Update quantity
           item.quantity = quantity;
           
-          if (userId) {
+          // Save to appropriate cart
+          if (isGuestUser()) {
+            const guestCartKey = getGuestCartKey();
+            localStorage.setItem(guestCartKey, JSON.stringify(cart));
+          } else if (userId) {
             const cartKey = getCartKey(userId);
             localStorage.setItem(cartKey, JSON.stringify(cart));
           } else {
@@ -171,14 +199,57 @@ export const cartService = {
     }
   },
 
+  removeFromCart: (productId, userId) => {
+    try {
+      console.log('Removing from cart:', { productId, userId });
+      
+      const cart = cartService.getCart(userId);
+      const updatedCart = cart.filter(cartItem => cartItem._id !== productId);
+      
+      // Save to appropriate cart
+      if (isGuestUser()) {
+        const guestCartKey = getGuestCartKey();
+        localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
+        console.log('Removed from guest cart:', guestCartKey);
+      } else if (userId) {
+        const cartKey = getCartKey(userId);
+        localStorage.setItem(cartKey, JSON.stringify(updatedCart));
+        console.log('Removed from user cart:', cartKey);
+      } else {
+        const guestCartKey = getGuestCartKey();
+        localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
+        console.log('Removed from guest cart:', guestCartKey);
+      }
+      
+      const count = cartService.getCartCount(userId);
+      console.log('Updated cart count:', count);
+      
+      // Dispatch cart update event
+      window.dispatchEvent(new CustomEvent('cartUpdated', { 
+        detail: { cart: updatedCart, count, userId } 
+      }));
+      
+      return updatedCart;
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      return [];
+    }
+  },
+
   clearCart: (userId) => {
     try {
-      if (userId) {
+      if (isGuestUser()) {
+        const guestCartKey = getGuestCartKey();
+        localStorage.removeItem(guestCartKey);
+        console.log('Cleared guest cart:', guestCartKey);
+      } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.removeItem(cartKey);
+        console.log('Cleared user cart:', cartKey);
       } else {
         const guestCartKey = getGuestCartKey();
         localStorage.removeItem(guestCartKey);
+        console.log('Cleared guest cart:', guestCartKey);
       }
       
       // Dispatch cart update event
@@ -219,12 +290,16 @@ export const cartService = {
       const groupedByArtisan = {};
       
       cart.forEach(item => {
-        const artisanId = item.seller?._id || item.artisan?._id || 'unknown';
+        // Handle both seller and artisan fields
+        const artisanId = item.seller?._id || item.artisan?._id || item.sellerId || item.artisanId || 'unknown';
+        const artisanName = item.artisan?.artisanName || item.seller?.artisanName || 
+                           `${item.seller?.firstName || item.artisan?.firstName || 'Unknown'} ${item.seller?.lastName || item.artisan?.lastName || 'Artisan'}`;
+        
         if (!groupedByArtisan[artisanId]) {
           groupedByArtisan[artisanId] = {
             artisan: {
               _id: artisanId,
-              artisanName: item.artisan?.artisanName || item.seller?.artisanName || `${item.seller?.firstName || 'Unknown'} ${item.seller?.lastName || 'Artisan'}`,
+              artisanName: artisanName,
               type: item.artisan?.type || item.seller?.type || 'other',
               deliveryOptions: item.artisan?.deliveryOptions || item.seller?.deliveryOptions || {
                 pickup: true,
@@ -321,7 +396,7 @@ export const cartService = {
         return null; // Guest users don't have profile data
       }
       
-      const { getProfile } = await import('./authService');
+      const { getProfile } = await import('./authservice');
       const profile = await getProfile();
       
       return {

@@ -14,6 +14,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { revenueService } from '../services/revenueService';
+import { promotionalService } from '../services/promotionalService';
 import toast from 'react-hot-toast';
 
 export default function ArtisanRevenueDashboard() {
@@ -55,7 +56,7 @@ export default function ArtisanRevenueDashboard() {
 
   const loadUserFeatures = async () => {
     try {
-      const features = await revenueService.getArtisanPromotionalFeatures();
+      const features = await promotionalService.getArtisanalPromotionalFeatures();
       setUserFeatures(features);
     } catch (error) {
       console.error('Error loading user features:', error);
@@ -227,15 +228,17 @@ export default function ArtisanRevenueDashboard() {
         )}
       </div>
 
-      {/* Promotional Features */}
+      {/* Artisan-Specific Promotional Features */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Available Features */}
+        {/* Available Artisan Features */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Promotional Features</h2>
-          <p className="text-gray-600 mb-4">Boost your visibility and increase sales</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Artisan Profile Features</h2>
+          <p className="text-gray-600 mb-4">Enhance your artisan profile and business visibility</p>
           
           <div className="space-y-4">
-            {promotionalFeatures.map((feature) => (
+            {promotionalFeatures.filter(feature => 
+              feature.type !== 'product_featured' && feature.type !== 'product_sponsored'
+            ).map((feature) => (
               <div key={feature.type} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-semibold text-gray-900">{feature.name}</h3>
@@ -266,17 +269,34 @@ export default function ArtisanRevenueDashboard() {
               </div>
             ))}
           </div>
+          
+          {promotionalFeatures.filter(feature => 
+            feature.type === 'product_featured' || feature.type === 'product_sponsored'
+          ).length > 0 && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-semibold text-blue-900 mb-2">Product Promotions</h3>
+              <p className="text-sm text-blue-700 mb-3">
+                To promote individual products, visit your <strong>My Products</strong> page and click the "Boost" button on any product.
+              </p>
+              <button
+                onClick={() => window.location.href = '/products'}
+                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+              >
+                Go to My Products →
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* User's Active Features */}
+        {/* User's Active Artisan Features */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Promotional Features</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Artisan Profile Features</h2>
           
           {userFeatures.length === 0 ? (
             <div className="text-center py-8">
               <StarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No promotional features purchased yet</p>
-              <p className="text-sm text-gray-500 mt-1">Purchase features to boost your visibility</p>
+              <p className="text-gray-600">No artisan profile features purchased yet</p>
+              <p className="text-sm text-gray-500 mt-1">Purchase features to enhance your artisan profile</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -308,6 +328,19 @@ export default function ArtisanRevenueDashboard() {
               ))}
             </div>
           )}
+          
+          <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <h3 className="font-semibold text-amber-900 mb-2">Product Promotions</h3>
+            <p className="text-sm text-amber-700 mb-3">
+              View and manage your product-specific promotions on the My Products page.
+            </p>
+            <button
+              onClick={() => window.location.href = '/products'}
+              className="text-amber-600 hover:text-amber-800 font-medium text-sm"
+            >
+              Manage Product Promotions →
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   UserIcon, 
@@ -23,6 +23,7 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
 import { OverviewTab, OperationsTab, HoursTab, DeliveryTab, SetupTab } from './ArtisanTabs';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
+import PendingOrdersWidget from './PendingOrdersWidget';
 
 export default function Profile() {
   const location = useLocation();
@@ -106,7 +107,7 @@ export default function Profile() {
   };
 
   // Load artisan profile data
-  const loadArtisanProfile = async () => {
+  const loadArtisanProfile = useCallback(async () => {
     try {
       console.log('🔄 Loading artisan profile...');
       console.log('🔄 User role:', profile?.role);
@@ -127,7 +128,7 @@ export default function Profile() {
       console.log('ℹ️ Error details:', error.response?.data?.message);
       // This is normal for new artisans who haven't created their profile yet
     }
-  };
+  }, [profile?.role, profile?._id]);
 
   // Simplified useEffect for profile loading
   useEffect(() => {
@@ -170,6 +171,14 @@ export default function Profile() {
       setNeedsSetup(profile.role === 'setup');
     }
   }, [profile, determineTabs]);
+
+  // Load artisan profile when user is an artisan
+  useEffect(() => {
+    if (profile && (profile.role === 'artisan' || profile.role === 'producer' || profile.role === 'food_maker')) {
+      console.log('🔄 Loading artisan profile for user:', profile._id);
+      loadArtisanProfile();
+    }
+  }, [profile, loadArtisanProfile]);
 
   // Force refresh profile data when payment tab is accessed
   useEffect(() => {
@@ -332,6 +341,9 @@ export default function Profile() {
       console.log('✅ Artisan profile updated:', updatedArtisanProfile);
       setArtisanProfile(updatedArtisanProfile);
       
+      // Clear any cached artisan profile data to ensure fresh data on next load
+      clearProfileCache();
+      
       toast.success('Artisan profile updated successfully!');
     } catch (error) {
       console.error('❌ Error updating artisan profile:', error);
@@ -353,6 +365,9 @@ export default function Profile() {
       console.log('✅ Artisan hours updated:', updatedArtisanProfile);
       setArtisanProfile(updatedArtisanProfile);
       
+      // Clear any cached artisan profile data to ensure fresh data on next load
+      clearProfileCache();
+      
       toast.success('Business hours updated successfully!');
     } catch (error) {
       console.error('❌ Error updating artisan hours:', error);
@@ -370,6 +385,9 @@ export default function Profile() {
       const updatedArtisanProfile = await profileService.updateArtisanDelivery(deliveryData);
       console.log('✅ Artisan delivery options updated:', updatedArtisanProfile);
       setArtisanProfile(updatedArtisanProfile);
+      
+      // Clear any cached artisan profile data to ensure fresh data on next load
+      clearProfileCache();
       
       toast.success('Delivery options updated successfully!');
     } catch (error) {
@@ -499,6 +517,13 @@ export default function Profile() {
             )}
           </div>
         </div>
+
+        {/* Pending Orders Widget for Artisans */}
+        {isArtisan && (
+          <div className="mb-8">
+            <PendingOrdersWidget />
+          </div>
+        )}
 
         {/* Enhanced Tabs */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">

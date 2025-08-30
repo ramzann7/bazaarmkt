@@ -84,7 +84,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ✅ Profile route (requires JWT)
+// ✅ Profile route (requires JWT) - Optimized for performance
 router.get('/profile', verifyToken, (req, res) => {
   res.json({ user: req.user });
 });
@@ -103,7 +103,7 @@ router.post('/guest', async (req, res) => {
       email: email || `${guestId}@guest.local`,
       password: 'guest_password_' + Math.random().toString(36).substr(2, 9),
       phone: phone || '',
-              role: 'patron',
+      role: 'patron',
       isGuest: true,
       guestId: guestId
     });

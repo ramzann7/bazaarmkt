@@ -64,6 +64,15 @@ export default function Home() {
     async () => {
       try {
         setError(null);
+        
+        // Check cache first for instant loading
+        const cachedFeatured = cacheService.getFast(CACHE_KEYS.FEATURED_PRODUCTS);
+        if (cachedFeatured) {
+          console.log('✅ Using cached featured products for instant loading');
+          setFeaturedProducts(cachedFeatured);
+          return;
+        }
+        
         const response = await getFeaturedProducts();
         
         if (response.success) {
@@ -88,6 +97,15 @@ export default function Home() {
     async () => {
       try {
         setError(null);
+        
+        // Check cache first for instant loading
+        const cachedPopular = cacheService.getFast(CACHE_KEYS.POPULAR_PRODUCTS);
+        if (cachedPopular) {
+          console.log('✅ Using cached popular products for instant loading');
+          setPopularProducts(cachedPopular);
+          return;
+        }
+        
         const response = await getPopularProducts();
         
         if (response.success) {

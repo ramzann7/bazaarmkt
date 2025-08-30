@@ -30,10 +30,13 @@ export default function Login() {
 
     try {
       const userData = await loginUser(formData);
+      
+      // Login immediately sets user state for instant response
       await login(userData);
       
       // Check if user is new
-      const isNewUser = onboardingService.isNewUser(userData._id);
+      const userId = userData.user?._id || userData._id;
+      const isNewUser = onboardingService.isNewUser(userId);
       
       if (isNewUser) {
         // New user - redirect to profile setup
@@ -43,6 +46,7 @@ export default function Login() {
         navigate("/");
       }
     } catch (error) {
+      console.error('Login error:', error);
       toast.error(error.response?.data?.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);

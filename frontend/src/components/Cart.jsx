@@ -58,13 +58,6 @@ export default function Cart() {
     
     // Listen for cart updates
     const handleCartUpdate = (event) => {
-      console.log('Cart component cart update event:', {
-        eventUserId: event.detail.userId,
-        currentUserId: currentUserId,
-        shouldUpdate: (!currentUserId && event.detail.userId === null) || 
-                     (currentUserId && event.detail.userId === currentUserId)
-      });
-      
       // For guest users (no currentUserId), always update when userId is null
       // For authenticated users, update when userId matches
       if ((!currentUserId && event.detail.userId === null) || 
@@ -75,7 +68,6 @@ export default function Cart() {
     
     // Listen for profile updates to refresh cart data
     const handleProfileUpdate = () => {
-      console.log('🔄 Profile update detected, refreshing cart data...');
       if (isAuthenticated && !isGuest) {
         loadUserProfile();
       }
@@ -150,20 +142,16 @@ export default function Cart() {
   };
 
   const loadCart = () => {
-    // Load cart for both authenticated users and guest users
-    console.log('Cart component loadCart - currentUserId:', currentUserId);
-    console.log('Cart component loadCart - isAuthenticated:', isAuthenticated);
-    console.log('Cart component loadCart - isGuest:', isGuest);
+    console.log('🛒 Loading cart for user:', currentUserId);
     
+    // Load cart for both authenticated users and guest users
     const cartItems = cartService.getCart(currentUserId);
     const groupedCart = cartService.getCartByArtisan(currentUserId);
     
-    console.log('Cart component loadCart:', {
-      currentUserId,
-      cartItems,
-      groupedCart,
-      cartItemsLength: cartItems.length
-    });
+    console.log('🛒 Cart items loaded:', cartItems);
+    console.log('🛒 Grouped cart:', groupedCart);
+    console.log('🛒 Cart count:', cartItems.length);
+    console.log('🛒 Total items:', cartItems.reduce((total, item) => total + item.quantity, 0));
     
     setCart(cartItems);
     setCartByArtisan(groupedCart);
@@ -171,11 +159,11 @@ export default function Cart() {
 
   const checkAuth = async () => {
     const token = authToken.getToken();
+    
     if (token) {
       try {
         const profile = await getProfile();
         // Get userId from token
-        const token = authToken.getToken();
         let userIdFromToken = null;
         if (token) {
           try {
@@ -185,7 +173,6 @@ export default function Cart() {
             console.error('Error parsing token for userId:', error);
           }
         }
-        console.log('Cart component - profile._id:', profile._id, 'userIdFromToken:', userIdFromToken);
         
         setCurrentUserId(userIdFromToken || profile._id);
         setUserRole(profile.role);
@@ -203,16 +190,19 @@ export default function Cart() {
         loadUserProfile();
       } catch (error) {
         console.error('Error loading user profile:', error);
+        // If profile loading fails, treat as guest user
         setIsAuthenticated(false);
         setCurrentUserId(null);
         setUserRole(null);
-        setIsGuest(false);
+        setIsGuest(true);
+        loadCart();
       }
     } else {
+      // No token - treat as guest user
       setIsAuthenticated(false);
       setCurrentUserId(null);
-      setIsGuest(false);
-      // Load guest cart when not authenticated
+      setUserRole(null);
+      setIsGuest(true);
       loadCart();
     }
   };
@@ -226,8 +216,38 @@ export default function Cart() {
   };
 
   const removeItem = (itemId) => {
+    console.log('🗑️ Removing item:', itemId, 'for user:', currentUserId);
     cartService.removeFromCart(itemId, currentUserId);
     toast.success('Item removed from cart');
+  };
+
+  // Debug function to check localStorage
+  const debugCart = () => {
+    console.log('🔍 Debugging cart...');
+    console.log('Current user ID:', currentUserId);
+    console.log('Is authenticated:', isAuthenticated);
+    console.log('Is guest:', isGuest);
+    
+    if (currentUserId) {
+      const userCartKey = `food_finder_cart_${currentUserId}`;
+      const userCartData = localStorage.getItem(userCartKey);
+      console.log('User cart key:', userCartKey);
+      console.log('User cart data:', userCartData);
+      if (userCartData) {
+        console.log('User cart parsed:', JSON.parse(userCartData));
+      }
+    } else {
+      const guestCartKey = 'food_finder_guest_cart';
+      const guestCartData = localStorage.getItem(guestCartKey);
+      console.log('Guest cart key:', guestCartKey);
+      console.log('Guest cart data:', guestCartData);
+      if (guestCartData) {
+        console.log('Guest cart parsed:', JSON.parse(guestCartData));
+      }
+    }
+    
+    console.log('Current cart state:', cart);
+    console.log('Current cart by artisan:', cartByArtisan);
   };
 
   const getTotalItems = () => {
@@ -977,12 +997,24 @@ export default function Cart() {
             Start shopping to add items to your cart
           </p>
 
-          <button
-            onClick={() => navigate('/')}
-            className="bg-orange-500 text-white py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors mr-2"
-          >
-            Start Shopping
-          </button>
+          <div className="space-x-2">
+            <button
+              onClick={() => navigate('/')}
+              className="bg-orange-500 text-white py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Start Shopping
+            </button>
+            
+            {/* Debug button - only show in development */}
+            {process.env.NODE_ENV === 'development' && (
+              <button
+                onClick={debugCart}
+                className="bg-gray-500 text-white py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Debug Cart
+              </button>
+            )}
+          </div>
 
         </div>
       </div>
@@ -995,7 +1027,19 @@ export default function Cart() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Shopping Cart</h1>
-            <span className="text-gray-600">{getTotalItems()} items</span>
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-600">{getTotalItems()} items</span>
+              
+              {/* Debug button - only show in development */}
+              {process.env.NODE_ENV === 'development' && (
+                <button
+                  onClick={debugCart}
+                  className="bg-gray-500 text-white py-1 px-3 rounded text-sm hover:bg-gray-600 transition-colors"
+                >
+                  Debug
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="space-y-6">

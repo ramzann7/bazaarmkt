@@ -43,49 +43,66 @@ export const checkoutService = {
     try {
       const { deliveryAddress, paymentMethod, specialRequests } = checkoutData;
       
+      console.log('🔍 Checkout Debug - Input Data:', { checkoutData, userId });
+      
       // Validate checkout data
       if (!deliveryAddress) {
         throw new Error('Delivery address is required');
       }
       
-      // Get cart grouped by artisan
-      const groupedByArtisan = cartService.getCartByArtisan(userId);
-      const orders = [];
+      // Get cart items
+      const cart = cartService.getCart(userId);
+      console.log('🔍 Checkout Debug - Cart Items:', cart);
       
-      // Create separate orders for each artisan
-      for (const [artisanId, artisanData] of Object.entries(groupedByArtisan)) {
-        const orderData = {
-          artisan: artisanId,
-          items: artisanData.items.map(item => ({
-            product: item._id,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity
-          })),
-          totalAmount: artisanData.subtotal,
-          deliveryAddress,
-          paymentMethod,
-          specialRequests,
-          status: 'pending',
-          paymentStatus: 'pending',
-          preparationStage: 'order_received'
-        };
-        
-        // Create order
-        const order = await orderService.createOrder(orderData);
-        orders.push(order);
+      if (cart.length === 0) {
+        throw new Error('Cart is empty');
       }
       
-      // Clear cart after successful order creation
-      cartService.clearCart(userId);
+      // Format items for backend API
+      const items = cart.map(item => ({
+        productId: item._id,
+        quantity: item.quantity
+      }));
       
-      return {
-        success: true,
-        orders,
-        message: `Successfully created ${orders.length} order${orders.length > 1 ? 's' : ''}`
+      console.log('🔍 Checkout Debug - Formatted Items:', items);
+      
+      // Prepare order data for backend
+      const orderData = {
+        items,
+        deliveryAddress,
+        deliveryInstructions: specialRequests || '',
+        paymentMethod: paymentMethod || 'credit_card'
       };
+      
+      console.log('🔍 Checkout Debug - Order Data:', orderData);
+      console.log('🔍 Checkout Debug - API URL:', API_URL);
+      console.log('🔍 Checkout Debug - Auth Headers:', getAuthHeaders());
+      
+      // Create order using the backend API
+      const response = await axios.post(API_URL, orderData, {
+        headers: getAuthHeaders()
+      });
+      
+      console.log('🔍 Checkout Debug - Response:', response.data);
+      
+      if (response.data && response.data.orders) {
+        // Clear cart after successful order creation
+        cartService.clearCart(userId);
+        
+        const result = {
+          success: true,
+          orders: response.data.orders,
+          message: `Successfully created ${response.data.orders.length} order${response.data.orders.length > 1 ? 's' : ''}`
+        };
+        
+        console.log('🔍 Checkout Debug - Success Result:', result);
+        return result;
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
-      console.error('Checkout processing error:', error);
+      console.error('❌ Checkout processing error:', error);
+      console.error('❌ Error response:', error.response?.data);
       throw error;
     }
   },

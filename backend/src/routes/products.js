@@ -77,12 +77,15 @@ function expandSearchTerms(searchTerm) {
   return [...new Set(expanded)]; // Remove duplicates
 }
 
-// Enhanced ranking algorithm
+// Enhanced ranking algorithm with distance calculations
 async function applyEnhancedRanking(products, searchQuery, userLat, userLng, proximityRadius) {
   if (!products || products.length === 0) return products;
 
   const searchTerms = searchQuery ? searchQuery.toLowerCase().trim().split(/\s+/) : [];
   const expandedTerms = searchTerms.flatMap(term => expandSearchTerms(term));
+  
+  // Import geocoding service
+  const geocodingService = require('../services/geocodingService');
 
   return products.map(product => {
     let score = 0;
@@ -224,7 +227,38 @@ async function applyEnhancedRanking(products, searchQuery, userLat, userLng, pro
       score += Math.max(50 - daysSinceCreated, 0); // Decreasing boost over time
     }
 
-    return { ...product.toObject(), enhancedScore: Math.round(score) };
+    // 10. Proximity/Distance Scoring (if user location available)
+    let distance = null;
+    let proximityScore = 0;
+    
+    if (userLat && userLng && product.artisan && product.artisan.coordinates) {
+      distance = geocodingService.calculateDistance(
+        parseFloat(userLat),
+        parseFloat(userLng),
+        product.artisan.coordinates.latitude,
+        product.artisan.coordinates.longitude
+      );
+      
+      // Calculate proximity score (0-1, higher is better)
+      if (distance !== null) {
+        const maxDistance = parseFloat(proximityRadius) || 50;
+        proximityScore = Math.exp(-distance / maxDistance);
+        score += Math.round(proximityScore * 200); // Max 200 points for proximity
+        
+        // Add distance information to product
+        product.distance = distance;
+        product.formattedDistance = geocodingService.formatDistance(distance);
+        product.proximityScore = proximityScore;
+      }
+    }
+
+    return { 
+      ...product.toObject(), 
+      enhancedScore: Math.round(score),
+      distance: distance,
+      formattedDistance: distance ? geocodingService.formatDistance(distance) : null,
+      proximityScore: proximityScore
+    };
   }).sort((a, b) => b.enhancedScore - a.enhancedScore);
 }
 

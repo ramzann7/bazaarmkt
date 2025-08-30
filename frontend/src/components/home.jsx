@@ -28,6 +28,9 @@ import {
 } from '../data/productReference';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
+import { geocodingService } from '../services/geocodingService';
+import { useAuth } from '../contexts/AuthContext';
+import DistanceBadge from './DistanceBadge';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -43,16 +46,20 @@ const ProductSkeleton = () => (
 );
 
 export default function Home() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [popularProducts, setPopularProducts] = useState([]);
+  const [nearbyProducts, setNearbyProducts] = useState([]);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
   const [isLoadingPopular, setIsLoadingPopular] = useState(true);
+  const [isLoadingNearby, setIsLoadingNearby] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
   const navigate = useNavigate();
 
   // Memoize reference data to prevent unnecessary re-computations
@@ -91,6 +98,8 @@ export default function Home() {
     },
     []
   );
+
+
 
   // Optimized popular products loading with caching
   const { execute: loadPopularProducts, isLoading: isPopularLoading } = useAsyncOperation(
@@ -149,9 +158,152 @@ export default function Home() {
       loadPopularProducts();
     }
     
+    // Load nearby products (always fresh data)
+    loadNearbyProducts();
+    
     const endTime = performance.now();
     console.log(`Home component data loading took ${(endTime - startTime).toFixed(2)}ms`);
-  }, [], { skipFirstRender: false });
+  }, [user], { skipFirstRender: false });
+
+  // Get user location and load nearby products
+  const loadNearbyProducts = async () => {
+    try {
+      console.log('🌍 Loading nearby products...');
+      setIsLoadingNearby(true);
+      
+      // Get user location
+      let location = null;
+      
+      // First, try to get user coordinates from profile
+      if (user?.coordinates) {
+        location = {
+          latitude: user.coordinates.latitude,
+          longitude: user.coordinates.longitude
+        };
+        console.log('✅ Using user coordinates from profile:', location);
+      } else {
+        // Try to get user coordinates from geocoding service
+        try {
+          const userCoords = await geocodingService.getUserCoordinates();
+          if (userCoords) {
+            location = {
+              latitude: userCoords.latitude,
+              longitude: userCoords.longitude
+            };
+            console.log('✅ Using user coordinates from geocoding service:', location);
+          }
+        } catch (error) {
+          console.log('No saved coordinates found:', error);
+        }
+      }
+      
+      // If no location found, try browser geolocation
+      if (!location && navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 10000,
+              maximumAge: 300000 // 5 minutes
+            });
+          });
+          
+          location = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          };
+          console.log('✅ Using browser geolocation:', location);
+        } catch (error) {
+          console.log('Browser geolocation failed:', error);
+        }
+      }
+      
+      // If still no location, use default (Toronto)
+      if (!location) {
+        location = { latitude: 43.6532, longitude: -79.3832 }; // Toronto
+        console.log('📍 Using default location (Toronto):', location);
+      }
+      
+      // Ensure location has valid coordinates
+      if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
+        console.error('❌ Invalid location data:', location);
+        setIsLoadingNearby(false);
+        return;
+      }
+      
+      setUserLocation(location);
+      
+      // Create cache key based on location
+      const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${location.latitude.toFixed(2)}_${location.longitude.toFixed(2)}`;
+      
+      // Check cache first
+      const cachedNearby = cacheService.getFast(cacheKey);
+      if (cachedNearby) {
+        console.log('✅ Using cached nearby products');
+        setNearbyProducts(cachedNearby);
+        setIsLoadingNearby(false);
+        return;
+      }
+      
+      // Get nearby products using enhanced search
+      const searchParams = new URLSearchParams({
+        userLat: location.latitude.toString(),
+        userLng: location.longitude.toString(),
+        proximityRadius: '25', // 25km radius
+        enhancedRanking: 'true',
+        includeDistance: 'true',
+        limit: '8' // Limit to 8 nearby products
+      });
+      
+      console.log('🔍 Fetching nearby products with params:', searchParams.toString());
+      const response = await fetch(`/api/products/enhanced-search?${searchParams.toString()}`);
+      const data = await response.json();
+      
+      console.log('📊 API Response:', {
+        success: data.success,
+        productsCount: data.products?.length || 0,
+        hasProducts: !!data.products,
+        error: data.error || data.message
+      });
+      
+      if (data.products && data.products.length > 0) {
+        // Add distance information to products
+        console.log('📍 Processing products with distance calculation...');
+        const productsWithDistance = data.products.map(product => {
+          if (product.artisan && product.artisan.coordinates) {
+            const distance = geocodingService.calculateDistanceBetween(
+              location,
+              product.artisan.coordinates
+            );
+            
+            return {
+              ...product,
+              distance: distance,
+              formattedDistance: geocodingService.formatDistance(distance)
+            };
+          }
+          console.log('⚠️ Product without artisan coordinates:', product.name, product.artisan);
+          return product;
+        }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+        
+        console.log('📏 Products with distance data:', productsWithDistance.filter(p => p.distance !== undefined).length);
+        
+        console.log('✅ Nearby products loaded:', productsWithDistance.length);
+        setNearbyProducts(productsWithDistance);
+        
+        // Cache the results
+        cacheService.set(cacheKey, productsWithDistance, CACHE_TTL.NEARBY_PRODUCTS);
+      } else {
+        console.log('ℹ️ No nearby products found');
+        setNearbyProducts([]);
+      }
+    } catch (error) {
+      console.error('❌ Error loading nearby products:', error);
+      setNearbyProducts([]);
+    } finally {
+      setIsLoadingNearby(false);
+    }
+  };
 
   // Memoized cart handler
   const handleAddToCart = useMemo(() => {
@@ -430,7 +582,7 @@ export default function Home() {
   };
 
   // ProductCard component with lazy loading
-  const ProductCard = ({ product, showImagePreview = false }) => (
+  const ProductCard = ({ product, showImagePreview = false, showDistance = false }) => (
     <div 
       className="group cursor-pointer relative hover:shadow-lg transition-shadow duration-300" 
       onClick={() => handleProductClick(product)}
@@ -470,18 +622,40 @@ export default function Home() {
           {product.name}
         </h3>
         <p className="text-sm text-gray-500">
-          {product.artisan?.artisanName || product.artisan || `${product.seller?.firstName} ${product.seller?.lastName}`}
+          {product.artisan?.artisanName || `${product.seller?.firstName} ${product.seller?.lastName}`}
         </p>
+        {showDistance && (product.distance || product.formattedDistance) && (
+          <div className="mt-2">
+            <DistanceBadge 
+              distance={product.distance} 
+              formattedDistance={product.formattedDistance}
+            />
+          </div>
+        )}
         <div className="flex items-center justify-between mt-2">
           <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
           <div className="flex items-center space-x-1">
-            {renderStars(product.rating || 4.5)}
-            <span className="text-sm text-gray-500">({product.rating || 4.5})</span>
+            {renderStars(product.artisan?.rating?.average || 0)}
+            <span className="text-sm text-gray-500">({(product.artisan?.rating?.average || 0).toFixed(1)})</span>
           </div>
         </div>
       </div>
     </div>
   );
+
+  // Refresh data when page comes into focus (e.g., after returning from artisan page)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Clear caches and reload data to get fresh ratings
+      clearFeaturedProductsCache();
+      clearPopularProductsCache();
+      loadFeaturedProducts();
+      loadPopularProducts();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadFeaturedProducts, loadPopularProducts]);
 
   return (
     <div className="min-h-screen bg-amber-50">
@@ -568,47 +742,75 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Local Favorites Section */}
+      {/* Close to You Section */}
       <section className="py-12 bg-amber-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Local Favorites</h2>
-            <Link 
-              to="/search" 
-              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
-            >
-              <span>View all</span>
-              <ArrowRightIcon className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center space-x-3">
+              <MapPinIcon className="w-8 h-8 text-amber-600" />
+              <h2 className="text-3xl font-bold text-gray-900">Close to You</h2>
+              {userLocation && userLocation.latitude && userLocation.longitude && (
+                <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border">
+                  📍 {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  // Clear nearby products cache before refreshing
+                  if (userLocation) {
+                    const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${userLocation.latitude.toFixed(2)}_${userLocation.longitude.toFixed(2)}`;
+                    cacheService.delete(cacheKey);
+                  }
+                  loadNearbyProducts();
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Refresh
+              </button>
+              <Link 
+                to="/search" 
+                className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
+              >
+                <span>View all</span>
+                <ArrowRightIcon className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {localFavorites.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Close to You Section */}
-      <section className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Close to You</h2>
-            <Link 
-              to="/search" 
-              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
-            >
-              <span>View all</span>
-              <ArrowRightIcon className="w-4 h-4" />
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {closeToYou.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {isLoadingNearby ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {[...Array(8)].map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          ) : nearbyProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {nearbyProducts.slice(0, 8).map((product) => (
+                <ProductCard key={product._id} product={product} showDistance={true} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <MapPinIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Nearby Products</h3>
+              <p className="text-gray-500">
+                {userLocation ? 
+                  "No products found within 25km of your location. Try expanding your search or check back later." :
+                  "Unable to determine your location. Add your address in your profile for personalized recommendations."
+                }
+              </p>
+              {!userLocation && (
+                <button
+                  onClick={() => loadNearbyProducts()}
+                  className="mt-4 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                >
+                  Try Again
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -700,7 +902,7 @@ export default function Home() {
                 <div className="flex-1">
                   <h4 className="text-lg font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
                   <p className="text-sm text-gray-500 mb-2">
-                    {selectedProduct.artisan?.artisanName || selectedProduct.artisan || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
+                    {selectedProduct.artisan?.artisanName || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
                   </p>
                   <div className="text-xl font-bold text-amber-600">{formatPrice(selectedProduct.price)}</div>
                 </div>

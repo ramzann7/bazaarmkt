@@ -97,7 +97,9 @@ export const CACHE_KEYS = {
   FAVORITE_ARTISANS: 'favorite_artisans',
   USER_ORDERS: 'user_orders',
   USER_STATS: 'user_stats',
-  PENDING_ORDERS: 'pending_orders'
+  PENDING_ORDERS: 'pending_orders',
+  GEOCODING: 'geocoding',
+  NEARBY_PRODUCTS: 'nearby_products'
 };
 
 // Cache TTL constants
@@ -113,5 +115,7 @@ export const CACHE_TTL = {
   FAVORITE_ARTISANS: 5 * 60 * 1000, // 5 minutes
   USER_ORDERS: 5 * 60 * 1000, // 5 minutes
   USER_STATS: 5 * 60 * 1000, // 5 minutes
-  ORDER_STATUS: 30 * 1000 // 30 seconds
+  ORDER_STATUS: 30 * 1000, // 30 seconds
+  GEOCODING: 24 * 60 * 60 * 1000, // 24 hours (geocoding results are stable)
+  NEARBY_PRODUCTS: 10 * 60 * 1000 // 10 minutes (nearby products cache)
 };

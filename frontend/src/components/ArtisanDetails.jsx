@@ -34,6 +34,7 @@ import { guestService } from '../services/guestService';
 import reviewService from '../services/reviewService';
 import { getProfile } from '../services/authService';
 import { favoriteService } from '../services/favoriteService';
+import { clearProductCache } from '../services/productService';
 import toast from 'react-hot-toast';
 
 // Helper function to format business type for display
@@ -222,6 +223,19 @@ export default function BusinessDetails() {
     loadReviews();
   }, [id]);
 
+  // Populate review form when userReview changes
+  useEffect(() => {
+    if (userReview) {
+      setReviewForm({
+        rating: userReview.rating,
+        title: userReview.title,
+        comment: userReview.comment
+      });
+    } else {
+      setReviewForm({ rating: 5, title: '', comment: '' });
+    }
+  }, [userReview]);
+
   const loadUserProfile = async () => {
     try {
       const userData = await getProfile();
@@ -369,10 +383,14 @@ export default function BusinessDetails() {
       if (userId) {
         try {
           const userReviewData = await reviewService.getUserReview(id);
+          console.log('🔍 Loaded user review:', userReviewData);
           setUserReview(userReviewData);
         } catch (error) {
           if (error.response?.status !== 404) {
             console.error('Error loading user review:', error);
+          } else {
+            console.log('🔍 No existing user review found (404)');
+            setUserReview(null);
           }
         }
       }
@@ -402,18 +420,28 @@ export default function BusinessDetails() {
     setIsSubmittingReview(true);
     
     try {
+      console.log('🔍 Review submission - userReview:', userReview);
+      console.log('🔍 Review submission - reviewForm:', reviewForm);
+      
       if (userReview) {
         // Update existing review
+        console.log('🔍 Updating existing review with ID:', userReview._id);
         await reviewService.updateReview(userReview._id, reviewForm);
         toast.success('Review updated successfully');
       } else {
         // Add new review
+        console.log('🔍 Adding new review for artisan:', id);
         await reviewService.addReview(id, reviewForm);
         toast.success('Review added successfully');
       }
       
-      // Reload reviews
+      // Clear caches to ensure fresh data is loaded
+      artisanService.clearArtisanCache(id);
+      clearProductCache(id);
+      
+      // Reload reviews and artisan data to get updated rating
       await loadReviews();
+      await loadBusinessDetails(); // Reload artisan data to get updated rating
       setShowReviewForm(false);
       setReviewForm({ rating: 5, title: '', comment: '' });
     } catch (error) {
@@ -431,7 +459,13 @@ export default function BusinessDetails() {
       await reviewService.deleteReview(userReview._id);
       toast.success('Review deleted successfully');
       setUserReview(null);
+      
+      // Clear caches to ensure fresh data is loaded
+      artisanService.clearArtisanCache(id);
+      clearProductCache(id);
+      
       await loadReviews();
+      await loadBusinessDetails(); // Reload artisan data to get updated rating
     } catch (error) {
       console.error('Error deleting review:', error);
       toast.error(error.message || 'Error deleting review');

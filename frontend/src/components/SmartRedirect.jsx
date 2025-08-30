@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { authToken, getProfile } from '../services/authService';
 import { guestService } from '../services/guestService';
 import { onboardingService } from '../services/onboardingService';
+import { orderService } from '../services/orderService';
 
 export default function SmartRedirect() {
   const [redirectPath, setRedirectPath] = useState(null);
@@ -23,6 +24,8 @@ export default function SmartRedirect() {
         return;
       }
 
+
+
       // Check if it's a guest user
       const isGuest = guestService.isGuestUser();
       if (isGuest) {
@@ -31,21 +34,45 @@ export default function SmartRedirect() {
         return;
       }
 
-      // Get user profile to check if they're new
+      // Get user profile to check role and onboarding status
       const profile = await getProfile();
       const userId = profile._id;
+      const userRole = profile.role;
       
       // Check if user is new (first time after registration)
       const isNewUser = onboardingService.isNewUser(userId);
       
       if (isNewUser) {
-        // New user - redirect to profile setup
+        // New user - redirect to profile setup regardless of role
         setRedirectPath('/profile');
         return;
       }
 
-      // Returning user - go to homepage
-      setRedirectPath('/');
+      // Returning users - route based on role
+      if (userRole === 'artisan' || userRole === 'producer' || userRole === 'food_maker') {
+        // Artisans go to orders page to check for new orders
+        try {
+          const orders = await orderService.getArtisanOrders();
+          const hasNewOrders = orders.some(order => 
+            order.status === 'pending' || order.status === 'confirmed'
+          );
+          
+          if (hasNewOrders) {
+            // Has new orders - go to orders page
+            setRedirectPath('/orders');
+          } else {
+            // No new orders - go to dashboard
+            setRedirectPath('/dashboard');
+          }
+        } catch (error) {
+          console.error('Error checking artisan orders:', error);
+          // Fallback to dashboard
+          setRedirectPath('/dashboard');
+        }
+      } else {
+        // Patrons and other users go to homepage to see products
+        setRedirectPath('/');
+      }
       
     } catch (error) {
       console.error('Error determining redirect:', error);

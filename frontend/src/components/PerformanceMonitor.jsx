@@ -7,28 +7,36 @@ const PerformanceMonitor = () => {
   const location = useLocation();
   const [navigationTimes, setNavigationTimes] = useState({});
   const [isVisible, setIsVisible] = useState(false);
+  const [previousRoute, setPreviousRoute] = useState('');
 
   useEffect(() => {
     // Start navigation timer
     const startTime = performance.now();
-    const route = location.pathname;
+    const currentRoute = location.pathname;
     
-    console.log(`🚀 Navigation started to: ${route}`);
+    console.log(`🚀 Navigation started to: ${currentRoute}`);
     
     // Track when the component is fully loaded
     const handleLoadComplete = () => {
       const endTime = performance.now();
       const navigationTime = endTime - startTime;
       
-      console.log(`✅ Navigation completed to ${route} in ${navigationTime.toFixed(2)}ms`);
+      console.log(`✅ Navigation completed to ${currentRoute} in ${navigationTime.toFixed(2)}ms`);
       
       setNavigationTimes(prev => ({
         ...prev,
-        [route]: navigationTime
+        [currentRoute]: navigationTime
       }));
       
-      // Log to performance service
-      performanceService.logNavigation(route, navigationTime);
+      // Log to performance service with proper from/to routes
+      if (previousRoute && currentRoute) {
+        performanceService.logNavigation(previousRoute, currentRoute, navigationTime);
+      } else {
+        console.log(`✅ Navigation completed to ${currentRoute} in ${navigationTime.toFixed(2)}ms (initial load)`);
+      }
+      
+      // Update previous route for next navigation
+      setPreviousRoute(currentRoute);
     };
 
     // Use requestAnimationFrame to ensure DOM is ready

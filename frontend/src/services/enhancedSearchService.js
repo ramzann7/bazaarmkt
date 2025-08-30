@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { authToken } from './authservice';
+import { geocodingService } from './geocodingService';
 
 const API_URL = '/api/products';
 
@@ -9,7 +10,7 @@ class EnhancedSearchService {
     this.baseURL = API_URL;
   }
 
-  // Main enhanced search function
+  // Main enhanced search function with distance calculations
   async searchProducts(searchQuery, userLocation = null, filters = {}) {
     try {
       const params = new URLSearchParams();
@@ -19,11 +20,23 @@ class EnhancedSearchService {
         params.append('search', searchQuery);
       }
       
+      // Get user coordinates if not provided
+      if (!userLocation) {
+        try {
+          const userCoords = await geocodingService.getUserCoordinates();
+          if (userCoords) {
+            userLocation = userCoords;
+          }
+        } catch (error) {
+          console.log('Could not get user coordinates:', error);
+        }
+      }
+      
       // Add user location for proximity weighting
       if (userLocation) {
         params.append('userLat', userLocation.latitude);
         params.append('userLng', userLocation.longitude);
-        params.append('proximityRadius', '10'); // 10km radius
+        params.append('proximityRadius', filters.maxDistance || '50'); // Default 50km radius
       }
       
       // Add filters
@@ -38,8 +51,15 @@ class EnhancedSearchService {
       params.append('includeQualityScore', 'true');
       params.append('includeProximity', 'true');
       params.append('includeEngagement', 'true');
+      params.append('includeDistance', 'true');
       
       const response = await axios.get(`${this.baseURL}/enhanced-search?${params.toString()}`);
+      
+      // Add distance information to results if user location is available
+      if (userLocation && response.data.products) {
+        response.data.products = await this.addDistanceInfo(response.data.products, userLocation);
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Enhanced search error:', error);
@@ -93,6 +113,45 @@ class EnhancedSearchService {
         }
       );
     });
+  }
+
+  // Add distance information to search results
+  async addDistanceInfo(products, userLocation) {
+    return products.map(product => {
+      if (product.artisan && product.artisan.coordinates) {
+        const distance = geocodingService.calculateDistanceBetween(
+          userLocation,
+          product.artisan.coordinates
+        );
+        
+        return {
+          ...product,
+          distance: distance,
+          formattedDistance: geocodingService.formatDistance(distance),
+          proximityScore: this.calculateProximityScore(distance)
+        };
+      }
+      
+      return product;
+    }).sort((a, b) => {
+      // Sort by distance if available, then by other factors
+      if (a.distance !== undefined && b.distance !== undefined) {
+        return a.distance - b.distance;
+      }
+      return 0;
+    });
+  }
+
+  // Calculate proximity score for ranking (0-1, higher is better)
+  calculateProximityScore(distance) {
+    if (distance === null || distance === undefined) {
+      return 0.5; // Neutral score for unknown distance
+    }
+    
+    // Exponential decay: closer = higher score
+    const maxDistance = 50; // 50km
+    const score = Math.exp(-distance / maxDistance);
+    return Math.max(0, Math.min(1, score));
   }
 
   // Calculate distance between two points (Haversine formula)

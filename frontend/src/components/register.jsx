@@ -63,7 +63,7 @@ export default function Register() {
       // Note: We don't mark onboarding as completed here, so they'll be redirected to profile
       
       toast.success("Account created successfully!");
-      navigate("/profile"); // Always redirect new users to profile setup
+      navigate("/dashboard"); // Use SmartRedirect for better user experience
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
     } finally {

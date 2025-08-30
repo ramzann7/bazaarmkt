@@ -12,13 +12,15 @@ import {
   TrashIcon,
   XMarkIcon,
   HeartIcon,
-  StarIcon
+  StarIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
-import { profileService } from '../services/profileService';
+import { profileService, clearProfileCache } from '../services/profileService';
 import { paymentService } from '../services/paymentService';
 import { favoriteService } from '../services/favoriteService';
+import { onboardingService } from '../services/onboardingService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
 import { OverviewTab, OperationsTab, HoursTab, DeliveryTab, SetupTab } from './ArtisanTabs';
@@ -28,7 +30,7 @@ import PendingOrdersWidget from './PendingOrdersWidget';
 export default function Profile() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, isProviderReady, refreshUser, updateUser } = useAuth();
   
   // Different tabs for different user types
   const patronTabs = [
@@ -64,6 +66,7 @@ export default function Profile() {
   const [artisanProfile, setArtisanProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isArtisan, setIsArtisan] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [tabs, setTabs] = useState(patronTabs);
@@ -73,6 +76,17 @@ export default function Profile() {
 
   // Use user from AuthContext as profile
   const profile = user;
+
+  // Debug effect to track user data changes
+  useEffect(() => {
+    console.log('🔄 Profile component: User data changed:', {
+      hasUser: !!user,
+      userId: user?._id,
+      userEmail: user?.email,
+      userRole: user?.role,
+      timestamp: new Date().toISOString()
+    });
+  }, [user]);
 
   // Memoize tab determination to prevent unnecessary re-renders
   const determineTabs = useMemo(() => {
@@ -94,15 +108,18 @@ export default function Profile() {
     }
   }, [profile?.role]);
 
-  // Simplified profile loading using AuthContext
-  const loadProfile = async () => {
-    if (!user) {
-      try {
-        await refreshUser();
-      } catch (error) {
-        console.error('Error refreshing user:', error);
-        toast.error('Failed to load profile');
-      }
+  // Manual refresh function for explicit data refresh
+  const forceRefreshProfile = async () => {
+    console.log('🔄 Force refreshing profile data...');
+    try {
+      setIsRefreshing(true);
+      await refreshUser();
+      toast.success('Profile refreshed successfully!');
+    } catch (error) {
+      console.error('❌ Failed to force refresh profile:', error);
+      toast.error('Failed to refresh profile');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -130,12 +147,24 @@ export default function Profile() {
     }
   }, [profile?.role, profile?._id]);
 
-  // Simplified useEffect for profile loading
+  // Always fetch profile on profile page mount or navigation (for all users)
   useEffect(() => {
-    if (location.pathname === '/profile' && !user) {
-      loadProfile();
+    if (location.pathname === '/profile' && isProviderReady && user) {
+      setIsLoading(true);
+      refreshUser()
+        .then(() => {
+          // Profile data fetched successfully
+        })
+        .catch(err => {
+          console.error('❌ Failed to load profile:', err);
+          toast.error('Failed to load profile');
+          navigate('/login');
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
-  }, [location.pathname, user]);
+  }, [location.pathname, isProviderReady, refreshUser, navigate, user]);
 
   // Load favorites when profile changes
   useEffect(() => {
@@ -166,11 +195,23 @@ export default function Profile() {
   // Update tabs when profile changes
   useEffect(() => {
     if (profile) {
-      setTabs(determineTabs);
-      setIsArtisan(profile.role === 'artisan' || profile.role === 'producer' || profile.role === 'food_maker');
+      const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
+      const isArtisanUser = profile.role === 'artisan' || profile.role === 'producer' || profile.role === 'food_maker';
+      
+      if (isPatron) {
+        setTabs(patronTabs);
+        setIsArtisan(false);
+      } else if (isArtisanUser) {
+        setTabs(artisanTabs);
+        setIsArtisan(true);
+      } else {
+        setTabs(patronTabs);
+        setIsArtisan(false);
+      }
+      
       setNeedsSetup(profile.role === 'setup');
     }
-  }, [profile, determineTabs]);
+  }, [profile]);
 
   // Load artisan profile when user is an artisan
   useEffect(() => {
@@ -184,20 +225,18 @@ export default function Profile() {
   useEffect(() => {
     if (activeTab === 'payment' && profile) {
       console.log('🔄 Payment tab accessed, ensuring fresh profile data');
-      // Clear cache to force fresh data load
-      const token = localStorage.getItem('token');
-      if (token) {
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
-        cacheService.delete(cacheKey);
-        console.log('🗑️ Cleared profile cache for fresh data');
-      }
+      // Trigger a fresh profile fetch for payment data
+      setIsLoading(true);
+      refreshUser()
+        .catch(err => {
+          console.error('❌ Failed to refresh profile for payment tab:', err);
+          toast.error('Failed to refresh profile');
+        })
+        .finally(() => setIsLoading(false));
     }
-  }, [activeTab, profile]);
+  }, [activeTab, profile, refreshUser]);
 
-  // Preload profile data when component mounts
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  // Profile data is now loaded via the main useEffect when visiting /profile
   
   // Listen for storage changes (token changes in other tabs)
   useEffect(() => {
@@ -205,7 +244,14 @@ export default function Profile() {
       if (e.key === 'token') {
         console.log('🔄 Token changed in storage, reloading profile...');
         if (e.newValue) {
-          loadProfile();
+          // Trigger a fresh profile fetch
+          setIsLoading(true);
+          refreshUser()
+            .catch(err => {
+              console.error('❌ Failed to refresh profile after token change:', err);
+              toast.error('Failed to refresh profile');
+            })
+            .finally(() => setIsLoading(false));
         } else {
           // Token was removed, redirect to login
           navigate('/login');
@@ -219,7 +265,14 @@ export default function Profile() {
         const token = localStorage.getItem('token');
         if (token && (!profile || !artisanProfile)) {
           console.log('🔄 Profile data missing, reloading...');
-          loadProfile();
+          // Trigger a fresh profile fetch
+          setIsLoading(true);
+          refreshUser()
+            .catch(err => {
+              console.error('❌ Failed to refresh profile after visibility change:', err);
+              toast.error('Failed to refresh profile');
+            })
+            .finally(() => setIsLoading(false));
         }
       }
     };
@@ -238,40 +291,45 @@ export default function Profile() {
     return async (data) => {
       setIsSaving(true);
       try {
+        console.log('🔄 Updating profile with data:', data);
         const updatedProfile = await profileService.updateProfile(data);
-        setProfile(updatedProfile);
+        console.log('✅ Profile updated successfully:', updatedProfile);
         
-        // Update cache
-        const token = localStorage.getItem('token');
-        if (token) {
-          const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
-          cacheService.set(cacheKey, updatedProfile, CACHE_TTL.USER_PROFILE);
+        // Update the user in AuthContext
+        await updateUser();
+        
+        // Mark onboarding as completed for new users
+        if (profile && onboardingService.isNewUser(profile._id)) {
+          onboardingService.markOnboardingCompleted(profile._id);
+          console.log('✅ Onboarding marked as completed for user:', profile._id);
         }
+        
+        // Dispatch profile update event for other components
+        window.dispatchEvent(new CustomEvent('profileUpdated', { 
+          detail: { profile: updatedProfile, updatedFields: Object.keys(data) } 
+        }));
         
         toast.success('Profile updated successfully!');
       } catch (error) {
-        console.error('Error updating profile:', error);
+        console.error('❌ Error updating profile:', error);
         toast.error('Failed to update profile');
         throw error;
       } finally {
         setIsSaving(false);
       }
     };
-  }, []);
+  }, [updateUser]);
 
   // Handle address updates
   const handleAddressUpdate = async (addresses) => {
     try {
       setIsSaving(true);
+      console.log('🔄 Updating addresses:', addresses);
       const updatedProfile = await profileService.updateAddresses(addresses);
-      setProfile(updatedProfile);
+      console.log('✅ Addresses updated successfully:', updatedProfile);
       
-      // Update cache
-      const token = localStorage.getItem('token');
-      if (token) {
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
-        cacheService.set(cacheKey, updatedProfile, CACHE_TTL.USER_PROFILE);
-      }
+      // Update the user in AuthContext
+      await updateUser();
       
       // Dispatch profile update event for cart and other components
       window.dispatchEvent(new CustomEvent('profileUpdated', { 
@@ -280,7 +338,7 @@ export default function Profile() {
       
       toast.success('Addresses updated successfully!');
     } catch (error) {
-      console.error('Error updating addresses:', error);
+      console.error('❌ Error updating addresses:', error);
       toast.error('Failed to update addresses');
     } finally {
       setIsSaving(false);
@@ -294,16 +352,9 @@ export default function Profile() {
       setIsSaving(true);
       const updatedProfile = await profileService.updatePaymentMethods(paymentMethods);
       console.log('✅ Payment methods updated, new profile:', updatedProfile);
-      setProfile(updatedProfile);
       
-      // Clear and update cache to ensure fresh data
-      const token = localStorage.getItem('token');
-      if (token) {
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
-        cacheService.delete(cacheKey); // Clear old cache
-        cacheService.set(cacheKey, updatedProfile, CACHE_TTL.USER_PROFILE);
-        console.log('💾 Cleared and updated cache with new profile data');
-      }
+      // Update the user in AuthContext
+      await updateUser();
       
       // Dispatch profile update event for cart and other components
       window.dispatchEvent(new CustomEvent('profileUpdated', { 
@@ -340,6 +391,12 @@ export default function Profile() {
       
       console.log('✅ Artisan profile updated:', updatedArtisanProfile);
       setArtisanProfile(updatedArtisanProfile);
+      
+      // Mark onboarding as completed for new users
+      if (profile && onboardingService.isNewUser(profile._id)) {
+        onboardingService.markOnboardingCompleted(profile._id);
+        console.log('✅ Onboarding marked as completed for artisan user:', profile._id);
+      }
       
       // Clear any cached artisan profile data to ensure fresh data on next load
       clearProfileCache();
@@ -398,21 +455,45 @@ export default function Profile() {
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    console.log('🔍 Profile loading state:', { isLoading, profile: !!profile });
+
+
+
+
+  // If user data isn't loaded yet, show loading
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your profile...</p>
-          <p className="text-sm text-gray-500 mt-2">Debug: Component loading</p>
+          <p className="text-gray-600">Loading user data...</p>
         </div>
       </div>
     );
   }
 
-  // Error state
+  // Defensive render logic
+  if (!isProviderReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!profile) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -449,28 +530,31 @@ export default function Profile() {
       
       // Shared tabs
       case 'personal':
-        return <PersonalInfoTab profile={profile} onSave={handleSave} isSaving={isSaving} />;
+        return <PersonalInfoTab key={`personal-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
       case 'addresses':
-        return <AddressesTab profile={profile} onSave={handleAddressUpdate} isSaving={isSaving} />;
+        return <AddressesTab key={`addresses-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleAddressUpdate} isSaving={isSaving} />;
       case 'favorites':
         return <FavoritesTab favoriteArtisans={favoriteArtisans} isLoading={isLoadingFavorites} />;
       case 'notifications':
-        return <NotificationsTab profile={profile} onSave={handleSave} isSaving={isSaving} />;
+        return <NotificationsTab key={`notifications-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
       case 'payment':
-        return <PaymentTab profile={profile} onSave={handlePaymentMethodUpdate} isSaving={isSaving} />;
+        return <PaymentTab key={`payment-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handlePaymentMethodUpdate} isSaving={isSaving} />;
       case 'security':
-        return <SecurityTab profile={profile} onSave={handleSave} isSaving={isSaving} />;
+        return <SecurityTab key={`security-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
       case 'settings':
-        return <SettingsTab profile={profile} onSave={handleSave} isSaving={isSaving} />;
+        return <SettingsTab key={`settings-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
       
       // Setup tab
       case 'setup':
-        return <SetupTab profile={profile} onSave={handleSave} isSaving={isSaving} setActiveTab={setActiveTab} />;
+        return <SetupTab key={`setup-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} setActiveTab={setActiveTab} />;
       
       default:
-        return <PersonalInfoTab profile={profile} onSave={handleSave} isSaving={isSaving} />;
+        return <PersonalInfoTab key={`personal-default-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
     }
   };
+
+  // Check if user is a patron/customer
+  const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
@@ -496,9 +580,21 @@ export default function Profile() {
               <UserIcon className="w-10 h-10 text-orange-600" />
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {profile.firstName} {profile.lastName}
-              </h2>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {profile.firstName} {profile.lastName}
+                </h2>
+                <button
+                  onClick={forceRefreshProfile}
+                  disabled={isRefreshing}
+                  className={`p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors duration-200 ${
+                    isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  title={isRefreshing ? "Refreshing..." : "Refresh profile data"}
+                >
+                  <ArrowPathIcon className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
               <p className="text-lg text-gray-600 mb-1">{profile.email}</p>
               <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
                 <span className="capitalize">{profile.role}</span>
@@ -568,6 +664,20 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
     phone: profile.phone || ''
   });
 
+  // Update form data when profile changes
+  useEffect(() => {
+    console.log('🔄 PersonalInfoTab: Profile updated, syncing form data:', {
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      phone: profile.phone
+    });
+    setFormData({
+      firstName: profile.firstName || '',
+      lastName: profile.lastName || '',
+      phone: profile.phone || ''
+    });
+  }, [profile]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     await onSave(formData);
@@ -626,6 +736,12 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
 
 function AddressesTab({ profile, onSave, isSaving }) {
   const [addresses, setAddresses] = useState(profile.addresses || []);
+
+  // Update addresses when profile changes
+  useEffect(() => {
+    console.log('🔄 AddressesTab: Profile updated, syncing addresses:', profile.addresses);
+    setAddresses(profile.addresses || []);
+  }, [profile]);
 
   const addAddress = () => {
     setAddresses([...addresses, {

@@ -14,7 +14,7 @@ import {
   HeartIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
-import { getAllProducts } from '../services/productService';
+import { getAllProducts, clearProductCache } from '../services/productService';
 import { cartService } from '../services/cartService';
 import enhancedSearchService from '../services/enhancedSearchService';
 import { 
@@ -147,7 +147,7 @@ export default function Search() {
           sorted.sort((a, b) => b.price - a.price);
           break;
         case 'rating':
-          sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          sorted.sort((a, b) => (b.artisan?.rating?.average || 0) - (a.artisan?.rating?.average || 0));
           break;
         case 'newest':
           sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -304,18 +304,78 @@ export default function Search() {
           {product.name}
         </h3>
         <p className="text-sm text-gray-500">
-          {product.artisan?.artisanName || product.artisan || `${product.seller?.firstName} ${product.seller?.lastName}`}
+          {product.artisan?.artisanName || `${product.seller?.firstName} ${product.seller?.lastName}`}
         </p>
         <div className="flex items-center justify-between mt-2">
           <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
           <div className="flex items-center space-x-1">
-            {renderStars(product.rating || 4.5)}
-            <span className="text-sm text-gray-500">({product.rating || 4.5})</span>
+            {renderStars(product.artisan?.rating?.average || 0)}
+            <span className="text-sm text-gray-500">({(product.artisan?.rating?.average || 0).toFixed(1)})</span>
           </div>
         </div>
       </div>
     </div>
   );
+
+  // Refresh data when page comes into focus (e.g., after returning from artisan page)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Clear product cache and reload data to get fresh ratings
+      clearProductCache();
+      const loadProducts = async () => {
+        try {
+          setIsLoading(true);
+          
+          // Check if we have search parameters for enhanced search
+          const hasSearchParams = urlSearchTerm || urlCategory || urlSubcategory;
+          const isEnhancedSearch = searchParams.get('enhanced') === 'true';
+          
+          let data;
+          if (hasSearchParams && isEnhancedSearch) {
+            // Use enhanced search with complex parameters
+            const filters = {};
+            if (urlCategory) filters.category = urlCategory;
+            if (urlSubcategory) filters.subcategory = urlSubcategory;
+            
+            // Get user location for proximity search
+            const userLocation = await enhancedSearchService.getUserLocation();
+            
+            const searchResults = await enhancedSearchService.searchWithFilters(
+              urlSearchTerm, 
+              filters, 
+              userLocation
+            );
+            
+            data = searchResults.products || searchResults;
+          } else if (hasSearchParams) {
+            // Use basic search
+            const searchResults = await getAllProducts({
+              search: urlSearchTerm,
+              category: urlCategory,
+              subcategory: urlSubcategory
+            });
+            data = searchResults;
+          } else {
+            // Load all products
+            data = await getAllProducts();
+          }
+          
+          setProducts(data);
+          setFilteredProducts(data);
+        } catch (error) {
+          console.error('Error loading products:', error);
+          setProducts([]);
+          setFilteredProducts([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      loadProducts();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [urlSearchTerm, urlCategory, urlSubcategory, searchParams]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -428,7 +488,7 @@ export default function Search() {
                 <div>
                   <h4 className="font-medium text-gray-900">{selectedProduct.name}</h4>
                   <p className="text-sm text-gray-600">
-                    {selectedProduct.artisan?.artisanName || selectedProduct.artisan}
+                    {selectedProduct.artisan?.artisanName || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
                   </p>
                   <p className="font-bold text-gray-900">{formatPrice(selectedProduct.price)}</p>
                 </div>

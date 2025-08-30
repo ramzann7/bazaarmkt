@@ -20,7 +20,9 @@ import {
 import { searchProducts } from '../services/productService';
 // Enhanced search service removed - using basic search functionality
 import { cartService } from '../services/cartService';
-import { authToken, getProfile } from '../services/authService';
+import { authToken, getProfile } from '../services/authservice';
+import { geocodingService } from '../services/geocodingService';
+import DistanceBadge from './DistanceBadge';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
@@ -119,33 +121,59 @@ export default function SearchResults() {
 
   const getCurrentLocation = async () => {
     try {
-      // Use browser geolocation API directly
+      console.log('🌍 Getting user location...');
+      
+      // First, try to get user coordinates from profile
+      try {
+        const userCoords = await geocodingService.getUserCoordinates();
+        if (userCoords) {
+          console.log('✅ Found user coordinates from profile:', userCoords);
+          setUserLocation({
+            lat: userCoords.latitude,
+            lng: userCoords.longitude
+          });
+          return;
+        }
+      } catch (error) {
+        console.log('No saved coordinates found:', error);
+      }
+      
+      // Second, try browser geolocation
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
+            console.log('✅ Browser geolocation successful:', position.coords);
             setUserLocation({
               lat: position.coords.latitude,
               lng: position.coords.longitude
             });
           },
           (error) => {
-            console.error('Geolocation error:', error);
-            // Default to a fallback location
-            setUserLocation({ lat: 45.5017, lng: -73.5673 });
-            toast.error('Location services not available. Showing results from default area.');
+            console.error('❌ Browser geolocation failed:', error);
+            // Try to get a default location based on common Canadian cities
+            setDefaultLocation();
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000 // 5 minutes
           }
         );
       } else {
-        // Default to a fallback location
-        setUserLocation({ lat: 45.5017, lng: -73.5673 });
-        toast.error('Geolocation not supported. Showing results from default area.');
+        console.log('❌ Browser geolocation not supported');
+        setDefaultLocation();
       }
     } catch (error) {
-      console.error('Error getting location:', error);
-      // Default to a fallback location
-      setUserLocation({ lat: 45.5017, lng: -73.5673 });
-      toast.error('Location services not available. Showing results from default area.');
+      console.error('❌ Error in getCurrentLocation:', error);
+      setDefaultLocation();
     }
+  };
+
+  const setDefaultLocation = () => {
+    // Set a default location (Toronto) and show a friendly message
+    const defaultLocation = { lat: 43.6532, lng: -79.3832 }; // Toronto
+    setUserLocation(defaultLocation);
+    toast.success('📍 Using Toronto as default location. Add your address in profile for personalized results.');
   };
 
   const performSearch = async () => {
@@ -210,27 +238,25 @@ export default function SearchResults() {
       // Add distance calculation if user location is available
       const productsWithDistance = searchResults.map(product => {
         let distance = null;
-        if (userLocation && product.artisan?.location?.coordinates) {
-          // Simple distance calculation using Haversine formula
-          const calculateDistance = (lat1, lon1, lat2, lon2) => {
-            const R = 6371; // Earth's radius in kilometers
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLon = (lon2 - lon1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                     Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
-          };
-          
-          distance = calculateDistance(
-            userLocation.lat || userLocation.latitude,
-            userLocation.lng || userLocation.longitude,
-            product.artisan.location.coordinates[1], // latitude
-            product.artisan.location.coordinates[0]  // longitude
+        let formattedDistance = null;
+        
+        if (userLocation && product.artisan?.coordinates) {
+          // Use geocoding service for distance calculation
+          distance = geocodingService.calculateDistanceBetween(
+            { latitude: userLocation.lat, longitude: userLocation.lng },
+            product.artisan.coordinates
           );
+          
+          if (distance !== null) {
+            formattedDistance = geocodingService.formatDistance(distance);
+          }
         }
-        return { ...product, distance };
+        
+        return { 
+          ...product, 
+          distance,
+          formattedDistance
+        };
       });
 
       setProducts(productsWithDistance);
@@ -312,11 +338,7 @@ export default function SearchResults() {
     );
   };
 
-  const formatDistance = (distance) => {
-    if (distance === null) return 'Distance unknown';
-    if (distance < 1) return `${Math.round(distance * 1000)}m away`;
-    return `${distance.toFixed(1)}km away`;
-  };
+  // Distance formatting is now handled by geocodingService.formatDistance()
 
   // Helper function to get image URL
   const getImageUrl = (imagePath) => {
@@ -606,10 +628,13 @@ export default function SearchResults() {
                       
                       {/* Community Badges */}
                       <div className="absolute top-2 left-2 flex flex-col gap-1">
-                        <div className="badge-local">
-                          <MapPinIcon className="w-3 h-3 inline mr-1" />
-                          {formatDistance(product.distance)}
-                        </div>
+                        {product.distance && (
+                          <DistanceBadge 
+                            distance={product.distance} 
+                            formattedDistance={product.formattedDistance}
+                            showIcon={false}
+                          />
+                        )}
                         <div className="badge-local">
                           Local Business
                         </div>
@@ -630,6 +655,16 @@ export default function SearchResults() {
                           </span>
                         )}
                       </p>
+                      
+                      {/* Distance Information */}
+                      {product.distance && (
+                        <div className="mb-2">
+                          <DistanceBadge 
+                            distance={product.distance} 
+                            formattedDistance={product.formattedDistance}
+                          />
+                        </div>
+                      )}
                       
                       <p className="text-slate-700 text-sm mb-3 line-clamp-2">
                         {product.description}
@@ -780,7 +815,7 @@ export default function SearchResults() {
                 <div className="flex-1">
                   <h4 className="text-lg font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
                   <p className="text-sm text-gray-500 mb-2">
-                    {selectedProduct.artisan?.artisanName || selectedProduct.artisan || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
+                    {selectedProduct.artisan?.artisanName || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
                   </p>
                   <div className="text-xl font-bold text-amber-600">{formatPrice(selectedProduct.price)}</div>
                 </div>

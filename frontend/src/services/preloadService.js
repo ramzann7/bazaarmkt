@@ -127,7 +127,20 @@ class PreloadService {
     cacheService.preload(
       cacheKey,
       async () => {
-        return await promotionalService.getArtisanPromotions();
+        // Use available promotional service functions
+        try {
+          const [premiumShowcase, artisanSpotlight] = await Promise.all([
+            promotionalService.getPremiumShowcaseProducts(6),
+            promotionalService.getArtisanSpotlightProducts(null, 3)
+          ]);
+          return {
+            premiumShowcase,
+            artisanSpotlight
+          };
+        } catch (error) {
+          console.warn('Failed to preload promotional data:', error);
+          return { premiumShowcase: [], artisanSpotlight: [] };
+        }
       },
       CACHE_TTL.ARTISAN_DETAILS
     );

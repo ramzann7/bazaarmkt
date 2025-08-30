@@ -213,6 +213,40 @@ class PerformanceService {
 
     return report;
   }
+
+  // Log navigation performance
+  logNavigation(fromRoute, toRoute, duration) {
+    // Safety checks for parameters
+    if (typeof duration !== 'number' || isNaN(duration)) {
+      console.warn('⚠️ Invalid duration provided to logNavigation:', { fromRoute, toRoute, duration });
+      return;
+    }
+    
+    if (!fromRoute || !toRoute) {
+      console.warn('⚠️ Missing route information in logNavigation:', { fromRoute, toRoute, duration });
+      return;
+    }
+    
+    const message = `Navigation from ${fromRoute} to ${toRoute} took ${duration.toFixed(2)}ms`;
+    
+    if (duration > this.thresholds.criticalLoad) {
+      console.error(`🚨 CRITICAL NAVIGATION: ${message}`);
+    } else if (duration > this.thresholds.verySlowLoad) {
+      console.warn(`⚠️ VERY SLOW NAVIGATION: ${message}`);
+    } else if (duration > this.thresholds.slowLoad) {
+      console.warn(`🐌 SLOW NAVIGATION: ${message}`);
+    } else {
+      console.log(`✅ ${message}`);
+    }
+
+    // Store navigation metrics
+    const navigationKey = `navigation_${fromRoute}_${toRoute}`;
+    this.metrics.set(navigationKey, {
+      startTime: performance.now() - duration,
+      endTime: performance.now(),
+      duration: duration
+    });
+  }
 }
 
 // Create singleton instance

@@ -34,17 +34,8 @@ export default function Login() {
       // Login immediately sets user state for instant response
       await login(userData);
       
-      // Check if user is new
-      const userId = userData.user?._id || userData._id;
-      const isNewUser = onboardingService.isNewUser(userId);
-      
-      if (isNewUser) {
-        // New user - redirect to profile setup
-        navigate("/profile");
-      } else {
-        // Returning user - redirect to homepage
-        navigate("/");
-      }
+      // Navigate to dashboard to trigger SmartRedirect
+      navigate("/dashboard");
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error.response?.data?.message || "Login failed. Please try again.");

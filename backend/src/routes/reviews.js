@@ -74,6 +74,9 @@ router.post('/artisan/:artisanId', authMiddleware, requirePatron, async (req, re
     const { rating, comment, title } = req.body;
     const userId = req.user._id; // Use _id from populated user object
 
+    console.log('🔍 Backend: Adding/updating review for artisan:', artisanId, 'by user:', userId);
+    console.log('🔍 Backend: Review data:', { rating, comment, title });
+
     // Verify artisan exists
     const artisan = await Artisan.findById(artisanId);
     if (!artisan) {
@@ -92,10 +95,28 @@ router.post('/artisan/:artisanId', authMiddleware, requirePatron, async (req, re
     });
 
     if (existingReview) {
-      return res.status(400).json({ 
-        message: 'You have already reviewed this artisan' 
+      console.log('🔍 Backend: Updating existing review:', existingReview._id);
+      // Instead of preventing the review, update the existing one
+      existingReview.rating = rating;
+      existingReview.comment = comment.trim();
+      existingReview.title = title.trim();
+      existingReview.updatedAt = new Date();
+
+      await existingReview.save();
+
+      // Update artisan's average rating
+      await updateArtisanRating(artisanId);
+
+      // Populate user info for response
+      await existingReview.populate('user', 'firstName lastName');
+
+      return res.status(200).json({
+        message: 'Review updated successfully',
+        review: existingReview
       });
     }
+
+    console.log('🔍 Backend: Creating new review');
 
     // Validate rating
     if (rating < 1 || rating > 5) {
@@ -299,6 +320,7 @@ router.get('/artisan/:artisanId/stats', async (req, res) => {
 // Helper function to update artisan's average rating
 async function updateArtisanRating(artisanId) {
   try {
+    console.log('🔍 Backend: Updating artisan rating for:', artisanId);
     const stats = await Review.aggregate([
       { $match: { artisan: require('mongoose').Types.ObjectId(artisanId) } },
       {
@@ -312,12 +334,15 @@ async function updateArtisanRating(artisanId) {
 
     if (stats.length > 0) {
       const stat = stats[0];
+      const newAverage = Math.round(stat.averageRating * 10) / 10;
+      console.log('🔍 Backend: New artisan rating - average:', newAverage, 'count:', stat.totalReviews);
       await Artisan.findByIdAndUpdate(artisanId, {
-        'rating.average': Math.round(stat.averageRating * 10) / 10,
+        'rating.average': newAverage,
         'rating.count': stat.totalReviews
       });
     } else {
       // No reviews, reset to default
+      console.log('🔍 Backend: No reviews found, resetting artisan rating to 0');
       await Artisan.findByIdAndUpdate(artisanId, {
         'rating.average': 0,
         'rating.count': 0

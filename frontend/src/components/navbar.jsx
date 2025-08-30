@@ -494,7 +494,10 @@ export default function Navbar() {
                       )}
                       {user?.role !== 'admin' && (
                         <>
-                          <Link to={user?.role === 'artisan' ? "/profile" : "/account"} className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                          <Link to="/dashboard" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                            Dashboard
+                          </Link>
+                          <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
                             My Profile
                           </Link>
                           {user?.role === 'artisan' && (
@@ -702,10 +705,17 @@ export default function Navbar() {
                     Admin Dashboard
                   </Link>
                 )}
-                {user?.role !== 'admin' && (
-                  <>
-                    <Link
-                      to={user?.role === 'artisan' ? "/profile" : "/account"}
+                                  {user?.role !== 'admin' && (
+                    <>
+                                          <Link
+                      to="/dashboard"
+                      className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                      onClick={toggleMobileMenu}
+                    >
+                      Dashboard
+                    </Link>
+                                          <Link
+                      to="/profile"
                       className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
                       onClick={toggleMobileMenu}
                     >

@@ -51,7 +51,9 @@ const reviewService = {
   // Add a new review for an artisan (requires patron authentication)
   addReview: async (artisanId, reviewData) => {
     try {
+      console.log('🔍 ReviewService: Adding new review for artisan:', artisanId, 'with data:', reviewData);
       const response = await reviewApi.post(`/reviews/artisan/${artisanId}`, reviewData);
+      console.log('🔍 ReviewService: Review added successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error adding review:', error);
@@ -74,7 +76,9 @@ const reviewService = {
   // Update an existing review (requires patron authentication)
   updateReview: async (reviewId, reviewData) => {
     try {
+      console.log('🔍 ReviewService: Updating review:', reviewId, 'with data:', reviewData);
       const response = await reviewApi.put(`/reviews/${reviewId}`, reviewData);
+      console.log('🔍 ReviewService: Review updated successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error updating review:', error);
@@ -117,12 +121,16 @@ const reviewService = {
   // Get user's review for an artisan (requires authentication)
   getUserReview: async (artisanId) => {
     try {
+      console.log('🔍 ReviewService: Fetching user review for artisan:', artisanId);
       const response = await reviewApi.get(`/reviews/artisan/${artisanId}/user`);
+      console.log('🔍 ReviewService: User review found:', response.data);
       return response.data;
     } catch (error) {
       if (error.response?.status === 404) {
+        console.log('🔍 ReviewService: No user review found (404)');
         return null; // User hasn't reviewed this artisan yet
       } else if (error.response?.status === 401) {
+        console.log('🔍 ReviewService: User not authenticated (401)');
         return null; // User not authenticated
       }
       console.error('Error fetching user review:', error);

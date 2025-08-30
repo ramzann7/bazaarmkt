@@ -143,6 +143,29 @@ const userSchema = new mongoose.Schema({
     ref: 'Artisan'
   }],
 
+  // Location Coordinates
+  coordinates: {
+    latitude: {
+      type: Number,
+      min: -90,
+      max: 90
+    },
+    longitude: {
+      type: Number,
+      min: -180,
+      max: 180
+    },
+    lastUpdated: {
+      type: Date,
+      default: Date.now
+    },
+    confidence: {
+      type: Number,
+      min: 0,
+      max: 100
+    }
+  },
+
   // Timestamps
   createdAt: {
     type: Date,

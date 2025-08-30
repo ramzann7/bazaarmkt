@@ -17,6 +17,7 @@ import { getProfile } from '../services/authservice';
 import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 import ProductPromotions from './ProductPromotions';
 import { promotionalService } from '../services/promotionalService';
+import DistanceBadge from './DistanceBadge';
 import toast from 'react-hot-toast';
 
 // Debug imports
@@ -933,6 +934,16 @@ export default function Products() {
                         </span>
                       )}
                     </div>
+
+                    {/* Distance Information */}
+                    {(product.distance || product.formattedDistance) && (
+                      <div className="mb-3">
+                        <DistanceBadge 
+                          distance={product.distance} 
+                          formattedDistance={product.formattedDistance}
+                        />
+                      </div>
+                    )}
 
                     {/* Stock Management */}
                     <div className="border-t border-gray-200 pt-3">

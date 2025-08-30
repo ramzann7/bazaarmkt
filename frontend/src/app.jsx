@@ -1,4 +1,5 @@
 // src/App.jsx
+import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import Navbar from "./components/navbar.jsx";
@@ -18,6 +19,9 @@ const Dashboard = lazy(() => import("./components/dashboard.jsx"));
 const Artisans = lazy(() => import("./components/artisans.jsx"));
 const Profile = lazy(() => import("./components/Profile.jsx"));
 const Account = lazy(() => import("./components/Account.jsx"));
+const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
+
+
 const Products = lazy(() => import("./components/Products.jsx"));
 const Orders = lazy(() => import("./components/Orders.jsx"));
 const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
@@ -31,7 +35,6 @@ const EventDetails = lazy(() => import("./components/EventDetails.jsx"));
 const Cart = lazy(() => import("./components/Cart.jsx"));
 const GuestCheckout = lazy(() => import("./components/GuestCheckout.jsx"));
 const BuyingLocal = lazy(() => import("./components/BuyingLocal.jsx"));
-const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
 const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
 const AdminUserManagement = lazy(() => import("./components/AdminUserManagement.jsx"));
@@ -43,6 +46,8 @@ const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
+  
+
   
   // Performance tracking and profile preloading
   useEffect(() => {

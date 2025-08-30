@@ -39,6 +39,18 @@ export const profileService = {
     const response = await axios.put(`${API_URL}/addresses`, { addresses }, {
       headers: getAuthHeaders()
     });
+    
+    // Geocode the default address if available
+    const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
+    if (defaultAddress) {
+      try {
+        const { geocodingService } = await import('./geocodingService');
+        await geocodingService.geocodeUserAddress(null, defaultAddress);
+      } catch (error) {
+        console.warn('Could not geocode address:', error);
+      }
+    }
+    
     return response.data;
   },
 

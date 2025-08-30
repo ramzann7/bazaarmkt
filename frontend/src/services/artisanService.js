@@ -29,7 +29,33 @@ const clearCache = () => {
   cache.clear();
 };
 
+// Clear cache for specific artisan
+const clearArtisanCache = (artisanId = null) => {
+  if (artisanId) {
+    // Clear specific artisan cache
+    const keysToDelete = [];
+    for (const [key] of cache) {
+      if (key.includes(`artisans/${artisanId}`) || key.includes('all-artisans')) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => cache.delete(key));
+  } else {
+    // Clear all artisan-related cache
+    const keysToDelete = [];
+    for (const [key] of cache) {
+      if (key.includes('artisans')) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => cache.delete(key));
+  }
+};
+
 export const artisanService = {
+  // Clear artisan cache
+  clearArtisanCache,
+  
   // Get all artisans with optional filters
   async getAllArtisans(filters = {}) {
     try {

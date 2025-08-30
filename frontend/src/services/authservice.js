@@ -56,9 +56,10 @@ export const authToken = {
   }
 };
 
-// Optimized getProfile with caching
+// Optimized getProfile with caching - Performance focused
 export const getProfile = async () => {
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+  const token = authToken.getToken();
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10)}`;
   
   return cacheService.getOrSet(
     cacheKey,
@@ -116,6 +117,11 @@ export const registerUser = async (userData) => {
     // Cache the profile immediately
     const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
     cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
+    
+    // Mark user as new (they haven't completed onboarding yet)
+    // This will ensure SmartRedirect sends them to profile setup
+    const { onboardingService } = await import('./onboardingService');
+    // Don't mark onboarding as completed - let SmartRedirect handle the flow
     
     // Dispatch auth change event
     window.dispatchEvent(new CustomEvent('authStateChanged', { 

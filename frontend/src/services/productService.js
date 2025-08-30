@@ -31,8 +31,25 @@ const clearCache = () => {
   cache.clear();
 };
 
+// Clear product cache for specific artisan
+const clearProductCache = (artisanId = null) => {
+  if (artisanId) {
+    // Clear cache for products from specific artisan
+    const keysToDelete = [];
+    for (const [key] of cache) {
+      if (key.includes('all-products') || key.includes('featured-products') || key.includes('popular-products')) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => cache.delete(key));
+  } else {
+    // Clear all product cache
+    cache.clear();
+  }
+};
+
 // Export clearCache for debugging
-export { clearCache };
+export { clearCache, clearProductCache };
 
 // Get all products (for discover page)
 export const getAllProducts = async (filters = {}) => {

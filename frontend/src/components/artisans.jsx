@@ -35,7 +35,38 @@ export default function Artisans() {
     };
 
     fetchArtisans();
-    }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory]);
+
+  // Refresh data when page comes into focus (e.g., after returning from artisan details page)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Clear artisan cache and reload data to get fresh ratings
+      artisanService.clearArtisanCache();
+      const fetchArtisans = async () => {
+        try {
+          setLoading(true);
+          const filters = {
+            includeProducts: true
+          };
+          
+          if (searchQuery) filters.search = searchQuery;
+          if (selectedCategory !== 'all') filters.category = selectedCategory;
+          
+          const data = await artisanService.getAllArtisans(filters);
+          setArtisans(data);
+        } catch (err) {
+          console.error('Error fetching artisans:', err);
+          setError('Failed to load artisans');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchArtisans();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [searchQuery, selectedCategory]);
 
   // Generate categories from product reference data
   const categories = [
@@ -163,7 +194,7 @@ export default function Artisans() {
                   </div>
                   <div className="absolute top-3 right-3 bg-white px-2 py-1 rounded-full text-xs font-medium flex items-center shadow-sm">
                     <StarIcon className="w-3 h-3 text-yellow-400 mr-1" />
-                    <span>{artisan.rating || 4.5}</span>
+                    <span>{(artisan.rating?.average || 0).toFixed(1)}</span>
                   </div>
                 </div>
 

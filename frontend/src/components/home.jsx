@@ -31,6 +31,9 @@ import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffe
 import { geocodingService } from '../services/geocodingService';
 import { useAuth } from '../contexts/AuthContext';
 import DistanceBadge from './DistanceBadge';
+import LocationPrompt from './LocationPrompt';
+import LocationIndicator from './LocationIndicator';
+import { locationService } from '../services/locationService';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -60,6 +63,7 @@ export default function Home() {
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const navigate = useNavigate();
 
   // Memoize reference data to prevent unnecessary re-computations
@@ -70,6 +74,7 @@ export default function Home() {
   const { execute: loadFeaturedProducts, isLoading: isFeaturedLoading } = useAsyncOperation(
     async () => {
       try {
+        console.log('🔄 Starting featured products loading...');
         setError(null);
         
         // Check cache first for instant loading
@@ -77,23 +82,30 @@ export default function Home() {
         if (cachedFeatured) {
           console.log('✅ Using cached featured products for instant loading');
           setFeaturedProducts(cachedFeatured);
+          setIsLoadingFeatured(false);
           return;
         }
         
+        console.log('🔄 Fetching featured products from API...');
         const response = await getFeaturedProducts();
         
         if (response.success) {
+          console.log('✅ Setting featured products:', response.products?.length || 0, 'products');
           setFeaturedProducts(response.products || []);
+          setIsLoadingFeatured(false);
           // Cache the results
           cacheService.set(CACHE_KEYS.FEATURED_PRODUCTS, response.products, CACHE_TTL.FEATURED_PRODUCTS);
         } else {
           console.error('Failed to load featured products:', response.message);
-          setFeaturedProducts([]);
+          // Don't clear existing products on error, just log the error
+          setError('Failed to load featured products');
+          setIsLoadingFeatured(false);
         }
       } catch (error) {
         console.error('Error loading featured products:', error);
-        setFeaturedProducts([]);
+        // Don't clear existing products on error, just log the error
         setError('Failed to load featured products');
+        setIsLoadingFeatured(false);
       }
     },
     []
@@ -105,6 +117,7 @@ export default function Home() {
   const { execute: loadPopularProducts, isLoading: isPopularLoading } = useAsyncOperation(
     async () => {
       try {
+        console.log('🔄 Starting popular products loading...');
         setError(null);
         
         // Check cache first for instant loading
@@ -112,58 +125,160 @@ export default function Home() {
         if (cachedPopular) {
           console.log('✅ Using cached popular products for instant loading');
           setPopularProducts(cachedPopular);
+          setIsLoadingPopular(false);
           return;
         }
         
+        console.log('🔄 Fetching popular products from API...');
         const response = await getPopularProducts();
         
         if (response.success) {
+          console.log('✅ Setting popular products:', response.products?.length || 0, 'products');
           setPopularProducts(response.products || []);
+          setIsLoadingPopular(false);
           // Cache the results
           cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
         } else {
           console.error('Failed to load popular products:', response.message);
-          setPopularProducts([]);
+          // Don't clear existing products on error, just log the error
           setError('Failed to load popular products');
+          setIsLoadingPopular(false);
         }
       } catch (error) {
         console.error('Error loading popular products:', error);
-        setPopularProducts([]);
+        // Don't clear existing products on error, just log the error
         setError('Failed to load popular products');
+        setIsLoadingPopular(false);
         toast.error('Failed to load popular products');
       }
     },
     []
   );
 
-  // Load data on component mount with caching
+  // Load basic product data on component mount (not dependent on user)
   useOptimizedEffect(() => {
     const startTime = performance.now();
+    console.log('🔄 Loading basic product data on component mount');
     
     // Check cache first
     const cachedFeatured = cacheService.get(CACHE_KEYS.FEATURED_PRODUCTS);
     const cachedPopular = cacheService.get(CACHE_KEYS.POPULAR_PRODUCTS);
     
+    console.log('📦 Cache check:', {
+      hasCachedFeatured: !!cachedFeatured,
+      hasCachedPopular: !!cachedPopular,
+      featuredCount: cachedFeatured?.length || 0,
+      popularCount: cachedPopular?.length || 0
+    });
+    
     if (cachedFeatured) {
+      console.log('✅ Using cached featured products');
       setFeaturedProducts(cachedFeatured);
       setIsLoadingFeatured(false);
     } else {
+      console.log('🔄 Loading featured products from API');
       loadFeaturedProducts();
     }
     
     if (cachedPopular) {
+      console.log('✅ Using cached popular products');
       setPopularProducts(cachedPopular);
       setIsLoadingPopular(false);
     } else {
+      console.log('🔄 Loading popular products from API');
       loadPopularProducts();
     }
     
-    // Load nearby products (always fresh data)
-    loadNearbyProducts();
-    
     const endTime = performance.now();
-    console.log(`Home component data loading took ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`Home component basic data loading took ${(endTime - startTime).toFixed(2)}ms`);
+  }, [], { skipFirstRender: false });
+
+  // Load user location on component mount
+  useEffect(() => {
+    const loadUserLocation = () => {
+      try {
+        // For patrons and artisans, use their profile/business address
+        if (user && user.coordinates) {
+          setUserLocation({
+            latitude: user.coordinates.latitude,
+            longitude: user.coordinates.longitude,
+            address: user.addresses?.[0]?.city || user.artisanName || 'Your location'
+          });
+          console.log('📍 Using user profile location:', user.coordinates);
+          return;
+        }
+        
+        // For guests, check for saved location
+        const savedLocation = locationService.getUserLocation();
+        if (savedLocation) {
+          setUserLocation(savedLocation);
+          console.log('📍 Loaded saved location for guest:', savedLocation.address);
+        } else {
+          // Show location prompt for guests if not shown before
+          if (!user && !locationService.hasLocationPromptBeenShown()) {
+            setShowLocationPrompt(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user location:', error);
+      }
+    };
+
+    loadUserLocation();
+  }, [user]);
+
+  // Load location-dependent data when user changes
+  useOptimizedEffect(() => {
+    // Load nearby products (depends on user location)
+    loadNearbyProducts();
   }, [user], { skipFirstRender: false });
+
+  // Handle user logout gracefully - preserve product data
+  useEffect(() => {
+    if (!user) {
+      // User logged out - preserve existing product data but clear user-specific data
+      console.log('🔄 User logged out - preserving product data, clearing user-specific data');
+      
+      // Clear nearby products since they depend on user location
+      setNearbyProducts([]);
+      setIsLoadingNearby(false);
+      setUserLocation(null);
+      
+      // Clear product service cache to ensure fresh data
+      clearFeaturedProductsCache();
+      clearPopularProductsCache();
+      
+      // Keep featured and popular products as they don't depend on user authentication
+      // Only reload if they're empty (in case they were cleared by an error)
+      if (featuredProducts.length === 0 && !isLoadingFeatured) {
+        console.log('🔄 Reloading featured products after logout');
+        loadFeaturedProducts();
+      }
+      
+      if (popularProducts.length === 0 && !isLoadingPopular) {
+        console.log('🔄 Reloading popular products after logout');
+        loadPopularProducts();
+      }
+    }
+  }, [user]);
+
+  // Fallback mechanism - ensure products are loaded
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // If products are still empty after 5 seconds, force reload
+      if (featuredProducts.length === 0 && !isLoadingFeatured) {
+        console.log('⚠️ Featured products still empty after 5s, forcing reload');
+        loadFeaturedProducts();
+      }
+      
+      if (popularProducts.length === 0 && !isLoadingPopular) {
+        console.log('⚠️ Popular products still empty after 5s, forcing reload');
+        loadPopularProducts();
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [featuredProducts.length, popularProducts.length, isLoadingFeatured, isLoadingPopular]);
 
   // Get user location and load nearby products
   const loadNearbyProducts = async () => {
@@ -180,7 +295,7 @@ export default function Home() {
           latitude: user.coordinates.latitude,
           longitude: user.coordinates.longitude
         };
-        console.log('✅ Using user coordinates from profile:', location);
+        console.log('✅ Using user coordinates from profile (patron/artisan):', location);
       } else {
         // Try to get user coordinates from geocoding service
         try {
@@ -303,6 +418,21 @@ export default function Home() {
     } finally {
       setIsLoadingNearby(false);
     }
+  };
+
+  // Location prompt handlers
+  const handleLocationSet = (locationData) => {
+    setUserLocation(locationData);
+    setShowLocationPrompt(false);
+    
+    // Reload nearby products with new location
+    if (locationData.lat && locationData.lng) {
+      loadNearbyProducts(locationData.lat, locationData.lng);
+    }
+  };
+
+  const handleLocationDismiss = () => {
+    setShowLocationPrompt(false);
   };
 
   // Memoized cart handler
@@ -749,12 +879,9 @@ export default function Home() {
             <div className="flex items-center space-x-3">
               <MapPinIcon className="w-8 h-8 text-amber-600" />
               <h2 className="text-3xl font-bold text-gray-900">Close to You</h2>
-              {userLocation && userLocation.latitude && userLocation.longitude && (
-                <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full border">
-                  📍 {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
-                </span>
-              )}
             </div>
+            {/* Only show location indicator for guests */}
+            {!user && <LocationIndicator onLocationUpdate={handleLocationSet} />}
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => {
@@ -796,12 +923,14 @@ export default function Home() {
               <MapPinIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Nearby Products</h3>
               <p className="text-gray-500">
-                {userLocation ? 
+                {user ? 
                   "No products found within 25km of your location. Try expanding your search or check back later." :
-                  "Unable to determine your location. Add your address in your profile for personalized recommendations."
+                  userLocation ? 
+                    "No products found within 25km of your location. Try expanding your search or check back later." :
+                    "Unable to determine your location. Please provide your location for personalized recommendations."
                 }
               </p>
-              {!userLocation && (
+              {!user && !userLocation && (
                 <button
                   onClick={() => loadNearbyProducts()}
                   className="mt-4 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
@@ -987,6 +1116,14 @@ export default function Home() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Location Prompt Modal */}
+      {showLocationPrompt && (
+        <LocationPrompt
+          onLocationSet={handleLocationSet}
+          onDismiss={handleLocationDismiss}
+        />
       )}
     </div>
   );

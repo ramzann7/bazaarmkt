@@ -7,8 +7,8 @@ import {
   ArrowRightIcon,
   ShoppingBagIcon
 } from '@heroicons/react/24/outline';
-import { orderNotificationService } from '../services/orderNotificationService';
-import { orderService } from '../services/orderService';
+import { orderNotificationService } from '../../services/orderNotificationService';
+import { orderService } from '../../services/orderService';
 import toast from 'react-hot-toast';
 
 export default function PendingOrdersWidget() {
@@ -101,10 +101,16 @@ export default function PendingOrdersWidget() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
         <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+          <div className="flex items-center mb-4">
+            <div className="w-6 h-6 bg-gray-200 rounded-full mr-3"></div>
+            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+          </div>
+          <div className="space-y-3">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
         </div>
       </div>
     );
@@ -112,49 +118,55 @@ export default function PendingOrdersWidget() {
 
   if (pendingOrders.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <ShoppingBagIcon className="w-5 h-5 mr-2 text-gray-500" />
-            Pending Orders
-          </h3>
-          <span className="text-sm text-gray-500">No pending orders</span>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingBagIcon className="w-8 h-8 text-green-600" />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">All Orders Up to Date!</h3>
+          <p className="text-gray-600 mb-4">
+            You have no pending orders at the moment. Great job staying on top of things!
+          </p>
+          <button
+            onClick={handleViewAllOrders}
+            className="inline-flex items-center px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <ShoppingBagIcon className="w-4 h-4 mr-2" />
+            View All Orders
+          </button>
         </div>
-        <p className="text-gray-600 text-sm">
-          All orders are up to date! Check back later for new orders.
-        </p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden relative">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-50 to-red-50 px-4 py-3 border-b border-gray-200">
+      <div className="bg-gradient-to-r from-orange-50 to-red-50 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className="relative">
-              <BellIcon className="w-5 h-5 text-orange-600" />
+              <BellIcon className="w-6 h-6 text-orange-600" />
               {pendingOrders.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-pulse">
                   {pendingOrders.length > 9 ? '9+' : pendingOrders.length}
                 </span>
               )}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 ml-2">
+            <h3 className="text-xl font-bold text-gray-900 ml-3">
               Pending Orders ({pendingOrders.length})
             </h3>
           </div>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-gray-500 hover:text-gray-700 transition-colors p-2 rounded-lg hover:bg-white/50"
           >
             <ArrowRightIcon 
-              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+              className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} 
             />
           </button>
         </div>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-sm text-gray-600 mt-2">
           {pendingOrders.length === 1 
             ? 'You have 1 order that needs attention'
             : `You have ${pendingOrders.length} orders that need attention`
@@ -169,42 +181,42 @@ export default function PendingOrdersWidget() {
             <div
               key={order._id}
               onClick={() => handleOrderClick(order)}
-              className="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors last:border-b-0"
+              className="px-6 py-4 border-b border-gray-100 hover:bg-orange-50 cursor-pointer transition-colors last:border-b-0 group"
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
                     {getStatusIcon(order.status)}
-                    <span className="ml-1 capitalize">{order.status}</span>
+                    <span className="ml-1 capitalize font-semibold">{order.status}</span>
                   </span>
-                  <span className="text-sm text-gray-500 ml-2">
+                  <span className="text-sm text-gray-500 font-mono">
                     #{order._id.slice(-6)}
                   </span>
                 </div>
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-lg font-bold text-gray-900">
                   {formatPrice(order.totalAmount)}
                 </span>
               </div>
               
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900">
                     {order.buyer?.firstName} {order.buyer?.lastName}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 mt-1">
                     {order.items?.length || 0} items • {formatDate(order.createdAt)}
                   </p>
                 </div>
-                <ArrowRightIcon className="w-4 h-4 text-gray-400" />
+                <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
               </div>
             </div>
           ))}
           
           {/* View All Button */}
-          <div className="px-4 py-3 bg-gray-50">
+          <div className="px-6 py-4 bg-gradient-to-r from-orange-50 to-red-50">
             <button
               onClick={handleViewAllOrders}
-              className="w-full text-center text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors"
+              className="w-full text-center py-3 px-4 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors shadow-sm"
             >
               View All Orders
             </button>
@@ -214,25 +226,28 @@ export default function PendingOrdersWidget() {
 
       {/* Collapsed View */}
       {!isExpanded && (
-        <div className="px-4 py-3">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm font-semibold text-gray-900">
                 {pendingOrders.length === 1 
                   ? '1 order pending'
                   : `${pendingOrders.length} orders pending`
                 }
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 mt-1">
                 Click to expand and view details
               </p>
             </div>
-            <button
-              onClick={handleViewAllOrders}
-              className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors"
-            >
-              View All
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleViewAllOrders}
+                className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors"
+              >
+                View All
+              </button>
+              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+            </div>
           </div>
         </div>
       )}

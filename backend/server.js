@@ -57,6 +57,7 @@ const reviewRoutes = require('./src/routes/reviews');
 const favoritesRoutes = require('./src/routes/favorites');
 const userStatsRoutes = require('./src/routes/userStats');
 const revenueRoutes = require('./src/routes/revenue');
+const promotionalRoutes = require('./src/routes/promotional');
 const geocodingRoutes = require('./src/routes/geocoding');
 
 // Route middleware
@@ -71,6 +72,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/user', userStatsRoutes);
 app.use('/api/revenue', revenueRoutes);
+app.use('/api/promotional', promotionalRoutes);
 app.use('/api/geocoding', geocodingRoutes);
 
 // Serve static files

@@ -135,23 +135,26 @@ class OrderNotificationService {
     }
 
     // Show toast notification
-    const { default: toast } = require('react-hot-toast');
-    if (newOrders.length === 1) {
-      toast.success(`New order received! Order #${newOrders[0]._id.slice(-6)}`, {
-        duration: 5000,
-        onClick: () => {
-          // Navigate to orders page
-          window.location.href = '/orders';
-        }
-      });
-    } else {
-      toast.success(`${newOrders.length} new orders received!`, {
-        duration: 5000,
-        onClick: () => {
-          window.location.href = '/orders';
-        }
-      });
-    }
+    import('react-hot-toast').then(({ default: toast }) => {
+      if (newOrders.length === 1) {
+        toast.success(`New order received! Order #${newOrders[0]._id.slice(-6)}`, {
+          duration: 5000,
+          onClick: () => {
+            // Navigate to orders page
+            window.location.href = '/orders';
+          }
+        });
+      } else {
+        toast.success(`${newOrders.length} new orders received!`, {
+          duration: 5000,
+          onClick: () => {
+            window.location.href = '/orders';
+          }
+        });
+      }
+    }).catch(error => {
+      console.warn('Could not show toast notification:', error);
+    });
 
     // Dispatch custom event for components to listen to
     window.dispatchEvent(new CustomEvent('newOrdersReceived', {
@@ -162,64 +165,22 @@ class OrderNotificationService {
     this.updateNotificationBadge();
   }
 
-  // Update notification badge
+  // Update notification badge - Disabled for artisans as they receive alerts on dashboard
   updateNotificationBadge() {
-    try {
-      // Update document title with order count
-      const pendingCount = this.pendingOrders.size;
-      if (pendingCount > 0) {
-        document.title = `(${pendingCount}) The Bazaar - New Orders`;
-      } else {
-        document.title = 'The Bazaar';
-      }
-
-      // Update favicon or add notification indicator
-      this.updateFaviconBadge(pendingCount);
-    } catch (error) {
-      console.warn('Could not update notification badge:', error);
-    }
+    // Don't update document title or favicon - artisans receive alerts on their dashboard
+    return;
   }
 
-  // Update favicon with badge
+  // Update favicon with badge - Disabled for artisans as they receive alerts on dashboard
   updateFaviconBadge(count) {
-    try {
-      // This is a simplified version - in production you'd use a proper favicon badge library
-      if (count > 0) {
-        // Add a visual indicator to the page
-        let badge = document.getElementById('order-notification-badge');
-        if (!badge) {
-          badge = document.createElement('div');
-          badge.id = 'order-notification-badge';
-          badge.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            z-index: 9999;
-            animation: pulse 2s infinite;
-          `;
-          document.body.appendChild(badge);
-        }
-        badge.textContent = count > 9 ? '9+' : count;
-        badge.style.display = 'flex';
-      } else {
-        const badge = document.getElementById('order-notification-badge');
-        if (badge) {
-          badge.style.display = 'none';
-        }
-      }
-    } catch (error) {
-      console.warn('Could not update favicon badge:', error);
+    // Remove any existing badge
+    const badge = document.getElementById('order-notification-badge');
+    if (badge) {
+      badge.remove();
     }
+    
+    // Don't create new badges - artisans receive alerts on their dashboard
+    return;
   }
 
   // Get pending orders count

@@ -44,9 +44,121 @@ export function OverviewTab({ profile, onSave, isSaving }) {
     contactInfo: {
       phone: profile.contactInfo?.phone || profile.phone || '',
       email: profile.contactInfo?.email || profile.email || '',
-      website: profile.contactInfo?.website || ''
+      website: profile.contactInfo?.website || '',
+      socialMedia: {
+        instagram: profile.contactInfo?.socialMedia?.instagram || '',
+        facebook: profile.contactInfo?.socialMedia?.facebook || '',
+        twitter: profile.contactInfo?.socialMedia?.twitter || ''
+      }
     }
   });
+
+  // Function to capitalize first letter of each word
+  const capitalizeWords = (str) => {
+    if (!str) return '';
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
+  // Handle artisan name change with auto-capitalization
+  const handleArtisanNameChange = (e) => {
+    const capitalizedName = capitalizeWords(e.target.value);
+    setOverview({ ...overview, artisanName: capitalizedName });
+  };
+
+  // Format phone number as user types
+  const formatPhoneNumber = (value) => {
+    // Remove all non-digits
+    const phoneNumber = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    if (phoneNumber.length <= 3) {
+      return phoneNumber;
+    } else if (phoneNumber.length <= 6) {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    } else {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+    }
+  };
+
+  // Handle phone number change with formatting
+  const handlePhoneChange = (e) => {
+    const formattedPhone = formatPhoneNumber(e.target.value);
+    setOverview({ 
+      ...overview, 
+      contactInfo: { ...overview.contactInfo, phone: formattedPhone } 
+    });
+  };
+
+  // Validate email format
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Handle email change with validation
+  const handleEmailChange = (e) => {
+    const email = e.target.value;
+    setOverview({ 
+      ...overview, 
+      contactInfo: { ...overview.contactInfo, email: email } 
+    });
+  };
+
+  // Validate website URL format
+  const validateWebsite = (url) => {
+    if (!url) return true; // Empty is valid (optional field)
+    try {
+      new URL(url.startsWith('http') ? url : `https://${url}`);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  // Handle website change with validation
+  const handleWebsiteChange = (e) => {
+    let website = e.target.value;
+    // Auto-add https:// if not present
+    if (website && !website.startsWith('http://') && !website.startsWith('https://')) {
+      website = `https://${website}`;
+    }
+    setOverview({ 
+      ...overview, 
+      contactInfo: { ...overview.contactInfo, website: website } 
+    });
+  };
+
+  // Format social media handles
+  const formatSocialHandle = (handle, platform) => {
+    if (!handle) return '';
+    
+    // Remove any existing @ symbol
+    let formatted = handle.replace(/^@/, '');
+    
+    // Add @ for Instagram and Twitter
+    if (platform === 'instagram' || platform === 'twitter') {
+      formatted = formatted.startsWith('@') ? formatted : `@${formatted}`;
+    }
+    
+    return formatted;
+  };
+
+  // Handle social media changes
+  const handleSocialMediaChange = (platform, value) => {
+    const formattedValue = formatSocialHandle(value, platform);
+    setOverview({ 
+      ...overview, 
+      contactInfo: { 
+        ...overview.contactInfo, 
+        socialMedia: { 
+          ...overview.contactInfo.socialMedia, 
+          [platform]: formattedValue 
+        } 
+      } 
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,17 +172,30 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         <p className="text-gray-600">Manage your business information and contact details</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Artisan Name *</label>
+      {/* Artisan Name - Critical Element */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
+        <div className="max-w-2xl">
+          <label className="block text-lg font-bold text-gray-900 mb-2">
+            🎨 Your Artisan Name *
+          </label>
+          <p className="text-sm text-gray-600 mb-4">
+            This is your brand identity - how customers will know and remember you
+          </p>
           <input
             type="text"
             value={overview.artisanName}
-            onChange={(e) => setOverview({ ...overview, artisanName: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            onChange={handleArtisanNameChange}
+            className="block w-full rounded-lg border-2 border-amber-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 text-lg font-medium py-3 px-4"
+            placeholder="e.g., Sarah's Sweet Creations, Artisan Bread Co."
             required
           />
+          <p className="text-xs text-gray-500 mt-2">
+            ✨ Auto-capitalized for consistency
+          </p>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         <div>
           <label className="block text-sm font-medium text-gray-700">Business Type</label>
@@ -89,62 +214,127 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Business Phone</label>
-          <input
-            type="tel"
-            value={overview.contactInfo.phone}
-            onChange={(e) => setOverview({ 
-              ...overview, 
-              contactInfo: { ...overview.contactInfo, phone: e.target.value } 
-            })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            placeholder="(555) 123-4567"
-          />
-        </div>
+      {/* Contact Information */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">📞 Contact Information</h4>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Business Email</label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Business Phone</label>
+            <input
+              type="tel"
+              value={overview.contactInfo.phone}
+              onChange={handlePhoneChange}
+              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 ${
+                overview.contactInfo.phone && overview.contactInfo.phone.replace(/\D/g, '').length !== 10 
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                  : 'border-gray-300'
+              }`}
+              placeholder="(555) 123-4567"
+              maxLength="14"
+            />
+            {overview.contactInfo.phone && overview.contactInfo.phone.replace(/\D/g, '').length !== 10 && (
+              <p className="text-xs text-red-500 mt-1">Please enter a complete 10-digit phone number</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">Format: (XXX) XXX-XXXX</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Business Email</label>
+            <input
+              type="email"
+              value={overview.contactInfo.email}
+              onChange={handleEmailChange}
+              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 ${
+                overview.contactInfo.email && !validateEmail(overview.contactInfo.email)
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                  : 'border-gray-300'
+              }`}
+              placeholder="hello@yourartisan.com"
+            />
+            {overview.contactInfo.email && !validateEmail(overview.contactInfo.email) && (
+              <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">Format: name@domain.com</p>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700">Website</label>
           <input
-            type="email"
-            value={overview.contactInfo.email}
-            onChange={(e) => setOverview({ 
-              ...overview, 
-              contactInfo: { ...overview.contactInfo, email: e.target.value } 
-            })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            type="url"
+            value={overview.contactInfo.website}
+            onChange={handleWebsiteChange}
+            className={`mt-1 block w-full rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 ${
+              overview.contactInfo.website && !validateWebsite(overview.contactInfo.website)
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                : 'border-gray-300'
+            }`}
+            placeholder="your-website.com"
           />
+          {overview.contactInfo.website && !validateWebsite(overview.contactInfo.website) && (
+            <p className="text-xs text-red-500 mt-1">Please enter a valid website URL</p>
+          )}
+          <p className="text-xs text-gray-500 mt-1">Format: your-website.com (https:// will be added automatically)</p>
+        </div>
+
+        {/* Social Media */}
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">Social Media (Optional)</label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Instagram</label>
+              <input
+                type="text"
+                value={overview.contactInfo.socialMedia.instagram}
+                onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="yourhandle"
+              />
+              <p className="text-xs text-gray-500 mt-1">@ will be added automatically</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Facebook</label>
+              <input
+                type="text"
+                value={overview.contactInfo.socialMedia.facebook}
+                onChange={(e) => handleSocialMediaChange('facebook', e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="Your Page Name"
+              />
+              <p className="text-xs text-gray-500 mt-1">Your Facebook page name</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Twitter/X</label>
+              <input
+                type="text"
+                value={overview.contactInfo.socialMedia.twitter}
+                onChange={(e) => handleSocialMediaChange('twitter', e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                placeholder="yourhandle"
+              />
+              <p className="text-xs text-gray-500 mt-1">@ will be added automatically</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Website</label>
-        <input
-          type="url"
-          value={overview.contactInfo.website}
-          onChange={(e) => setOverview({ 
-            ...overview, 
-            contactInfo: { ...overview.contactInfo, website: e.target.value } 
-          })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="https://your-website.com"
-        />
-      </div>
-
-              <div>
-          <label className="block text-sm font-medium text-gray-700">Product Categories</label>
-          <div className="mt-1 max-h-64 overflow-y-auto border border-gray-300 rounded-md p-3 bg-gray-50">
+      {/* Product Categories */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">🏷️ Product Categories</h4>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">What Do You Create?</label>
+          <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-4 bg-gray-50">
             <div className="space-y-4">
               {getGroupedSubcategories().map((categoryGroup) => (
                 <div key={categoryGroup.categoryKey} className="border-b border-gray-200 pb-3 last:border-b-0">
-                  <div className="flex items-center space-x-2 mb-2">
+                  <div className="flex items-center space-x-2 mb-3">
                     <span className="text-lg">{categoryGroup.categoryIcon}</span>
                     <h4 className="font-semibold text-gray-800 text-sm">{categoryGroup.categoryName}</h4>
                   </div>
-                  <div className="grid grid-cols-1 gap-1 ml-6">
+                  <div className="grid grid-cols-1 gap-2 ml-6">
                     {categoryGroup.subcategories.map((subcategory) => (
-                      <label key={subcategory.key} className="flex items-center space-x-2 cursor-pointer hover:bg-white hover:shadow-sm rounded p-1 transition-colors">
+                      <label key={subcategory.key} className="flex items-center space-x-3 cursor-pointer hover:bg-white hover:shadow-sm rounded-lg p-2 transition-colors">
                         <input
                           type="checkbox"
                           checked={overview.category.includes(subcategory.key)}
@@ -165,7 +355,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
                         />
                         <span className="text-sm">
                           <span className="text-base">{subcategory.icon}</span>
-                          <span className="font-medium">{subcategory.name}</span>
+                          <span className="font-medium ml-1">{subcategory.name}</span>
                         </span>
                       </label>
                     ))}
@@ -174,10 +364,73 @@ export function OverviewTab({ profile, onSave, isSaving }) {
               ))}
             </div>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Select all categories that apply to your products
+          <p className="text-sm text-gray-500 mt-2">
+            💡 Select all categories that apply to your products. This helps customers find your offerings.
           </p>
         </div>
+      </div>
+
+      {/* Business Address */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">📍 Business Address</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+            <input
+              type="text"
+              value={overview.address.street}
+              onChange={(e) => setOverview({ 
+                ...overview, 
+                address: { ...overview.address, street: e.target.value } 
+              })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="123 Main Street"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+            <input
+              type="text"
+              value={overview.address.city}
+              onChange={(e) => setOverview({ 
+                ...overview, 
+                address: { ...overview.address, city: e.target.value } 
+              })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="Toronto"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Province/State</label>
+            <input
+              type="text"
+              value={overview.address.state}
+              onChange={(e) => setOverview({ 
+                ...overview, 
+                address: { ...overview.address, state: e.target.value } 
+              })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="Ontario"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+            <input
+              type="text"
+              value={overview.address.zipCode}
+              onChange={(e) => setOverview({ 
+                ...overview, 
+                address: { ...overview.address, zipCode: e.target.value } 
+              })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="M5V 3A8"
+            />
+          </div>
+        </div>
+        <p className="text-sm text-gray-500 mt-3">
+          📍 Your business address helps customers find you and understand your location.
+        </p>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700">Business Address</label>
@@ -225,27 +478,39 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Business Description</label>
-        <textarea
-          value={overview.description}
-          onChange={(e) => setOverview({ ...overview, description: e.target.value })}
-          rows={4}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="Tell customers about your business, your story, and what makes you unique..."
-        />
+      {/* Business Description */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">📖 About Your Business</h4>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Business Description</label>
+          <textarea
+            value={overview.description}
+            onChange={(e) => setOverview({ ...overview, description: e.target.value })}
+            rows={4}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            placeholder="Tell customers about your business, what makes you unique, and why they should choose your products..."
+          />
+          <p className="text-xs text-gray-500 mt-1">This helps customers understand what you offer and why they should choose you</p>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Specialties</label>
-        <input
-          type="text"
-          value={overview.specialties.join(', ')}
-          onChange={(e) => setOverview({ ...overview, specialties: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="e.g., Organic bread, Sourdough, Gluten-free options"
-        />
-        <p className="mt-1 text-sm text-gray-500">Separate multiple specialties with commas</p>
+      {/* Specialties */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">⭐ Your Specialties</h4>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">What You're Known For</label>
+          <input
+            type="text"
+            value={overview.specialties.join(', ')}
+            onChange={(e) => setOverview({ ...overview, specialties: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            placeholder="e.g., Organic sourdough bread, Gluten-free pastries, Seasonal fruit preserves"
+          />
+          <p className="text-sm text-gray-500 mt-2">
+            💡 Separate multiple specialties with commas. These help customers find your unique offerings.
+          </p>
+        </div>
       </div>
       
       <div className="flex justify-end pt-6 border-t border-gray-200">
@@ -271,15 +536,11 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 export function OperationsTab({ profile, onSave, isSaving }) {
   const [operations, setOperations] = useState({
     productionMethods: profile.operationDetails?.productionMethods || '',
-    sustainabilityPractices: profile.operationDetails?.sustainabilityPractices || '',
     certifications: profile.operationDetails?.certifications || [],
     yearsInBusiness: profile.operationDetails?.yearsInBusiness || '',
     productionCapacity: profile.operationDetails?.productionCapacity || '',
     qualityStandards: profile.operationDetails?.qualityStandards || '',
-    equipment: profile.operationDetails?.equipment || '',
-    processes: profile.operationDetails?.processes || '',
-    ingredients: profile.operationDetails?.ingredients || '',
-    facilities: profile.operationDetails?.facilities || ''
+    ingredients: profile.operationDetails?.ingredients || ''
   });
 
   const handleSubmit = async (e) => {
@@ -290,125 +551,105 @@ export function OperationsTab({ profile, onSave, isSaving }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Business Practices & Operations</h3>
-        <p className="text-gray-600">Share your production methods, certifications, and business practices</p>
+        <h3 className="text-2xl font-bold text-gray-900 mb-2">🛠️ Your Creative Process & Operations</h3>
+        <p className="text-gray-600">Share your unique approach to creating products and managing your craft</p>
       </div>
       
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Production Methods</label>
-        <textarea
-          value={operations.productionMethods}
-          onChange={(e) => setOperations({ ...operations, productionMethods: e.target.value })}
-          rows={4}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="Describe your production methods, techniques, and processes..."
-        />
-      </div>
+      {/* Production & Quality */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">🏭 Production & Quality</h4>
+        
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Production Methods</label>
+            <textarea
+              value={operations.productionMethods}
+              onChange={(e) => setOperations({ ...operations, productionMethods: e.target.value })}
+              rows={3}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="How do you make your products? What methods, techniques, or processes do you use?"
+            />
+            <p className="text-xs text-gray-500 mt-1">This helps customers understand how your products are made</p>
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Ingredients & Sourcing</label>
-        <textarea
-          value={operations.ingredients}
-          onChange={(e) => setOperations({ ...operations, ingredients: e.target.value })}
-          rows={3}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="Describe your ingredients, where you source them, local suppliers, organic practices..."
-        />
-      </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ingredients & Materials</label>
+            <textarea
+              value={operations.ingredients}
+              onChange={(e) => setOperations({ ...operations, ingredients: e.target.value })}
+              rows={3}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="What ingredients or materials do you use? Do you source locally, use organic ingredients, or have special suppliers?"
+            />
+          </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Quality Standards</label>
-        <textarea
-          value={operations.qualityStandards}
-          onChange={(e) => setOperations({ ...operations, qualityStandards: e.target.value })}
-          rows={3}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="What quality standards do you follow? Food safety, testing, etc..."
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Certifications</label>
-        <input
-          type="text"
-          value={operations.certifications.join(', ')}
-          onChange={(e) => setOperations({ ...operations, certifications: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="e.g., Organic, Fair Trade, HACCP, Kosher, Halal"
-        />
-        <p className="mt-1 text-sm text-gray-500">Separate multiple certifications with commas</p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Sustainability Practices</label>
-        <textarea
-          value={operations.sustainabilityPractices}
-          onChange={(e) => setOperations({ ...operations, sustainabilityPractices: e.target.value })}
-          rows={3}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="Describe your sustainability practices, waste reduction, eco-friendly packaging..."
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Processes & Methods</label>
-        <textarea
-          value={operations.processes}
-          onChange={(e) => setOperations({ ...operations, processes: e.target.value })}
-          rows={3}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-          placeholder="Describe your production processes, methods, techniques..."
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Facilities</label>
-          <textarea
-            value={operations.facilities}
-            onChange={(e) => setOperations({ ...operations, facilities: e.target.value })}
-            rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            placeholder="Describe your facilities, size, location, setup..."
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Quality Standards</label>
+            <textarea
+              value={operations.qualityStandards}
+              onChange={(e) => setOperations({ ...operations, qualityStandards: e.target.value })}
+              rows={3}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="How do you ensure quality? What standards do you follow?"
+            />
+          </div>
         </div>
+      </div>
+
+      {/* Certifications */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">🏆 Certifications</h4>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700">Equipment</label>
-          <textarea
-            value={operations.equipment}
-            onChange={(e) => setOperations({ ...operations, equipment: e.target.value })}
-            rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            placeholder="What equipment do you use? Traditional methods, modern technology..."
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Years in Business</label>
-          <input
-            type="number"
-            value={operations.yearsInBusiness}
-            onChange={(e) => setOperations({ ...operations, yearsInBusiness: parseInt(e.target.value) })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            min="0"
-            placeholder="e.g., 5"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Production Capacity</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Certifications & Training</label>
           <input
             type="text"
-            value={operations.productionCapacity}
-            onChange={(e) => setOperations({ ...operations, productionCapacity: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            placeholder="e.g., 100 loaves per day, 50kg per week"
+            value={operations.certifications.join(', ')}
+            onChange={(e) => setOperations({ ...operations, certifications: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            placeholder="e.g., Food Safety, Organic, Local Workshops"
           />
+          <p className="text-sm text-gray-500 mt-2">
+            💡 Separate multiple certifications with commas. This builds customer trust.
+          </p>
         </div>
       </div>
+
+
+
+      {/* Experience */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">📈 Experience</h4>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
+            <input
+              type="number"
+              value={operations.yearsInBusiness}
+              onChange={(e) => setOperations({ ...operations, yearsInBusiness: parseInt(e.target.value) })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              min="0"
+              placeholder="e.g., 3"
+            />
+            <p className="text-xs text-gray-500 mt-1">How long have you been practicing your craft?</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Typical Production</label>
+            <input
+              type="text"
+              value={operations.productionCapacity}
+              onChange={(e) => setOperations({ ...operations, productionCapacity: e.target.value })}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              placeholder="e.g., 20 items per week, 5 batches per month"
+            />
+            <p className="text-xs text-gray-500 mt-1">What's your typical production volume?</p>
+          </div>
+        </div>
+      </div>
+
+
       
       <div className="flex justify-end pt-6 border-t border-gray-200">
         <button
@@ -459,55 +700,63 @@ export function HoursTab({ profile, onSave, isSaving }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Business Hours</h3>
-        <p className="text-gray-600">Set your operating hours for each day of the week</p>
+        <h3 className="text-2xl font-bold text-gray-900 mb-2">🕒 Your Availability & Hours</h3>
+        <p className="text-gray-600">Set your availability for orders and customer inquiries</p>
       </div>
       
-      <div className="space-y-4">
-        {days.map((day) => (
-          <div key={day.key} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg">
-            <div className="w-24">
-              <label className="block text-sm font-medium text-gray-700">{day.name}</label>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={!hours[day.key].closed}
-                onChange={(e) => setHours({
-                  ...hours,
-                  [day.key]: { ...hours[day.key], closed: !e.target.checked }
-                })}
-                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-              />
-              <span className="text-sm text-gray-600">Open</span>
-            </div>
-            
-            {!hours[day.key].closed && (
-              <>
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">📅 Weekly Schedule</h4>
+        
+        <div className="space-y-4">
+          {days.map((day) => (
+            <div key={day.key} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <div className="w-24">
+                <label className="block text-sm font-medium text-gray-700">{day.name}</label>
+              </div>
+              
+              <div className="flex items-center space-x-3">
                 <input
-                  type="time"
-                  value={hours[day.key].open}
+                  type="checkbox"
+                  checked={!hours[day.key].closed}
                   onChange={(e) => setHours({
                     ...hours,
-                    [day.key]: { ...hours[day.key], open: e.target.value }
+                    [day.key]: { ...hours[day.key], closed: !e.target.checked }
                   })}
-                  className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                 />
-                <span className="text-gray-500">to</span>
-                <input
-                  type="time"
-                  value={hours[day.key].close}
-                  onChange={(e) => setHours({
-                    ...hours,
-                    [day.key]: { ...hours[day.key], close: e.target.value }
-                  })}
-                  className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                />
-              </>
-            )}
-          </div>
-        ))}
+                <span className="text-sm text-gray-600 font-medium">Available</span>
+              </div>
+              
+              {!hours[day.key].closed && (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="time"
+                    value={hours[day.key].open}
+                    onChange={(e) => setHours({
+                      ...hours,
+                      [day.key]: { ...hours[day.key], open: e.target.value }
+                    })}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  />
+                  <span className="text-gray-500 font-medium">to</span>
+                  <input
+                    type="time"
+                    value={hours[day.key].close}
+                    onChange={(e) => setHours({
+                      ...hours,
+                      [day.key]: { ...hours[day.key], close: e.target.value }
+                    })}
+                    className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <p className="text-sm text-gray-500 mt-4">
+          💡 Set your availability so customers know when they can reach you and when you'll be processing orders.
+        </p>
       </div>
       
       <div className="flex justify-end pt-6 border-t border-gray-200">

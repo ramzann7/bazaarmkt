@@ -84,10 +84,8 @@ export default function Cart() {
 
   const loadUserProfile = async () => {
     try {
-      console.log('🔄 Loading user profile for cart...');
       const profile = await getProfile();
       setUserProfile(profile);
-      console.log('✅ User profile loaded:', profile);
       
       // Load payment methods from profile
       setIsLoadingPaymentMethods(true);
@@ -95,7 +93,6 @@ export default function Cart() {
         // Use payment methods from profile directly
         const methods = profile.paymentMethods || [];
         setPaymentMethods(methods);
-        console.log('💳 Payment methods loaded:', methods);
         
         // Set default payment method
         const defaultPayment = methods.find(pay => pay.isDefault) || methods[0];
@@ -108,7 +105,7 @@ export default function Cart() {
             cvv: '',
             cardholderName: defaultPayment.cardholderName
           });
-          console.log('💳 Default payment method set:', defaultPayment);
+
         }
       } catch (error) {
         console.error('Error loading payment methods:', error);
@@ -129,9 +126,6 @@ export default function Cart() {
           zipCode: defaultAddress.zipCode,
           country: defaultAddress.country
         });
-        console.log('📍 Default address set from profile:', defaultAddress);
-      } else {
-        console.log('⚠️ No addresses found in profile');
       }
       
       // Load delivery options for each artisan
@@ -142,16 +136,9 @@ export default function Cart() {
   };
 
   const loadCart = () => {
-    console.log('🛒 Loading cart for user:', currentUserId);
-    
     // Load cart for both authenticated users and guest users
     const cartItems = cartService.getCart(currentUserId);
     const groupedCart = cartService.getCartByArtisan(currentUserId);
-    
-    console.log('🛒 Cart items loaded:', cartItems);
-    console.log('🛒 Grouped cart:', groupedCart);
-    console.log('🛒 Cart count:', cartItems.length);
-    console.log('🛒 Total items:', cartItems.reduce((total, item) => total + item.quantity, 0));
     
     setCart(cartItems);
     setCartByArtisan(groupedCart);
@@ -216,39 +203,11 @@ export default function Cart() {
   };
 
   const removeItem = (itemId) => {
-    console.log('🗑️ Removing item:', itemId, 'for user:', currentUserId);
     cartService.removeFromCart(itemId, currentUserId);
     toast.success('Item removed from cart');
   };
 
-  // Debug function to check localStorage
-  const debugCart = () => {
-    console.log('🔍 Debugging cart...');
-    console.log('Current user ID:', currentUserId);
-    console.log('Is authenticated:', isAuthenticated);
-    console.log('Is guest:', isGuest);
-    
-    if (currentUserId) {
-      const userCartKey = `food_finder_cart_${currentUserId}`;
-      const userCartData = localStorage.getItem(userCartKey);
-      console.log('User cart key:', userCartKey);
-      console.log('User cart data:', userCartData);
-      if (userCartData) {
-        console.log('User cart parsed:', JSON.parse(userCartData));
-      }
-    } else {
-      const guestCartKey = 'food_finder_guest_cart';
-      const guestCartData = localStorage.getItem(guestCartKey);
-      console.log('Guest cart key:', guestCartKey);
-      console.log('Guest cart data:', guestCartData);
-      if (guestCartData) {
-        console.log('Guest cart parsed:', JSON.parse(guestCartData));
-      }
-    }
-    
-    console.log('Current cart state:', cart);
-    console.log('Current cart by artisan:', cartByArtisan);
-  };
+
 
   const getTotalItems = () => {
     return cart.reduce((total, item) => total + item.quantity, 0);
@@ -310,10 +269,9 @@ export default function Cart() {
     // For authenticated users, refresh profile data to ensure we have the latest
     if (isAuthenticated && !isGuest) {
       try {
-        console.log('🔄 Refreshing profile data before payment step...');
         await loadUserProfile();
       } catch (error) {
-        console.error('❌ Error refreshing profile data:', error);
+        console.error('Error refreshing profile data:', error);
         // Continue with current data if refresh fails
       }
     }
@@ -551,7 +509,7 @@ export default function Cart() {
                               // For authenticated users, ensure we have the latest profile data
                               if (isAuthenticated && !isGuest) {
                                 try {
-                                  console.log('🔄 Refreshing profile data after payment method selection...');
+                          
                                   await loadUserProfile();
                                 } catch (error) {
                                   console.error('❌ Error refreshing profile data:', error);
@@ -1005,15 +963,7 @@ export default function Cart() {
               Start Shopping
             </button>
             
-            {/* Debug button - only show in development */}
-            {process.env.NODE_ENV === 'development' && (
-              <button
-                onClick={debugCart}
-                className="bg-gray-500 text-white py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Debug Cart
-              </button>
-            )}
+
           </div>
 
         </div>
@@ -1030,15 +980,7 @@ export default function Cart() {
             <div className="flex items-center space-x-4">
               <span className="text-gray-600">{getTotalItems()} items</span>
               
-              {/* Debug button - only show in development */}
-              {process.env.NODE_ENV === 'development' && (
-                <button
-                  onClick={debugCart}
-                  className="bg-gray-500 text-white py-1 px-3 rounded text-sm hover:bg-gray-600 transition-colors"
-                >
-                  Debug
-                </button>
-              )}
+
             </div>
           </div>
 

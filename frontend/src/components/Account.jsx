@@ -92,24 +92,52 @@ export default function Account() {
     }
   ]);
 
-  // Patron-specific tabs
-  const tabs = [
-    { id: 'dashboard', name: 'Dashboard', icon: UserIcon },
-    { id: 'personal', name: 'Personal Info', icon: UserIcon },
-    { id: 'addresses', name: 'Delivery Addresses', icon: MapPinIcon },
-    { id: 'orders', name: 'My Orders', icon: ShoppingBagIcon },
-    { id: 'favorites', name: 'Favorite Artisans', icon: HeartIcon },
-    { id: 'notifications', name: 'Notifications', icon: BellIcon },
-    { id: 'payment', name: 'Payment Methods', icon: CreditCardIcon },
-    { id: 'security', name: 'Security', icon: ShieldCheckIcon },
-    { id: 'settings', name: 'Account Settings', icon: CogIcon }
-  ];
+  // Tabs based on user role
+  const getTabs = () => {
+    const isArtisan = user?.role === 'artisan' || user?.role === 'producer' || user?.role === 'food_maker';
+    
+    if (isArtisan) {
+      return [
+        { id: 'dashboard', name: 'Dashboard', icon: UserIcon, action: () => navigate('/dashboard') },
+        { id: 'personal', name: 'Personal Info', icon: UserIcon },
+        { id: 'orders', name: 'My Orders', icon: ShoppingBagIcon },
+        { id: 'notifications', name: 'Notifications', icon: BellIcon },
+        { id: 'payment', name: 'Payment Methods', icon: CreditCardIcon },
+        { id: 'security', name: 'Security', icon: ShieldCheckIcon },
+        { id: 'settings', name: 'Account Settings', icon: CogIcon }
+      ];
+    } else {
+      return [
+        { id: 'dashboard', name: 'Dashboard', icon: UserIcon },
+        { id: 'personal', name: 'Personal Info', icon: UserIcon },
+        { id: 'addresses', name: 'Delivery Addresses', icon: MapPinIcon },
+        { id: 'orders', name: 'My Orders', icon: ShoppingBagIcon },
+        { id: 'favorites', name: 'Favorite Artisans', icon: HeartIcon },
+        { id: 'notifications', name: 'Notifications', icon: BellIcon },
+        { id: 'payment', name: 'Payment Methods', icon: CreditCardIcon },
+        { id: 'security', name: 'Security', icon: ShieldCheckIcon },
+        { id: 'settings', name: 'Account Settings', icon: CogIcon }
+      ];
+    }
+  };
+
+  const tabs = getTabs();
 
   useEffect(() => {
     async function fetchUser() {
       try {
-        const data = await getProfile();
-        setUser(data.user);
+        const userData = await getProfile();
+        setUser(userData);
+        
+        // If user is an artisan and trying to access dashboard, redirect to main dashboard
+        if (userData.role === 'artisan' || userData.role === 'producer' || userData.role === 'food_maker') {
+          const urlParams = new URLSearchParams(location.search);
+          const tabParam = urlParams.get('tab');
+          if (tabParam === 'dashboard') {
+            navigate('/dashboard');
+            return;
+          }
+        }
       } catch (err) {
         toast.error("Session expired. Please login again.");
         logoutUser();
@@ -119,7 +147,7 @@ export default function Account() {
       }
     }
     fetchUser();
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   // Handle URL parameters for tab navigation
   useEffect(() => {
@@ -188,7 +216,13 @@ export default function Account() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      if (tab.action) {
+                        tab.action();
+                      } else {
+                        setActiveTab(tab.id);
+                      }
+                    }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-amber-500 text-amber-600'
@@ -205,7 +239,19 @@ export default function Account() {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'dashboard' && (
+            {activeTab === 'dashboard' && user && (user.role === 'artisan' || user.role === 'producer' || user.role === 'food_maker') && (
+              <div className="text-center py-8">
+                <h3 className="text-lg font-semibold text-stone-900 mb-2">Artisan Dashboard</h3>
+                <p className="text-stone-600 mb-4">Artisans have access to a dedicated dashboard with business analytics.</p>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Go to Artisan Dashboard
+                </button>
+              </div>
+            )}
+            {activeTab === 'dashboard' && user && !(user.role === 'artisan' || user.role === 'producer' || user.role === 'food_maker') && (
               <DashboardTab user={user} stats={stats} recentOrders={recentOrders} favoriteArtisans={favoriteArtisans} getStatusColor={getStatusColor} />
             )}
             {activeTab === 'personal' && (

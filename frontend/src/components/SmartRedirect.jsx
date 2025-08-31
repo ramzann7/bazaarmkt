@@ -24,8 +24,6 @@ export default function SmartRedirect() {
         return;
       }
 
-
-
       // Check if it's a guest user
       const isGuest = guestService.isGuestUser();
       if (isGuest) {
@@ -43,34 +41,25 @@ export default function SmartRedirect() {
       const isNewUser = onboardingService.isNewUser(userId);
       
       if (isNewUser) {
-        // New user - redirect to profile setup regardless of role
-        setRedirectPath('/profile');
-        return;
+        // For existing artisan users, mark onboarding as completed automatically
+        if (userRole === 'artisan' || userRole === 'producer' || userRole === 'food_maker') {
+          onboardingService.markOnboardingCompleted(userId);
+          console.log('Auto-marked onboarding as completed for existing artisan user');
+        } else {
+          // New user - redirect to profile setup for non-artisan users
+          setRedirectPath('/profile');
+          return;
+        }
       }
 
       // Returning users - route based on role
       if (userRole === 'artisan' || userRole === 'producer' || userRole === 'food_maker') {
-        // Artisans go to orders page to check for new orders
-        try {
-          const orders = await orderService.getArtisanOrders();
-          const hasNewOrders = orders.some(order => 
-            order.status === 'pending' || order.status === 'confirmed'
-          );
-          
-          if (hasNewOrders) {
-            // Has new orders - go to orders page
-            setRedirectPath('/orders');
-          } else {
-            // No new orders - go to dashboard
-            setRedirectPath('/dashboard');
-          }
-        } catch (error) {
-          console.error('Error checking artisan orders:', error);
-          // Fallback to dashboard
-          setRedirectPath('/dashboard');
-        }
+        // For artisans, always go to dashboard first
+        // Orders will be checked and displayed on the dashboard
+        setRedirectPath('/dashboard');
       } else {
         // Patrons and other users go to homepage to see products
+        // Dashboard is now artisan-only
         setRedirectPath('/');
       }
       

@@ -11,11 +11,28 @@ import { preloadService } from "./services/preloadService";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import { orderNotificationService } from "./services/orderNotificationService";
 
+// Artisan-only route component
+const ArtisanOnlyRoute = ({ children }) => {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  
+  // Check if user is an artisan
+  if (user.role !== 'artisan' && user.role !== 'producer' && user.role !== 'food_maker') {
+    // Redirect patrons to home page
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
+
 // Lazy load components for better performance
 const Home = lazy(() => import("./components/home.jsx"));
 const Login = lazy(() => import("./components/login.jsx"));
 const Register = lazy(() => import("./components/register.jsx"));
-const Dashboard = lazy(() => import("./components/dashboard.jsx"));
+const Dashboard = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
 const Artisans = lazy(() => import("./components/artisans.jsx"));
 const Profile = lazy(() => import("./components/Profile.jsx"));
 const Account = lazy(() => import("./components/Account.jsx"));
@@ -28,7 +45,17 @@ const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const Search = lazy(() => import("./components/Search.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 const SimpleTest = lazy(() => import("./components/SimpleTest.jsx"));
+
+const DashboardTest = lazy(() => import("./components/dashboard/DashboardTest.jsx"));
+const UserRoleCheck = lazy(() => import("./components/dashboard/UserRoleCheck.jsx"));
+const DashboardDebug = lazy(() => import("./components/dashboard/DashboardDebug.jsx"));
+const DashboardSimple = lazy(() => import("./components/dashboard/DashboardSimple.jsx"));
+const DashboardMinimal = lazy(() => import("./components/dashboard/DashboardMinimal.jsx"));
+const DashboardTestSimple = lazy(() => import("./components/dashboard/DashboardTestSimple.jsx"));
+const DashboardFixed = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
+const LoginDebug = lazy(() => import("./components/dashboard/LoginDebug.jsx"));
 const ArtisanDetails = lazy(() => import("./components/ArtisanDetails.jsx"));
+const ArtisanShop = lazy(() => import("./components/ArtisanShop.jsx"));
 const FindArtisans = lazy(() => import("./components/FindArtisans.jsx"));
 const Community = lazy(() => import("./components/Community.jsx"));
 const EventDetails = lazy(() => import("./components/EventDetails.jsx"));
@@ -38,7 +65,6 @@ const BuyingLocal = lazy(() => import("./components/BuyingLocal.jsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
 const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
 const AdminUserManagement = lazy(() => import("./components/AdminUserManagement.jsx"));
-const ArtisanRevenueDashboard = lazy(() => import("./components/ArtisanRevenueDashboard.jsx"));
 const RevenueTransparency = lazy(() => import("./components/RevenueTransparency.jsx"));
 const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
@@ -93,7 +119,15 @@ function AppRoutes() {
         />
         <Route
           path="/dashboard"
-          element={isAuthenticated ? <SmartRedirect /> : <Navigate to="/login" />}
+          element={
+            isAuthenticated ? (
+              <ArtisanOnlyRoute>
+                <Dashboard />
+              </ArtisanOnlyRoute>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
         />
         <Route
           path="/profile"
@@ -115,7 +149,17 @@ function AppRoutes() {
         <Route path="/search-page" element={<Search />} />
         <Route path="/test-reference" element={<TestReferenceData />} />
         <Route path="/simple-test" element={<SimpleTest />} />
-        <Route path="/artisan/:id" element={<ArtisanDetails />} />
+
+        <Route path="/dashboard-test" element={<DashboardTest />} />
+        <Route path="/user-role-check" element={<UserRoleCheck />} />
+        <Route path="/dashboard-debug" element={<DashboardDebug />} />
+        <Route path="/dashboard-simple" element={<DashboardSimple />} />
+        <Route path="/dashboard-minimal" element={<DashboardMinimal />} />
+        <Route path="/dashboard-test-simple" element={<DashboardTestSimple />} />
+        <Route path="/dashboard-fixed" element={<DashboardFixed />} />
+        <Route path="/login-debug" element={<LoginDebug />} />
+        <Route path="/artisan/:id" element={<ArtisanShop />} />
+        <Route path="/shop/:id" element={<ArtisanShop />} />
         <Route path="/find-artisans" element={<FindArtisans />} />
         <Route path="/community" element={<Community />} />
         <Route path="/event/:id" element={<EventDetails />} />
@@ -153,11 +197,7 @@ function AppRoutes() {
           element={isAuthenticated ? <AdminAnalytics /> : <Navigate to="/login" />}
         />
         
-        {/* Artisan Revenue Routes */}
-        <Route
-          path="/artisan/revenue"
-          element={isAuthenticated ? <ArtisanRevenueDashboard /> : <Navigate to="/login" />}
-        />
+
         
         {/* Transparency Route */}
         <Route path="/transparency" element={<RevenueTransparency />} />

@@ -57,11 +57,13 @@ export default function Navbar() {
         cachedCartCount = cartService.getCartCount(user._id);
         cacheService.set(cartCountKey, cachedCartCount, CACHE_TTL.CART_COUNT);
       }
+      console.log('🛒 Navbar: Setting cart count for user:', { userId: user._id, count: cachedCartCount });
       setCartCount(cachedCartCount);
     } else {
       // For guest users, always get fresh cart count
       setIsGuest(true);
       const guestCartCount = cartService.getCartCount(null);
+      console.log('🛒 Navbar: Setting cart count for guest:', { count: guestCartCount });
       setCartCount(guestCartCount);
     }
   }, [user]);
@@ -109,9 +111,11 @@ export default function Navbar() {
   useEffect(() => {
     const handleCartUpdate = (event) => {
       const { userId, count } = event.detail;
+      console.log('🛒 Navbar received cart update:', { userId, count, currentUser: user?._id });
       
       // Update cart count if it's for the current user or guest
       if ((user && userId === user._id) || (!user && userId === null)) {
+        console.log('🛒 Updating cart count to:', count);
         setCartCount(count);
         
         // Clear cache for authenticated users
@@ -494,25 +498,32 @@ export default function Navbar() {
                       )}
                       {user?.role !== 'admin' && (
                         <>
-                          <Link to="/dashboard" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                            Dashboard
-                          </Link>
-                          <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                            My Profile
-                          </Link>
                           {user?.role === 'artisan' && (
                             <>
+                              <Link to="/dashboard" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                Dashboard
+                              </Link>
+                              <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                My Profile
+                              </Link>
                               <Link to="/products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
                                 My Products
                               </Link>
-                              <Link to="/artisan/revenue" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                                My Revenue
+                              <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                My Orders
                               </Link>
                             </>
                           )}
-                          <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
-                            My Orders
-                          </Link>
+                          {user?.role !== 'artisan' && (
+                            <>
+                              <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                My Profile
+                              </Link>
+                              <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                                My Orders
+                              </Link>
+                            </>
+                          )}
                         </>
                       )}
                       <hr className="my-2 border-stone-200" />
@@ -707,47 +718,58 @@ export default function Navbar() {
                 )}
                                   {user?.role !== 'admin' && (
                     <>
-                                          <Link
-                      to="/dashboard"
-                      className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                      onClick={toggleMobileMenu}
-                    >
-                      Dashboard
-                    </Link>
-                                          <Link
-                      to="/profile"
-                      className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                      onClick={toggleMobileMenu}
-                    >
-                      My Profile
-                    </Link>
-                    {user?.role === 'artisan' && (
-                      <>
-                        <Link
-                          to="/products"
-                          className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                          onClick={toggleMobileMenu}
-                        >
-                          My Products
-                        </Link>
-                        <Link
-                          to="/artisan/revenue"
-                          className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                          onClick={toggleMobileMenu}
-                        >
-                          My Revenue
-                        </Link>
-                      </>
-                    )}
-                    <Link
-                      to="/orders"
-                      className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
-                      onClick={toggleMobileMenu}
-                    >
-                      My Orders
-                    </Link>
-                  </>
-                )}
+                      {user?.role === 'artisan' && (
+                        <>
+                          <Link
+                            to="/dashboard"
+                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            Dashboard
+                          </Link>
+                          <Link
+                            to="/profile"
+                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            My Profile
+                          </Link>
+                          <Link
+                            to="/products"
+                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            My Products
+                          </Link>
+                          <Link
+                            to="/orders"
+                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            My Orders
+                          </Link>
+                        </>
+                      )}
+                      {user?.role !== 'artisan' && (
+                        <>
+                          <Link
+                            to="/profile"
+                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            My Profile
+                          </Link>
+                          <Link
+                            to="/orders"
+                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            My Orders
+                          </Link>
+                        </>
+                      )}
+                    </>
+                  )}
               </>
             )}
             {isAuthenticated && (

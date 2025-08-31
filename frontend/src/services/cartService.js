@@ -29,14 +29,14 @@ export const cartService = {
       if (!userId || isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
-        console.log('🛒 Using guest cart:', guestCartKey, guestCart ? JSON.parse(guestCart) : []);
+  
         return guestCart ? JSON.parse(guestCart) : [];
       }
       
       // For authenticated non-guest users, use user-specific cart
       const cartKey = getCartKey(userId);
       const cart = localStorage.getItem(cartKey);
-      console.log('🛒 Using user cart:', cartKey, cart ? JSON.parse(cart) : []);
+
       return cart ? JSON.parse(cart) : [];
     } catch (error) {
       console.error('Error getting cart:', error);
@@ -46,7 +46,7 @@ export const cartService = {
 
   addToCart: async (product, quantity = 1, userId) => {
     try {
-      console.log('Adding to cart:', { product: product.name, quantity, userId });
+
       
       // Check if user is an artisan (artisans cannot add to cart)
       if (userId && !isGuestUser()) {
@@ -71,7 +71,7 @@ export const cartService = {
           const { guestService } = await import('./guestService');
           const guestData = await guestService.ensureGuestUser();
           userId = guestData.userId;
-          console.log('Created guest user for cart:', userId);
+
         } catch (error) {
           console.error('Failed to create guest user:', error);
           // Continue with guest cart in localStorage
@@ -79,7 +79,7 @@ export const cartService = {
       }
       
       const cart = cartService.getCart(userId);
-      console.log('Current cart:', cart);
+
       
       const existingItem = cart.find(cartItem => cartItem._id === product._id);
       
@@ -107,27 +107,24 @@ export const cartService = {
         cart.push(enhancedProduct);
       }
       
-      console.log('Updated cart:', cart);
+
       
       // Save to appropriate cart (guest or user)
       if (isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(cart));
-        console.log('Saved to guest cart:', guestCartKey);
       } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.setItem(cartKey, JSON.stringify(cart));
-        console.log('Saved to user cart:', cartKey);
       } else {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(cart));
-        console.log('Saved to guest cart:', guestCartKey);
       }
       
       const count = cartService.getCartCount(userId);
-      console.log('Cart count:', count);
       
       // Dispatch cart update event
+      
       window.dispatchEvent(new CustomEvent('cartUpdated', { 
         detail: { cart, count, userId } 
       }));
@@ -201,7 +198,7 @@ export const cartService = {
 
   removeFromCart: (productId, userId) => {
     try {
-      console.log('Removing from cart:', { productId, userId });
+
       
       const cart = cartService.getCart(userId);
       const updatedCart = cart.filter(cartItem => cartItem._id !== productId);
@@ -210,19 +207,15 @@ export const cartService = {
       if (isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
-        console.log('Removed from guest cart:', guestCartKey);
       } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.setItem(cartKey, JSON.stringify(updatedCart));
-        console.log('Removed from user cart:', cartKey);
       } else {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
-        console.log('Removed from guest cart:', guestCartKey);
       }
       
       const count = cartService.getCartCount(userId);
-      console.log('Updated cart count:', count);
       
       // Dispatch cart update event
       window.dispatchEvent(new CustomEvent('cartUpdated', { 
@@ -241,15 +234,12 @@ export const cartService = {
       if (isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         localStorage.removeItem(guestCartKey);
-        console.log('Cleared guest cart:', guestCartKey);
       } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.removeItem(cartKey);
-        console.log('Cleared user cart:', cartKey);
       } else {
         const guestCartKey = getGuestCartKey();
         localStorage.removeItem(guestCartKey);
-        console.log('Cleared guest cart:', guestCartKey);
       }
       
       // Dispatch cart update event

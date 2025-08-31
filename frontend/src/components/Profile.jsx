@@ -25,7 +25,6 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
 import { OverviewTab, OperationsTab, HoursTab, DeliveryTab, SetupTab } from './ArtisanTabs';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
-import PendingOrdersWidget from './PendingOrdersWidget';
 
 export default function Profile() {
   const location = useLocation();
@@ -67,6 +66,8 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const [hasRefreshedOnMount, setHasRefreshedOnMount] = useState(false);
   const [isArtisan, setIsArtisan] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [tabs, setTabs] = useState(patronTabs);
@@ -149,11 +150,13 @@ export default function Profile() {
 
   // Always fetch profile on profile page mount or navigation (for all users)
   useEffect(() => {
-    if (location.pathname === '/profile' && isProviderReady && user) {
+    if (location.pathname === '/profile' && isProviderReady && user && !isLoading && !hasRefreshedOnMount) {
+      console.log('🔄 Profile component: Starting profile refresh...');
       setIsLoading(true);
+      setHasRefreshedOnMount(true);
       refreshUser()
         .then(() => {
-          // Profile data fetched successfully
+          console.log('✅ Profile component: Profile refresh completed');
         })
         .catch(err => {
           console.error('❌ Failed to load profile:', err);
@@ -163,8 +166,23 @@ export default function Profile() {
         .finally(() => {
           setIsLoading(false);
         });
+    } else {
+      console.log('🔄 Profile component: Skipping profile refresh - conditions not met:', {
+        isProfilePage: location.pathname === '/profile',
+        isProviderReady,
+        hasUser: !!user,
+        isLoading,
+        hasRefreshedOnMount
+      });
     }
-  }, [location.pathname, isProviderReady, refreshUser, navigate, user]);
+  }, [location.pathname, isProviderReady, navigate]); // Removed refreshUser, user, isLoading from dependencies
+
+  // Reset refresh flag when navigating away from profile
+  useEffect(() => {
+    if (location.pathname !== '/profile') {
+      setHasRefreshedOnMount(false);
+    }
+  }, [location.pathname]);
 
   // Load favorites when profile changes
   useEffect(() => {
@@ -221,20 +239,7 @@ export default function Profile() {
     }
   }, [profile, loadArtisanProfile]);
 
-  // Force refresh profile data when payment tab is accessed
-  useEffect(() => {
-    if (activeTab === 'payment' && profile) {
-      console.log('🔄 Payment tab accessed, ensuring fresh profile data');
-      // Trigger a fresh profile fetch for payment data
-      setIsLoading(true);
-      refreshUser()
-        .catch(err => {
-          console.error('❌ Failed to refresh profile for payment tab:', err);
-          toast.error('Failed to refresh profile');
-        })
-        .finally(() => setIsLoading(false));
-    }
-  }, [activeTab, profile, refreshUser]);
+  // Payment tab data is now loaded via the main profile data, no need for separate refresh
 
   // Profile data is now loaded via the main useEffect when visiting /profile
   
@@ -263,8 +268,13 @@ export default function Profile() {
       if (!document.hidden && location.pathname === '/profile') {
         console.log('🔄 Tab became visible, checking profile data...');
         const token = localStorage.getItem('token');
-        if (token && (!profile || !artisanProfile)) {
+        const now = Date.now();
+        const timeSinceLastRefresh = now - lastRefreshTime;
+        
+        // Only refresh if profile is completely missing, not already loading, and enough time has passed
+        if (token && !profile && !isLoading && timeSinceLastRefresh > 5000) {
           console.log('🔄 Profile data missing, reloading...');
+          setLastRefreshTime(now);
           // Trigger a fresh profile fetch
           setIsLoading(true);
           refreshUser()
@@ -273,6 +283,8 @@ export default function Profile() {
               toast.error('Failed to refresh profile');
             })
             .finally(() => setIsLoading(false));
+        } else {
+          console.log('✅ Profile data available, already loading, or too soon to refresh');
         }
       }
     };
@@ -284,7 +296,7 @@ export default function Profile() {
       window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [location.pathname, profile, artisanProfile]);
+  }, [location.pathname, profile]);
 
   // Memoized save handler
   const handleSave = useMemo(() => {
@@ -483,6 +495,18 @@ export default function Profile() {
     );
   }
 
+  // Check if AuthContext is ready
+  if (!isProviderReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -614,12 +638,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Pending Orders Widget for Artisans */}
-        {isArtisan && (
-          <div className="mb-8">
-            <PendingOrdersWidget />
-          </div>
-        )}
+
 
         {/* Enhanced Tabs */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
@@ -659,23 +678,28 @@ export default function Profile() {
 // Tab Components
 function PersonalInfoTab({ profile, onSave, isSaving }) {
   const [formData, setFormData] = useState({
-    firstName: profile.firstName || '',
-    lastName: profile.lastName || '',
-    phone: profile.phone || ''
+    firstName: profile?.firstName || '',
+    lastName: profile?.lastName || '',
+    phone: profile?.phone || ''
   });
 
   // Update form data when profile changes
   useEffect(() => {
     console.log('🔄 PersonalInfoTab: Profile updated, syncing form data:', {
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      phone: profile.phone
+      firstName: profile?.firstName,
+      lastName: profile?.lastName,
+      phone: profile?.phone
     });
-    setFormData({
-      firstName: profile.firstName || '',
-      lastName: profile.lastName || '',
-      phone: profile.phone || ''
-    });
+    console.log('🔍 PersonalInfoTab: Full profile object:', profile);
+    
+    // Ensure we have valid profile data
+    if (profile && typeof profile === 'object') {
+      setFormData({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        phone: profile.phone || ''
+      });
+    }
   }, [profile]);
 
   const handleSubmit = async (e) => {
@@ -735,12 +759,17 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
 }
 
 function AddressesTab({ profile, onSave, isSaving }) {
-  const [addresses, setAddresses] = useState(profile.addresses || []);
+  const [addresses, setAddresses] = useState(profile?.addresses || []);
 
   // Update addresses when profile changes
   useEffect(() => {
-    console.log('🔄 AddressesTab: Profile updated, syncing addresses:', profile.addresses);
-    setAddresses(profile.addresses || []);
+    console.log('🔄 AddressesTab: Profile updated, syncing addresses:', profile?.addresses);
+    console.log('🔍 AddressesTab: Full profile object:', profile);
+    
+    // Ensure we have valid profile data
+    if (profile && typeof profile === 'object') {
+      setAddresses(profile.addresses || []);
+    }
   }, [profile]);
 
   const addAddress = () => {

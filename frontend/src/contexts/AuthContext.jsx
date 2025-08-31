@@ -10,17 +10,18 @@ const AuthContext = createContext();
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    console.error('useAuth must be used within an AuthProvider');
+    console.warn('useAuth called before AuthProvider is ready, returning fallback context');
     // Return a fallback context to prevent crashes
     return {
       user: null,
       isAuthenticated: false,
       isLoading: true,
       isInitialized: false,
-      login: async () => { throw new Error('Auth not initialized'); },
+      isProviderReady: false,
+      login: async () => { console.warn('Auth not initialized'); },
       logout: () => { console.warn('Auth not initialized'); },
-      updateUser: async () => { throw new Error('Auth not initialized'); },
-      refreshUser: async () => { throw new Error('Auth not initialized'); },
+      updateUser: async () => { console.warn('Auth not initialized'); },
+      refreshUser: async () => { console.warn('Auth not initialized'); },
       setUser: () => { console.warn('Auth not initialized'); }
     };
   }
@@ -112,6 +113,38 @@ export const AuthProvider = ({ children }) => {
       // Cache the user profile immediately
       updateProfileCache(user);
       
+      // Clear any existing cart count cache to force refresh
+      if (user._id) {
+        const cartCountKey = `cart_count_${user._id}`;
+        cacheService.delete(cartCountKey);
+      }
+      
+      // Force immediate profile refresh for better UX
+      setTimeout(async () => {
+        try {
+          const freshProfile = await getProfileFast();
+          console.log('✅ AuthContext: Fresh profile loaded after login:', { userId: freshProfile._id, email: freshProfile.email });
+          console.log('🔍 AuthContext: Full profile structure:', freshProfile);
+          
+          // Ensure profile has required fields with defaults
+          const normalizedProfile = {
+            ...freshProfile,
+            firstName: freshProfile.firstName || '',
+            lastName: freshProfile.lastName || '',
+            phone: freshProfile.phone || '',
+            addresses: freshProfile.addresses || [],
+            notificationPreferences: freshProfile.notificationPreferences || {},
+            accountSettings: freshProfile.accountSettings || {},
+            paymentMethods: freshProfile.paymentMethods || []
+          };
+          
+          console.log('🔧 AuthContext: Normalized profile:', normalizedProfile);
+          setUser(normalizedProfile);
+        } catch (error) {
+          console.error('❌ AuthContext: Background profile refresh failed:', error);
+        }
+      }, 100);
+      
       toast.success('Login successful!');
     } catch (error) {
       console.error('Login error:', error);
@@ -142,9 +175,22 @@ export const AuthProvider = ({ children }) => {
       const profile = await getProfileFast();
       console.log('✅ AuthContext: Profile updated successfully:', profile);
       
-      console.log('AuthContext setUser:', profile);
-      setUser(profile);
-      return profile;
+      // Ensure profile has required fields with defaults
+      const normalizedProfile = {
+        ...profile,
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        phone: profile.phone || '',
+        addresses: profile.addresses || [],
+        notificationPreferences: profile.notificationPreferences || {},
+        accountSettings: profile.accountSettings || {},
+        paymentMethods: profile.paymentMethods || []
+      };
+      
+      console.log('🔧 AuthContext: Normalized profile in updateUser:', normalizedProfile);
+      console.log('AuthContext setUser:', normalizedProfile);
+      setUser(normalizedProfile);
+      return normalizedProfile;
     } catch (error) {
       console.error('❌ Profile update error:', error);
       toast.error('Failed to update profile');
@@ -166,12 +212,31 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No authentication token');
       }
       
+      // Clear profile cache to force fresh data
+      const { clearProfileCache } = await import('../services/profileService');
+      clearProfileCache();
+      
       const profile = await getProfileFast();
       console.log('✅ AuthContext: User data refreshed successfully:', profile);
-      console.log('AuthContext setUser:', profile);
-      setUser(profile);
+      console.log('🔍 AuthContext: Full profile structure:', profile);
+      
+      // Ensure profile has required fields with defaults
+      const normalizedProfile = {
+        ...profile,
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        phone: profile.phone || '',
+        addresses: profile.addresses || [],
+        notificationPreferences: profile.notificationPreferences || {},
+        accountSettings: profile.accountSettings || {},
+        paymentMethods: profile.paymentMethods || []
+      };
+      
+      console.log('🔧 AuthContext: Normalized profile:', normalizedProfile);
+      console.log('AuthContext setUser:', normalizedProfile);
+      setUser(normalizedProfile);
       setIsAuthenticated(true);
-      return profile;
+      return normalizedProfile;
     } catch (error) {
       console.error('❌ Profile refresh error:', error);
       // If refresh fails, user might be logged out

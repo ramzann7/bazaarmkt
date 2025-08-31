@@ -58,7 +58,7 @@ class PromotionalService {
       const token = authToken.getToken();
       if (!token) return [];
 
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/product/${productId}`, {
+      const response = await fetch(`${API_BASE_URL}/promotional/revenue/promotional/product/${productId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -141,7 +141,7 @@ class PromotionalService {
       const token = authToken.getToken();
       if (!token) return null;
 
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/analytics?period=${period}`, {
+      const response = await fetch(`${API_BASE_URL}/promotional/revenue/promotional/analytics?period=${period}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -167,7 +167,7 @@ class PromotionalService {
       const token = authToken.getToken();
       if (!token) return [];
 
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/artisan-features`, {
+      const response = await fetch(`${API_BASE_URL}/promotional/revenue/promotional/artisan-features`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

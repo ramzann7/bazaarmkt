@@ -22,6 +22,7 @@ import { searchProducts } from '../services/productService';
 import { cartService } from '../services/cartService';
 import { authToken, getProfile } from '../services/authservice';
 import { geocodingService } from '../services/geocodingService';
+import searchTrackingService from '../services/searchTrackingService';
 import DistanceBadge from './DistanceBadge';
 import toast from 'react-hot-toast';
 
@@ -90,6 +91,10 @@ export default function SearchResults() {
 
   useEffect(() => {
     if (query || categoryParam) {
+      // Track the search when component loads
+      if (query) {
+        searchTrackingService.trackSearch(query, categoryParam);
+      }
       performSearch();
     } else {
       // If no query or category, show empty state

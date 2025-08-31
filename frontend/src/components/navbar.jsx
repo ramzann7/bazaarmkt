@@ -17,6 +17,7 @@ import enhancedSearchService from "../services/enhancedSearchService";
 import { getAllCategories, getAllSubcategories, PRODUCT_CATEGORIES } from "../data/productReference";
 import { cacheService, CACHE_KEYS, CACHE_TTL } from "../services/cacheService";
 import { useOptimizedEffect, useDebounce } from "../hooks/useOptimizedEffect";
+import searchTrackingService from "../services/searchTrackingService";
 import toast from "react-hot-toast";
 
 export default function Navbar() {
@@ -32,6 +33,7 @@ export default function Navbar() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showPopularSearches, setShowPopularSearches] = useState(false);
   const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
+  const [popularSearches, setPopularSearches] = useState([]);
 
   // Debounce search query to reduce API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -141,6 +143,11 @@ export default function Navbar() {
       const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
       
       if (query || category !== 'all') {
+        // Track the search
+        if (query) {
+          searchTrackingService.trackSearch(query, category);
+        }
+        
         const searchParams = new URLSearchParams();
         if (query) searchParams.append('q', query);
         if (category !== 'all') searchParams.append('category', category);
@@ -189,8 +196,12 @@ export default function Navbar() {
     return (searchTerm) => {
       setSearchQuery(searchTerm);
       setShowPopularSearches(false);
-      // Navigate to search with the popular search term
+      
+      // Track the popular search selection
       const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
+      searchTrackingService.trackSearch(searchTerm, category);
+      
+      // Navigate to search with the popular search term
       const searchParams = new URLSearchParams();
       searchParams.append('q', searchTerm);
       if (category !== 'all') searchParams.append('category', category);
@@ -255,11 +266,21 @@ export default function Navbar() {
     }))
   ];
 
-  // Popular searches
-  const popularSearches = [
-    'fresh eggs', 'sourdough bread', 'maple syrup', 'organic honey', 
-    'artisan cheese', 'fresh herbs', 'homemade pasta', 'farm vegetables'
-  ];
+  // Load popular searches from tracking service
+  useOptimizedEffect(() => {
+    const loadPopularSearches = async () => {
+      try {
+        const popular = searchTrackingService.getPopularSearches();
+        setPopularSearches(popular);
+      } catch (error) {
+        console.error('Error loading popular searches:', error);
+        // Fallback to default searches
+        setPopularSearches(searchTrackingService.getDefaultPopularSearches());
+      }
+    };
+
+    loadPopularSearches();
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {

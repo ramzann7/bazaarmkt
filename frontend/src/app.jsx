@@ -45,6 +45,7 @@ const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const Search = lazy(() => import("./components/Search.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 const SimpleTest = lazy(() => import("./components/SimpleTest.jsx"));
+const SearchTrackingTest = lazy(() => import("./components/SearchTrackingTest.jsx"));
 
 const DashboardTest = lazy(() => import("./components/dashboard/DashboardTest.jsx"));
 const UserRoleCheck = lazy(() => import("./components/dashboard/UserRoleCheck.jsx"));
@@ -149,6 +150,7 @@ function AppRoutes() {
         <Route path="/search-page" element={<Search />} />
         <Route path="/test-reference" element={<TestReferenceData />} />
         <Route path="/simple-test" element={<SimpleTest />} />
+        <Route path="/search-tracking-test" element={<SearchTrackingTest />} />
 
         <Route path="/dashboard-test" element={<DashboardTest />} />
         <Route path="/user-role-check" element={<UserRoleCheck />} />

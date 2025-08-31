@@ -251,6 +251,14 @@ export default function FindArtisans() {
   const getArtisanImages = (artisan) => {
     if (!artisan) return [];
     
+    // Handle business image first (highest priority)
+    if (artisan.businessImage) {
+      const url = getImageUrl(artisan.businessImage);
+      if (url) {
+        return [url];
+      }
+    }
+    
     // Handle photos array
     if (artisan.photos && Array.isArray(artisan.photos)) {
       return artisan.photos

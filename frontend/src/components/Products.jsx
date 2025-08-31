@@ -47,10 +47,20 @@ export default function Products() {
     unit: 'piece',
     weight: '',
     expiryDate: '',
+    // Enhanced dietary preferences
     isOrganic: false,
     isGlutenFree: false,
     isVegan: false,
-    isHalal: false
+    isHalal: false,
+    isKosher: false,
+    isDairyFree: false,
+    isNutFree: false,
+    isSoyFree: false,
+    isSugarFree: false,
+    isLowCarb: false,
+    isKetoFriendly: false,
+    isPaleo: false,
+    isRaw: false
   });
   const [newTag, setNewTag] = useState('');
   const [productSuggestions, setProductSuggestions] = useState([]);
@@ -202,6 +212,24 @@ export default function Products() {
     setNewProduct({
       ...newProduct,
       tags: newProduct.tags.filter(tag => tag !== tagToRemove)
+    });
+  };
+
+  // Edit form helper functions
+  const handleEditAddTag = () => {
+    if (editingProduct.newTag && editingProduct.newTag.trim() && !editingProduct.tags.includes(editingProduct.newTag.trim())) {
+      setEditingProduct({
+        ...editingProduct,
+        tags: [...editingProduct.tags, editingProduct.newTag.trim()],
+        newTag: ''
+      });
+    }
+  };
+
+  const handleEditRemoveTag = (tagToRemove) => {
+    setEditingProduct({
+      ...editingProduct,
+      tags: editingProduct.tags.filter(tag => tag !== tagToRemove)
     });
   };
 
@@ -358,7 +386,27 @@ export default function Products() {
     setEditingProduct({
       ...product,
       image: null,
-      imagePreview: product.image || null
+      imagePreview: product.image || null,
+      newTag: '', // For the tag input field
+      // Ensure all dietary preferences are initialized
+      isOrganic: product.isOrganic || false,
+      isGlutenFree: product.isGlutenFree || false,
+      isVegan: product.isVegan || false,
+      isHalal: product.isHalal || false,
+      isKosher: product.isKosher || false,
+      isDairyFree: product.isDairyFree || false,
+      isNutFree: product.isNutFree || false,
+      isSoyFree: product.isSoyFree || false,
+      isSugarFree: product.isSugarFree || false,
+      isLowCarb: product.isLowCarb || false,
+      isKetoFriendly: product.isKetoFriendly || false,
+      isPaleo: product.isPaleo || false,
+      isRaw: product.isRaw || false,
+      // Ensure other fields are initialized
+      unit: product.unit || 'piece',
+      weight: product.weight || '',
+      expiryDate: product.expiryDate || '',
+      tags: product.tags || []
     });
   };
 
@@ -374,7 +422,24 @@ export default function Products() {
         price: parseFloat(editingProduct.price),
         stock: parseInt(editingProduct.stock),
         weight: parseFloat(editingProduct.weight) || null,
-        tags: editingProduct.tags
+        tags: editingProduct.tags,
+        // Include all dietary preferences
+        isOrganic: editingProduct.isOrganic || false,
+        isGlutenFree: editingProduct.isGlutenFree || false,
+        isVegan: editingProduct.isVegan || false,
+        isHalal: editingProduct.isHalal || false,
+        isKosher: editingProduct.isKosher || false,
+        isDairyFree: editingProduct.isDairyFree || false,
+        isNutFree: editingProduct.isNutFree || false,
+        isSoyFree: editingProduct.isSoyFree || false,
+        isSugarFree: editingProduct.isSugarFree || false,
+        isLowCarb: editingProduct.isLowCarb || false,
+        isKetoFriendly: editingProduct.isKetoFriendly || false,
+        isPaleo: editingProduct.isPaleo || false,
+        isRaw: editingProduct.isRaw || false,
+        // Include other fields
+        unit: editingProduct.unit || 'piece',
+        expiryDate: editingProduct.expiryDate || null
       };
       
       const updatedProduct = await updateProduct(editingProduct._id, productData);
@@ -445,209 +510,460 @@ export default function Products() {
 
         {/* Add Product Form */}
         {showAddForm && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-            <h4 className="text-lg font-medium text-gray-900 mb-4">Add New Product</h4>
-            <form onSubmit={handleAddProduct} className="space-y-6">
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
-                  <input
-                    ref={nameInputRef}
-                    type="text"
-                    required
-                    value={newProduct.name}
-                    onChange={handleNameChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Organic Honeycrisp Apples – 2 lb bag"
-                  />
-                  {/* Smart placeholder hint */}
-                  <div className="flex items-center mt-1 text-xs text-gray-500">
-                    <LightBulbIcon className="w-3 h-3 mr-1" />
-                    <span>Use descriptive names like "Organic Honeycrisp Apples – 2 lb bag"</span>
-                  </div>
-                  
-                  {/* Autocomplete suggestions */}
-                  {showSuggestions && (
-                    <div 
-                      ref={suggestionsRef}
-                      className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto"
-                    >
-                      {productSuggestions.map((suggestion, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="font-medium text-gray-900">{suggestion.name}</div>
-                          <div className="text-xs text-gray-500">Existing product</div>
-                        </div>
-                      ))}
-                      <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50">
-                        Click to use existing name or continue typing for a new product
-                      </div>
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 mb-8">
+            <div className="mb-6">
+              <h4 className="text-2xl font-bold text-gray-900 mb-2">✨ Add New Product</h4>
+              <p className="text-gray-600">Create a compelling product listing that will attract customers</p>
+            </div>
+            
+            <form onSubmit={handleAddProduct} className="space-y-8">
+              {/* Basic Information Section */}
+              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <SparklesIcon className="w-5 h-5 mr-2 text-orange-600" />
+                  Basic Information
+                </h5>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="relative">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Product Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      ref={nameInputRef}
+                      type="text"
+                      required
+                      value={newProduct.name}
+                      onChange={handleNameChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                      placeholder="e.g., Organic Honeycrisp Apples – 2 lb bag"
+                    />
+                    <div className="flex items-center mt-2 text-xs text-gray-500">
+                      <LightBulbIcon className="w-3 h-3 mr-1 text-orange-500" />
+                      <span>Use descriptive names that highlight key features</span>
                     </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                  <select
-                    required
-                    value={newProduct.category}
-                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value, subcategory: ''})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select category</option>
-                    {Object.keys(categories).map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
-                  <select
-                    value={newProduct.subcategory}
-                    onChange={(e) => setNewProduct({...newProduct, subcategory: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Select subcategory</option>
-                    {newProduct.category && categories[newProduct.category]?.map(subcategory => (
-                      <option key={subcategory} value={subcategory}>{subcategory}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Price ($) *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Stock Quantity *</label>
-                  <input
-                    type="number"
-                    required
-                    value={newProduct.stock}
-                    onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                  <select
-                    value={newProduct.unit}
-                    onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    {units.map(unit => (
-                      <option key={unit} value={unit}>{unit}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                <textarea
-                  required
-                  value={newProduct.description}
-                  onChange={handleDescriptionChange}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Freshly picked from local orchard. Perfect for snacking or baking."
-                />
-                {/* Character counter */}
-                <div className="flex justify-between items-center mt-1">
-                  <div className="flex items-center text-xs text-gray-500">
-                    <LightBulbIcon className="w-3 h-3 mr-1" />
-                    <span>Keep descriptions under 250 characters for readability</span>
-                  </div>
-                  <span className={`text-xs ${newProduct.description.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
-                    {newProduct.description.length}/250
-                  </span>
-                </div>
-              </div>
-
-              {/* Image Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
-                <div className="space-y-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                  
-                  {/* Photo checker warning */}
-                  {checkPhotoWarning() && (
-                    <div className="flex items-center p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mr-2" />
-                      <div className="text-sm text-amber-800">
-                        <strong>Photo Recommended:</strong> Adding a product photo builds trust with buyers and increases sales.
-                      </div>
-                    </div>
-                  )}
-                  {newProduct.imagePreview && (
-                    <div className="relative">
-                      <img 
-                        src={newProduct.imagePreview} 
-                        alt="Preview"
-                        className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setNewProduct({...newProduct, image: null, imagePreview: null})}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
+                    
+                    {/* Autocomplete suggestions */}
+                    {showSuggestions && (
+                      <div 
+                        ref={suggestionsRef}
+                        className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-xl max-h-48 overflow-y-auto"
                       >
-                        ×
-                      </button>
+                        {productSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            onClick={() => handleSuggestionClick(suggestion)}
+                            className="px-4 py-3 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                          >
+                            <div className="font-medium text-gray-900">{suggestion.name}</div>
+                            <div className="text-xs text-gray-500">Existing product</div>
+                          </div>
+                        ))}
+                        <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 rounded-b-xl">
+                          Click to use existing name or continue typing for a new product
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      required
+                      value={newProduct.category}
+                      onChange={(e) => setNewProduct({...newProduct, category: e.target.value, subcategory: ''})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                    >
+                      <option value="">Select a category</option>
+                      {Object.keys(categories).map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Subcategory</label>
+                    <select
+                      value={newProduct.subcategory}
+                      onChange={(e) => setNewProduct({...newProduct, subcategory: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                    >
+                      <option value="">Select a subcategory</option>
+                      {newProduct.category && categories[newProduct.category]?.map(subcategory => (
+                        <option key={subcategory} value={subcategory}>{subcategory}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Price <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-3 text-gray-500">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={newProduct.price}
+                        onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                        className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Stock Quantity <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      value={newProduct.stock}
+                      onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                      placeholder="0"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
+                    <select
+                      value={newProduct.unit}
+                      onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                    >
+                      {units.map(unit => (
+                        <option key={unit} value={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description Section */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <PencilIcon className="w-5 h-5 mr-2 text-blue-600" />
+                  Product Description
+                </h5>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={newProduct.description}
+                    onChange={handleDescriptionChange}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                    placeholder="Describe your product's features, benefits, and what makes it special. Include details about ingredients, origin, or craftsmanship."
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <LightBulbIcon className="w-3 h-3 mr-1 text-blue-500" />
+                      <span>Highlight what makes your product unique</span>
+                    </div>
+                    <span className={`text-xs font-medium ${newProduct.description.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
+                      {newProduct.description.length}/250
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Image Upload Section */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <CameraIcon className="w-5 h-5 mr-2 text-green-600" />
+                  Product Images
+                </h5>
+                
+                <div className="space-y-4">
+                  {/* Drag & Drop Zone */}
+                  <div
+                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                      newProduct.imagePreview 
+                        ? 'border-green-300 bg-green-50' 
+                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('border-green-400', 'bg-green-50');
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      if (!newProduct.imagePreview) {
+                        e.currentTarget.classList.remove('border-green-400', 'bg-green-50');
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const files = e.dataTransfer.files;
+                      if (files.length > 0) {
+                        handleImageChange({ target: { files } });
+                      }
+                    }}
+                  >
+                    {newProduct.imagePreview ? (
+                      <div className="relative inline-block">
+                        <img 
+                          src={newProduct.imagePreview} 
+                          alt="Preview"
+                          className="w-32 h-32 object-cover rounded-lg border border-gray-300 shadow-md"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewProduct({...newProduct, image: null, imagePreview: null})}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-lg font-medium text-gray-700 mb-2">Upload Product Image</p>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Drag and drop an image here, or click to browse
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                          id="image-upload"
+                        />
+                        <label
+                          htmlFor="image-upload"
+                          className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                        >
+                          <CameraIcon className="w-4 h-4 mr-2" />
+                          Choose Image
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Image Tips */}
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <h6 className="font-medium text-gray-900 mb-2">📸 Image Tips</h6>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Use high-quality, well-lit photos</li>
+                      <li>• Show your product from multiple angles</li>
+                      <li>• Include size reference when helpful</li>
+                      <li>• Ensure the background is clean and uncluttered</li>
+                    </ul>
+                  </div>
+                  
+                  {/* Photo warning */}
+                  {checkPhotoWarning() && (
+                    <div className="flex items-center p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0" />
+                      <div className="text-sm text-amber-800">
+                        <strong>Photo Recommended:</strong> Adding a product photo builds trust with buyers and can increase sales by up to 40%.
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Tags */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
-                <div className="space-y-2">
-                  <div className="flex space-x-2">
+              {/* Enhanced Dietary Preferences Section */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <CheckIcon className="w-5 h-5 mr-2 text-purple-600" />
+                  Dietary & Lifestyle Preferences
+                </h5>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {/* Organic */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isOrganic}
+                      onChange={(e) => setNewProduct({...newProduct, isOrganic: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🌱 Organic</span>
+                  </label>
+                  
+                  {/* Gluten-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isGlutenFree}
+                      onChange={(e) => setNewProduct({...newProduct, isGlutenFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🌾 Gluten-Free</span>
+                  </label>
+                  
+                  {/* Vegan */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isVegan}
+                      onChange={(e) => setNewProduct({...newProduct, isVegan: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥬 Vegan</span>
+                  </label>
+                  
+                  {/* Halal */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isHalal}
+                      onChange={(e) => setNewProduct({...newProduct, isHalal: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🕌 Halal</span>
+                  </label>
+                  
+                  {/* Kosher */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isKosher || false}
+                      onChange={(e) => setNewProduct({...newProduct, isKosher: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">✡️ Kosher</span>
+                  </label>
+                  
+                  {/* Dairy-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isDairyFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isDairyFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥛 Dairy-Free</span>
+                  </label>
+                  
+                  {/* Nut-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isNutFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isNutFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥜 Nut-Free</span>
+                  </label>
+                  
+                  {/* Soy-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isSoyFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isSoyFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🫘 Soy-Free</span>
+                  </label>
+                  
+                  {/* Sugar-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isSugarFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isSugarFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🍯 Sugar-Free</span>
+                  </label>
+                  
+                  {/* Low-Carb */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isLowCarb || false}
+                      onChange={(e) => setNewProduct({...newProduct, isLowCarb: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥗 Low-Carb</span>
+                  </label>
+                  
+                  {/* Keto-Friendly */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isKetoFriendly || false}
+                      onChange={(e) => setNewProduct({...newProduct, isKetoFriendly: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥑 Keto-Friendly</span>
+                  </label>
+                  
+                  {/* Paleo */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isPaleo || false}
+                      onChange={(e) => setNewProduct({...newProduct, isPaleo: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🦴 Paleo</span>
+                  </label>
+                  
+                  {/* Raw */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isRaw || false}
+                      onChange={(e) => setNewProduct({...newProduct, isRaw: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥕 Raw</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Tags Section */}
+              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <SparklesIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                  Tags & Keywords
+                </h5>
+                
+                <div className="space-y-4">
+                  <div className="flex space-x-3">
                     <input
                       type="text"
                       value={newTag}
                       onChange={(e) => setNewTag(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="Add a tag and press Enter"
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Add tags like 'local', 'fresh', 'handmade'..."
                     />
                     <button
                       type="button"
                       onClick={handleAddTag}
-                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                      className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium"
                     >
-                      Add
+                      Add Tag
                     </button>
                   </div>
+                  
                   {newProduct.tags.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                       {newProduct.tags.map((tag, index) => (
                         <span
                           key={index}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
                         >
                           {tag}
                           <button
                             type="button"
                             onClick={() => handleRemoveTag(tag)}
-                            className="ml-1 text-orange-600 hover:text-orange-800"
+                            className="ml-2 text-indigo-600 hover:text-indigo-800"
                           >
                             ×
                           </button>
@@ -655,88 +971,59 @@ export default function Products() {
                       ))}
                     </div>
                   )}
+                  
+                  <div className="text-xs text-gray-500">
+                    💡 Tags help customers find your products. Use descriptive keywords like "local", "fresh", "handmade", "artisan", etc.
+                  </div>
                 </div>
               </div>
 
-              {/* Additional Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Weight (optional)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newProduct.weight}
-                    onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="0.0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date (optional)</label>
-                  <input
-                    type="date"
-                    value={newProduct.expiryDate}
-                    onChange={(e) => setNewProduct({...newProduct, expiryDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              {/* Dietary Preferences */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Dietary Preferences</label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <label className="flex items-center">
+              {/* Additional Details Section */}
+              <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl border border-gray-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <PencilIcon className="w-5 h-5 mr-2 text-gray-600" />
+                  Additional Details
+                </h5>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
                     <input
-                      type="checkbox"
-                      checked={newProduct.isOrganic}
-                      onChange={(e) => setNewProduct({...newProduct, isOrganic: e.target.checked})}
-                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={newProduct.weight}
+                      onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                      placeholder="0.0"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Organic</span>
-                  </label>
-                  <label className="flex items-center">
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Expiry Date (optional)</label>
                     <input
-                      type="checkbox"
-                      checked={newProduct.isGlutenFree}
-                      onChange={(e) => setNewProduct({...newProduct, isGlutenFree: e.target.checked})}
-                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      type="date"
+                      value={newProduct.expiryDate}
+                      onChange={(e) => setNewProduct({...newProduct, expiryDate: e.target.value})}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                     />
-                    <span className="ml-2 text-sm text-gray-700">Gluten-Free</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={newProduct.isVegan}
-                      onChange={(e) => setNewProduct({...newProduct, isVegan: e.target.checked})}
-                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Vegan</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={newProduct.isHalal}
-                      onChange={(e) => setNewProduct({...newProduct, isHalal: e.target.checked})}
-                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Halal</span>
-                  </label>
+                  </div>
                 </div>
               </div>
 
               {/* Form Actions */}
-              <div className="flex space-x-3">
+              <div className="flex space-x-4 pt-6 border-t border-gray-200">
                 <button
                   type="submit"
-                  className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-4 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
+                  <PlusIcon className="w-5 h-5 mr-2" />
                   Add Product
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="px-8 py-4 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-semibold"
                 >
                   Cancel
                 </button>
@@ -991,44 +1278,125 @@ export default function Products() {
         {/* Edit Product Modal */}
         {editingProduct && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Edit Product</h2>
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">✏️ Edit Product</h2>
+                    <p className="text-gray-600">Update your product information to keep it current and appealing</p>
+                  </div>
                   <button
                     onClick={handleCancelEdit}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    <XMarkIcon className="w-6 h-6" />
+                    <XMarkIcon className="w-8 h-8" />
                   </button>
                 </div>
 
-                <form onSubmit={handleUpdateProduct} className="space-y-6">
-                  {/* Basic Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
-                      <input
-                        required
-                        type="text"
-                        value={editingProduct.name}
-                        onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        placeholder="Enter product name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Price *</label>
-                      <input
-                        required
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={editingProduct.price}
-                        onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        placeholder="0.00"
-                      />
+                <form onSubmit={handleUpdateProduct} className="space-y-8">
+                  {/* Basic Information Section */}
+                  <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <SparklesIcon className="w-5 h-5 mr-2 text-orange-600" />
+                      Basic Information
+                    </h5>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="relative">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Product Name <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          required
+                          type="text"
+                          value={editingProduct.name}
+                          onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                          placeholder="e.g., Organic Honeycrisp Apples – 2 lb bag"
+                        />
+                        <div className="flex items-center mt-2 text-xs text-gray-500">
+                          <LightBulbIcon className="w-3 h-3 mr-1 text-orange-500" />
+                          <span>Use descriptive names that highlight key features</span>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Price <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-3 text-gray-500">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            required
+                            value={editingProduct.price}
+                            onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
+                            className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Category <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          required
+                          value={editingProduct.category}
+                          onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value, subcategory: ''})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="">Select a category</option>
+                          {Object.keys(categories).map(category => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Subcategory</label>
+                        <select
+                          value={editingProduct.subcategory}
+                          onChange={(e) => setEditingProduct({...editingProduct, subcategory: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="">Select a subcategory</option>
+                          {editingProduct.category && categories[editingProduct.category]?.map(subcategory => (
+                            <option key={subcategory} value={subcategory}>{subcategory}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Stock Quantity <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={editingProduct.stock}
+                          onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                          placeholder="0"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
+                        <select
+                          value={editingProduct.unit || 'piece'}
+                          onChange={(e) => setEditingProduct({...editingProduct, unit: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                        >
+                          {units.map(unit => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1075,106 +1443,376 @@ export default function Products() {
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                    <textarea
-                      required
-                      value={editingProduct.description}
-                      onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      placeholder="Describe your product..."
-                    />
+                  {/* Description Section */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <PencilIcon className="w-5 h-5 mr-2 text-blue-600" />
+                      Product Description
+                    </h5>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Description <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        required
+                        value={editingProduct.description}
+                        onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                        placeholder="Describe your product's features, benefits, and what makes it special. Include details about ingredients, origin, or craftsmanship."
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <div className="flex items-center text-xs text-gray-500">
+                          <LightBulbIcon className="w-3 h-3 mr-1 text-blue-500" />
+                          <span>Highlight what makes your product unique</span>
+                        </div>
+                        <span className={`text-xs font-medium ${editingProduct.description.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
+                          {editingProduct.description.length}/250
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Image Upload */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
+                  {/* Enhanced Image Upload Section */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <CameraIcon className="w-5 h-5 mr-2 text-green-600" />
+                      Product Images
+                    </h5>
+                    
                     <div className="space-y-4">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleEditImageChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                      {(editingProduct.imagePreview || editingProduct.image) && (
-                        <div className="relative">
-                                                <img 
-                        src={editingProduct.imagePreview || getImageUrl(editingProduct.image)} 
-                        alt="Preview"
-                        className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                      />
-                          <button
-                            type="button"
-                            onClick={() => setEditingProduct({...editingProduct, image: null, imagePreview: null})}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm"
-                          >
-                            ×
-                          </button>
+                      {/* Drag & Drop Zone */}
+                      <div
+                        className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                          editingProduct.imagePreview || editingProduct.image
+                            ? 'border-green-300 bg-green-50' 
+                            : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                        }`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.add('border-green-400', 'bg-green-50');
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          if (!editingProduct.imagePreview && !editingProduct.image) {
+                            e.currentTarget.classList.remove('border-green-400', 'bg-green-50');
+                          }
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const files = e.dataTransfer.files;
+                          if (files.length > 0) {
+                            handleEditImageChange({ target: { files } });
+                          }
+                        }}
+                      >
+                        {(editingProduct.imagePreview || editingProduct.image) ? (
+                          <div className="relative inline-block">
+                            <img 
+                              src={editingProduct.imagePreview || getImageUrl(editingProduct.image)} 
+                              alt="Preview"
+                              className="w-32 h-32 object-cover rounded-lg border border-gray-300 shadow-md"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setEditingProduct({...editingProduct, image: null, imagePreview: null})}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <p className="text-lg font-medium text-gray-700 mb-2">Upload Product Image</p>
+                            <p className="text-sm text-gray-500 mb-4">
+                              Drag and drop an image here, or click to browse
+                            </p>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleEditImageChange}
+                              className="hidden"
+                              id="edit-image-upload"
+                            />
+                            <label
+                              htmlFor="edit-image-upload"
+                              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                            >
+                              <CameraIcon className="w-4 h-4 mr-2" />
+                              Choose Image
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Image Tips */}
+                      <div className="bg-white p-4 rounded-lg border border-green-200">
+                        <h6 className="font-medium text-gray-900 mb-2">📸 Image Tips</h6>
+                        <ul className="text-sm text-gray-600 space-y-1">
+                          <li>• Use high-quality, well-lit photos</li>
+                          <li>• Show your product from multiple angles</li>
+                          <li>• Include size reference when helpful</li>
+                          <li>• Ensure the background is clean and uncluttered</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enhanced Dietary Preferences Section */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <CheckIcon className="w-5 h-5 mr-2 text-purple-600" />
+                      Dietary & Lifestyle Preferences
+                    </h5>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {/* Organic */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isOrganic || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isOrganic: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🌱 Organic</span>
+                      </label>
+                      
+                      {/* Gluten-Free */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isGlutenFree || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isGlutenFree: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🌾 Gluten-Free</span>
+                      </label>
+                      
+                      {/* Vegan */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isVegan || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isVegan: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🥬 Vegan</span>
+                      </label>
+                      
+                      {/* Halal */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isHalal || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isHalal: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🕌 Halal</span>
+                      </label>
+                      
+                      {/* Kosher */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isKosher || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isKosher: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">✡️ Kosher</span>
+                      </label>
+                      
+                      {/* Dairy-Free */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isDairyFree || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isDairyFree: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🥛 Dairy-Free</span>
+                      </label>
+                      
+                      {/* Nut-Free */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isNutFree || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isNutFree: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🥜 Nut-Free</span>
+                      </label>
+                      
+                      {/* Soy-Free */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isSoyFree || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isSoyFree: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🫘 Soy-Free</span>
+                      </label>
+                      
+                      {/* Sugar-Free */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isSugarFree || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isSugarFree: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🍯 Sugar-Free</span>
+                      </label>
+                      
+                      {/* Low-Carb */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isLowCarb || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isLowCarb: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🥗 Low-Carb</span>
+                      </label>
+                      
+                      {/* Keto-Friendly */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isKetoFriendly || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isKetoFriendly: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🥑 Keto-Friendly</span>
+                      </label>
+                      
+                      {/* Paleo */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isPaleo || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isPaleo: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🦴 Paleo</span>
+                      </label>
+                      
+                      {/* Raw */}
+                      <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editingProduct.isRaw || false}
+                          onChange={(e) => setEditingProduct({...editingProduct, isRaw: e.target.checked})}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <span className="ml-3 text-sm font-medium text-gray-700">🥕 Raw</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Tags Section */}
+                  <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <SparklesIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                      Tags & Keywords
+                    </h5>
+                    
+                    <div className="space-y-4">
+                      <div className="flex space-x-3">
+                        <input
+                          type="text"
+                          value={editingProduct.newTag || ''}
+                          onChange={(e) => setEditingProduct({...editingProduct, newTag: e.target.value})}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleEditAddTag())}
+                          className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="Add tags like 'local', 'fresh', 'handmade'..."
+                        />
+                        <button
+                          type="button"
+                          onClick={handleEditAddTag}
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium"
+                        >
+                          Add Tag
+                        </button>
+                      </div>
+                      
+                      {editingProduct.tags && editingProduct.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {editingProduct.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
+                            >
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => handleEditRemoveTag(tag)}
+                                className="ml-2 text-indigo-600 hover:text-indigo-800"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
                         </div>
                       )}
+                      
+                      <div className="text-xs text-gray-500">
+                        💡 Tags help customers find your products. Use descriptive keywords like "local", "fresh", "handmade", "artisan", etc.
+                      </div>
                     </div>
                   </div>
 
-                  {/* Dietary Preferences */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Dietary Preferences</label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <label className="flex items-center">
+                  {/* Additional Details Section */}
+                  <div className="bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl border border-gray-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <PencilIcon className="w-5 h-5 mr-2 text-gray-600" />
+                      Additional Details
+                    </h5>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
                         <input
-                          type="checkbox"
-                          checked={editingProduct.isOrganic}
-                          onChange={(e) => setEditingProduct({...editingProduct, isOrganic: e.target.checked})}
-                          className="mr-2"
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          value={editingProduct.weight || ''}
+                          onChange={(e) => setEditingProduct({...editingProduct, weight: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                          placeholder="0.0"
                         />
-                        <span className="text-sm">Organic</span>
-                      </label>
-                      <label className="flex items-center">
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Expiry Date (optional)</label>
                         <input
-                          type="checkbox"
-                          checked={editingProduct.isGlutenFree}
-                          onChange={(e) => setEditingProduct({...editingProduct, isGlutenFree: e.target.checked})}
-                          className="mr-2"
+                          type="date"
+                          value={editingProduct.expiryDate || ''}
+                          onChange={(e) => setEditingProduct({...editingProduct, expiryDate: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                         />
-                        <span className="text-sm">Gluten-Free</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={editingProduct.isVegan}
-                          onChange={(e) => setEditingProduct({...editingProduct, isVegan: e.target.checked})}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Vegan</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={editingProduct.isHalal}
-                          onChange={(e) => setEditingProduct({...editingProduct, isHalal: e.target.checked})}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Halal</span>
-                      </label>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex justify-end space-x-3 pt-4">
+                  {/* Form Actions */}
+                  <div className="flex space-x-4 pt-6 border-t border-gray-200">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-4 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center"
+                    >
+                      <CheckIcon className="w-5 h-5 mr-2" />
+                      Update Product
+                    </button>
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                      className="px-8 py-4 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-semibold"
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center"
-                    >
-                      <CheckIcon className="w-4 h-4 mr-2" />
-                      Update Product
                     </button>
                   </div>
                 </form>

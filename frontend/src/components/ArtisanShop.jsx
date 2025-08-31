@@ -304,9 +304,9 @@ export default function ArtisanShop() {
           {/* Profile Image */}
           <div className="absolute -bottom-16 left-8">
             <div className="w-32 h-32 rounded-full border-4 border-white bg-white shadow-lg overflow-hidden">
-              {artisan.profileImage || artisan.profile || artisan.avatar ? (
+              {artisan.businessImage || artisan.profileImage || artisan.profile || artisan.avatar ? (
                 <img 
-                  src={artisan.profileImage || artisan.profile || artisan.avatar} 
+                  src={artisan.businessImage || artisan.profileImage || artisan.profile || artisan.avatar} 
                   alt={artisan.artisanName}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -315,7 +315,7 @@ export default function ArtisanShop() {
                   }}
                 />
               ) : null}
-              <div className={`w-full h-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center ${artisan.profileImage || artisan.profile || artisan.avatar ? 'hidden' : ''}`}>
+              <div className={`w-full h-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center ${artisan.businessImage || artisan.profileImage || artisan.profile || artisan.avatar ? 'hidden' : ''}`}>
                 <UserIcon className="w-12 h-12 text-amber-600" />
               </div>
             </div>
@@ -392,9 +392,9 @@ export default function ArtisanShop() {
               <div className="flex flex-col md:flex-row items-start space-y-6 md:space-y-0 md:space-x-8">
                 <div className="flex-shrink-0">
                   <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-amber-200 to-orange-300">
-                    {artisan.profileImage ? (
+                    {artisan.businessImage || artisan.profileImage ? (
                       <img 
-                        src={artisan.profileImage} 
+                        src={artisan.businessImage || artisan.profileImage} 
                         alt={artisan.artisanName}
                         className="w-full h-full object-cover"
                       />

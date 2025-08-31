@@ -214,7 +214,79 @@ export default function Cart() {
   };
 
   const getTotalAmount = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const deliveryFees = getTotalDeliveryFees();
+    return subtotal + deliveryFees;
+  };
+
+  const getTotalDeliveryFees = () => {
+    let totalFees = 0;
+    
+    Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
+      const selectedMethod = selectedDeliveryMethods[artisanId];
+      const deliveryOptions = deliveryOptions[artisanId];
+      
+      if (!selectedMethod || !deliveryOptions) return;
+      
+      if (selectedMethod === 'personalDelivery' && deliveryOptions.personalDelivery?.available) {
+        const subtotal = artisanData.subtotal;
+        const fee = deliveryOptions.personalDelivery.fee || 0;
+        const freeThreshold = deliveryOptions.personalDelivery.freeThreshold || 0;
+        
+        // Check if order qualifies for free delivery
+        if (subtotal < freeThreshold) {
+          totalFees += fee;
+        }
+      } else if (selectedMethod === 'professionalDelivery' && deliveryOptions.professionalDelivery?.available) {
+        // Calculate Uber Direct fee based on distance
+        const uberFee = calculateUberDirectFee(artisanId);
+        totalFees += uberFee;
+      }
+    });
+    
+    return totalFees;
+  };
+
+  const calculateUberDirectFee = (artisanId) => {
+    // This would typically use the Uber Direct API
+    // For now, we'll use a simplified calculation
+    const artisanData = cartByArtisan[artisanId];
+    if (!artisanData || !selectedAddress) return 0;
+    
+    // Calculate distance between artisan and delivery address
+    const artisanLocation = artisanData.artisan?.address;
+    const deliveryLocation = selectedAddress;
+    
+    if (!artisanLocation || !deliveryLocation) return 0;
+    
+    // Simplified distance calculation (in a real app, you'd use geocoding)
+    const distance = 10; // Placeholder - would be calculated from coordinates
+    
+    // Uber Direct pricing
+    const baseFee = 8;
+    const perKmFee = 1.5;
+    
+    return baseFee + (distance * perKmFee);
+  };
+
+  const isPersonalDeliveryAvailable = (artisanId) => {
+    const artisanData = cartByArtisan[artisanId];
+    if (!artisanData || !selectedAddress) return false;
+    
+    const deliveryOptions = deliveryOptions[artisanId];
+    if (!deliveryOptions?.personalDelivery?.available) return false;
+    
+    // Calculate distance between artisan and delivery address
+    const artisanLocation = artisanData.artisan?.address;
+    const deliveryLocation = selectedAddress;
+    
+    if (!artisanLocation || !deliveryLocation) return false;
+    
+    // Simplified distance calculation (in a real app, you'd use geocoding)
+    const distance = 10; // Placeholder - would be calculated from coordinates
+    const maxRadius = deliveryOptions.personalDelivery.radius || 10;
+    
+    return distance <= maxRadius;
   };
 
   const loadDeliveryOptions = () => {
@@ -226,11 +298,13 @@ export default function Cart() {
       const deliveryOptions = deliveryService.getDeliveryOptions(artisanData.artisan);
       options[artisanId] = deliveryOptions;
       
-      // Set default delivery method (pickup if available, otherwise delivery)
+      // Set default delivery method (pickup if available, otherwise personal delivery, then professional delivery)
       if (deliveryOptions.pickup.available) {
         selectedMethods[artisanId] = 'pickup';
-      } else if (deliveryOptions.delivery.available) {
-        selectedMethods[artisanId] = 'delivery';
+      } else if (deliveryOptions.personalDelivery.available) {
+        selectedMethods[artisanId] = 'personalDelivery';
+      } else if (deliveryOptions.professionalDelivery.available) {
+        selectedMethods[artisanId] = 'professionalDelivery';
       }
     });
     
@@ -999,14 +1073,14 @@ export default function Cart() {
                         {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                       </h3>
                       <p className="text-sm text-gray-600 capitalize">
-                        {artisanData.artisan?.type || 'Artisan'} • {deliveryOptions[artisanId]?.pickup?.available ? 'Pickup Available' : ''} {deliveryOptions[artisanId]?.delivery?.available ? '• Delivery Available' : ''}
+                        {artisanData.artisan?.type || 'Artisan'} • {deliveryOptions[artisanId]?.pickup?.available ? 'Pickup Available' : ''} {deliveryOptions[artisanId]?.personalDelivery?.available ? '• Personal Delivery Available' : ''} {deliveryOptions[artisanId]?.professionalDelivery?.available ? '• Professional Delivery Available' : ''}
                       </p>
                     </div>
                   </div>
                   
                   {/* Delivery Options */}
                   {deliveryOptions[artisanId] && (
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       {deliveryOptions[artisanId].pickup.available && (
                         <button
                           onClick={() => setSelectedDeliveryMethods({
@@ -1022,22 +1096,43 @@ export default function Cart() {
                           🏪 Pickup
                         </button>
                       )}
-                      {deliveryOptions[artisanId].delivery.available && (
+                      {deliveryOptions[artisanId].personalDelivery.available && isPersonalDeliveryAvailable(artisanId) && (
                         <button
                           onClick={() => setSelectedDeliveryMethods({
                             ...selectedDeliveryMethods,
-                            [artisanId]: 'delivery'
+                            [artisanId]: 'personalDelivery'
                           })}
                           className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            selectedDeliveryMethods[artisanId] === 'delivery'
+                            selectedDeliveryMethods[artisanId] === 'personalDelivery'
                               ? 'bg-orange-100 text-orange-700 border border-orange-300'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
-                          🚚 Delivery
-                          {deliveryOptions[artisanId].delivery.fee > 0 && (
-                            <span className="ml-1">(+${deliveryOptions[artisanId].delivery.fee})</span>
+                          🚚 Personal Delivery
+                          {deliveryOptions[artisanId].personalDelivery.fee > 0 && (
+                            <span className="ml-1">(+${deliveryOptions[artisanId].personalDelivery.fee})</span>
                           )}
+                        </button>
+                      )}
+                      {deliveryOptions[artisanId].personalDelivery.available && !isPersonalDeliveryAvailable(artisanId) && (
+                        <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400 cursor-not-allowed">
+                          🚚 Personal Delivery (Outside Range)
+                        </div>
+                      )}
+                      {deliveryOptions[artisanId].professionalDelivery.available && (
+                        <button
+                          onClick={() => setSelectedDeliveryMethods({
+                            ...selectedDeliveryMethods,
+                            [artisanId]: 'professionalDelivery'
+                          })}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            selectedDeliveryMethods[artisanId] === 'professionalDelivery'
+                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          🚛 Professional Delivery
+                          <span className="ml-1">(Uber Direct)</span>
                         </button>
                       )}
                     </div>
@@ -1122,6 +1217,49 @@ export default function Cart() {
 
           {/* Cart Summary */}
           <div className="border-t pt-6 mt-6">
+            {/* Delivery Fee Breakdown */}
+            {getTotalDeliveryFees() > 0 && (
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 mb-2">Delivery Fees</h4>
+                <div className="space-y-2">
+                  {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
+                    const selectedMethod = selectedDeliveryMethods[artisanId];
+                    const deliveryOptions = deliveryOptions[artisanId];
+                    
+                    if (!selectedMethod || !deliveryOptions) return null;
+                    
+                    let fee = 0;
+                    let methodName = '';
+                    
+                    if (selectedMethod === 'personalDelivery' && deliveryOptions.personalDelivery?.available) {
+                      const subtotal = artisanData.subtotal;
+                      const baseFee = deliveryOptions.personalDelivery.fee || 0;
+                      const freeThreshold = deliveryOptions.personalDelivery.freeThreshold || 0;
+                      
+                      if (subtotal < freeThreshold) {
+                        fee = baseFee;
+                        methodName = 'Personal Delivery';
+                      }
+                    } else if (selectedMethod === 'professionalDelivery' && deliveryOptions.professionalDelivery?.available) {
+                      fee = calculateUberDirectFee(artisanId);
+                      methodName = 'Professional Delivery (Uber Direct)';
+                    }
+                    
+                    if (fee > 0) {
+                      return (
+                        <div key={artisanId} className="flex justify-between text-sm">
+                          <span>{artisanData.artisan?.artisanName || 'Artisan'} - {methodName}</span>
+                          <span>{formatPrice(fee)}</span>
+                        </div>
+                      );
+                    }
+                    
+                    return null;
+                  })}
+                </div>
+              </div>
+            )}
+            
             <div className="flex justify-between items-center mb-4">
               <span className="text-lg font-semibold">Total:</span>
               <span className="text-2xl font-bold text-orange-600">

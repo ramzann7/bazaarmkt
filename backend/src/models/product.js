@@ -83,6 +83,42 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isKosher: {
+    type: Boolean,
+    default: false
+  },
+  isDairyFree: {
+    type: Boolean,
+    default: false
+  },
+  isNutFree: {
+    type: Boolean,
+    default: false
+  },
+  isSoyFree: {
+    type: Boolean,
+    default: false
+  },
+  isSugarFree: {
+    type: Boolean,
+    default: false
+  },
+  isLowCarb: {
+    type: Boolean,
+    default: false
+  },
+  isKetoFriendly: {
+    type: Boolean,
+    default: false
+  },
+  isPaleo: {
+    type: Boolean,
+    default: false
+  },
+  isRaw: {
+    type: Boolean,
+    default: false
+  },
   
   // Status
   status: {

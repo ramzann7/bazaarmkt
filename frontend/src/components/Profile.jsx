@@ -450,6 +450,8 @@ export default function Profile() {
   const handleArtisanDeliveryUpdate = async (deliveryData) => {
     try {
       console.log('🔄 Updating artisan delivery options:', deliveryData);
+      console.log('🔄 Delivery data type:', typeof deliveryData);
+      console.log('🔄 Delivery data keys:', Object.keys(deliveryData || {}));
       setIsSaving(true);
       const updatedArtisanProfile = await profileService.updateArtisanDelivery(deliveryData);
       console.log('✅ Artisan delivery options updated:', updatedArtisanProfile);
@@ -461,6 +463,7 @@ export default function Profile() {
       toast.success('Delivery options updated successfully!');
     } catch (error) {
       console.error('❌ Error updating artisan delivery options:', error);
+      console.error('❌ Error details:', error.response?.data || error.message);
       toast.error('Failed to update delivery options');
     } finally {
       setIsSaving(false);

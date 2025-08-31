@@ -681,6 +681,9 @@ router.put('/artisan', verifyToken, async (req, res) => {
     }
 
     console.log('🔄 Updating artisan profile with data:', req.body);
+    console.log('🔄 Business image type:', typeof req.body.businessImage);
+    console.log('🔄 Business image value:', req.body.businessImage ? 'present' : 'not present');
+    
     Object.assign(artisan, req.body);
     await artisan.save();
     console.log('✅ Artisan profile updated successfully');
@@ -729,8 +732,71 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
     }
 
     const { deliveryOptions } = req.body;
-    artisan.deliveryOptions = deliveryOptions;
+    
+    console.log('🔄 Received delivery options:', deliveryOptions);
+    
+    // Update delivery options
+    if (deliveryOptions) {
+      // Update main delivery options
+      artisan.deliveryOptions = {
+        ...artisan.deliveryOptions,
+        pickup: deliveryOptions.pickup,
+        delivery: deliveryOptions.delivery,
+        deliveryRadius: deliveryOptions.deliveryRadius,
+        deliveryFee: deliveryOptions.deliveryFee,
+        freeDeliveryThreshold: deliveryOptions.freeDeliveryThreshold
+      };
+      
+      // Update pickup details
+      if (deliveryOptions.pickupLocation !== undefined) {
+        artisan.pickupLocation = deliveryOptions.pickupLocation;
+      }
+      if (deliveryOptions.pickupInstructions !== undefined) {
+        artisan.pickupInstructions = deliveryOptions.pickupInstructions;
+      }
+      if (deliveryOptions.pickupHours !== undefined) {
+        artisan.pickupHours = deliveryOptions.pickupHours;
+      }
+      if (deliveryOptions.pickupUseBusinessAddress !== undefined) {
+        artisan.pickupUseBusinessAddress = deliveryOptions.pickupUseBusinessAddress;
+      }
+      if (deliveryOptions.pickupAddress !== undefined) {
+        artisan.pickupAddress = deliveryOptions.pickupAddress;
+      }
+      if (deliveryOptions.pickupSchedule !== undefined) {
+        artisan.pickupSchedule = deliveryOptions.pickupSchedule;
+      }
+      
+      // Update personal delivery details
+      if (deliveryOptions.deliveryInstructions !== undefined) {
+        artisan.deliveryInstructions = deliveryOptions.deliveryInstructions;
+      }
+      
+      // Update professional delivery options
+      if (deliveryOptions.professionalDelivery) {
+        artisan.professionalDelivery = {
+          enabled: deliveryOptions.professionalDelivery.enabled || false,
+          uberDirectEnabled: deliveryOptions.professionalDelivery.uberDirectEnabled || false,
+          serviceRadius: deliveryOptions.professionalDelivery.serviceRadius || 25,
+          regions: deliveryOptions.professionalDelivery.regions || [],
+          packaging: deliveryOptions.professionalDelivery.packaging || '',
+          restrictions: deliveryOptions.professionalDelivery.restrictions || ''
+        };
+      }
+    }
+    
     await artisan.save();
+    console.log('✅ Delivery options updated successfully:', {
+      deliveryOptions: artisan.deliveryOptions,
+      pickupLocation: artisan.pickupLocation,
+      pickupInstructions: artisan.pickupInstructions,
+      pickupHours: artisan.pickupHours,
+      pickupUseBusinessAddress: artisan.pickupUseBusinessAddress,
+      pickupAddress: artisan.pickupAddress,
+      pickupSchedule: artisan.pickupSchedule,
+      deliveryInstructions: artisan.deliveryInstructions,
+      professionalDelivery: artisan.professionalDelivery
+    });
 
     res.json(artisan);
   } catch (error) {

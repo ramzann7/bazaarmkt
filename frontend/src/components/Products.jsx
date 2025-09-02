@@ -750,58 +750,165 @@ export default function Products() {
         {/* Products List */}
         {products.length > 0 ? (
           <div className="space-y-6">
-            {/* Enhanced Inventory Summary */}
+            {/* Enhanced Interactive Inventory Overview */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-              <h4 className="text-xl font-bold text-gray-900 mb-6 text-center">Inventory Overview</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+                <h4 className="text-xl font-bold text-gray-900 text-center lg:text-left">Inventory Overview</h4>
+                
+                {/* Quick Actions */}
+                <div className="flex flex-wrap gap-3 mt-4 lg:mt-0 justify-center lg:justify-end">
+                  <button
+                    onClick={() => setActiveFilter('all')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      activeFilter === 'all'
+                        ? 'bg-orange-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All Products
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('ready_to_ship')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      activeFilter === 'ready_to_ship'
+                        ? 'bg-green-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Ready to Ship
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('made_to_order')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      activeFilter === 'made_to_order'
+                        ? 'bg-blue-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Made to Order
+                  </button>
+                  <button
+                    onClick={() => setActiveFilter('scheduled_order')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      activeFilter === 'scheduled_order'
+                        ? 'bg-purple-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Scheduled
+                  </button>
+                </div>
+              </div>
+              
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-6">
+                <div 
+                  className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-orange-300"
+                  onClick={() => setActiveFilter('all')}
+                >
+                  <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                     <span className="text-white text-lg font-bold">{products.length}</span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">Total Products</div>
                   <div className="text-sm text-gray-600">In your catalog</div>
+                  <div className="mt-2 text-xs text-orange-600 font-medium">Click to view all</div>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                
+                <div 
+                  className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-green-300"
+                  onClick={() => setActiveFilter('active')}
+                >
+                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                     <span className="text-white text-lg font-bold">{products.filter(p => p.status === 'active').length}</span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">Active</div>
                   <div className="text-sm text-gray-600">Available for sale</div>
+                  <div className="mt-2 text-xs text-green-600 font-medium">Click to view active</div>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                
+                <div 
+                  className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-emerald-300"
+                  onClick={() => setActiveFilter('ready_to_ship')}
+                >
+                  <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                     <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'ready_to_ship').length}</span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">Ready to Ship</div>
                   <div className="text-sm text-gray-600">In stock</div>
+                  <div className="mt-2 text-xs text-emerald-600 font-medium">Click to filter</div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                
+                <div 
+                  className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-blue-300"
+                  onClick={() => setActiveFilter('made_to_order')}
+                >
+                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                     <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'made_to_order').length}</span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">Made to Order</div>
                   <div className="text-sm text-gray-600">Custom products</div>
+                  <div className="mt-2 text-xs text-blue-600 font-medium">Click to filter</div>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                
+                <div 
+                  className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-purple-300"
+                  onClick={() => setActiveFilter('scheduled_order')}
+                >
+                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                     <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'scheduled_order').length}</span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">Scheduled</div>
                   <div className="text-sm text-gray-600">Time-based</div>
+                  <div className="mt-2 text-xs text-purple-600 font-medium">Click to filter</div>
                 </div>
+                
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
                     <span className="text-white text-lg font-bold">{products.reduce((sum, p) => sum + (p.soldCount || 0), 0)}</span>
                   </div>
                   <div className="text-lg font-bold text-gray-900">Total Sold</div>
                   <div className="text-sm text-gray-600">Units sold</div>
                 </div>
               </div>
+              
+              {/* Filter Summary */}
+              {activeFilter !== 'all' && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-blue-600 font-medium">
+                        {activeFilter === 'ready_to_ship' && '📦 Ready to Ship Products'}
+                        {activeFilter === 'made_to_order' && '⚙️ Made to Order Products'}
+                        {activeFilter === 'scheduled_order' && '📅 Scheduled Order Products'}
+                        {activeFilter === 'active' && '✅ Active Products'}
+                      </span>
+                      <span className="text-sm text-blue-600">
+                        ({products.filter(p => {
+                          if (activeFilter === 'active') return p.status === 'active';
+                          return p.productType === activeFilter;
+                        }).length} products)
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setActiveFilter('all')}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                    >
+                      Clear Filter
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Products Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
+              {products
+                .filter(product => {
+                  if (activeFilter === 'all') return true;
+                  if (activeFilter === 'active') return product.status === 'active';
+                  return product.productType === activeFilter;
+                })
+                .map((product) => (
                 <div key={product._id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                   {/* Product Image */}
                   <div className="relative h-48 bg-gray-100">
@@ -1976,6 +2083,267 @@ export default function Products() {
                 </div>
               </div>
 
+              {/* Product Type & Management Section */}
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <LightBulbIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                  Product Type & Management
+                </h5>
+                
+                <div className="space-y-6">
+                  {/* Product Type Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Product Type <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Ready to Ship */}
+                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                        newProduct.productType === 'ready_to_ship' 
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 hover:border-indigo-300'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="productType"
+                          value="ready_to_ship"
+                          checked={newProduct.productType === 'ready_to_ship'}
+                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">📦</div>
+                          <div className="font-semibold text-gray-900">Ready to Ship</div>
+                          <div className="text-xs text-gray-600 mt-1">Products in stock, ready for immediate shipping</div>
+                        </div>
+                      </label>
+                      
+                      {/* Made to Order */}
+                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                        newProduct.productType === 'made_to_order' 
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 hover:border-indigo-300'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="productType"
+                          value="made_to_order"
+                          checked={newProduct.productType === 'made_to_order'}
+                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">⚙️</div>
+                          <div className="font-semibold text-gray-900">Made to Order</div>
+                          <div className="text-xs text-gray-600 mt-1">Custom products made after order confirmation</div>
+                        </div>
+                      </label>
+                      
+                      {/* Scheduled Orders */}
+                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                        newProduct.productType === 'scheduled_order' 
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 hover:border-indigo-300'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="productType"
+                          value="scheduled_order"
+                          checked={newProduct.productType === 'scheduled_order'}
+                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
+                          className="sr-only"
+                        />
+                        <div className="text-center">
+                          <div className="text-2xl mb-2">📅</div>
+                          <div className="font-semibold text-gray-900">Scheduled Orders</div>
+                          <div className="text-xs text-gray-600 mt-1">Products made at specific times/dates</div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Common Fields for All Product Types */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
+                      <select
+                        value={newProduct.unit}
+                        onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="piece">Piece</option>
+                        <option value="kg">Kilogram</option>
+                        <option value="lb">Pound</option>
+                        <option value="g">Gram</option>
+                        <option value="oz">Ounce</option>
+                        <option value="l">Liter</option>
+                        <option value="ml">Milliliter</option>
+                        <option value="dozen">Dozen</option>
+                        <option value="pack">Pack</option>
+                        <option value="bundle">Bundle</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={newProduct.weight}
+                        onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        placeholder="0.0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Product Type Specific Fields */}
+                  {newProduct.productType === 'ready_to_ship' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Stock Quantity <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={newProduct.stock}
+                          onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Low Stock Threshold
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newProduct.lowStockThreshold}
+                          onChange={(e) => setNewProduct({...newProduct, lowStockThreshold: parseInt(e.target.value)})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="5"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Get notified when stock is low</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {newProduct.productType === 'made_to_order' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Lead Time <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            required
+                            value={newProduct.leadTime}
+                            onChange={(e) => setNewProduct({...newProduct, leadTime: e.target.value})}
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            placeholder="e.g., 3"
+                          />
+                          <select
+                            value={newProduct.leadTimeUnit}
+                            onChange={(e) => setNewProduct({...newProduct, leadTimeUnit: e.target.value})}
+                            className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                          </select>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">How long it takes to make this product</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Max Order Quantity
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={newProduct.maxOrderQuantity}
+                          onChange={(e) => setNewProduct({...newProduct, maxOrderQuantity: parseInt(e.target.value)})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="10"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={newProduct.requiresConfirmation}
+                            onChange={(e) => setNewProduct({...newProduct, requiresConfirmation: e.target.checked})}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-700">
+                            Require customer confirmation before starting production
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {newProduct.productType === 'scheduled_order' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Schedule Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          required
+                          value={newProduct.scheduleType}
+                          onChange={(e) => setNewProduct({...newProduct, scheduleType: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="custom">Custom Schedule</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Next Available Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={newProduct.nextAvailableDate}
+                          onChange={(e) => setNewProduct({...newProduct, nextAvailableDate: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Order Cut-off (Hours)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={newProduct.scheduleDetails.orderCutoffHours}
+                          onChange={(e) => setNewProduct({
+                            ...newProduct, 
+                            scheduleDetails: {
+                              ...newProduct.scheduleDetails,
+                              orderCutoffHours: parseInt(e.target.value)
+                            }
+                          })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="24"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">How many hours before production to stop taking orders</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Description Section */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
                 <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -2295,267 +2663,6 @@ export default function Products() {
                   <div className="text-xs text-gray-500">
                     💡 Tags help customers find your products. Use descriptive keywords like "local", "fresh", "handmade", "artisan", etc.
                   </div>
-                </div>
-              </div>
-
-              {/* Product Type & Management Section */}
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
-                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <LightBulbIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  Product Type & Management
-                </h5>
-                
-                <div className="space-y-6">
-                  {/* Product Type Selection */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Product Type <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Ready to Ship */}
-                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        newProduct.productType === 'ready_to_ship' 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="productType"
-                          value="ready_to_ship"
-                          checked={newProduct.productType === 'ready_to_ship'}
-                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">📦</div>
-                          <div className="font-semibold text-gray-900">Ready to Ship</div>
-                          <div className="text-xs text-gray-600 mt-1">Products in stock, ready for immediate shipping</div>
-                        </div>
-                      </label>
-                      
-                      {/* Made to Order */}
-                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        newProduct.productType === 'made_to_order' 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="productType"
-                          value="made_to_order"
-                          checked={newProduct.productType === 'made_to_order'}
-                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">⚙️</div>
-                          <div className="font-semibold text-gray-900">Made to Order</div>
-                          <div className="text-xs text-gray-600 mt-1">Custom products made after order confirmation</div>
-                        </div>
-                      </label>
-                      
-                      {/* Scheduled Orders */}
-                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        newProduct.productType === 'scheduled_order' 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="productType"
-                          value="scheduled_order"
-                          checked={newProduct.productType === 'scheduled_order'}
-                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">📅</div>
-                          <div className="font-semibold text-gray-900">Scheduled Orders</div>
-                          <div className="text-xs text-gray-600 mt-1">Products made at specific times/dates</div>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Common Fields for All Product Types */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
-                      <select
-                        value={newProduct.unit}
-                        onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                      >
-                        <option value="piece">Piece</option>
-                        <option value="kg">Kilogram</option>
-                        <option value="lb">Pound</option>
-                        <option value="g">Gram</option>
-                        <option value="oz">Ounce</option>
-                        <option value="l">Liter</option>
-                        <option value="ml">Milliliter</option>
-                        <option value="dozen">Dozen</option>
-                        <option value="pack">Pack</option>
-                        <option value="bundle">Bundle</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        value={newProduct.weight}
-                        onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                        placeholder="0.0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Product Type Specific Fields */}
-                  {newProduct.productType === 'ready_to_ship' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Stock Quantity <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          required
-                          value={newProduct.stock}
-                          onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Low Stock Threshold
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={newProduct.lowStockThreshold}
-                          onChange={(e) => setNewProduct({...newProduct, lowStockThreshold: parseInt(e.target.value)})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                          placeholder="5"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Get notified when stock is low</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {newProduct.productType === 'made_to_order' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Lead Time <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex gap-2">
-                          <input
-                            type="number"
-                            min="1"
-                            required
-                            value={newProduct.leadTime}
-                            onChange={(e) => setNewProduct({...newProduct, leadTime: e.target.value})}
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                            placeholder="e.g., 3"
-                          />
-                          <select
-                            value={newProduct.leadTimeUnit}
-                            onChange={(e) => setNewProduct({...newProduct, leadTimeUnit: e.target.value})}
-                            className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                          >
-                            <option value="hours">Hours</option>
-                            <option value="days">Days</option>
-                            <option value="weeks">Weeks</option>
-                          </select>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">How long it takes to make this product</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Max Order Quantity
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={newProduct.maxOrderQuantity}
-                          onChange={(e) => setNewProduct({...newProduct, maxOrderQuantity: parseInt(e.target.value)})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                          placeholder="10"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={newProduct.requiresConfirmation}
-                            onChange={(e) => setNewProduct({...newProduct, requiresConfirmation: e.target.checked})}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span className="ml-3 text-sm font-medium text-gray-700">
-                            Require customer confirmation before starting production
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {newProduct.productType === 'scheduled_order' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Schedule Type <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          required
-                          value={newProduct.scheduleType}
-                          onChange={(e) => setNewProduct({...newProduct, scheduleType: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="custom">Custom Schedule</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Next Available Date <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="date"
-                          required
-                          value={newProduct.nextAvailableDate}
-                          onChange={(e) => setNewProduct({...newProduct, nextAvailableDate: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Order Cut-off (Hours)
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={newProduct.scheduleDetails.orderCutoffHours}
-                          onChange={(e) => setNewProduct({
-                            ...newProduct, 
-                            scheduleDetails: {
-                              ...newProduct.scheduleDetails,
-                              orderCutoffHours: parseInt(e.target.value)
-                            }
-                          })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                          placeholder="24"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">How many hours before production to stop taking orders</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 

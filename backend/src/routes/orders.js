@@ -143,20 +143,33 @@ router.post('/guest', async (req, res) => {
   try {
     console.log('Creating guest order with data:', req.body);
     
-    const { items, deliveryAddress, deliveryInstructions, paymentMethod, guestInfo } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentDetails, guestInfo } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item' });
     }
 
     // Validate guest info
-    if (!guestInfo || !guestInfo.firstName || !guestInfo.lastName) {
-      return res.status(400).json({ message: 'Guest orders require firstName and lastName' });
+    if (!guestInfo || !guestInfo.firstName || !guestInfo.lastName || !guestInfo.email) {
+      return res.status(400).json({ message: 'Guest orders require firstName, lastName, and email' });
     }
 
     // Validate delivery address
     if (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city) {
       return res.status(400).json({ message: 'Guest orders require complete delivery address' });
+    }
+
+    // Validate payment method and details
+    if (!paymentMethod) {
+      return res.status(400).json({ message: 'Payment method is required' });
+    }
+
+    if (paymentMethod === 'credit_card' && (!paymentDetails || !paymentDetails.cardNumber || !paymentDetails.expiryDate || !paymentDetails.cvv)) {
+      return res.status(400).json({ message: 'Credit card details are required for credit card payment' });
+    }
+
+    if (paymentMethod === 'debit_card' && (!paymentDetails || !paymentDetails.cardNumber || !paymentDetails.expiryDate || !paymentDetails.cvv)) {
+      return res.status(400).json({ message: 'Debit card details are required for debit card payment' });
     }
 
     // Group items by artisan
@@ -206,6 +219,11 @@ router.post('/guest', async (req, res) => {
         deliveryAddress,
         deliveryInstructions,
         paymentMethod,
+        paymentDetails: paymentDetails ? {
+          method: paymentMethod,
+          last4: paymentDetails.cardNumber ? paymentDetails.cardNumber.slice(-4) : undefined,
+          cardType: paymentDetails.cardType || 'unknown'
+        } : undefined,
         status: 'pending',
         paymentStatus: 'pending',
         guestInfo: {
@@ -233,9 +251,82 @@ router.post('/guest', async (req, res) => {
       createdOrders.push(populatedOrder);
     }
 
+    // Calculate total amount across all orders
+    const totalOrderAmount = createdOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    
+    // Generate order summary
+    const orderSummary = {
+      totalOrders: createdOrders.length,
+      totalAmount: totalOrderAmount,
+      estimatedDeliveryTime: '2-3 business days',
+      orderNumbers: createdOrders.map(order => order._id.toString().slice(-8).toUpperCase()),
+      createdAt: new Date().toISOString()
+    };
+
+    // Generate follow-up information to encourage account creation
+    const followUpInfo = {
+      benefits: [
+        'Track your orders in real-time',
+        'Save delivery addresses for faster checkout',
+        'Earn loyalty points on every purchase',
+        'Get exclusive artisan offers and discounts',
+        'Manage your payment methods securely',
+        'Receive order updates and notifications'
+      ],
+      nextSteps: [
+        'Check your email for order confirmation',
+        'Track your order status using the order numbers above',
+        'Create an account to unlock all benefits',
+        'Follow your favorite artisans for updates'
+      ],
+      contactInfo: {
+        supportEmail: 'support@bazarmkt.com',
+        supportPhone: '+1-800-BAZAR-MKT',
+        helpCenter: 'https://help.bazarmkt.com'
+      }
+    };
+
     res.status(201).json({
-      message: 'Guest order created successfully',
-      orders: createdOrders
+      success: true,
+      message: '🎉 Your guest order has been placed successfully!',
+      orderSummary,
+      orders: createdOrders.map(order => ({
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-8).toUpperCase(),
+        artisan: {
+          name: order.artisan.artisanName || 'Artisan',
+          type: order.artisan.type || 'Local Artisan'
+        },
+        items: order.items.map(item => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice
+        })),
+        totalAmount: order.totalAmount,
+        status: order.status,
+        estimatedDelivery: orderSummary.estimatedDeliveryTime,
+        deliveryAddress: {
+          street: order.deliveryAddress.street,
+          city: order.deliveryAddress.city,
+          state: order.deliveryAddress.state,
+          zipCode: order.deliveryAddress.zipCode
+        }
+      })),
+      guestInfo: {
+        firstName: guestInfo.firstName,
+        lastName: guestInfo.lastName,
+        email: guestInfo.email,
+        guestId: guestInfo.guestId
+      },
+      followUpInfo,
+      accountCreation: {
+        message: '🌟 Ready to unlock the full Bazaar experience?',
+        benefits: followUpInfo.benefits,
+        cta: 'Create your free account now and start earning rewards!',
+        registrationUrl: '/register',
+        loginUrl: '/login'
+      }
     });
 
   } catch (error) {

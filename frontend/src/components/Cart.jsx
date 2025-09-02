@@ -76,6 +76,15 @@ const Cart = () => {
     isDefault: false
   });
   const [paymentFormErrors, setPaymentFormErrors] = useState({});
+  
+  // Guest payment form state
+  const [guestPaymentForm, setGuestPaymentForm] = useState({
+    paymentMethod: 'credit_card',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    cardholderName: ''
+  });
 
   // Helper function to parse JWT token
   const parseToken = (token) => {
@@ -525,6 +534,13 @@ const Cart = () => {
     }));
   };
 
+  const handleGuestPaymentFormChange = (field, value) => {
+    setGuestPaymentForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   // Handle address selection
   const handleAddressSelect = (address) => {
     setSelectedAddress(address);
@@ -571,6 +587,13 @@ const Cart = () => {
         toast.error('Please provide delivery address');
         return;
       }
+      // For guests, validate required fields before proceeding
+      if (isGuest) {
+        if (!deliveryForm.firstName || !deliveryForm.lastName || !deliveryForm.email) {
+          toast.error('Please provide your first name, last name, and email');
+          return;
+        }
+      }
       setCheckoutStep('payment');
     }
   };
@@ -598,9 +621,23 @@ const Cart = () => {
         return;
       }
 
-      // For guest users, use guest checkout function
+      // For guest users, validate payment information
       if (isGuest) {
+        if (!guestPaymentForm.paymentMethod) {
+          toast.error('Please select a payment method');
+          return;
+        }
+        if (!guestPaymentForm.cardNumber || !guestPaymentForm.expiryDate || !guestPaymentForm.cvv || !guestPaymentForm.cardholderName) {
+          toast.error('Please complete all payment details');
+          return;
+        }
         await handleGuestCheckout();
+        return;
+      }
+
+      // For authenticated users, validate payment method
+      if (!selectedPaymentMethod) {
+        toast.error('Please select a payment method');
         return;
       }
 
@@ -673,7 +710,14 @@ const Cart = () => {
         })),
         deliveryAddress: deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
-        paymentMethod: 'credit_card', // Default for guests
+        paymentMethod: guestPaymentForm.paymentMethod,
+        paymentDetails: {
+          cardNumber: guestPaymentForm.cardNumber,
+          expiryDate: guestPaymentForm.expiryDate,
+          cvv: guestPaymentForm.cvv,
+          cardholderName: guestPaymentForm.cardholderName,
+          cardType: guestPaymentForm.paymentMethod === 'credit_card' ? 'credit' : 'debit'
+        },
         guestInfo: {
           firstName: deliveryForm.firstName || 'Guest',
           lastName: deliveryForm.lastName || 'User',
@@ -1258,13 +1302,14 @@ const Cart = () => {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address</label>
+                            <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address *</label>
                             <input
                               type="email"
                               value={deliveryForm.email}
                               onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
                               className="input-field"
-                              placeholder="Enter your email (optional)"
+                              placeholder="Enter your email address"
+                              required
                             />
                           </div>
                           <div>
@@ -1280,6 +1325,8 @@ const Cart = () => {
                         </div>
                       </div>
                     )}
+
+
 
                     {/* Manual Address Form */}
                     <div className="border-t border-stone-200 pt-6">
@@ -1362,28 +1409,20 @@ const Cart = () => {
                     <ArrowLeftIcon className="w-6 h-6 mr-3" />
                     Review Your Selection
                   </button>
-                                      {isGuest ? (
-                      <button
-                        onClick={handleGuestCheckout}
-                        className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
-                        disabled={
-                          !deliveryForm.firstName || 
-                          !deliveryForm.lastName || 
-                          (isAddressRequired() && !deliveryForm.street) || 
-                          isLoading
-                        }
-                      >
-                      {isLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          Complete Guest Order
-                          <ArrowRightIcon className="w-6 h-6 ml-3" />
-                        </>
-                      )}
+                                                        {isGuest ? (
+                    <button
+                      onClick={handleNextStep}
+                      className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                      disabled={
+                        !deliveryForm.firstName || 
+                        !deliveryForm.lastName || 
+                        !deliveryForm.email ||
+                        (isAddressRequired() && !deliveryForm.street) || 
+                        isLoading
+                      }
+                    >
+                      Continue to Payment
+                      <ArrowRightIcon className="w-6 h-6 ml-3" />
                     </button>
                   ) : (
                     <button
@@ -1490,7 +1529,104 @@ const Cart = () => {
           </div>
           
           <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
-            {!isGuest && paymentMethods.length > 0 ? (
+            {isGuest ? (
+              // Guest Payment Method Selection
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
+                
+                {/* Payment Method Options for Guests */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-green-300 hover:bg-green-50 transition-all duration-300 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="guest-payment-method"
+                      value="credit_card"
+                      checked={guestPaymentForm.paymentMethod === 'credit_card'}
+                      onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
+                      className="text-green-600 w-5 h-5"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <CreditCardIcon className="w-5 h-5 text-green-600" />
+                        <span className="font-bold text-stone-900">Credit Card</span>
+                      </div>
+                      <p className="text-stone-600 text-sm">Secure payment with major credit cards</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="guest-payment-method"
+                      value="debit_card"
+                      checked={guestPaymentForm.paymentMethod === 'debit_card'}
+                      onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
+                      className="text-blue-600 w-5 h-5"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <CreditCardIcon className="w-5 h-5 text-blue-600" />
+                        <span className="font-bold text-stone-900">Debit Card</span>
+                      </div>
+                      <p className="text-stone-600 text-sm">Direct payment from your bank account</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Payment Details Form for Guests */}
+                {guestPaymentForm.paymentMethod && (
+                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-6">
+                    <h4 className="font-semibold text-stone-900 mb-4">Payment Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-stone-700 mb-2">Card Number *</label>
+                        <input
+                          type="text"
+                          value={guestPaymentForm.cardNumber}
+                          onChange={(e) => handleGuestPaymentFormChange('cardNumber', e.target.value)}
+                          className="input-field"
+                          placeholder="1234 5678 9012 3456"
+                          maxLength="19"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-stone-700 mb-2">Expiry Date *</label>
+                        <input
+                          type="text"
+                          value={guestPaymentForm.expiryDate}
+                          onChange={(e) => handleGuestPaymentFormChange('expiryDate', e.target.value)}
+                          className="input-field"
+                          placeholder="MM/YY"
+                          maxLength="5"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-stone-700 mb-2">CVV *</label>
+                        <input
+                          type="text"
+                          value={guestPaymentForm.cvv}
+                          onChange={(e) => handleGuestPaymentFormChange('cvv', e.target.value)}
+                          className="input-field"
+                          placeholder="123"
+                          maxLength="4"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-stone-700 mb-2">Cardholder Name *</label>
+                        <input
+                          type="text"
+                          value={guestPaymentForm.cardholderName}
+                          onChange={(e) => handleGuestPaymentFormChange('cardholderName', e.target.value)}
+                          className="input-field"
+                          placeholder="Name on card"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : !isGuest && paymentMethods.length > 0 ? (
+              // Authenticated User Payment Methods
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
                 
@@ -1534,12 +1670,12 @@ const Cart = () => {
                 </button>
               </div>
             ) : (
+              // No Payment Methods (for authenticated users)
               <div className="text-center py-8">
                 <CreditCardIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-stone-900 mb-2">No Payment Methods</h3>
                 <p className="text-stone-600 mb-4">
-                  {isGuest ? 'Guest users need to add payment information to complete their order.' : 
-                   !userProfile ? 'Loading profile...' :
+                  {!userProfile ? 'Loading profile...' :
                    userProfile.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
                    'Payment methods not loaded. Please refresh the page.'}
                 </p>

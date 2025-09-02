@@ -9,7 +9,7 @@ const revenueSchema = new mongoose.Schema({
   },
   artisanId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Artisan',
     required: true
   },
   patronId: {

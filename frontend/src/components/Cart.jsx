@@ -90,7 +90,7 @@ const Cart = () => {
       
       return {
         userId: payload.userId,
-        isGuest: !payload.userId || !payload.role // If no userId or role, treat as guest
+        isGuest: payload.isGuest === true // Only treat as guest if explicitly marked
       };
     } catch (error) {
       console.error('Error parsing token:', error);

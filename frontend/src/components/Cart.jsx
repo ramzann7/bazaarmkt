@@ -71,12 +71,22 @@ const Cart = () => {
   const parseToken = (token) => {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
+      
+      // Check if token is expired
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        console.log('Token expired, removing from localStorage');
+        localStorage.removeItem('token');
+        return { userId: null, isGuest: true };
+      }
+      
       return {
         userId: payload.userId,
-        isGuest: payload.isGuest || false
+        isGuest: !payload.userId || !payload.role // If no userId or role, treat as guest
       };
     } catch (error) {
       console.error('Error parsing token:', error);
+      // Remove invalid token
+      localStorage.removeItem('token');
       return { userId: null, isGuest: true };
     }
   };
@@ -290,8 +300,14 @@ const Cart = () => {
         const tokenData = parseToken(token);
         userId = tokenData.userId;
         guestStatus = tokenData.isGuest;
-        setCurrentUserId(userId);
-        setIsGuest(guestStatus);
+        
+        // Only set currentUserId if it's not already set to avoid race conditions
+        if (!currentUserId) {
+          setCurrentUserId(userId);
+        }
+        if (!isGuest) {
+          setIsGuest(guestStatus);
+        }
       }
       
       console.log('👤 User info:', { userId, guestStatus });
@@ -380,12 +396,19 @@ const Cart = () => {
 
   // Load user profile
   const loadUserProfile = async () => {
-    if (!currentUserId || isGuest) return;
+    if (!currentUserId || isGuest) {
+      console.log('🚫 Skipping user profile load:', { currentUserId, isGuest });
+      return;
+    }
     
     try {
+      console.log('🔄 Loading user profile for user ID:', currentUserId);
       const profile = await getProfile();
-      setUserProfile(profile);
       console.log('👤 User profile loaded:', profile);
+      console.log('🔍 Profile addresses:', profile?.addresses);
+      console.log('🔍 Profile payment methods:', profile?.paymentMethods);
+      
+      setUserProfile(profile);
     } catch (error) {
       console.error('❌ Error loading user profile:', error);
     }
@@ -404,8 +427,14 @@ const Cart = () => {
       
       if (!tokenData.isGuest) {
         console.log('👤 Loading profile and payment methods for authenticated user');
-        await loadUserProfile();
-        await loadPaymentMethods();
+        try {
+          await loadUserProfile();
+          console.log('✅ User profile loaded successfully');
+          await loadPaymentMethods();
+          console.log('✅ Payment methods loaded successfully');
+        } catch (error) {
+          console.error('❌ Error loading profile or payment methods:', error);
+        }
       } else {
         console.log('👻 Guest user, skipping profile and payment methods');
       }
@@ -413,7 +442,9 @@ const Cart = () => {
       console.log('🚫 No token found, user not authenticated');
     }
     
+    console.log('🛒 Loading cart after auth check...');
     await loadCart();
+    console.log('✅ Cart loaded after auth check');
   };
 
   // Handle cart updates
@@ -594,8 +625,15 @@ const Cart = () => {
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
       loadDeliveryOptions();
+      
+      // Ensure user profile is loaded when cart changes (for multiple artisan scenarios)
+      if (currentUserId && !isGuest && !userProfile) {
+        console.log('🔄 Cart changed, ensuring user profile is loaded for multiple artisans');
+        loadUserProfile();
+        loadPaymentMethods();
+      }
     }
-  }, [cartByArtisan]);
+  }, [cartByArtisan, currentUserId, isGuest, userProfile]);
 
   // Debug logging
   useEffect(() => {
@@ -610,6 +648,15 @@ const Cart = () => {
   useEffect(() => {
     console.log('💳 Payment methods state changed:', { paymentMethods, selectedPaymentMethod });
   }, [paymentMethods, selectedPaymentMethod]);
+
+  // Load user profile whenever currentUserId changes (for multiple artisan scenarios)
+  useEffect(() => {
+    if (currentUserId && !isGuest) {
+      console.log('🔄 CurrentUserId changed, loading user profile:', currentUserId);
+      loadUserProfile();
+      loadPaymentMethods();
+    }
+  }, [currentUserId, isGuest]);
 
   // Monitor cart total changes for animation
   const [cartTotal, setCartTotal] = useState(0);
@@ -895,6 +942,17 @@ const Cart = () => {
 
   // Render delivery information page
   if (checkoutStep === 'delivery') {
+    // Debug logging for delivery page
+    console.log('🚚 Rendering delivery information page:', {
+      currentUserId,
+      isGuest,
+      userProfile: !!userProfile,
+      userProfileAddresses: userProfile?.addresses?.length || 0,
+      userProfilePaymentMethods: userProfile?.paymentMethods?.length || 0,
+      cartByArtisanKeys: Object.keys(cartByArtisan),
+      selectedDeliveryMethods: Object.keys(selectedDeliveryMethods)
+    });
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1050,7 +1108,19 @@ const Cart = () => {
                     </h2>
                     
                     {/* User Addresses */}
-                    {userProfile?.addresses && userProfile.addresses.length > 0 && (
+                    {(() => {
+                      console.log('🔍 Rendering addresses section:', {
+                        userProfile: !!userProfile,
+                        addresses: userProfile?.addresses,
+                        addressesLength: userProfile?.addresses?.length,
+                        currentUserId,
+                        isGuest,
+                        checkoutStep
+                      });
+                      return null;
+                    })()}
+                    
+                    {userProfile?.addresses && userProfile.addresses.length > 0 ? (
                       <div className="mb-6">
                         <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
                           <MapPinIcon className="w-5 h-5 text-blue-600" />
@@ -1081,6 +1151,23 @@ const Cart = () => {
                               </div>
                             </label>
                           ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <MapPinIcon className="w-5 h-5 text-amber-600" />
+                          <div>
+                            <h3 className="font-semibold text-amber-800">No Saved Addresses Found</h3>
+                            <p className="text-amber-700 text-sm">
+                              {!userProfile ? 'Loading profile...' : 
+                               userProfile.addresses?.length === 0 ? 'No addresses saved yet. Add one below.' :
+                               'Addresses not loaded. Please refresh the page.'}
+                            </p>
+                            <p className="text-amber-600 text-xs mt-1">
+                              Debug: currentUserId={currentUserId}, isGuest={isGuest}, profileLoaded={!!userProfile}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1259,6 +1346,26 @@ const Cart = () => {
           </div>
           
           <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+            {(() => {
+              console.log('🔍 Rendering payment methods section:', {
+                isGuest,
+                paymentMethods: paymentMethods,
+                paymentMethodsLength: paymentMethods?.length
+              });
+              return null;
+            })()}
+            
+            {(() => {
+              console.log('🔍 Rendering payment methods section:', {
+                isGuest,
+                paymentMethods: paymentMethods,
+                paymentMethodsLength: paymentMethods?.length,
+                userProfile: !!userProfile,
+                currentUserId
+              });
+              return null;
+            })()}
+            
             {!isGuest && paymentMethods.length > 0 ? (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
@@ -1277,7 +1384,7 @@ const Cart = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <CreditCardIcon className="w-5 h-5 text-stone-500" />
-                          <span className="font-medium text-stone-900">
+                          <span className="text-stone-600">
                             {method.brand?.toUpperCase()} •••• {method.last4}
                           </span>
                           {method.isDefault && (
@@ -1307,7 +1414,13 @@ const Cart = () => {
                 <CreditCardIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-stone-900 mb-2">No Payment Methods</h3>
                 <p className="text-stone-600 mb-4">
-                  {isGuest ? 'Guest users need to add payment information to complete their order.' : 'Add a payment method to complete your order.'}
+                  {isGuest ? 'Guest users need to add payment information to complete their order.' : 
+                   !userProfile ? 'Loading profile...' :
+                   userProfile.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
+                   'Payment methods not loaded. Please refresh the page.'}
+                </p>
+                <p className="text-amber-600 text-xs mb-4">
+                  Debug: currentUserId={currentUserId}, profileLoaded={!!userProfile}, methodsCount={paymentMethods?.length || 0}
                 </p>
                 <button
                   onClick={() => setShowAddPaymentForm(true)}

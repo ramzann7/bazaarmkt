@@ -216,8 +216,20 @@ router.post('/login', async (req, res) => {
 });
 
 // ✅ Profile route (requires JWT) - Optimized for performance
-router.get('/profile', verifyToken, (req, res) => {
-  res.json({ user: req.user });
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    // req.user is already the full user document from auth middleware
+    const user = req.user;
+    
+    console.log('🔍 Profile requested for user:', user._id);
+    console.log('🔍 User has addresses:', user.addresses?.length || 0);
+    console.log('🔍 User has payment methods:', user.paymentMethods?.length || 0);
+    
+    res.json({ user });
+  } catch (error) {
+    console.error('❌ Error fetching user profile:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Create guest user

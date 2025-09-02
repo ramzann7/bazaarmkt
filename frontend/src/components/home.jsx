@@ -522,28 +522,6 @@ export default function Home() {
           pickupHours: artisanData.pickupHours,
           deliveryInstructions: artisanData.deliveryInstructions
         },
-        artisan: {
-          _id: artisanData._id,
-          artisanName: artisanData.artisanName || artisanData.businessName || `${artisanData.firstName || ''} ${artisanData.lastName || ''}`.trim(),
-          type: artisanData.type || 'other',
-          address: artisanData.address,
-          deliveryOptions: artisanData.deliveryOptions || {
-            pickup: true,
-            delivery: false,
-            deliveryRadius: 0,
-            deliveryFee: 0,
-            freeDeliveryThreshold: 0,
-            professionalDelivery: {
-              enabled: false,
-              uberDirectEnabled: false,
-              serviceRadius: 25
-            }
-          },
-          pickupLocation: artisanData.pickupLocation,
-          pickupInstructions: artisanData.pickupInstructions,
-          pickupHours: artisanData.pickupHours,
-          deliveryInstructions: artisanData.deliveryInstructions
-        },
         artisanId: artisanData._id      // Set to Artisan ID
       };
     } catch (error) {

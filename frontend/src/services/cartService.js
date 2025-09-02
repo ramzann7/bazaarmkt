@@ -9,6 +9,28 @@ const getGuestCartKey = () => {
   return 'food_finder_guest_cart';
 };
 
+// Helper function to get current user ID from token
+const getCurrentUserId = () => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    
+    // Check if token is expired
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem('token');
+      return null;
+    }
+    
+    return payload.userId || null;
+  } catch (error) {
+    console.error('❌ Error getting user ID from token:', error);
+    localStorage.removeItem('token');
+    return null;
+  }
+};
+
 // Helper function to check if user is guest
 const isGuestUser = () => {
   try {
@@ -22,16 +44,24 @@ const isGuestUser = () => {
     
     const payload = JSON.parse(atob(token.split('.')[1]));
     console.log('🔍 Token payload:', payload);
-    console.log('🔍 isGuest flag:', payload.isGuest);
     
-    // If token has isGuest: true, they're a guest user
-    // If token doesn't have isGuest or it's false, they're a regular user
-    const isGuest = payload.isGuest === true;
+    // Check if token is expired
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      console.log('👤 Token expired, treating as guest user');
+      localStorage.removeItem('token'); // Remove expired token
+      return true;
+    }
+    
+    // If token has userId and role, they're a regular user
+    // If token doesn't have these fields, they might be a guest user
+    const isGuest = !payload.userId || !payload.role;
     console.log('👤 Final guest status:', isGuest);
     return isGuest;
   } catch (error) {
     console.error('❌ Error checking guest status:', error);
     console.log('👤 Error occurred, treating as guest user');
+    // Remove invalid token
+    localStorage.removeItem('token');
     return true; // If we can't parse the token, treat as guest
   }
 };
@@ -39,6 +69,19 @@ const isGuestUser = () => {
 export const cartService = {
   getCart: (userId) => {
     try {
+      // If userId is explicitly null, treat as guest user
+      if (userId === null) {
+        const guestCartKey = getGuestCartKey();
+        const guestCart = localStorage.getItem(guestCartKey);
+        console.log('👤 Using guest cart (explicit null), key:', guestCartKey, 'data:', guestCart);
+        return guestCart ? JSON.parse(guestCart) : [];
+      }
+      
+      // If no userId provided, try to get it from token
+      if (!userId) {
+        userId = getCurrentUserId();
+      }
+      
       console.log('🔍 getCart called with userId:', userId);
       console.log('🔍 isGuestUser() result:', isGuestUser());
       
@@ -65,6 +108,11 @@ export const cartService = {
 
   addToCart: async (product, quantity = 1, userId) => {
     try {
+      // If no userId provided, try to get it from token
+      if (!userId) {
+        userId = getCurrentUserId();
+      }
+      
       console.log('🛒 Adding to cart:', { product: product.name, quantity, userId });
       
       // Debug the product structure to understand why artisan data is missing
@@ -308,6 +356,16 @@ export const cartService = {
 
   getCartCount: (userId) => {
     try {
+      // If userId is explicitly null, treat as guest user
+      if (userId === null) {
+        const cart = cartService.getCart(null);
+        return cart.reduce((count, item) => count + item.quantity, 0);
+      }
+      
+      // If no userId provided, try to get it from token
+      if (!userId) {
+        userId = getCurrentUserId();
+      }
       const cart = cartService.getCart(userId);
       return cart.reduce((count, item) => count + item.quantity, 0);
     } catch (error) {
@@ -318,6 +376,17 @@ export const cartService = {
 
   getCartByArtisan: async (userId) => {
     try {
+      // If userId is explicitly null, treat as guest user
+      if (userId === null) {
+        const cart = cartService.getCart(null);
+        console.log('🔍 getCartByArtisan - Raw cart from localStorage (guest):', cart);
+        return {}; // Guest users don't have artisan-specific cart grouping
+      }
+      
+      // If no userId provided, try to get it from token
+      if (!userId) {
+        userId = getCurrentUserId();
+      }
       const cart = cartService.getCart(userId);
       console.log('🔍 getCartByArtisan - Raw cart from localStorage:', cart);
       
@@ -677,6 +746,15 @@ export const cartService = {
 
   // Alias for getCartCount to maintain compatibility
   getCartItemCount: (userId) => {
+    // If userId is explicitly null, treat as guest user
+    if (userId === null) {
+      return cartService.getCartCount(null);
+    }
+    
+    // If no userId provided, try to get it from token
+    if (!userId) {
+      userId = getCurrentUserId();
+    }
     return cartService.getCartCount(userId);
   }
 };

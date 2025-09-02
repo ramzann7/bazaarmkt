@@ -61,7 +61,11 @@ export default function ArtisanShop() {
 
   useEffect(() => {
     loadArtisanShop();
-    loadUserProfile();
+    // Only load user profile if user is authenticated
+    const token = localStorage.getItem('token');
+    if (token) {
+      loadUserProfile();
+    }
     updateCartCount();
   }, [id]);
 
@@ -73,12 +77,22 @@ export default function ArtisanShop() {
       
       // Handle products - check different possible structures
       let productsData = [];
+      console.log('🔍 Artisan data received:', artisanData);
+      console.log('🔍 Products field:', artisanData.products);
+      
       if (artisanData.products && Array.isArray(artisanData.products)) {
         productsData = artisanData.products;
+        console.log('✅ Products is an array, length:', productsData.length);
       } else if (artisanData.products && typeof artisanData.products === 'object') {
         // If products is an object, convert to array
         productsData = Object.values(artisanData.products);
+        console.log('✅ Products is an object, converted to array, length:', productsData.length);
+      } else {
+        console.log('⚠️ No products found in artisan data');
+        productsData = [];
       }
+      
+      console.log('📦 Final products data:', productsData);
       
       // Enhance products with full artisan and seller data
       const enhancedProducts = productsData.map(product => ({
@@ -177,10 +191,21 @@ export default function ArtisanShop() {
 
   const loadUserProfile = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No token found, skipping user profile load');
+        return;
+      }
+      
       const userData = await getProfile();
       setUser(userData);
     } catch (error) {
       console.error('Error loading user profile:', error);
+      // If there's an auth error, clear the user state
+      if (error.response?.status === 401) {
+        setUser(null);
+        localStorage.removeItem('token');
+      }
     }
   };
 

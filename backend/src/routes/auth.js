@@ -8,11 +8,12 @@ const verifyToken = require('../middleware/authMiddleware');
 // Register user
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, firstName, lastName, phone, role = 'patron' } = req.body;
+    const { email, password, firstName, lastName, phone, role = 'patron', artisanData } = req.body;
 
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
+    // Create user
     user = new User({ 
       email, 
       password, 
@@ -22,6 +23,39 @@ router.post('/register', async (req, res) => {
       role 
     });
     await user.save();
+
+    // If registering as artisan, create artisan profile
+    let artisan = null;
+    if (role === 'artisan' && artisanData) {
+      const Artisan = require('../models/artisan');
+      artisan = new Artisan({
+        user: user._id,
+        type: artisanData.type || 'food_beverages',
+        artisanName: artisanData.artisanName || `${firstName} ${lastName}`,
+        description: artisanData.description || `Artisan profile for ${firstName} ${lastName}`,
+        address: artisanData.address || {
+          street: '',
+          city: '',
+          state: '',
+          zipCode: ''
+        },
+        phone: phone || '',
+        email: email || '',
+        isActive: true,
+        deliveryOptions: {
+          pickup: true,
+          delivery: false,
+          deliveryRadius: 0,
+          deliveryFee: 0,
+          freeDeliveryThreshold: 0
+        },
+        pickupLocation: '',
+        pickupInstructions: '',
+        pickupHours: 'Business hours',
+        pickupUseBusinessAddress: true
+      });
+      await artisan.save();
+    }
 
     const token = jwt.sign(
       { userId: user._id, role: user.role },
@@ -39,11 +73,108 @@ router.post('/register', async (req, res) => {
         fullName: `${user.firstName} ${user.lastName}`,
         email: user.email,
         role: user.role
-      }
+      },
+      artisan: artisan ? {
+        id: artisan._id,
+        artisanName: artisan.artisanName,
+        type: artisan.type
+      } : null
     });
 
   } catch (error) {
     console.error('Registration error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Register artisan with business profile
+router.post('/register/artisan', async (req, res) => {
+  try {
+    const { 
+      email, 
+      password, 
+      firstName, 
+      lastName, 
+      phone, 
+      artisanName,
+      type = 'food_beverages',
+      description,
+      address,
+      deliveryOptions
+    } = req.body;
+
+    // Check if user already exists
+    let user = await User.findOne({ email });
+    if (user) return res.status(400).json({ message: 'User already exists' });
+
+    // Create user with artisan role
+    user = new User({ 
+      email, 
+      password, 
+      firstName, 
+      lastName, 
+      phone, 
+      role: 'artisan'
+    });
+    await user.save();
+
+    // Create artisan profile
+    const Artisan = require('../models/artisan');
+    const artisan = new Artisan({
+      user: user._id,
+      type,
+      artisanName: artisanName || `${firstName} ${lastName}`,
+      description: description || `Artisan profile for ${firstName} ${lastName}`,
+      address: address || {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      },
+      phone: phone || '',
+      email: email || '',
+      isActive: true,
+      deliveryOptions: deliveryOptions || {
+        pickup: true,
+        delivery: false,
+        deliveryRadius: 0,
+        deliveryFee: 0,
+        freeDeliveryThreshold: 0
+      },
+      pickupLocation: '',
+      pickupInstructions: '',
+      pickupHours: 'Business hours',
+      pickupUseBusinessAddress: true
+    });
+    await artisan.save();
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production',
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: 'Artisan registered successfully',
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        role: user.role
+      },
+      artisan: {
+        id: artisan._id,
+        artisanName: artisan.artisanName,
+        type: artisan.type,
+        description: artisan.description
+      }
+    });
+
+  } catch (error) {
+    console.error('Artisan registration error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

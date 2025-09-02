@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon, UserIcon } from "@heroicons/react/24/outline";
-import { registerUser, getProfile } from "../services/authService";
+import { registerUser, getProfile } from "../services/authservice";
 import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
 
@@ -19,6 +19,9 @@ export default function Register() {
     confirmPassword: "",
     phone: "",
     role: defaultRole,
+    artisanName: "",
+    businessType: "food_beverages",
+    businessDescription: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -53,7 +56,15 @@ export default function Register() {
 
     try {
       const { confirmPassword, ...registerData } = formData;
-      await registerUser(registerData);
+      
+      // Prepare artisan data if registering as artisan
+      if (formData.role === 'artisan') {
+        registerData.artisanName = formData.artisanName || `${formData.firstName} ${formData.lastName}`;
+        registerData.type = formData.businessType;
+        registerData.description = formData.businessDescription || `Artisan profile for ${formData.firstName} ${formData.lastName}`;
+      }
+      
+      const result = await registerUser(registerData);
       
       // Get user profile to get userId
       const profile = await getProfile();
@@ -62,7 +73,12 @@ export default function Register() {
       // Mark user as new (they haven't completed onboarding yet)
       // Note: We don't mark onboarding as completed here, so they'll be redirected to profile
       
-      toast.success("Account created successfully!");
+      if (formData.role === 'artisan') {
+        toast.success("Artisan account created successfully! Complete your business profile to start selling.");
+      } else {
+        toast.success("Account created successfully!");
+      }
+      
       navigate("/dashboard"); // Use SmartRedirect for better user experience
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
@@ -190,6 +206,69 @@ export default function Register() {
               />
             </div>
 
+            {/* Artisan-specific fields */}
+            {formData.role === 'artisan' && (
+              <>
+                {/* Business Name Field */}
+                <div className="form-group">
+                  <label htmlFor="artisanName" className="form-label">
+                    Business Name
+                  </label>
+                  <input
+                    id="artisanName"
+                    name="artisanName"
+                    type="text"
+                    autoComplete="organization"
+                    value={formData.artisanName}
+                    onChange={handleChange}
+                    className="form-input focus-luxury"
+                    placeholder="Enter your business name"
+                  />
+                </div>
+
+                {/* Business Type Field */}
+                <div className="form-group">
+                  <label htmlFor="businessType" className="form-label">
+                    Business Type
+                  </label>
+                  <select
+                    id="businessType"
+                    name="businessType"
+                    value={formData.businessType}
+                    onChange={handleChange}
+                    className="form-input focus-luxury"
+                  >
+                    <option value="food_beverages">Food & Beverages</option>
+                    <option value="handmade_crafts">Handmade Crafts</option>
+                    <option value="clothing_accessories">Clothing & Accessories</option>
+                    <option value="home_garden">Home & Garden</option>
+                    <option value="beauty_wellness">Beauty & Wellness</option>
+                    <option value="bakery">Bakery</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="cafe">Cafe</option>
+                    <option value="farm">Farm</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* Business Description Field */}
+                <div className="form-group">
+                  <label htmlFor="businessDescription" className="form-label">
+                    Business Description
+                  </label>
+                  <textarea
+                    id="businessDescription"
+                    name="businessDescription"
+                    rows="3"
+                    value={formData.businessDescription}
+                    onChange={handleChange}
+                    className="form-input focus-luxury resize-none"
+                    placeholder="Briefly describe your business and what you offer"
+                  />
+                </div>
+              </>
+            )}
+
             {/* Password Field */}
             <div className="form-group">
               <label htmlFor="password" className="form-label">
@@ -263,14 +342,15 @@ export default function Register() {
           </form>
 
           {/* Business Benefits */}
-                          {formData.role === 'artisan' && (
+          {formData.role === 'artisan' && (
             <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-amber-200">
-                              <h4 className="font-semibold text-stone-800 mb-2">Why sell on The Bazaar?</h4>
+              <h4 className="font-semibold text-stone-800 mb-2">Why sell on The Bazaar?</h4>
               <ul className="text-sm text-stone-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>
                 <li>• Simple onboarding & payments</li>
                 <li>• Analytics & insights</li>
+                <li>• Connect with your community</li>
               </ul>
             </div>
           )}

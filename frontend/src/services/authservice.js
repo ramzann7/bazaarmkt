@@ -109,8 +109,18 @@ export const loginUser = async (credentials) => {
 // Register with optimized error handling
 export const registerUser = async (userData) => {
   try {
-    const response = await api.post('/auth/register', userData);
-    const { token, user } = response.data;
+    // Use artisan registration endpoint if role is artisan
+    const endpoint = userData.role === 'artisan' ? '/auth/register/artisan' : '/auth/register';
+    
+    // For artisan registration, include artisan-specific data
+    if (userData.role === 'artisan') {
+      userData.artisanName = `${userData.firstName} ${userData.lastName}`;
+      userData.type = 'food_beverages'; // Default type
+      userData.description = `Artisan profile for ${userData.firstName} ${userData.lastName}`;
+    }
+    
+    const response = await api.post(endpoint, userData);
+    const { token, user, artisan } = response.data;
     
     authToken.setToken(token);
     
@@ -128,7 +138,7 @@ export const registerUser = async (userData) => {
       detail: { isAuthenticated: true } 
     }));
     
-    return { user };
+    return { user, artisan };
   } catch (error) {
     throw error;
   }

@@ -152,15 +152,22 @@ router.post('/', verifyToken, async (req, res) => {
     // Group items by artisan
     const ordersByArtisan = {};
     
+    console.log('🔍 Processing order items:', items);
+    
     for (const item of items) {
       const productId = item.productId || item.product;
+      console.log('🔍 Processing item with productId:', productId);
+      
       const product = await Product.findById(productId).populate('artisan');
+      console.log('🔍 Found product:', product ? { id: product._id, name: product.name, artisan: product.artisan } : 'null');
       
       if (!product) {
+        console.error('❌ Product not found:', productId);
         return res.status(400).json({ message: `Product ${productId} not found` });
       }
 
       if (!product.artisan) {
+        console.error('❌ Product has no artisan:', product.name, productId);
         return res.status(400).json({ message: `Product ${product.name} has no artisan information` });
       }
 
@@ -211,15 +218,21 @@ router.post('/', verifyToken, async (req, res) => {
         console.log('Setting patron for order:', req.user._id);
       }
 
+      console.log('🔍 Creating order with data:', orderData);
+      
       const order = new Order(orderData);
 
+      console.log('🔍 Saving order...');
       const savedOrder = await order.save();
+      console.log('✅ Order saved successfully:', savedOrder._id);
       
       // Calculate revenue for this order
       try {
+        console.log('🔍 Calculating revenue for order:', savedOrder._id);
         await RevenueService.calculateOrderRevenue(savedOrder._id);
+        console.log('✅ Revenue calculated successfully');
       } catch (revenueError) {
-        console.error('Error calculating revenue for order:', savedOrder._id, revenueError);
+        console.error('❌ Error calculating revenue for order:', savedOrder._id, revenueError);
         // Don't fail the order creation if revenue calculation fails
       }
       

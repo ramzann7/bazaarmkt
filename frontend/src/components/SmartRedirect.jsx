@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authToken, getProfile } from '../services/authService';
-import { guestService } from '../services/guestService';
+import { cartService } from '../services/cartService';
 import { onboardingService } from '../services/onboardingService';
 import { orderService } from '../services/orderService';
 
@@ -25,7 +25,7 @@ export default function SmartRedirect() {
       }
 
       // Check if it's a guest user
-      const isGuest = guestService.isGuestUser();
+      const isGuest = cartService.isGuestUser();
       if (isGuest) {
         // Guest users go to homepage
         setRedirectPath('/');

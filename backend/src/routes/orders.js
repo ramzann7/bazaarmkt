@@ -131,6 +131,13 @@ router.get('/:orderId', verifyToken, async (req, res) => {
 // Create a new order
 router.post('/', verifyToken, async (req, res) => {
   try {
+    console.log('Creating order for user:', {
+      userId: req.user._id,
+      isGuest: req.user.isGuest,
+      role: req.user.role,
+      guestInfo: req.body.guestInfo
+    });
+    
     const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentMethodId, guestInfo } = req.body;
 
     if (!items || items.length === 0) {
@@ -194,10 +201,14 @@ router.post('/', verifyToken, async (req, res) => {
       };
 
       // Add patron or guest info based on user type
-      if (req.user.isGuest && guestInfo) {
+      console.log('Processing order for artisan:', artisanId, 'User isGuest:', req.user.isGuest, 'Guest info:', guestInfo);
+      
+      if (req.user.isGuest === true && guestInfo) {
         orderData.guestInfo = guestInfo;
+        console.log('Setting guest info for order');
       } else {
         orderData.patron = req.user._id;
+        console.log('Setting patron for order:', req.user._id);
       }
 
       const order = new Order(orderData);

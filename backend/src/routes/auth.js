@@ -87,6 +87,63 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Create guest profile
+router.post('/guest', async (req, res) => {
+  try {
+    const { firstName, lastName, phone, email } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName) {
+      return res.status(400).json({ message: 'First name and last name are required' });
+    }
+
+    // Generate unique guest ID
+    const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+    // Create guest user
+    const guestUser = new User({
+      firstName,
+      lastName,
+      phone,
+      email: email || `${guestId}@guest.local`, // Use guest email if none provided
+      isGuest: true,
+      guestId,
+      role: 'patron'
+    });
+
+    await guestUser.save();
+
+    // Create JWT token for guest
+    const token = jwt.sign(
+      { 
+        userId: guestUser._id, 
+        role: guestUser.role, 
+        isGuest: true,
+        guestId: guestUser.guestId 
+      },
+      process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production',
+      { expiresIn: '30d' } // Longer expiry for guests
+    );
+
+    res.status(201).json({
+      message: 'Guest profile created successfully',
+      token,
+      user: {
+        id: guestUser._id,
+        firstName: guestUser.firstName,
+        lastName: guestUser.lastName,
+        fullName: `${guestUser.firstName} ${guestUser.lastName}`,
+        guestId: guestUser.guestId,
+        isGuest: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Guest profile creation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Register artisan with business profile
 router.post('/register/artisan', async (req, res) => {
   try {

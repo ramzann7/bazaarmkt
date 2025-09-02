@@ -29,6 +29,15 @@ const Cart = () => {
   const [cart, setCart] = useState([]);
   const [cartByArtisan, setCartByArtisan] = useState({});
   const [checkoutStep, setCheckoutStep] = useState('cart');
+  const [guestProfile, setGuestProfile] = useState(null);
+  
+  // Guest profile form
+  const [guestForm, setGuestForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: ''
+  });
   
   // User state
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -77,7 +86,6 @@ const Cart = () => {
       
       // Check if token is expired
       if (payload.exp && payload.exp * 1000 < Date.now()) {
-        console.log('Token expired, removing from localStorage');
         localStorage.removeItem('token');
         return { userId: null, isGuest: true };
       }
@@ -147,24 +155,17 @@ const Cart = () => {
   // Load user's payment methods
   const loadPaymentMethods = async () => {
     if (!currentUserId || isGuest) {
-      console.log('🚫 Skipping payment methods load:', { currentUserId, isGuest });
       return;
     }
     
-    console.log('🔄 Loading payment methods for user:', currentUserId);
-    
     try {
       const methods = await paymentService.getPaymentMethods();
-      console.log('✅ Payment methods loaded:', methods);
       setPaymentMethods(methods);
       
       // Set default payment method if available
       const defaultMethod = methods.find(method => method.isDefault);
       if (defaultMethod) {
-        console.log('🎯 Setting default payment method:', defaultMethod);
         setSelectedPaymentMethod(defaultMethod);
-      } else {
-        console.log('⚠️ No default payment method found');
       }
     } catch (error) {
       console.error('❌ Error loading payment methods:', error);
@@ -292,7 +293,7 @@ const Cart = () => {
   const loadCart = async () => {
     try {
       setCartLoading(true);
-      console.log('🔄 Starting cart load...');
+  
       
       // Get current user info
       const token = localStorage.getItem('token');
@@ -313,14 +314,10 @@ const Cart = () => {
         }
       }
       
-      console.log('👤 User info:', { userId, guestStatus });
-      
       // Load cart data from localStorage
       const cartData = await cartService.getCart(userId);
-      console.log('📦 Cart data loaded:', cartData);
       
       if (!cartData || cartData.length === 0) {
-        console.log('📦 Cart is empty');
         setCart([]);
         setCartByArtisan({});
         return;
@@ -328,16 +325,10 @@ const Cart = () => {
       
       // Load cart by artisan (this fetches fresh artisan data)
       const cartByArtisanData = await cartService.getCartByArtisan(userId);
-      console.log('🏪 Cart by artisan loaded:', cartByArtisanData);
       
       // Set cart state
       setCart(cartData);
       setCartByArtisan(cartByArtisanData);
-      
-      console.log('✅ Cart loaded successfully:', {
-        cartItems: cartData.length,
-        artisanGroups: Object.keys(cartByArtisanData).length
-      });
       
     } catch (error) {
       console.error('❌ Error loading cart:', error);
@@ -350,21 +341,17 @@ const Cart = () => {
   // Load delivery options - completely rebuilt
   const loadDeliveryOptions = async () => {
     if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
-      console.log('📦 No cart data available for delivery options');
       return;
     }
     
     try {
       setDeliveryOptionsLoading(true);
-      console.log('🔄 Loading delivery options...');
       
       const options = {};
       const methods = {};
       
       // Process each artisan's delivery options
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-        console.log('🏪 Processing artisan:', artisanId, artisanData.artisan?.artisanName);
-        
         if (artisanData.artisan?.deliveryOptions) {
           // Use the delivery service to structure options
           const processedOptions = deliveryService.structureDeliveryOptions(artisanData.artisan.deliveryOptions);
@@ -376,19 +363,13 @@ const Cart = () => {
           } else if (processedOptions.personalDelivery?.available) {
             methods[artisanId] = 'personalDelivery';
           } else if (processedOptions.professionalDelivery?.available) {
-            methods[artisanId] = 'professionalDelivery';
+            methods[artisanId] = 'personalDelivery';
           }
-          
-          console.log('✅ Delivery options processed for artisan:', artisanId, processedOptions);
-        } else {
-          console.log('⚠️ No delivery options found for artisan:', artisanId);
         }
       });
       
       setDeliveryOptions(options);
       setSelectedDeliveryMethods(methods);
-      
-      console.log('✅ Delivery options loaded:', { options, methods });
       
     } catch (error) {
       console.error('❌ Error loading delivery options:', error);
@@ -400,17 +381,11 @@ const Cart = () => {
   // Load user profile
   const loadUserProfile = async () => {
     if (!currentUserId || isGuest) {
-      console.log('🚫 Skipping user profile load:', { currentUserId, isGuest });
       return;
     }
     
     try {
-      console.log('🔄 Loading user profile for user ID:', currentUserId);
       const profile = await getProfile();
-      console.log('👤 User profile loaded:', profile);
-      console.log('🔍 Profile addresses:', profile?.addresses);
-      console.log('🔍 Profile payment methods:', profile?.paymentMethods);
-      
       setUserProfile(profile);
     } catch (error) {
       console.error('❌ Error loading user profile:', error);
@@ -420,34 +395,23 @@ const Cart = () => {
   // Check authentication status
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
-    console.log('🔐 Checking auth, token exists:', !!token);
     
     if (token) {
       const tokenData = parseToken(token);
-      console.log('🔑 Token parsed:', tokenData);
       setCurrentUserId(tokenData.userId);
       setIsGuest(tokenData.isGuest);
       
       if (!tokenData.isGuest) {
-        console.log('👤 Loading profile and payment methods for authenticated user');
         try {
           await loadUserProfile();
-          console.log('✅ User profile loaded successfully');
           await loadPaymentMethods();
-          console.log('✅ Payment methods loaded successfully');
         } catch (error) {
           console.error('❌ Error loading profile or payment methods:', error);
         }
-      } else {
-        console.log('👻 Guest user, skipping profile and payment methods');
       }
-    } else {
-      console.log('🚫 No token found, user not authenticated');
     }
     
-    console.log('🛒 Loading cart after auth check...');
     await loadCart();
-    console.log('✅ Cart loaded after auth check');
   };
 
   // Handle cart updates
@@ -570,6 +534,21 @@ const Cart = () => {
         toast.error('Cart is empty');
         return;
       }
+      
+      // Check if user is authenticated
+      if (!currentUserId || isGuest) {
+        // For guest users, go to guest profile step
+        if (isGuest) {
+          setCheckoutStep('guest-profile');
+          return;
+        }
+        
+        // For unauthenticated users, show login prompt
+        toast.error('Please log in to continue with checkout');
+        return;
+      }
+      
+      // For authenticated users, go to delivery step
       setCheckoutStep('delivery');
     } else if (checkoutStep === 'delivery') {
       if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
@@ -581,7 +560,9 @@ const Cart = () => {
   };
 
   const handlePreviousStep = () => {
-    if (checkoutStep === 'delivery') {
+    if (checkoutStep === 'guest-profile') {
+      setCheckoutStep('cart');
+    } else if (checkoutStep === 'delivery') {
       setCheckoutStep('cart');
     } else if (checkoutStep === 'payment') {
       setCheckoutStep('delivery');
@@ -617,6 +598,38 @@ const Cart = () => {
     }
   };
 
+  // Handle guest profile creation
+  const handleGuestProfileSubmit = async () => {
+    try {
+      if (!guestForm.firstName.trim() || !guestForm.lastName.trim()) {
+        toast.error('Please provide your first and last name');
+        return;
+      }
+
+      setIsLoading(true);
+      
+      // Create guest profile
+      const result = await guestService.createGuestProfile(guestForm);
+      
+      // Store the token and update state
+      localStorage.setItem('token', result.token);
+      setGuestProfile(result.user);
+      setIsGuest(true);
+      setCurrentUserId(result.user.id);
+      
+      toast.success('Guest profile created successfully!');
+      
+      // Move to next step
+      setCheckoutStep('delivery');
+      
+    } catch (error) {
+      console.error('Error creating guest profile:', error);
+      toast.error('Failed to create guest profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle order placement for authenticated users
   const handlePlaceOrder = async () => {
     try {
@@ -634,12 +647,8 @@ const Cart = () => {
         paymentMethodId: selectedPaymentMethod?._id
       };
 
-      console.log('🔄 Creating order with data:', orderData);
-
       // Create order
       const result = await orderService.createOrder(orderData);
-      
-      console.log('✅ Order created successfully:', result);
       
       // Clear cart
       await cartService.clearCart(currentUserId);
@@ -676,31 +685,15 @@ const Cart = () => {
       
       // Ensure user profile is loaded when cart changes (for multiple artisan scenarios)
       if (currentUserId && !isGuest && !userProfile) {
-        console.log('🔄 Cart changed, ensuring user profile is loaded for multiple artisans');
         loadUserProfile();
         loadPaymentMethods();
       }
     }
   }, [cartByArtisan, currentUserId, isGuest, userProfile]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔄 Cart state changed:', { 
-      cart: cart.length, 
-      cartByArtisan: Object.keys(cartByArtisan).length, 
-      currentUserId 
-    });
-  }, [cart, cartByArtisan, currentUserId]);
-
-  // Monitor payment methods state changes for debugging
-  useEffect(() => {
-    console.log('💳 Payment methods state changed:', { paymentMethods, selectedPaymentMethod });
-  }, [paymentMethods, selectedPaymentMethod]);
-
   // Load user profile whenever currentUserId changes (for multiple artisan scenarios)
   useEffect(() => {
     if (currentUserId && !isGuest) {
-      console.log('🔄 CurrentUserId changed, loading user profile:', currentUserId);
       loadUserProfile();
       loadPaymentMethods();
     }
@@ -988,18 +981,160 @@ const Cart = () => {
     );
   }
 
+  // Render guest profile step
+  if (checkoutStep === 'guest-profile') {
+    return (
+      <div className="min-h-screen bg-stone-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
+              <UserIcon className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-stone-900 mb-2">Tell Us About Yourself</h1>
+              <p className="text-lg text-stone-600">Help our artisans know who they're creating for</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-8">
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-stone-900 mb-2">Guest Profile</h2>
+                  <p className="text-stone-600">Create a simple profile so our artisans can personalize your experience</p>
+                </div>
+                
+                <form onSubmit={(e) => { e.preventDefault(); handleGuestProfileSubmit(); }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={guestForm.firstName}
+                        onChange={(e) => setGuestForm({...guestForm, firstName: e.target.value})}
+                        className="input-field"
+                        placeholder="Enter your first name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-stone-700 mb-2">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={guestForm.lastName}
+                        onChange={(e) => setGuestForm({...guestForm, lastName: e.target.value})}
+                        className="input-field"
+                        placeholder="Enter your last name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="label">
+                        Phone Number
+                      </label>
+                      <input
+                        type="tel"
+                        value={guestForm.phone}
+                        onChange={(e) => setGuestForm({...guestForm, phone: e.target.value})}
+                        className="input-field"
+                        placeholder="Enter your phone number"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={guestForm.email}
+                        onChange={(e) => setGuestForm({...guestForm, email: e.target.value})}
+                        className="input-field"
+                        placeholder="Enter your email (optional)"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between pt-6 border-t border-stone-200">
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutStep('cart')}
+                      className="btn-secondary"
+                    >
+                      Back to Cart
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="btn-primary"
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Creating Profile...
+                        </>
+                      ) : (
+                        'Continue to Delivery'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+            
+            {/* Right Column - Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="space-y-6">
+                {/* Order Summary */}
+                <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+                  <h3 className="font-bold text-stone-900 mb-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
+                      <ShoppingBagIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-lg">Order Summary</span>
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
+                      <span className="text-stone-600">Subtotal:</span>
+                      <span className="font-semibold text-stone-900">
+                        {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
+                      <span className="text-stone-600">Delivery Fees:</span>
+                      <span className="font-semibold text-stone-900">{formatPrice(getTotalDeliveryFees())}</span>
+                    </div>
+                    <div className="border-t border-stone-200 pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-stone-800">Total:</span>
+                        <span className="font-bold text-lg text-stone-900">
+                          {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0) + getTotalDeliveryFees())}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-blue-800">
+                      <strong>Guest Checkout:</strong> Creating a profile helps our artisans personalize your experience and ensures smooth order processing.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Render delivery information page
   if (checkoutStep === 'delivery') {
-    // Debug logging for delivery page
-    console.log('🚚 Rendering delivery information page:', {
-      currentUserId,
-      isGuest,
-      userProfile: !!userProfile,
-      userProfileAddresses: userProfile?.addresses?.length || 0,
-      userProfilePaymentMethods: userProfile?.paymentMethods?.length || 0,
-      cartByArtisanKeys: Object.keys(cartByArtisan),
-      selectedDeliveryMethods: Object.keys(selectedDeliveryMethods)
-    });
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
@@ -1212,9 +1347,7 @@ const Cart = () => {
                                userProfile.addresses?.length === 0 ? 'No addresses saved yet. Add one below.' :
                                'Addresses not loaded. Please refresh the page.'}
                             </p>
-                            <p className="text-amber-600 text-xs mt-1">
-                              Debug: currentUserId={currentUserId}, isGuest={isGuest}, profileLoaded={!!userProfile}
-                            </p>
+
                           </div>
                         </div>
                       </div>
@@ -1404,26 +1537,6 @@ const Cart = () => {
           </div>
           
           <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
-            {(() => {
-              console.log('🔍 Rendering payment methods section:', {
-                isGuest,
-                paymentMethods: paymentMethods,
-                paymentMethodsLength: paymentMethods?.length
-              });
-              return null;
-            })()}
-            
-            {(() => {
-              console.log('🔍 Rendering payment methods section:', {
-                isGuest,
-                paymentMethods: paymentMethods,
-                paymentMethodsLength: paymentMethods?.length,
-                userProfile: !!userProfile,
-                currentUserId
-              });
-              return null;
-            })()}
-            
             {!isGuest && paymentMethods.length > 0 ? (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
@@ -1477,9 +1590,7 @@ const Cart = () => {
                    userProfile.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
                    'Payment methods not loaded. Please refresh the page.'}
                 </p>
-                <p className="text-amber-600 text-xs mb-4">
-                  Debug: currentUserId={currentUserId}, profileLoaded={!!userProfile}, methodsCount={paymentMethods?.length || 0}
-                </p>
+
                 <button
                   onClick={() => setShowAddPaymentForm(true)}
                   className="btn-primary"

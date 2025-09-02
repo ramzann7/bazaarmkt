@@ -217,12 +217,17 @@ router.post('/', verifyToken, async (req, res) => {
         console.log('Setting guest info for order');
       } else {
         orderData.patron = req.user._id;
-        // Ensure guestInfo is not set for authenticated users
+        // Ensure guestInfo is completely removed for authenticated users
         delete orderData.guestInfo;
+        // Also set guestInfo to undefined explicitly to prevent Mongoose from setting defaults
+        orderData.guestInfo = undefined;
         console.log('Setting patron for order:', req.user._id);
       }
 
-      console.log('🔍 Creating order with data:', orderData);
+      // Debug: Check what's actually in orderData before creating the Order
+      console.log('🔍 Final orderData before Order creation:', JSON.stringify(orderData, null, 2));
+      console.log('🔍 orderData.guestInfo exists:', !!orderData.guestInfo);
+      console.log('🔍 orderData.patron exists:', !!orderData.patron);
       
       const order = new Order(orderData);
 

@@ -154,6 +154,7 @@ export default function Products() {
   };
 
   useEffect(() => {
+    console.log('Products component mounted - loading data...');
     loadUserAndProducts();
     loadAllProducts();
   }, []);
@@ -199,11 +200,14 @@ export default function Products() {
 
   const loadUserAndProducts = async () => {
     try {
+      console.log('Loading user and products...');
       setIsLoading(true);
       const [userData, productsData] = await Promise.all([
         getProfile(),
         getMyProducts()
       ]);
+      console.log('User data:', userData);
+      console.log('Products data:', productsData);
       setUser(userData.user);
       setProducts(productsData);
       

@@ -31,6 +31,7 @@ import { favoriteService } from '../services/favoriteService';
 import reviewService from '../services/reviewService';
 import { getProfile } from '../services/authservice';
 import { cartService } from '../services/cartService';
+import ProductTypeBadge from './ProductTypeBadge';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
@@ -663,6 +664,12 @@ export default function ArtisanShop() {
                             {product.description}
                           </p>
                         )}
+                        
+                        {/* Product Type Information */}
+                        <div className="mb-2">
+                          <ProductTypeBadge product={product} variant="compact" />
+                        </div>
+                        
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-bold text-orange-600">
                             {formatPrice(product.price)}

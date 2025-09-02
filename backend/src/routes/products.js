@@ -1479,7 +1479,17 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       isVegan,
       isHalal,
       status,
-      leadTimeHours
+      leadTimeHours,
+      // New product type fields
+      productType,
+      lowStockThreshold,
+      leadTime,
+      leadTimeUnit,
+      requiresConfirmation,
+      maxOrderQuantity,
+      scheduleType,
+      scheduleDetails,
+      nextAvailableDate
     } = req.body;
     
     // Update fields
@@ -1499,6 +1509,47 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     if (isHalal !== undefined) product.isHalal = isHalal === 'true' || isHalal === true;
     if (status !== undefined) product.status = status;
     if (leadTimeHours !== undefined) product.leadTimeHours = parseInt(leadTimeHours);
+    
+    // Update new product type fields
+    if (productType !== undefined) product.productType = productType;
+    if (lowStockThreshold !== undefined) product.lowStockThreshold = parseInt(lowStockThreshold);
+    if (leadTime !== undefined) product.leadTime = parseInt(leadTime);
+    if (leadTimeUnit !== undefined) product.leadTimeUnit = leadTimeUnit;
+    if (requiresConfirmation !== undefined) product.requiresConfirmation = requiresConfirmation === 'true' || requiresConfirmation === true;
+    if (maxOrderQuantity !== undefined) product.maxOrderQuantity = parseInt(maxOrderQuantity);
+    if (scheduleType !== undefined) product.scheduleType = scheduleType;
+    if (scheduleDetails !== undefined) {
+      if (typeof scheduleDetails === 'string') {
+        product.scheduleDetails = JSON.parse(scheduleDetails);
+      } else {
+        product.scheduleDetails = scheduleDetails;
+      }
+    }
+    if (nextAvailableDate !== undefined) product.nextAvailableDate = nextAvailableDate;
+    
+    // Clear old fields when switching product types
+    if (productType === 'ready_to_ship') {
+      product.leadTime = undefined;
+      product.leadTimeUnit = undefined;
+      product.requiresConfirmation = undefined;
+      product.maxOrderQuantity = undefined;
+      product.scheduleType = undefined;
+      product.scheduleDetails = undefined;
+      product.nextAvailableDate = undefined;
+    } else if (productType === 'made_to_order') {
+      product.stock = undefined;
+      product.lowStockThreshold = undefined;
+      product.scheduleType = undefined;
+      product.scheduleDetails = undefined;
+      product.nextAvailableDate = undefined;
+    } else if (productType === 'scheduled_order') {
+      product.stock = undefined;
+      product.lowStockThreshold = undefined;
+      product.leadTime = undefined;
+      product.leadTimeUnit = undefined;
+      product.requiresConfirmation = undefined;
+      product.maxOrderQuantity = undefined;
+    }
     
     // Handle image upload
     if (req.file) {

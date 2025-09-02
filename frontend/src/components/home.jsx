@@ -34,6 +34,8 @@ import DistanceBadge from './DistanceBadge';
 import LocationPrompt from './LocationPrompt';
 import LocationIndicator from './LocationIndicator';
 import { locationService } from '../services/locationService';
+import ProductTypeBadge from './ProductTypeBadge';
+import ProductReadinessModal from './ProductReadinessModal';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -62,6 +64,8 @@ export default function Home() {
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState(null);
+  const [showReadinessModal, setShowReadinessModal] = useState(false);
+  const [readinessProduct, setReadinessProduct] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const navigate = useNavigate();
@@ -533,11 +537,45 @@ export default function Home() {
   // Memoized product click handler
   const handleProductClick = useMemo(() => {
     return (product) => {
-      setSelectedProduct(product);
-      setQuantity(1);
-      setShowCartPopup(true);
+      // Show readiness modal first to inform user about product availability
+      setReadinessProduct(product);
+      setShowReadinessModal(true);
     };
   }, []);
+
+  // Handle adding to cart from readiness modal
+  const handleAddToCartFromReadiness = async (product) => {
+    try {
+      // Get current user ID from token
+      let currentUserId = null;
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentUserId = payload.userId;
+        } catch (error) {
+          console.error('Error parsing token for userId:', error);
+        }
+      }
+
+      // Enhance product with complete artisan data before adding to cart
+      const enhancedProduct = await enhanceProductWithArtisanData(product);
+      
+      // Use cartService to add to cart
+      await cartService.addToCart(enhancedProduct, 1, currentUserId);
+      
+      toast.success('Product added to cart!');
+      setShowReadinessModal(false);
+      setReadinessProduct(null);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      if (error.message.includes('Artisans cannot add products to cart')) {
+        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
+      } else {
+        toast.error('Failed to add item to cart');
+      }
+    }
+  };
 
   // Memoized quantity handlers
   const handleQuantityChange = useMemo(() => {
@@ -821,6 +859,11 @@ export default function Home() {
             />
           </div>
         )}
+        {/* Product Type Information */}
+        <div className="mt-2 mb-2">
+          <ProductTypeBadge product={product} variant="compact" />
+        </div>
+        
         <div className="flex items-center justify-between mt-2">
           <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
           <div className="flex items-center space-x-1">
@@ -1182,6 +1225,19 @@ export default function Home() {
         <LocationPrompt
           onLocationSet={handleLocationSet}
           onDismiss={handleLocationDismiss}
+        />
+      )}
+
+      {/* Product Readiness Modal */}
+      {showReadinessModal && readinessProduct && (
+        <ProductReadinessModal
+          product={readinessProduct}
+          isOpen={showReadinessModal}
+          onClose={() => {
+            setShowReadinessModal(false);
+            setReadinessProduct(null);
+          }}
+          onAddToCart={handleAddToCartFromReadiness}
         />
       )}
     </div>

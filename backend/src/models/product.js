@@ -27,13 +27,81 @@ const productSchema = new mongoose.Schema({
     trim: true
   },
   
-  // Inventory
+  // Product Type and Management
+  productType: {
+    type: String,
+    enum: ['ready_to_ship', 'made_to_order', 'scheduled_order'],
+    required: true,
+    default: 'ready_to_ship'
+  },
+  
+  // Ready to Ship Product Fields
   stock: {
     type: Number,
-    required: true,
+    required: function() { return this.productType === 'ready_to_ship'; },
     min: 0,
     default: 0
   },
+  lowStockThreshold: {
+    type: Number,
+    min: 0,
+    default: 5
+  },
+  
+  // Made to Order Product Fields
+  leadTime: {
+    type: Number,
+    required: function() { return this.productType === 'made_to_order'; },
+    min: 1,
+    default: 1
+  },
+  leadTimeUnit: {
+    type: String,
+    enum: ['hours', 'days', 'weeks'],
+    required: function() { return this.productType === 'made_to_order'; },
+    default: 'days'
+  },
+  requiresConfirmation: {
+    type: Boolean,
+    default: true
+  },
+  maxOrderQuantity: {
+    type: Number,
+    min: 1,
+    default: 10
+  },
+  
+  // Scheduled Order Product Fields
+  scheduleType: {
+    type: String,
+    enum: ['daily', 'weekly', 'monthly', 'custom'],
+    required: function() { return this.productType === 'scheduled_order'; }
+  },
+  scheduleDetails: {
+    // For daily/weekly/monthly schedules
+    frequency: {
+      type: String,
+      enum: ['every_day', 'every_week', 'every_month', 'custom']
+    },
+    // For custom schedules
+    customSchedule: [{
+      dayOfWeek: { type: Number, min: 0, max: 6 }, // 0 = Sunday, 6 = Saturday
+      time: String, // Format: "HH:MM"
+      enabled: { type: Boolean, default: true }
+    }],
+    // Cut-off time for orders (how many hours before production)
+    orderCutoffHours: {
+      type: Number,
+      min: 1,
+      default: 24
+    }
+  },
+  nextAvailableDate: {
+    type: Date,
+    required: function() { return this.productType === 'scheduled_order'; }
+  },
+  
+  // Common Inventory Fields
   unit: {
     type: String,
     required: true,
@@ -123,7 +191,7 @@ const productSchema = new mongoose.Schema({
   // Status
   status: {
     type: String,
-    enum: ['active', 'inactive', 'out_of_stock'],
+    enum: ['active', 'inactive', 'out_of_stock', 'temporarily_unavailable'],
     default: 'active'
   },
   isActive: {
@@ -133,18 +201,6 @@ const productSchema = new mongoose.Schema({
   isFeatured: {
     type: Boolean,
     default: false
-  },
-  
-  // Lead time for orders
-  leadTime: {
-    type: Number,
-    default: 1,
-    min: 0
-  },
-  leadTimeUnit: {
-    type: String,
-    enum: ['hours', 'days'],
-    default: 'days'
   },
   
   // Artisan Information (required - replaces seller concept)
@@ -171,10 +227,41 @@ productSchema.pre('save', function(next) {
   next();
 });
 
+// Validation for product type specific requirements
+productSchema.pre('save', function(next) {
+  if (this.productType === 'ready_to_ship') {
+    if (this.stock === undefined || this.stock < 0) {
+      return next(new Error('Ready to ship products must have stock quantity'));
+    }
+  }
+  
+  if (this.productType === 'made_to_order') {
+    if (!this.leadTime || this.leadTime < 1) {
+      return next(new Error('Made to order products must have lead time'));
+    }
+    if (!this.leadTimeUnit) {
+      return next(new Error('Made to order products must have lead time unit'));
+    }
+  }
+  
+  if (this.productType === 'scheduled_order') {
+    if (!this.nextAvailableDate) {
+      return next(new Error('Scheduled order products must have next available date'));
+    }
+    if (!this.scheduleType) {
+      return next(new Error('Scheduled order products must have schedule type'));
+    }
+  }
+  
+  next();
+});
+
 // Index for better query performance
 productSchema.index({ artisan: 1, status: 1 });
 productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ tags: 1 });
+productSchema.index({ productType: 1 });
+productSchema.index({ nextAvailableDate: 1 });
 
 module.exports = mongoose.model('Product', productSchema);
 

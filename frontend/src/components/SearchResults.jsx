@@ -24,6 +24,7 @@ import { authToken, getProfile } from '../services/authservice';
 import { geocodingService } from '../services/geocodingService';
 import searchTrackingService from '../services/searchTrackingService';
 import DistanceBadge from './DistanceBadge';
+import ProductTypeBadge from './ProductTypeBadge';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
@@ -674,6 +675,11 @@ export default function SearchResults() {
                       <p className="text-slate-700 text-sm mb-3 line-clamp-2">
                         {product.description}
                       </p>
+                      
+                      {/* Product Type Information */}
+                      <div className="mb-3">
+                        <ProductTypeBadge product={product} variant="compact" />
+                      </div>
                       
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-xl font-bold text-emerald-600">

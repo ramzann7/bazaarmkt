@@ -21,6 +21,7 @@ import { deliveryService } from '../services/deliveryService';
 import { getProfile } from '../services/authservice';
 import { paymentService } from '../services/paymentService';
 import { orderService } from '../services/orderService';
+import ProductTypeBadge from './ProductTypeBadge';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -665,7 +666,8 @@ const Cart = () => {
       const orderData = {
         items: cart.map(item => ({
           productId: item._id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          productType: item.productType || 'ready_to_ship'
         })),
         deliveryAddress: selectedAddress || deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
@@ -711,7 +713,8 @@ const Cart = () => {
       const orderData = {
         items: cart.map(item => ({
           productId: item._id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          productType: item.productType || 'ready_to_ship'
         })),
         deliveryAddress: deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
@@ -936,9 +939,20 @@ const Cart = () => {
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-stone-900 text-lg mb-1">{item.name}</h4>
                           <p className="text-sm text-stone-600 line-clamp-2 mb-2">{item.description}</p>
-                          <p className="text-sm text-stone-500 font-medium">
-                            {item.unit} • {formatPrice(item.price)}
-                          </p>
+                          
+                          {/* Product Type Badge with Detailed Information */}
+                          {item.productType && (
+                            <div className="mb-2">
+                              <ProductTypeBadge product={item} variant="detailed" />
+                            </div>
+                          )}
+                          
+                          {/* Basic Product Information */}
+                          {!item.productType && (
+                            <p className="text-sm text-stone-500 font-medium">
+                              {item.unit} • {formatPrice(item.price)}
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center space-x-2">
                           <button

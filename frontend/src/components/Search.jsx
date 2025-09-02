@@ -17,6 +17,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { getAllProducts, clearProductCache } from '../services/productService';
 import { cartService } from '../services/cartService';
 import enhancedSearchService from '../services/enhancedSearchService';
+import ProductTypeBadge from './ProductTypeBadge';
 import { 
   PRODUCT_CATEGORIES, 
   getAllCategories, 
@@ -306,6 +307,12 @@ export default function Search() {
         <p className="text-sm text-gray-500">
           {product.artisan?.artisanName || `${product.seller?.firstName} ${product.seller?.lastName}`}
         </p>
+        
+        {/* Product Type Information */}
+        <div className="mt-2 mb-2">
+          <ProductTypeBadge product={product} variant="compact" />
+        </div>
+        
         <div className="flex items-center justify-between mt-2">
           <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
           <div className="flex items-center space-x-1">

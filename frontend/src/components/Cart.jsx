@@ -29,6 +29,9 @@ const Cart = () => {
   const [cart, setCart] = useState([]);
   const [cartByArtisan, setCartByArtisan] = useState({});
   const [checkoutStep, setCheckoutStep] = useState('cart');
+  
+  // Order confirmation state
+  const [orderConfirmation, setOrderConfirmation] = useState(null);
 
   
 
@@ -603,6 +606,8 @@ const Cart = () => {
       setCheckoutStep('cart');
     } else if (checkoutStep === 'payment') {
       setCheckoutStep('delivery');
+    } else if (checkoutStep === 'confirmation') {
+      setCheckoutStep('payment');
     }
   };
 
@@ -736,13 +741,9 @@ const Cart = () => {
       // Show success message
       toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
       
-      // Navigate to order confirmation
-      navigate('/orders', { 
-        state: { 
-          message: 'Order placed successfully!',
-          orders: result.orders 
-        }
-      });
+      // Set order confirmation data and move to confirmation step
+      setOrderConfirmation(result);
+      setCheckoutStep('confirmation');
       
     } catch (error) {
       console.error('❌ Error placing guest order:', error);
@@ -1814,6 +1815,249 @@ const Cart = () => {
                     <CheckIcon className="w-5 h-5 ml-2" />
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render order confirmation page
+  if (checkoutStep === 'confirmation' && orderConfirmation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
+              <CheckIcon className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-stone-900 mb-2">🎉 Order Confirmed!</h1>
+              <p className="text-lg text-stone-600">Your order has been successfully placed with our artisans</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-8 mb-8">
+            {/* Order Summary */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold text-stone-900 mb-6 flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-sm">📋</span>
+                </div>
+                Order Summary
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                  <p className="text-sm text-blue-600 font-medium">Total Orders</p>
+                  <p className="text-2xl font-bold text-blue-900">{orderConfirmation.orderSummary?.totalOrders || orderConfirmation.orders?.length}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                  <p className="text-sm text-green-600 font-medium">Total Amount</p>
+                  <p className="text-2xl font-bold text-green-900">
+                    ${orderConfirmation.orderSummary?.totalAmount || 
+                      orderConfirmation.orders?.reduce((sum, order) => sum + (order.totalAmount || 0), 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                  <p className="text-sm text-amber-600 font-medium">Estimated Delivery</p>
+                  <p className="text-2xl font-bold text-amber-900">
+                    {orderConfirmation.orderSummary?.estimatedDeliveryTime || '2-3 business days'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Order Numbers */}
+              <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                <p className="text-sm text-stone-600 font-medium mb-2">Order Numbers:</p>
+                <div className="flex flex-wrap gap-2">
+                  {orderConfirmation.orderSummary?.orderNumbers?.map((orderNum, index) => (
+                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-stone-200 font-mono text-sm font-bold">
+                      {orderNum}
+                    </span>
+                  )) || 
+                  orderConfirmation.orders?.map((order, index) => (
+                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-stone-200 font-mono text-sm font-bold">
+                      {order.orderNumber || order.orderId?.toString().slice(-8).toUpperCase()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Individual Orders */}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold text-stone-900 mb-4">Order Details</h3>
+              <div className="space-y-6">
+                {orderConfirmation.orders?.map((order, index) => (
+                  <div key={index} className="border border-stone-200 rounded-xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-bold text-stone-900 text-lg">
+                          {order.artisan?.name || 'Artisan'}
+                        </h4>
+                        <p className="text-stone-600">
+                          {order.artisan?.type || 'Local Artisan'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-emerald-600">
+                          ${order.totalAmount?.toFixed(2)}
+                        </p>
+                        <p className="text-sm text-stone-500">Order Total</p>
+                      </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="mb-4">
+                      <h5 className="font-semibold text-stone-900 mb-3">Items:</h5>
+                      <div className="space-y-2">
+                        {order.items?.map((item, itemIndex) => (
+                          <div key={itemIndex} className="flex justify-between items-center py-2 border-b border-stone-100">
+                            <div>
+                              <p className="font-medium text-stone-900">{item.name}</p>
+                              <p className="text-sm text-stone-600">
+                                Qty: {item.quantity} × ${item.unitPrice?.toFixed(2)}
+                              </p>
+                            </div>
+                            <p className="font-semibold text-stone-900">
+                              ${item.totalPrice?.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Delivery Address */}
+                    <div className="bg-stone-50 p-4 rounded-lg">
+                      <h5 className="font-semibold text-stone-900 mb-2">Delivery Address:</h5>
+                      <p className="text-stone-700">
+                        {order.deliveryAddress?.street}, {order.deliveryAddress?.city}, {order.deliveryAddress?.state} {order.deliveryAddress?.zipCode}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Guest Information */}
+            <div className="mb-8">
+              <h3 className="text-xl font-bold text-stone-900 mb-4">Your Information</h3>
+              <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Name</p>
+                    <p className="font-semibold text-stone-900">
+                      {orderConfirmation.guestInfo?.firstName} {orderConfirmation.guestInfo?.lastName}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Email</p>
+                    <p className="font-semibold text-stone-900">{orderConfirmation.guestInfo?.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Phone</p>
+                    <p className="font-semibold text-stone-900">{orderConfirmation.guestInfo?.phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Guest ID</p>
+                    <p className="font-mono text-sm font-semibold text-stone-900">{orderConfirmation.guestInfo?.guestId}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Follow-up Information */}
+            {orderConfirmation.followUpInfo && (
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-stone-900 mb-4">What's Next?</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                    <h4 className="font-bold text-blue-900 mb-3">📧 Check Your Email</h4>
+                    <p className="text-blue-800 text-sm">
+                      We've sent a confirmation email to {orderConfirmation.guestInfo?.email} with all the details.
+                    </p>
+                  </div>
+                  <div className="bg-green-50 p-6 rounded-xl border border-green-200">
+                    <h4 className="font-bold text-green-900 mb-3">📱 Track Your Order</h4>
+                    <p className="text-green-800 text-sm">
+                      Use the order numbers above to track your order status with our artisans.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Account Creation Encouragement */}
+            {orderConfirmation.accountCreation && (
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6 mb-8">
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold text-amber-900 mb-3">
+                    🌟 Ready to unlock the full Bazaar experience?
+                  </h3>
+                  <p className="text-amber-800 mb-4">
+                    Create your free account and start earning rewards, tracking orders in real-time, and getting exclusive artisan offers!
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={() => navigate('/register')}
+                      className="btn-primary px-8 py-3"
+                    >
+                      Create Free Account
+                    </button>
+                    <button
+                      onClick={() => navigate('/login')}
+                      className="btn-outline px-8 py-3"
+                    >
+                      Sign In to Existing Account
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Contact Information */}
+            {orderConfirmation.followUpInfo?.contactInfo && (
+              <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
+                <h3 className="text-xl font-bold text-stone-900 mb-4">Need Help?</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Email Support</p>
+                    <p className="font-semibold text-stone-900">{orderConfirmation.followUpInfo.contactInfo.supportEmail}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Phone Support</p>
+                    <p className="font-semibold text-stone-900">{orderConfirmation.followUpInfo.contactInfo.supportPhone}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-stone-600 font-medium">Help Center</p>
+                    <a 
+                      href={orderConfirmation.followUpInfo.contactInfo.helpCenter} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-semibold text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Visit Help Center
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6 border-t border-stone-200">
+              <button
+                onClick={() => navigate('/')}
+                className="btn-primary px-8 py-3"
+              >
+                Continue Shopping
+              </button>
+              <button
+                onClick={() => setCheckoutStep('payment')}
+                className="btn-outline px-8 py-3"
+              >
+                Back to Payment
               </button>
             </div>
           </div>

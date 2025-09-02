@@ -20,6 +20,7 @@ import { cartService } from '../services/cartService';
 import { deliveryService } from '../services/deliveryService';
 import { getProfile } from '../services/authservice';
 import { paymentService } from '../services/paymentService';
+import { orderService } from '../services/orderService';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -42,7 +43,8 @@ const Cart = () => {
     city: '',
     state: '',
     zipCode: '',
-    country: ''
+    country: '',
+    instructions: ''
   });
   const [selectedAddress, setSelectedAddress] = useState(null);
   
@@ -50,6 +52,7 @@ const Cart = () => {
   const [cartLoading, setCartLoading] = useState(false);
   const [deliveryOptionsLoading, setDeliveryOptionsLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [successItems, setSuccessItems] = useState(new Set());
   
@@ -600,19 +603,64 @@ const Cart = () => {
         return;
       }
 
-      // Navigate to checkout page with cart data
-      navigate('/checkout', {
-        state: {
-          cart,
-          cartByArtisan,
-          deliveryOptions,
-          selectedDeliveryMethods,
-          deliveryAddress: selectedAddress || deliveryForm
-        }
-      });
+      // For guest users, navigate to guest checkout
+      if (isGuest) {
+        navigate('/guest-checkout');
+        return;
+      }
+
+      // For authenticated users, proceed with order creation
+      await handlePlaceOrder();
     } catch (error) {
       console.error('❌ Error during checkout:', error);
       toast.error('Checkout failed');
+    }
+  };
+
+  // Handle order placement for authenticated users
+  const handlePlaceOrder = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Prepare order data
+      const orderData = {
+        items: cart.map(item => ({
+          productId: item._id,
+          quantity: item.quantity
+        })),
+        deliveryAddress: selectedAddress || deliveryForm,
+        deliveryInstructions: deliveryForm.instructions || '',
+        paymentMethod: selectedPaymentMethod?.type || 'credit_card',
+        paymentMethodId: selectedPaymentMethod?._id
+      };
+
+      console.log('🔄 Creating order with data:', orderData);
+
+      // Create order
+      const result = await orderService.createOrder(orderData);
+      
+      console.log('✅ Order created successfully:', result);
+      
+      // Clear cart
+      await cartService.clearCart(currentUserId);
+      
+      // Show success message
+      toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
+      
+      // Navigate to order confirmation
+      navigate('/orders', { 
+        state: { 
+          message: 'Order placed successfully!',
+          orders: result.orders 
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error placing order:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1229,6 +1277,16 @@ const Cart = () => {
                             placeholder="Canada"
                           />
                         </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">Delivery Instructions (Optional)</label>
+                          <textarea
+                            value={deliveryForm.instructions}
+                            onChange={(e) => handleDeliveryFormChange('instructions', e.target.value)}
+                            className="input-field"
+                            placeholder="Any special delivery instructions..."
+                            rows="3"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1542,10 +1600,20 @@ const Cart = () => {
               </button>
               <button
                 onClick={handleCheckout}
+                disabled={isLoading}
                 className="btn-accent"
               >
-                Complete Order
-                <CheckIcon className="w-5 h-5 ml-2" />
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Processing Order...
+                  </>
+                ) : (
+                  <>
+                    Complete Order
+                    <CheckIcon className="w-5 h-5 ml-2" />
+                  </>
+                )}
               </button>
             </div>
           </div>

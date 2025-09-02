@@ -9,8 +9,8 @@ const RevenueService = require('../services/revenueService');
 // Get all orders for the authenticated user (patron)
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
-    const orders = await Order.find({ buyer: req.user._id })
-      .populate('artisan', 'firstName lastName email phone')
+    const orders = await Order.find({ patron: req.user._id })
+      .populate('artisan', 'artisanName type')
       .populate('items.product', 'name description image price unit')
       .sort({ createdAt: -1 });
 
@@ -28,8 +28,16 @@ router.get('/artisan', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Only artisans can access artisan orders' });
     }
 
-    const orders = await Order.find({ artisan: req.user._id })
-      .populate('buyer', 'firstName lastName email phone')
+    // Find the artisan profile for this user
+    const Artisan = require('../models/artisan');
+    const artisanProfile = await Artisan.findOne({ user: req.user._id });
+    
+    if (!artisanProfile) {
+      return res.status(404).json({ message: 'Artisan profile not found' });
+    }
+
+    const orders = await Order.find({ artisan: artisanProfile._id })
+      .populate('patron', 'firstName lastName email phone')
       .populate('items.product', 'name description image price unit')
       .sort({ createdAt: -1 });
 
@@ -123,10 +131,15 @@ router.get('/:orderId', verifyToken, async (req, res) => {
 // Create a new order
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentMethodId } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentMethodId, guestInfo } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item' });
+    }
+
+    // Validate guest info if provided
+    if (guestInfo && (!guestInfo.firstName || !guestInfo.lastName || !guestInfo.email)) {
+      return res.status(400).json({ message: 'Guest orders require firstName, lastName, and email' });
     }
 
     // Group items by artisan
@@ -134,21 +147,21 @@ router.post('/', verifyToken, async (req, res) => {
     
     for (const item of items) {
       const productId = item.productId || item.product;
-      const product = await Product.findById(productId).populate('seller');
+      const product = await Product.findById(productId).populate('artisan');
       
       if (!product) {
         return res.status(400).json({ message: `Product ${productId} not found` });
       }
 
-      if (!product.seller) {
-        return res.status(400).json({ message: `Product ${product.name} has no seller information` });
+      if (!product.artisan) {
+        return res.status(400).json({ message: `Product ${product.name} has no artisan information` });
       }
 
-      const artisanId = product.seller._id.toString();
+      const artisanId = product.artisan._id.toString();
       
       if (!ordersByArtisan[artisanId]) {
         ordersByArtisan[artisanId] = {
-          artisan: product.seller._id,
+          artisan: product.artisan._id,
           items: [],
           totalAmount: 0
         };
@@ -167,19 +180,27 @@ router.post('/', verifyToken, async (req, res) => {
     // Create separate orders for each artisan
     const createdOrders = [];
     
-    for (const [artisanId, orderData] of Object.entries(ordersByArtisan)) {
-      const order = new Order({
-        buyer: req.user._id,
-        artisan: orderData.artisan,
-        items: orderData.items,
-        totalAmount: orderData.totalAmount,
+    for (const [artisanId, artisanOrderData] of Object.entries(ordersByArtisan)) {
+      const orderData = {
+        artisan: artisanOrderData.artisan,
+        items: artisanOrderData.items,
+        totalAmount: artisanOrderData.totalAmount,
         deliveryAddress,
         deliveryInstructions,
         paymentMethod,
         paymentMethodId,
         status: 'pending',
         paymentStatus: 'pending'
-      });
+      };
+
+      // Add patron or guest info based on user type
+      if (req.user.isGuest && guestInfo) {
+        orderData.guestInfo = guestInfo;
+      } else {
+        orderData.patron = req.user._id;
+      }
+
+      const order = new Order(orderData);
 
       const savedOrder = await order.save();
       
@@ -192,8 +213,8 @@ router.post('/', verifyToken, async (req, res) => {
       }
       
       const populatedOrder = await Order.findById(savedOrder._id)
-        .populate('buyer', 'firstName lastName email phone')
-        .populate('artisan', 'firstName lastName email phone')
+        .populate('patron', 'firstName lastName email phone')
+        .populate('artisan', 'artisanName type')
         .populate('items.product', 'name description image price unit');
 
       createdOrders.push(populatedOrder);

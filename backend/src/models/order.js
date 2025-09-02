@@ -1,14 +1,21 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-  buyer: {
+  patron: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Optional for guest users
+  },
+  // Guest user information (when patron is not provided)
+  guestInfo: {
+    firstName: String,
+    lastName: String,
+    email: String,
+    phone: String
   },
   artisan: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Artisan',
     required: true
   },
   items: [{
@@ -94,6 +101,17 @@ const orderSchema = new mongoose.Schema({
 // Update timestamp on save
 orderSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  next();
+});
+
+// Validate that either patron or guestInfo is provided
+orderSchema.pre('save', function(next) {
+  if (!this.patron && !this.guestInfo) {
+    return next(new Error('Either patron or guestInfo must be provided'));
+  }
+  if (this.patron && this.guestInfo) {
+    return next(new Error('Cannot have both patron and guestInfo'));
+  }
   next();
 });
 

@@ -51,6 +51,25 @@ export const orderService = {
   // Create a new order
   createOrder: async (orderData) => {
     try {
+      // Check if user is guest and add guest info if needed
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.isGuest && !orderData.guestInfo) {
+            // For guest users, ensure we have guest info
+            orderData.guestInfo = {
+              firstName: orderData.guestInfo?.firstName || 'Guest',
+              lastName: orderData.guestInfo?.lastName || 'User',
+              email: orderData.guestInfo?.email || 'guest@example.com',
+              phone: orderData.guestInfo?.phone || ''
+            };
+          }
+        } catch (parseError) {
+          console.warn('Could not parse token for guest check:', parseError);
+        }
+      }
+
       const response = await axios.post(API_URL, orderData, {
         headers: getAuthHeaders()
       });

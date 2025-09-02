@@ -750,139 +750,75 @@ export default function Products() {
         {/* Products List */}
         {products.length > 0 ? (
           <div className="space-y-6">
-            {/* Enhanced Interactive Inventory Overview */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
-                <h4 className="text-xl font-bold text-gray-900 text-center lg:text-left">Inventory Overview</h4>
+            {/* Simplified Inventory Overview */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 sm:mb-0">Inventory Overview</h4>
                 
-                {/* Quick Actions */}
-                <div className="flex flex-wrap gap-3 mt-4 lg:mt-0 justify-center lg:justify-end">
-                  <button
-                    onClick={() => setActiveFilter('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      activeFilter === 'all'
-                        ? 'bg-orange-500 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                {/* Simple Filter Toggle */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Filter:</span>
+                  <select
+                    value={activeFilter}
+                    onChange={(e) => setActiveFilter(e.target.value)}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                   >
-                    All Products
-                  </button>
-                  <button
-                    onClick={() => setActiveFilter('ready_to_ship')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      activeFilter === 'ready_to_ship'
-                        ? 'bg-green-500 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Ready to Ship
-                  </button>
-                  <button
-                    onClick={() => setActiveFilter('made_to_order')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      activeFilter === 'made_to_order'
-                        ? 'bg-blue-500 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Made to Order
-                  </button>
-                  <button
-                    onClick={() => setActiveFilter('scheduled_order')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      activeFilter === 'scheduled_order'
-                        ? 'bg-purple-500 text-white shadow-lg'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Scheduled
-                  </button>
+                    <option value="all">All Products</option>
+                    <option value="active">Active Only</option>
+                    <option value="ready_to_ship">Ready to Ship</option>
+                    <option value="made_to_order">Made to Order</option>
+                    <option value="scheduled_order">Scheduled</option>
+                  </select>
                 </div>
               </div>
               
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-6">
-                <div 
-                  className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-orange-300"
-                  onClick={() => setActiveFilter('all')}
-                >
-                  <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <span className="text-white text-lg font-bold">{products.length}</span>
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">{products.length}</span>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Total Products</div>
-                  <div className="text-sm text-gray-600">In your catalog</div>
-                  <div className="mt-2 text-xs text-orange-600 font-medium">Click to view all</div>
+                  <div className="text-sm font-semibold text-gray-900">Total</div>
+                  <div className="text-xs text-gray-600">Products</div>
                 </div>
                 
-                <div 
-                  className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-green-300"
-                  onClick={() => setActiveFilter('active')}
-                >
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.status === 'active').length}</span>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">{products.filter(p => p.status === 'active').length}</span>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Active</div>
-                  <div className="text-sm text-gray-600">Available for sale</div>
-                  <div className="mt-2 text-xs text-green-600 font-medium">Click to view active</div>
+                  <div className="text-sm font-semibold text-gray-900">Active</div>
+                  <div className="text-xs text-gray-600">For Sale</div>
                 </div>
                 
-                <div 
-                  className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-emerald-300"
-                  onClick={() => setActiveFilter('ready_to_ship')}
-                >
-                  <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'ready_to_ship').length}</span>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">{products.filter(p => p.productType === 'ready_to_ship').length}</span>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Ready to Ship</div>
-                  <div className="text-sm text-gray-600">In stock</div>
-                  <div className="mt-2 text-xs text-emerald-600 font-medium">Click to filter</div>
+                  <div className="text-sm font-semibold text-gray-900">In Stock</div>
+                  <div className="text-xs text-gray-600">Ready to Ship</div>
                 </div>
                 
-                <div 
-                  className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-blue-300"
-                  onClick={() => setActiveFilter('made_to_order')}
-                >
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'made_to_order').length}</span>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">{products.reduce((sum, p) => sum + (p.soldCount || 0), 0)}</span>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Made to Order</div>
-                  <div className="text-sm text-gray-600">Custom products</div>
-                  <div className="mt-2 text-xs text-blue-600 font-medium">Click to filter</div>
-                </div>
-                
-                <div 
-                  className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-purple-300"
-                  onClick={() => setActiveFilter('scheduled_order')}
-                >
-                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'scheduled_order').length}</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">Scheduled</div>
-                  <div className="text-sm text-gray-600">Time-based</div>
-                  <div className="mt-2 text-xs text-purple-600 font-medium">Click to filter</div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                    <span className="text-white text-lg font-bold">{products.reduce((sum, p) => sum + (p.soldCount || 0), 0)}</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">Total Sold</div>
-                  <div className="text-sm text-gray-600">Units sold</div>
+                  <div className="text-sm font-semibold text-gray-900">Sold</div>
+                  <div className="text-xs text-gray-600">Total Units</div>
                 </div>
               </div>
               
-              {/* Filter Summary */}
+              {/* Active Filter Indicator */}
               {activeFilter !== 'all' && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <span className="text-blue-600 font-medium">
+                      <span className="text-orange-700 font-medium text-sm">
                         {activeFilter === 'ready_to_ship' && '📦 Ready to Ship Products'}
                         {activeFilter === 'made_to_order' && '⚙️ Made to Order Products'}
                         {activeFilter === 'scheduled_order' && '📅 Scheduled Order Products'}
                         {activeFilter === 'active' && '✅ Active Products'}
                       </span>
-                      <span className="text-sm text-blue-600">
+                      <span className="text-sm text-orange-600">
                         ({products.filter(p => {
                           if (activeFilter === 'active') return p.status === 'active';
                           return p.productType === activeFilter;
@@ -891,9 +827,9 @@ export default function Products() {
                     </div>
                     <button
                       onClick={() => setActiveFilter('all')}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                      className="text-orange-600 hover:text-orange-800 text-sm font-medium underline"
                     >
-                      Clear Filter
+                      Clear
                     </button>
                   </div>
                 </div>

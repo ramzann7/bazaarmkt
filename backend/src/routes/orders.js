@@ -212,9 +212,13 @@ router.post('/', verifyToken, async (req, res) => {
       
       if (req.user.isGuest === true && guestInfo) {
         orderData.guestInfo = guestInfo;
+        // Ensure patron is not set for guest users
+        delete orderData.patron;
         console.log('Setting guest info for order');
       } else {
         orderData.patron = req.user._id;
+        // Ensure guestInfo is not set for authenticated users
+        delete orderData.guestInfo;
         console.log('Setting patron for order:', req.user._id);
       }
 

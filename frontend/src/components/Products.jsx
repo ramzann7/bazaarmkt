@@ -2203,6 +2203,328 @@ export default function Products() {
                 </div>
               </div>
 
+              {/* Description Section */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <PencilIcon className="w-5 h-5 mr-2 text-blue-600" />
+                  Product Description
+                </h5>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                    placeholder="Describe your product's features, benefits, and what makes it special. Include details about ingredients, origin, or craftsmanship."
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <LightBulbIcon className="w-3 h-3 mr-1 text-blue-500" />
+                      <span>Highlight what makes your product unique</span>
+                    </div>
+                    <span className={`text-xs font-medium ${newProduct.description.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
+                      {newProduct.description.length}/250
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Image Upload Section */}
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <CameraIcon className="w-5 h-5 mr-2 text-green-600" />
+                  Product Images
+                </h5>
+                
+                <div className="space-y-4">
+                  {/* Drag & Drop Zone */}
+                  <div
+                    className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                      newProduct.imagePreview 
+                        ? 'border-green-300 bg-green-50' 
+                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('border-green-400', 'bg-green-50');
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      if (!newProduct.imagePreview) {
+                        e.currentTarget.classList.remove('border-green-400', 'bg-green-50');
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const files = e.dataTransfer.files;
+                      if (files.length > 0) {
+                        handleImageChange({ target: { files } });
+                      }
+                    }}
+                  >
+                    {newProduct.imagePreview ? (
+                      <div className="relative inline-block">
+                        <img 
+                          src={newProduct.imagePreview} 
+                          alt="Preview"
+                          className="w-32 h-32 object-cover rounded-lg border border-gray-300 shadow-md"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setNewProduct({...newProduct, image: null, imagePreview: null})}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <CameraIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-lg font-medium text-gray-700 mb-2">Upload Product Image</p>
+                        <p className="text-sm text-gray-500 mb-4">
+                          Drag and drop an image here, or click to browse
+                        </p>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                          id="image-upload"
+                        />
+                        <label
+                          htmlFor="image-upload"
+                          className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                        >
+                          <CameraIcon className="w-4 h-4 mr-2" />
+                          Choose Image
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Image Tips */}
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <h6 className="font-medium text-gray-900 mb-2">📸 Image Tips</h6>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li>• Use high-quality, well-lit photos</li>
+                      <li>• Show your product from multiple angles</li>
+                      <li>• Include size reference when helpful</li>
+                      <li>• Ensure the background is clean and uncluttered</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Dietary Preferences Section */}
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <CheckIcon className="w-5 h-5 mr-2 text-purple-600" />
+                  Dietary & Lifestyle Preferences
+                </h5>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {/* Organic */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isOrganic}
+                      onChange={(e) => setNewProduct({...newProduct, isOrganic: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🌱 Organic</span>
+                  </label>
+                  
+                  {/* Gluten-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isGlutenFree}
+                      onChange={(e) => setNewProduct({...newProduct, isGlutenFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🌾 Gluten-Free</span>
+                  </label>
+                  
+                  {/* Vegan */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isVegan}
+                      onChange={(e) => setNewProduct({...newProduct, isVegan: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥬 Vegan</span>
+                  </label>
+                  
+                  {/* Halal */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isHalal}
+                      onChange={(e) => setNewProduct({...newProduct, isHalal: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🕌 Halal</span>
+                  </label>
+                  
+                  {/* Kosher */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isKosher || false}
+                      onChange={(e) => setNewProduct({...newProduct, isKosher: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">✡️ Kosher</span>
+                  </label>
+                  
+                  {/* Dairy-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isDairyFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isDairyFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥛 Dairy-Free</span>
+                  </label>
+                  
+                  {/* Nut-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isNutFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isNutFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥜 Nut-Free</span>
+                  </label>
+                  
+                  {/* Soy-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isSoyFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isSoyFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🫘 Soy-Free</span>
+                  </label>
+                  
+                  {/* Sugar-Free */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isSugarFree || false}
+                      onChange={(e) => setNewProduct({...newProduct, isSugarFree: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🍯 Sugar-Free</span>
+                  </label>
+                  
+                  {/* Low-Carb */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isLowCarb || false}
+                      onChange={(e) => setNewProduct({...newProduct, isLowCarb: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥗 Low-Carb</span>
+                  </label>
+                  
+                  {/* Keto-Friendly */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isKetoFriendly || false}
+                      onChange={(e) => setNewProduct({...newProduct, isKetoFriendly: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥑 Keto-Friendly</span>
+                  </label>
+                  
+                  {/* Paleo */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isPaleo || false}
+                      onChange={(e) => setNewProduct({...newProduct, isPaleo: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🦴 Paleo</span>
+                  </label>
+                  
+                  {/* Raw */}
+                  <label className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-300 transition-colors cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newProduct.isRaw || false}
+                      onChange={(e) => setNewProduct({...newProduct, isRaw: e.target.checked})}
+                      className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700">🥕 Raw</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Tags Section */}
+              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl border border-indigo-200">
+                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <SparklesIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                  Tags & Keywords
+                </h5>
+                
+                <div className="space-y-4">
+                  <div className="flex space-x-3">
+                    <input
+                      type="text"
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                      placeholder="Add tags like 'local', 'fresh', 'handmade'..."
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddTag}
+                      className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium"
+                    >
+                      Add Tag
+                    </button>
+                  </div>
+                  
+                  {newProduct.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {newProduct.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="ml-2 text-indigo-600 hover:text-indigo-800"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-gray-500">
+                    💡 Tags help customers find your products. Use descriptive keywords like "local", "fresh", "handmade", "artisan", etc.
+                  </div>
+                </div>
+              </div>
+
               {/* Product Type & Management Section */}
               <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
                 <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -2282,10 +2604,185 @@ export default function Products() {
                     </div>
                   </div>
 
-                  {/* Type-specific fields will be added here */}
-                  <div className="text-center text-gray-500">
-                    Product type specific fields will be implemented here
+                  {/* Common Fields for All Product Types */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
+                      <select
+                        value={newProduct.unit}
+                        onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="piece">Piece</option>
+                        <option value="kg">Kilogram</option>
+                        <option value="lb">Pound</option>
+                        <option value="g">Gram</option>
+                        <option value="oz">Ounce</option>
+                        <option value="l">Liter</option>
+                        <option value="ml">Milliliter</option>
+                        <option value="dozen">Dozen</option>
+                        <option value="pack">Pack</option>
+                        <option value="bundle">Bundle</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        value={newProduct.weight}
+                        onChange={(e) => setNewProduct({...newProduct, weight: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        placeholder="0.0"
+                      />
+                    </div>
                   </div>
+
+                  {/* Product Type Specific Fields */}
+                  {newProduct.productType === 'ready_to_ship' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Stock Quantity <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={newProduct.stock}
+                          onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Low Stock Threshold
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newProduct.lowStockThreshold}
+                          onChange={(e) => setNewProduct({...newProduct, lowStockThreshold: parseInt(e.target.value)})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="5"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Get notified when stock is low</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {newProduct.productType === 'made_to_order' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Lead Time <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            required
+                            value={newProduct.leadTime}
+                            onChange={(e) => setNewProduct({...newProduct, leadTime: e.target.value})}
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            placeholder="e.g., 3"
+                          />
+                          <select
+                            value={newProduct.leadTimeUnit}
+                            onChange={(e) => setNewProduct({...newProduct, leadTimeUnit: e.target.value})}
+                            className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                            <option value="weeks">Weeks</option>
+                          </select>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">How long it takes to make this product</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Max Order Quantity
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={newProduct.maxOrderQuantity}
+                          onChange={(e) => setNewProduct({...newProduct, maxOrderQuantity: parseInt(e.target.value)})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="10"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={newProduct.requiresConfirmation}
+                            onChange={(e) => setNewProduct({...newProduct, requiresConfirmation: e.target.checked})}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="ml-3 text-sm font-medium text-gray-700">
+                            Require customer confirmation before starting production
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {newProduct.productType === 'scheduled_order' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Schedule Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          required
+                          value={newProduct.scheduleType}
+                          onChange={(e) => setNewProduct({...newProduct, scheduleType: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="custom">Custom Schedule</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Next Available Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={newProduct.nextAvailableDate}
+                          onChange={(e) => setNewProduct({...newProduct, nextAvailableDate: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Order Cut-off (Hours)
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={newProduct.scheduleDetails.orderCutoffHours}
+                          onChange={(e) => setNewProduct({
+                            ...newProduct, 
+                            scheduleDetails: {
+                              ...newProduct.scheduleDetails,
+                              orderCutoffHours: parseInt(e.target.value)
+                            }
+                          })}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="24"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">How many hours before production to stop taking orders</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

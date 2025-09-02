@@ -13,7 +13,8 @@ import {
   ArrowRightIcon,
   CheckIcon,
   ExclamationTriangleIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { cartService } from '../services/cartService';
@@ -21,6 +22,8 @@ import { deliveryService } from '../services/deliveryService';
 import { getProfile } from '../services/authservice';
 import { paymentService } from '../services/paymentService';
 import { orderService } from '../services/orderService';
+import { guestService } from '../services/guestService';
+import { notificationService } from '../services/notificationService';
 import ProductTypeBadge from './ProductTypeBadge';
 
 const Cart = () => {
@@ -41,6 +44,7 @@ const Cart = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [existingUser, setExistingUser] = useState(null);
   
   // Delivery state
   const [deliveryOptions, setDeliveryOptions] = useState({});
@@ -61,6 +65,7 @@ const Cart = () => {
   
   // Loading states
   const [cartLoading, setCartLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [deliveryOptionsLoading, setDeliveryOptionsLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -170,6 +175,7 @@ const Cart = () => {
     }
     
     try {
+      setPaymentLoading(true);
       const methods = await paymentService.getPaymentMethods();
       setPaymentMethods(methods);
       
@@ -180,6 +186,8 @@ const Cart = () => {
       }
     } catch (error) {
       console.error('❌ Error loading payment methods:', error);
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -406,10 +414,13 @@ const Cart = () => {
     }
     
     try {
+      setProfileLoading(true);
       const profile = await getProfile();
       setUserProfile(profile);
     } catch (error) {
       console.error('❌ Error loading user profile:', error);
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -423,12 +434,13 @@ const Cart = () => {
       setIsGuest(tokenData.isGuest);
       
       if (!tokenData.isGuest) {
-        try {
-          await loadUserProfile();
-          await loadPaymentMethods();
-        } catch (error) {
+        // Load profile and payment methods in parallel for better performance
+        Promise.all([
+          loadUserProfile(),
+          loadPaymentMethods()
+        ]).catch(error => {
           console.error('❌ Error loading profile or payment methods:', error);
-        }
+        });
       }
     } else {
       // No token means guest user
@@ -531,11 +543,25 @@ const Cart = () => {
   };
 
   // Handle delivery form changes
-  const handleDeliveryFormChange = (field, value) => {
+  const handleDeliveryFormChange = async (field, value) => {
     setDeliveryForm(prev => ({
       ...prev,
       [field]: value
     }));
+    
+    // Check for existing user when email changes
+    if (field === 'email' && value && value.includes('@')) {
+      try {
+        const existingUserData = await guestService.checkExistingUser(value);
+        setExistingUser(existingUserData);
+        if (existingUserData) {
+          toast.success(`Welcome back! Found existing account for ${value}`);
+        }
+      } catch (error) {
+        // User not found, clear existing user state
+        setExistingUser(null);
+      }
+    }
   };
 
   const handleGuestPaymentFormChange = (field, value) => {
@@ -662,7 +688,14 @@ const Cart = () => {
     try {
       setIsLoading(true);
       
-      // Prepare order data
+      // Check if we need to create a guest user first
+      if (isGuest || !currentUserId) {
+        console.log('🔍 User is guest or has no ID, using guest order endpoint');
+        await handleGuestCheckout();
+        return;
+      }
+      
+      // Prepare order data for authenticated users
       const orderData = {
         items: cart.map(item => ({
           productId: item._id,
@@ -675,8 +708,25 @@ const Cart = () => {
         paymentMethodId: selectedPaymentMethod?._id
       };
 
-      // Create order
+      console.log('🔍 Creating order for authenticated user:', orderData);
+      
+      // Create order using authenticated endpoint
       const result = await orderService.createOrder(orderData);
+      
+      // Send order completion notification for authenticated user
+      const userInfo = {
+        id: currentUserId,
+        email: userProfile?.email,
+        phone: userProfile?.phone,
+        firstName: userProfile?.firstName,
+        lastName: userProfile?.lastName,
+        isGuest: false
+      };
+      
+      // Send notification for each order
+      for (const order of result.orders) {
+        await notificationService.sendOrderCompletionNotification(order, userInfo);
+      }
       
       // Clear cart
       await cartService.clearCart(currentUserId);
@@ -688,7 +738,7 @@ const Cart = () => {
       navigate('/orders', { 
         state: { 
           message: 'Order placed successfully!',
-          orders: result.orders 
+          order: result.orders[0] 
         }
       });
       
@@ -705,6 +755,85 @@ const Cart = () => {
   const handleGuestCheckout = async () => {
     try {
       setIsLoading(true);
+      
+      // First, check if user already exists by email, then create or update guest profile
+      let guestToken = localStorage.getItem('token');
+      let guestUserId = null;
+      let existingUser = null;
+      
+      if (deliveryForm.email) {
+        console.log('🔍 Checking if user already exists with email:', deliveryForm.email);
+        try {
+          // Check if user exists by email
+          existingUser = await guestService.checkExistingUser(deliveryForm.email);
+          if (existingUser) {
+            console.log('🔍 Found existing user:', existingUser);
+            // Use existing user's token if available
+            if (existingUser.token) {
+              guestToken = existingUser.token;
+              guestUserId = existingUser.id;
+              // Update existing user's delivery info
+              await guestService.updateUserProfile(existingUser.id, {
+                firstName: deliveryForm.firstName || existingUser.firstName,
+                lastName: deliveryForm.lastName || existingUser.lastName,
+                phone: deliveryForm.phone || existingUser.phone
+              });
+            }
+          }
+        } catch (error) {
+          console.log('🔍 No existing user found, will create new one');
+        }
+      }
+      
+      if (!guestToken || isGuest) {
+        if (existingUser && !existingUser.token) {
+          // Existing user but no token, need to create one
+          console.log('🔍 Creating token for existing user...');
+          try {
+            const tokenResponse = await guestService.createTokenForExistingUser(existingUser.id);
+            guestToken = tokenResponse.token;
+            guestUserId = existingUser.id;
+          } catch (error) {
+            console.error('❌ Error creating token for existing user:', error);
+            toast.error('Failed to authenticate existing user. Please try again.');
+            return;
+          }
+        } else if (!existingUser) {
+          // Create new guest user profile
+          console.log('🔍 Creating new guest user profile...');
+          
+          const guestInfo = {
+            firstName: deliveryForm.firstName || 'Guest',
+            lastName: deliveryForm.lastName || 'User',
+            email: deliveryForm.email || undefined,
+            phone: deliveryForm.phone || undefined
+          };
+          
+          try {
+            const guestResponse = await guestService.createGuestProfile(guestInfo);
+            guestToken = guestResponse.token;
+            guestUserId = guestResponse.user.id;
+            
+            console.log('🔍 Guest user created successfully:', guestResponse.user);
+          } catch (guestError) {
+            console.error('❌ Error creating guest user:', guestError);
+            toast.error('Failed to create guest profile. Please try again.');
+            return;
+          }
+        }
+        
+        // Store the guest token
+        localStorage.setItem('token', guestToken);
+        
+        // Update local state
+        setCurrentUserId(guestUserId);
+        setIsGuest(true);
+      }
+      
+      // Show notification if using existing account
+      if (existingUser) {
+        toast.success(`Welcome back! Using existing account for ${existingUser.email}`);
+      }
       
       // Generate unique guest ID for this order
       const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -735,22 +864,45 @@ const Cart = () => {
         }
       };
 
+      console.log('🔍 Creating guest order:', orderData);
+      
       // Create guest order using the guest endpoint
       const result = await orderService.createGuestOrder(orderData);
       
+      // Send order completion notification for guest
+      const guestUserInfo = {
+        id: guestUserId,
+        email: deliveryForm.email,
+        phone: deliveryForm.phone,
+        firstName: deliveryForm.firstName,
+        lastName: deliveryForm.lastName,
+        isGuest: true
+      };
+      
+      // Send notification for each order
+      for (const order of result.orders) {
+        await notificationService.sendOrderCompletionNotification(order, guestUserInfo);
+      }
+      
       // Clear guest cart
-      cartService.clearCart(null);
+      await cartService.clearCart(null);
       
       // Show success message
-      toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
+      toast.success(`Guest order placed successfully! ${result.totalOrders} order${result.totalOrders > 1 ? 's' : ''} created.`);
       
-      // Set order confirmation data and move to confirmation step
-      setOrderConfirmation(result);
-      setCheckoutStep('confirmation');
+      // Navigate to order confirmation
+      navigate('/order-confirmation', { 
+        state: { 
+          message: 'Guest order placed successfully!',
+          orders: result.orders,
+          guestInfo: result.guestInfo,
+          orderSummary: result.orderSummary
+        }
+      });
       
     } catch (error) {
-      console.error('❌ Error placing guest order:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
+      console.error('❌ Error during guest checkout:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to place guest order. Please try again.';
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -766,22 +918,21 @@ const Cart = () => {
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
       loadDeliveryOptions();
-      
-      // Ensure user profile is loaded when cart changes (for multiple artisan scenarios)
-      if (currentUserId && !isGuest && !userProfile) {
-        loadUserProfile();
-        loadPaymentMethods();
-      }
     }
-  }, [cartByArtisan, currentUserId, isGuest, userProfile]);
+  }, [cartByArtisan]);
 
-  // Load user profile whenever currentUserId changes (for multiple artisan scenarios)
+  // Load user profile immediately when user is authenticated
   useEffect(() => {
-    if (currentUserId && !isGuest) {
-      loadUserProfile();
-      loadPaymentMethods();
+    if (currentUserId && !isGuest && !userProfile) {
+      // Load profile and payment methods in parallel for better performance
+      Promise.all([
+        loadUserProfile(),
+        loadPaymentMethods()
+      ]).catch(error => {
+        console.error('❌ Error loading user data:', error);
+      });
     }
-  }, [currentUserId, isGuest]);
+  }, [currentUserId, isGuest, userProfile]);
 
   // Monitor cart total changes for animation
   const [cartTotal, setCartTotal] = useState(0);
@@ -854,13 +1005,13 @@ const Cart = () => {
         )}
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
-              <ShoppingBagIcon className="w-8 h-8 text-white" />
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+              <ShoppingBagIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-stone-900 mb-2">Your Artisan Collection</h1>
-              <p className="text-lg text-stone-600">Review the beautiful creations you've selected from our artisans</p>
+              <h1 className="text-3xl font-bold text-stone-900 mb-1">Your Artisan Collection</h1>
+              <p className="text-base text-stone-600">Review the beautiful creations you've selected</p>
             </div>
           </div>
           
@@ -868,96 +1019,115 @@ const Cart = () => {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                <div key={artisanId} className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6 hover:shadow-2xl hover:border-stone-200 transition-all duration-300">
+                <div key={artisanId} className="bg-white rounded-2xl shadow-xl border border-stone-100 p-4 hover:shadow-2xl hover:border-stone-200 transition-all duration-300">
                   {/* Artisan Header */}
-                  <div className="border-b border-stone-200 pb-4 mb-4">
+                  <div className="border-b border-stone-200 pb-3 mb-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-xl font-semibold text-stone-900">
+                        <h3 className="text-lg font-semibold text-stone-900">
                           {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                         </h3>
-                        <p className="text-stone-600 text-sm capitalize">
+                        <p className="text-stone-600 text-xs capitalize">
                           {artisanData.artisan?.type?.replace('_', ' ') || 'Artisan'}
                         </p>
                       </div>
-                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center">
-                        <UserIcon className="w-6 h-6 text-white" />
+                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
+                        <UserIcon className="w-4 h-4 text-white" />
                       </div>
                     </div>
                   </div>
 
                   {/* Delivery Options Tags */}
-                  <div className="mb-4 flex flex-wrap gap-2">
+                  <div className="mb-3 flex flex-wrap gap-1">
                     {deliveryOptions[artisanId]?.pickup?.available && (
-                      <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                        <CheckIcon className="w-3 h-3" />
-                        Pickup Available
+                      <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                        <CheckIcon className="w-2.5 h-2.5" />
+                        Pickup
                       </span>
                     )}
                     {deliveryOptions[artisanId]?.personalDelivery?.available && (
-                      <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-200 flex items-center gap-1">
-                        <TruckIcon className="w-3 h-3" />
-                        Personal Delivery: ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
-                        {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
-                          ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
-                        }
+                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full border border-blue-200 flex items-center gap-1">
+                        <TruckIcon className="w-2.5 h-2.5" />
+                        Personal: ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
                       </span>
                     )}
                     {deliveryOptions[artisanId]?.professionalDelivery?.available && (
-                      <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-200 flex items-center gap-1">
-                        <TruckIcon className="w-3 h-3" />
-                        Professional Delivery Available
+                      <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-1 rounded-full border border-purple-200 flex items-center gap-1">
+                        <TruckIcon className="w-2.5 h-2.5" />
+                        Professional
                       </span>
                     )}
                   </div>
 
                   {/* Cart Items */}
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {artisanData.items.map((item) => (
-                                              <div 
-                          key={item._id} 
-                          className={`flex items-center space-x-4 border-b border-stone-100 pb-4 last:border-b-0 transition-all duration-300 ease-in-out ${
-                            updatingItems.has(item._id) ? 'animate-pulse' : ''
-                          } ${
-                            successItems.has(item._id) ? 'ring-2 ring-emerald-200 bg-emerald-50' : ''
-                          }`}
-                          style={{
-                            opacity: updatingItems.has(item._id) ? 0.7 : 1,
-                            transform: updatingItems.has(item._id) ? 'scale(0.98)' : 'scale(1)'
-                          }}
-                        >
-                        <div className="relative">
+                      <div 
+                        key={item._id} 
+                        className={`flex items-center space-x-3 border-b border-stone-100 pb-3 last:border-b-0 transition-all duration-300 ease-in-out ${
+                          updatingItems.has(item._id) ? 'animate-pulse' : ''
+                        } ${
+                          successItems.has(item._id) ? 'ring-2 ring-emerald-200 bg-emerald-50' : ''
+                        }`}
+                        style={{
+                          opacity: updatingItems.has(item._id) ? 0.7 : 1,
+                          transform: updatingItems.has(item._id) ? 'scale(0.98)' : 'scale(1)'
+                        }}
+                      >
+                        {/* Product Image */}
+                        <div className="relative flex-shrink-0">
                           <img
                             src={item.image}
                             alt={item.name}
-                            className="w-20 h-20 object-cover rounded-xl shadow-md"
+                            className="w-16 h-16 object-cover rounded-lg shadow-sm"
                           />
-                          <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                          <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                             {item.quantity}
                           </div>
                         </div>
+
+                        {/* Product Info - Simplified */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-stone-900 text-lg mb-1">{item.name}</h4>
-                          <p className="text-sm text-stone-600 line-clamp-2 mb-2">{item.description}</p>
+                          <h4 className="font-semibold text-stone-900 text-base mb-1 truncate">{item.name}</h4>
                           
-                          {/* Product Type Badge with Detailed Information */}
-                          {item.productType && (
-                            <div className="mb-2">
-                              <ProductTypeBadge product={item} variant="detailed" />
-                            </div>
-                          )}
-                          
-                          {/* Basic Product Information */}
-                          {!item.productType && (
-                            <p className="text-sm text-stone-500 font-medium">
-                              {item.unit} • {formatPrice(item.price)}
-                            </p>
-                          )}
+                          {/* Availability Status - Compact */}
+                          <div className="mb-2">
+                            {item.productType === 'ready_to_ship' && (
+                              <div className="flex items-center space-x-2 text-xs">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-green-700 font-medium">
+                                  Ready Now
+                                </span>
+                              </div>
+                            )}
+                            {item.productType === 'made_to_order' && (
+                              <div className="flex items-center space-x-2 text-xs">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span className="text-blue-700 font-medium">
+                                  {item.leadTime || 1} {item.leadTimeUnit || 'days'}
+                                </span>
+                              </div>
+                            )}
+                            {item.productType === 'scheduled_order' && (
+                              <div className="flex items-center space-x-2 text-xs">
+                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                <span className="text-purple-700 font-medium">
+                                  {item.nextAvailableDate ? (
+                                    new Date(item.nextAvailableDate).toLocaleDateString()
+                                  ) : (
+                                    'Schedule TBD'
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
+
+                        {/* Quantity Controls - Compact */}
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleQuantityChange(item._id, item.quantity - 1)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
                               item.quantity <= 1 || updatingItems.has(item._id)
                                 ? 'bg-stone-100 text-stone-400 cursor-not-allowed' 
                                 : 'bg-stone-100 hover:bg-stone-200 text-stone-700 hover:scale-110'
@@ -965,66 +1135,70 @@ const Cart = () => {
                             disabled={item.quantity <= 1 || updatingItems.has(item._id)}
                           >
                             {updatingItems.has(item._id) ? (
-                              <div className="w-4 h-4 border-2 border-stone-400 border-t-transparent rounded-full animate-spin"></div>
+                              <div className="w-3 h-3 border-2 border-stone-400 border-t-transparent rounded-full animate-spin"></div>
                             ) : (
-                              <MinusIcon className="w-4 h-4" />
+                              <MinusIcon className="w-3 h-3" />
                             )}
                           </button>
-                          <span className="w-12 text-center font-semibold text-stone-900 select-none">
+                          <span className="w-8 text-center font-semibold text-stone-900 select-none text-sm">
                             {updatingItems.has(item._id) ? '...' : item.quantity}
                           </span>
                           <button
                             onClick={() => handleQuantityChange(item._id, item.quantity + 1)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
                               updatingItems.has(item._id)
                                 ? 'bg-amber-100 text-amber-400 cursor-not-allowed'
-                                : 'bg-amber-100 hover:bg-amber-200 text-amber-700 hover:scale-110 group'
+                                : 'bg-amber-100 hover:bg-amber-200 text-stone-700 hover:scale-110'
                             }`}
                             disabled={updatingItems.has(item._id)}
                           >
                             {updatingItems.has(item._id) ? (
-                              <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                              <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
                             ) : (
-                              <PlusIcon className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                              <PlusIcon className="w-3 h-3" />
                             )}
                           </button>
                         </div>
-                        <div className="text-right min-w-[80px]">
-                          <p className="font-bold text-lg text-stone-900 transition-all duration-300 ease-in-out">
-                            {formatPrice(item.price * item.quantity)}
-                          </p>
-                          {successItems.has(item._id) && (
-                            <div className="flex items-center justify-end mt-1">
-                              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                              <span className="text-xs text-emerald-600 ml-1 font-medium">Updated</span>
-                            </div>
+
+                        {/* Price and Actions - Compact */}
+                        <div className="flex items-center space-x-2">
+                          <div className="text-right min-w-[60px]">
+                            <p className="font-bold text-base text-stone-900">
+                              {formatPrice(item.price * item.quantity)}
+                            </p>
+                            {successItems.has(item._id) && (
+                              <div className="flex items-center justify-end mt-1">
+                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                                <span className="text-xs text-emerald-600 ml-1">✓</span>
+                              </div>
                           )}
+                          </div>
+                          <button
+                            onClick={() => handleQuantityChange(item._id, 0)}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 ${
+                              updatingItems.has(item._id)
+                                ? 'bg-red-100 text-red-400 cursor-not-allowed'
+                                : 'bg-red-100 hover:bg-red-200 text-red-600'
+                            }`}
+                            title="Remove item"
+                            disabled={updatingItems.has(item._id)}
+                          >
+                            {updatingItems.has(item._id) ? (
+                              <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <TrashIcon className="w-3 h-3" />
+                            )}
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleQuantityChange(item._id, 0)}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 group ${
-                            updatingItems.has(item._id)
-                              ? 'bg-red-100 text-red-400 cursor-not-allowed'
-                              : 'bg-red-100 hover:bg-red-200 text-red-600'
-                          }`}
-                          title="Remove item"
-                          disabled={updatingItems.has(item._id)}
-                        >
-                          {updatingItems.has(item._id) ? (
-                            <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <TrashIcon className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
-                          )}
-                        </button>
                       </div>
                     ))}
                   </div>
 
                   {/* Artisan Subtotal */}
-                  <div className="mt-6 pt-4 border-t border-stone-200">
+                  <div className="mt-4 pt-3 border-t border-stone-200">
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-stone-700">Subtotal:</span>
-                      <span className="text-xl font-bold text-stone-900 transition-all duration-300 ease-in-out">
+                      <span className="text-base font-semibold text-stone-700">Subtotal:</span>
+                      <span className="text-lg font-bold text-stone-900 transition-all duration-300 ease-in-out">
                         {formatPrice(artisanData.subtotal)}
                       </span>
                     </div>
@@ -1035,38 +1209,63 @@ const Cart = () => {
 
             {/* Order Summary */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6 sticky top-8">
-                <h3 className="text-xl font-semibold text-stone-900 mb-6">Order Summary</h3>
+                              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-4 sticky top-8">
+                <h3 className="text-lg font-semibold text-stone-900 mb-4">Order Summary</h3>
                 
-                                  <div className="space-y-4 mb-6">
+                {/* Availability Summary */}
+                <div className="mb-4 p-3 bg-stone-50 rounded-lg border border-stone-200">
+                  <h4 className="text-xs font-semibold text-stone-700 mb-2">Order Timeline</h4>
+                  <div className="space-y-1">
+                    {cart.some(item => item.productType === 'ready_to_ship') && (
+                      <div className="flex items-center space-x-2 text-xs">
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                        <span className="text-green-700">Ready to ship</span>
+                      </div>
+                    )}
+                    {cart.some(item => item.productType === 'made_to_order') && (
+                      <div className="flex items-center space-x-2 text-xs">
+                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                        <span className="text-blue-700">Custom made</span>
+                      </div>
+                    )}
+                    {cart.some(item => item.productType === 'scheduled_order') && (
+                      <div className="flex items-center space-x-2 text-xs">
+                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
+                        <span className="text-purple-700">Scheduled</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-600 text-sm">Subtotal:</span>
+                    <span className="font-semibold text-stone-900 text-base transition-all duration-300 ease-in-out">
+                      {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
+                    </span>
+                  </div>
+                  <div className="border-t border-stone-200 pt-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-stone-600">Subtotal:</span>
-                      <span className="font-semibold text-stone-900 text-lg transition-all duration-300 ease-in-out">
+                      <span className="text-stone-600 text-sm">Total:</span>
+                      <span 
+                        className={`font-bold text-stone-900 text-lg transition-all duration-300 ease-in-out ${
+                          cartTotal !== cart.reduce((total, item) => total + (item.price * item.quantity), 0) 
+                            ? 'animate-bounce-subtle text-amber-600' 
+                            : ''
+                        }`}
+                      >
                         {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
                       </span>
                     </div>
-                    <div className="border-t border-stone-200 pt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-stone-600">Total:</span>
-                        <span 
-                          className={`font-bold text-stone-900 text-xl transition-all duration-300 ease-in-out ${
-                            cartTotal !== cart.reduce((total, item) => total + (item.price * item.quantity), 0) 
-                              ? 'animate-bounce-subtle text-amber-600' 
-                              : ''
-                          }`}
-                        >
-                          {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
-                        </span>
-                      </div>
-                      <p className="text-xs text-stone-500 mt-1">Delivery fees will be calculated based on your selection</p>
-                    </div>
+                    <p className="text-xs text-stone-500 mt-1">Delivery fees calculated at checkout</p>
                   </div>
+                </div>
 
                 <button
                   onClick={handleNextStep}
-                  className="w-full btn-primary text-lg py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                  className="w-full btn-primary text-base py-3 hover:scale-105 transition-transform duration-200 shadow-lg"
                 >
-                  Choose Your Delivery Method
+                  Choose Delivery Method
                 </button>
               </div>
             </div>
@@ -1084,87 +1283,107 @@ const Cart = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
-              <TruckIcon className="w-8 h-8 text-white" />
+          <div className="flex items-center mb-6">
+            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+              <TruckIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-stone-900 mb-2">How would you like to receive your order?</h1>
-              <p className="text-lg text-stone-600">Choose your preferred way to connect with our artisans</p>
+              <h1 className="text-3xl font-bold text-stone-900 mb-1">How would you like to receive your order?</h1>
+              <p className="text-base text-stone-600">Choose your preferred delivery method</p>
             </div>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Delivery Options and Address */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-4">
                 {/* Step 1: Delivery Options */}
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-stone-900 mb-6 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">1</span>
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
+                    <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">1</span>
                     </div>
                     Choose Your Connection Method
                   </h2>
                   
                   {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                    <div key={artisanId} className="mb-8 p-6 border border-stone-200 rounded-2xl bg-gradient-to-br from-stone-50 to-white hover:shadow-xl transition-all duration-300">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                          <UserIcon className="w-6 h-6 text-white" />
+                    <div key={artisanId} className="mb-4 p-4 border border-stone-200 rounded-xl bg-gradient-to-br from-stone-50 to-white hover:shadow-lg transition-all duration-300">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-4 h-4 text-white" />
                         </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-stone-900">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-stone-900">
                             {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                           </h3>
-                          <p className="text-stone-600">Select how you'd like to receive your order</p>
+                          
+                          {/* Compact Availability Summary */}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {artisanData.items.some(item => item.productType === 'ready_to_ship') && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
+                                Ready
+                              </span>
+                            )}
+                            {artisanData.items.some(item => item.productType === 'made_to_order') && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></div>
+                                Custom
+                              </span>
+                            )}
+                            {artisanData.items.some(item => item.productType === 'scheduled_order') && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-1"></div>
+                                Scheduled
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {deliveryOptions[artisanId]?.pickup?.available && (
-                          <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50 transition-all duration-300 cursor-pointer group">
+                          <label className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 transition-all duration-300 cursor-pointer group">
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
                               value="pickup"
                               checked={selectedDeliveryMethods[artisanId] === 'pickup'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
-                              className="text-emerald-600 w-6 h-6"
+                              className="text-emerald-600 w-5 h-5"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                                  <MapPinIcon className="w-4 h-4 text-emerald-600" />
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                                  <MapPinIcon className="w-3 h-3 text-emerald-600" />
                                 </div>
                                 <div>
-                                  <span className="text-stone-900 font-bold text-lg">Visit the Artisan</span>
-                                  <span className="text-emerald-600 text-sm font-semibold ml-2">(Free Pickup)</span>
+                                  <span className="text-stone-900 font-bold text-base">Visit the Artisan</span>
+                                  <span className="text-emerald-600 text-xs font-semibold ml-2">(Free)</span>
                                 </div>
                               </div>
-                              <p className="text-stone-600 text-sm">Experience the artisan's space and connect personally</p>
                             </div>
                           </label>
                         )}
                         
                         {deliveryOptions[artisanId]?.personalDelivery?.available && (
-                          <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-amber-300 hover:bg-amber-50 transition-all duration-300 cursor-pointer group">
+                          <label className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-amber-300 hover:bg-amber-50 transition-all duration-300 cursor-pointer group">
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
                               value="personalDelivery"
                               checked={selectedDeliveryMethods[artisanId] === 'personalDelivery'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'personalDelivery')}
-                              className="text-amber-600 w-6 h-6"
+                              className="text-amber-600 w-5 h-5"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-                                  <TruckIcon className="w-4 h-4 text-amber-600" />
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                                  <TruckIcon className="w-3 h-3 text-amber-600" />
                                 </div>
                                 <div>
-                                  <span className="text-stone-900 font-bold text-lg">Personal Delivery</span>
-                                  <span className="text-stone-600 text-sm ml-2">
+                                  <span className="text-stone-900 font-bold text-base">Personal Delivery</span>
+                                  <span className="text-stone-600 text-xs ml-2">
                                     ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
                                     {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
                                       ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
@@ -1172,32 +1391,30 @@ const Cart = () => {
                                   </span>
                                 </div>
                               </div>
-                              <p className="text-stone-600 text-sm">The artisan personally delivers to your doorstep</p>
                             </div>
                           </label>
                         )}
                         
                         {deliveryOptions[artisanId]?.professionalDelivery?.available && (
-                          <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-purple-300 hover:bg-purple-50 transition-all duration-300 cursor-pointer group">
+                          <label className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-all duration-300 cursor-pointer group">
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
                               value="professionalDelivery"
                               checked={selectedDeliveryMethods[artisanId] === 'professionalDelivery'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'professionalDelivery')}
-                              className="text-purple-600 w-6 h-6"
+                              className="text-purple-600 w-5 h-5"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                                  <ShieldCheckIcon className="w-4 h-4 text-purple-600" />
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                  <ShieldCheckIcon className="w-3 h-3 text-purple-600" />
                                 </div>
                                 <div>
-                                  <span className="text-stone-900 font-bold text-lg">Professional Delivery</span>
-                                  <span className="text-stone-600 text-sm ml-2">(Uber Direct - $15)</span>
+                                  <span className="text-stone-900 font-bold text-base">Professional Delivery</span>
+                                  <span className="text-stone-600 text-xs ml-2">(Uber Direct - $15)</span>
                                 </div>
                               </div>
-                              <p className="text-stone-600 text-sm">Reliable, tracked delivery with professional service</p>
                             </div>
                           </label>
                         )}
@@ -1207,18 +1424,18 @@ const Cart = () => {
                 </div>
 
                 {/* Address Requirement Notice */}
-                <div className="mb-6">
+                <div className="mb-4">
                   {isAddressRequired() ? (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
-                      <ExclamationTriangleIcon className="w-5 h-5 text-blue-600" />
-                      <p className="text-blue-800 text-sm font-medium">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-4 h-4 text-blue-600" />
+                      <p className="text-blue-800 text-xs font-medium">
                         Address required for selected delivery methods
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-                      <CheckIcon className="w-5 h-5 text-emerald-600" />
-                      <p className="text-emerald-800 text-sm font-medium">
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-2">
+                      <CheckIcon className="w-4 h-4 text-emerald-600" />
+                      <p className="text-emerald-800 text-xs font-medium">
                         No address required for pickup orders
                       </p>
                     </div>
@@ -1227,41 +1444,41 @@ const Cart = () => {
 
                 {/* Step 2: Delivery Address */}
                 {isAddressRequired() && (
-                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-stone-900 mb-6 flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">2</span>
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">2</span>
                       </div>
                       Where should we deliver your order?
                     </h2>
                     
-                    {/* User Addresses */}
-                    {userProfile?.addresses && userProfile.addresses.length > 0 ? (
-                      <div className="mb-6">
-                        <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
-                          <MapPinIcon className="w-5 h-5 text-blue-600" />
+                    {/* User Addresses - Only for authenticated users */}
+                    {!isGuest && userProfile?.addresses && userProfile.addresses.length > 0 ? (
+                      <div className="mb-4">
+                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                          <MapPinIcon className="w-4 h-4 text-blue-600" />
                           Your Saved Addresses
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {userProfile.addresses.map((address, index) => (
-                            <label key={index} className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 cursor-pointer group">
+                            <label key={index} className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 cursor-pointer group">
                               <input
                                 type="radio"
                                 name="saved-address"
                                 checked={selectedAddress === address}
                                 onChange={() => handleAddressSelect(address)}
-                                className="text-blue-600 w-6 h-6"
+                                className="text-blue-600 w-5 h-5"
                               />
                               <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                    <MapPinIcon className="w-4 h-4 text-blue-600" />
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                    <MapPinIcon className="w-3 h-3 text-blue-600" />
                                   </div>
                                   <div>
-                                    <p className="font-bold text-stone-900">
+                                    <p className="font-bold text-stone-900 text-sm">
                                       {address.street}, {address.city}, {address.state} {address.zipCode}
                                     </p>
-                                    <p className="text-sm text-stone-600">{address.country}</p>
+                                    <p className="text-xs text-stone-600">{address.country}</p>
                                   </div>
                                 </div>
                               </div>
@@ -1269,18 +1486,23 @@ const Cart = () => {
                           ))}
                         </div>
                       </div>
-                    ) : (
-                      <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <MapPinIcon className="w-5 h-5 text-amber-600" />
+                    ) : !isGuest && profileLoading ? (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                           <div>
-                            <h3 className="font-semibold text-amber-800">No Saved Addresses Found</h3>
-                            <p className="text-amber-700 text-sm">
-                              {!userProfile ? 'Loading profile...' : 
-                               userProfile.addresses?.length === 0 ? 'No addresses saved yet. Add one below.' :
-                               'Addresses not loaded. Please refresh the page.'}
-                            </p>
-
+                            <h3 className="font-semibold text-blue-800 text-sm">Loading Addresses</h3>
+                            <p className="text-blue-700 text-xs">Please wait while we load your saved addresses...</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : !isGuest && (
+                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <MapPinIcon className="w-4 h-4 text-amber-600" />
+                          <div>
+                            <h3 className="font-semibold text-amber-800 text-sm">No Saved Addresses</h3>
+                            <p className="text-amber-700 text-xs">No addresses saved yet. Add one below.</p>
                           </div>
                         </div>
                       </div>
@@ -1288,36 +1510,36 @@ const Cart = () => {
 
                     {/* Guest Information Form (for guest users) */}
                     {isGuest && (
-                      <div className="border-t border-stone-200 pt-6 mb-6">
-                        <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
-                          <UserIcon className="w-5 h-5 text-blue-600" />
+                      <div className="border-t border-stone-200 pt-4 mb-4">
+                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                          <UserIcon className="w-4 h-4 text-blue-600" />
                           Your Information
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-2">First Name *</label>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">First Name *</label>
                             <input
                               type="text"
                               value={deliveryForm.firstName}
                               onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
-                              className="input-field"
-                              placeholder="Enter your first name"
+                              className="input-field text-sm py-2"
+                              placeholder="First name"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-2">Last Name *</label>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Last Name *</label>
                             <input
                               type="text"
                               value={deliveryForm.lastName}
                               onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
-                              className="input-field"
-                              placeholder="Enter your last name"
+                              className="input-field text-sm py-2"
+                              placeholder="Last name"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address *</label>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address *</label>
                             <input
                               type="email"
                               value={deliveryForm.email}
@@ -1326,6 +1548,20 @@ const Cart = () => {
                               placeholder="Enter your email address"
                               required
                             />
+                            {/* Show existing account notification */}
+                            {existingUser && (
+                              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                                <div className="flex items-center gap-2 text-blue-800">
+                                  <CheckCircleIcon className="w-4 h4" />
+                                  <span className="text-sm font-medium">
+                                    Welcome back! Using existing account for {existingUser.email}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-blue-600 mt-1">
+                                  Your delivery information will be updated with this order.
+                                </p>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-sm font-semibold text-stone-700 mb-2">Phone Number</label>
@@ -1344,70 +1580,74 @@ const Cart = () => {
 
 
                     {/* Manual Address Form */}
-                    <div className="border-t border-stone-200 pt-6">
-                      <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
-                        <PlusIcon className="w-5 h-5 text-green-600" />
-                        {isGuest ? 'Delivery Address' : 'Or Add a New Address'}
+                    <div className="border-t border-stone-200 pt-4">
+                      <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                        <PlusIcon className="w-4 h-4 text-green-600" />
+                        {isGuest ? 'Delivery Address' : 'Add New Address'}
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">Street Address</label>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">Street Address *</label>
                           <input
                             type="text"
                             value={deliveryForm.street}
                             onChange={(e) => handleDeliveryFormChange('street', e.target.value)}
-                            className="input-field"
+                            className="input-field text-sm py-2"
                             placeholder="123 Main St"
+                            required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">City</label>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">City *</label>
                           <input
                             type="text"
                             value={deliveryForm.city}
                             onChange={(e) => handleDeliveryFormChange('city', e.target.value)}
-                            className="input-field"
+                            className="input-field text-sm py-2"
                             placeholder="Montreal"
+                            required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">State/Province</label>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">State/Province *</label>
                           <input
                             type="text"
                             value={deliveryForm.state}
                             onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
-                            className="input-field"
+                            className="input-field text-sm py-2"
                             placeholder="Quebec"
+                            required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">ZIP/Postal Code</label>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">ZIP/Postal Code *</label>
                           <input
                             type="text"
                             value={deliveryForm.zipCode}
                             onChange={(e) => handleDeliveryFormChange('zipCode', e.target.value)}
-                            className="input-field"
+                            className="input-field text-sm py-2"
                             placeholder="H2K 3K2"
+                            required
                           />
                         </div>
                         <div className="md:col-span-2">
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">Country</label>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">Country *</label>
                           <input
                             type="text"
                             value={deliveryForm.country}
                             onChange={(e) => handleDeliveryFormChange('country', e.target.value)}
-                            className="input-field"
+                            className="input-field text-sm py-2"
                             placeholder="Canada"
                           />
                         </div>
                         <div className="md:col-span-2">
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">Delivery Instructions (Optional)</label>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">Delivery Instructions</label>
                           <textarea
                             value={deliveryForm.instructions}
                             onChange={(e) => handleDeliveryFormChange('instructions', e.target.value)}
-                            className="input-field"
+                            className="input-field text-sm py-2"
                             placeholder="Any special delivery instructions..."
-                            rows="3"
+                            rows="2"
                           />
                         </div>
                       </div>
@@ -1640,6 +1880,13 @@ const Cart = () => {
                   </div>
                 )}
               </div>
+            ) : !isGuest && profileLoading ? (
+              // Loading Payment Methods
+              <div className="text-center py-8">
+                <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-stone-900 mb-2">Loading Payment Methods</h3>
+                <p className="text-stone-600">Please wait while we load your saved payment methods...</p>
+              </div>
             ) : !isGuest && paymentMethods.length > 0 ? (
               // Authenticated User Payment Methods
               <div className="space-y-6">
@@ -1690,9 +1937,9 @@ const Cart = () => {
                 <CreditCardIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-stone-900 mb-2">No Payment Methods</h3>
                 <p className="text-stone-600 mb-4">
-                  {!userProfile ? 'Loading profile...' :
-                   userProfile.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
-                   'Payment methods not loaded. Please refresh the page.'}
+                  {profileLoading ? 'Loading payment methods...' :
+                   userProfile?.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
+                   'No payment methods available.'}
                 </p>
 
                 <button

@@ -1485,7 +1485,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       lowStockThreshold,
       leadTime,
       leadTimeUnit,
-      requiresConfirmation,
+
       maxOrderQuantity,
       scheduleType,
       scheduleDetails,
@@ -1515,7 +1515,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     if (lowStockThreshold !== undefined) product.lowStockThreshold = parseInt(lowStockThreshold);
     if (leadTime !== undefined) product.leadTime = parseInt(leadTime);
     if (leadTimeUnit !== undefined) product.leadTimeUnit = leadTimeUnit;
-    if (requiresConfirmation !== undefined) product.requiresConfirmation = requiresConfirmation === 'true' || requiresConfirmation === true;
+
     if (maxOrderQuantity !== undefined) product.maxOrderQuantity = parseInt(maxOrderQuantity);
     if (scheduleType !== undefined) product.scheduleType = scheduleType;
     if (scheduleDetails !== undefined) {
@@ -1531,7 +1531,6 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     if (productType === 'ready_to_ship') {
       product.leadTime = undefined;
       product.leadTimeUnit = undefined;
-      product.requiresConfirmation = undefined;
       product.maxOrderQuantity = undefined;
       product.scheduleType = undefined;
       product.scheduleDetails = undefined;
@@ -1547,7 +1546,6 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       product.lowStockThreshold = undefined;
       product.leadTime = undefined;
       product.leadTimeUnit = undefined;
-      product.requiresConfirmation = undefined;
       product.maxOrderQuantity = undefined;
     }
     

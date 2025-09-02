@@ -18,6 +18,7 @@ import { getAllProducts, clearProductCache } from '../services/productService';
 import { cartService } from '../services/cartService';
 import enhancedSearchService from '../services/enhancedSearchService';
 import ProductTypeBadge from './ProductTypeBadge';
+import AddToCart from './AddToCart';
 import { 
   PRODUCT_CATEGORIES, 
   getAllCategories, 
@@ -25,8 +26,10 @@ import {
   searchProducts as searchReferenceProducts 
 } from '../data/productReference';
 import toast from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Search() {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -172,7 +175,9 @@ export default function Search() {
   // Handle add to cart
   const handleAddToCart = async (product, quantity) => {
     try {
-      await cartService.addToCart(product, quantity);
+      // For guest users, pass null as userId to use guest cart
+      const userId = user ? user._id : null;
+      await cartService.addToCart(product, quantity, userId);
       toast.success(`${quantity} ${product.name} added to cart`);
       setShowCartPopup(false);
       setSelectedProduct(null);
@@ -206,14 +211,14 @@ export default function Search() {
     }
     
     if (imagePath.startsWith('/uploads/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
     if (imagePath.startsWith('/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
-    return `/${imagePath}`;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
   };
 
   // Format price
@@ -469,88 +474,51 @@ export default function Search() {
           </div>
         </div>
 
-      {/* Cart Popup */}
+      {/* Enhanced Cart Popup */}
       {showCartPopup && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add to Cart</h3>
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900">Product Details</h3>
               <button
                 onClick={closeCartPopup}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
               >
                 <XMarkIcon className="h-6 w-6" />
               </button>
             </div>
 
-            {/* Product Info */}
-            <div className="p-6">
-              <div className="flex items-center space-x-4 mb-4">
-                <img
-                  src={getImageUrl(selectedProduct.image)}
-                  alt={selectedProduct.name}
-                  className="w-16 h-16 object-cover rounded-lg"
-                />
-                <div>
-                  <h4 className="font-medium text-gray-900">{selectedProduct.name}</h4>
-                  <p className="text-sm text-gray-600">
-                    {selectedProduct.artisan?.artisanName || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
-                  </p>
-                  <p className="font-bold text-gray-900">{formatPrice(selectedProduct.price)}</p>
-                </div>
+            {/* Product Image */}
+            <div className="p-6 pb-0">
+              <div className="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
+                {selectedProduct.image ? (
+                  <img
+                    src={getImageUrl(selectedProduct.image)}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                    <BuildingStorefrontIcon className="w-16 h-16 text-amber-400" />
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Quantity */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                  <span className="w-12 text-center font-medium">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Stock Info */}
-              {selectedProduct.stock !== undefined && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Stock:</span> {selectedProduct.stock} available
-                  </p>
-                  {selectedProduct.leadTimeHours && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      <span className="font-medium">Lead Time:</span> {selectedProduct.leadTimeHours} hours
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Total */}
-              <div className="flex items-center justify-between mb-6">
-                <span className="font-medium text-gray-900">Total:</span>
-                <span className="font-bold text-lg text-gray-900">
-                  {formatPrice(selectedProduct.price * quantity)}
-                </span>
-              </div>
-
-              {/* Add to Cart Button */}
-              <button
-                onClick={async () => await handleAddToCart(selectedProduct, quantity)}
-                className="w-full bg-amber-600 text-white py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors flex items-center justify-center space-x-2"
-              >
-                <ShoppingCartIcon className="h-5 w-5" />
-                <span>Add to Cart</span>
-              </button>
+            {/* Enhanced Add to Cart Component */}
+            <div className="px-6 pb-6">
+              <AddToCart 
+                product={selectedProduct}
+                variant="modal"
+                onSuccess={(product, quantity) => {
+                  closeCartPopup();
+                  setSelectedProduct(null);
+                }}
+                onError={(error) => {
+                  console.error('Add to cart error:', error);
+                }}
+              />
             </div>
           </div>
         </div>

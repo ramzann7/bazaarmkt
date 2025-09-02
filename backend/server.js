@@ -10,9 +10,47 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5180', 'http://localhost:3000', 'http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+// Serve static files for uploads with proper headers
+app.use('/uploads', (req, res, next) => {
+  // Set CORS headers for static files
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  
+  // Set cache headers for images
+  if (req.path.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+    res.header('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+  }
+  
+  // Log static file requests for debugging
+  console.log(`📁 Static file request: ${req.method} ${req.url}`);
+  
+  next();
+}, express.static(path.join(__dirname, 'public/uploads'), {
+  // Add error handling for static files
+  fallthrough: false,
+  setHeaders: (res, path) => {
+    // Set proper content type for images
+    if (path.match(/\.(jpg|jpeg)$/i)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+    } else if (path.match(/\.png$/i)) {
+      res.setHeader('Content-Type', 'image/png');
+    } else if (path.match(/\.gif$/i)) {
+      res.setHeader('Content-Type', 'image/gif');
+    } else if (path.match(/\.webp$/i)) {
+      res.setHeader('Content-Type', 'image/webp');
+    }
+  }
+}));
 
 // Add request size logging middleware
 app.use((req, res, next) => {
@@ -59,6 +97,7 @@ const userStatsRoutes = require('./src/routes/userStats');
 const revenueRoutes = require('./src/routes/revenue');
 const promotionalRoutes = require('./src/routes/promotional');
 const geocodingRoutes = require('./src/routes/geocoding');
+// const notificationRoutes = require('./src/routes/notifications');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -74,9 +113,9 @@ app.use('/api/user', userStatsRoutes);
 app.use('/api/revenue', revenueRoutes);
 app.use('/api/promotional', promotionalRoutes);
 app.use('/api/geocoding', geocodingRoutes);
+// app.use('/api/notifications', notificationRoutes);
 
-// Serve static files
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -85,6 +124,32 @@ app.get('/api/health', (req, res) => {
     message: 'The Bazaar API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Test image serving endpoint
+app.get('/api/test-image/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const imagePath = path.join(__dirname, 'public/uploads/products', filename);
+  
+  console.log(`🧪 Testing image path: ${imagePath}`);
+  
+  if (require('fs').existsSync(imagePath)) {
+    console.log(`✅ Image exists: ${filename}`);
+    res.json({ 
+      status: 'success', 
+      message: 'Image file exists',
+      filename: filename,
+      path: imagePath
+    });
+  } else {
+    console.log(`❌ Image not found: ${filename}`);
+    res.status(404).json({ 
+      status: 'error', 
+      message: 'Image file not found',
+      filename: filename,
+      path: imagePath
+    });
+  }
 });
 
 // Serve static files in production
@@ -114,5 +179,7 @@ app.listen(PORT, () => {
   console.log(`📡 API available at http://localhost:${PORT}/api`);
   console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
   console.log(`📦 Payload limit: 100MB`);
+  console.log(`🖼️ Static files served from: ${path.join(__dirname, 'public/uploads')}`);
+  console.log(`🔗 Test image endpoint: http://localhost:${PORT}/api/test-image/image-1755916231829-653071106.jpg`);
 });
 

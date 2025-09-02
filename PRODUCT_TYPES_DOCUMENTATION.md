@@ -42,11 +42,9 @@ The Food Finder App now supports three distinct product types to accommodate dif
 **Required Fields**:
 - `leadTime`: Production time required
 - `leadTimeUnit`: Unit of time (hours, days, weeks)
-- `requiresConfirmation`: Whether customer confirmation is needed before production starts
 - `maxOrderQuantity`: Maximum quantity per order
 
 **Optional Fields**:
-- `requiresConfirmation`: Defaults to true
 - `maxOrderQuantity`: Defaults to 10
 
 **Use Cases**:
@@ -122,10 +120,7 @@ leadTimeUnit: {
   required: function() { return this.productType === 'made_to_order'; },
   default: 'days'
 },
-requiresConfirmation: {
-  type: Boolean,
-  default: true
-},
+
 maxOrderQuantity: {
   type: Number,
   min: 1,
@@ -178,10 +173,7 @@ productionEndDate: Date,      // For made-to-order
 scheduledDate: Date,          // For scheduled orders
 pickupDeadline: Date,         // For scheduled orders
 
-// Confirmation tracking
-requiresConfirmation: Boolean,
-confirmedByPatron: Boolean,
-confirmationDate: Date
+
 ```
 
 ## Frontend Components
@@ -227,13 +219,13 @@ The Cart component now displays:
 ### Order Processing
 
 1. **Ready to Ship**: Immediate fulfillment, stock reduction
-2. **Made to Order**: Production scheduling after confirmation
+2. **Made to Order**: Production scheduling immediately upon order
 3. **Scheduled Orders**: Time-based production scheduling
 
 ### Customer Communication
 
 1. **Ready to Ship**: Immediate availability confirmation
-2. **Made to Order**: Lead time expectations and confirmation requirements
+2. **Made to Order**: Lead time expectations and immediate production start
 3. **Scheduled Orders**: Production schedule and pickup/delivery timing
 
 ## Migration Guide

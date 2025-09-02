@@ -54,7 +54,6 @@ export default function Products() {
     // Made to Order Fields
     leadTime: '',
     leadTimeUnit: 'days',
-    requiresConfirmation: true,
     maxOrderQuantity: 10,
     
     // Scheduled Order Fields
@@ -141,16 +140,16 @@ export default function Products() {
     
     // Handle relative paths (already have /uploads prefix)
     if (imagePath.startsWith('/uploads/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
     // Handle paths that need /uploads prefix
     if (imagePath.startsWith('/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
     // Handle paths without leading slash
-    return `/${imagePath}`;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
   };
 
   useEffect(() => {
@@ -368,7 +367,6 @@ export default function Products() {
         ...(newProduct.productType === 'made_to_order' && {
           leadTime: parseInt(newProduct.leadTime),
           leadTimeUnit: newProduct.leadTimeUnit,
-          requiresConfirmation: newProduct.requiresConfirmation,
           maxOrderQuantity: parseInt(newProduct.maxOrderQuantity)
         }),
         ...(newProduct.productType === 'scheduled_order' && {
@@ -402,7 +400,6 @@ export default function Products() {
         // Made to Order Fields
         leadTime: '',
         leadTimeUnit: 'days',
-        requiresConfirmation: true,
         maxOrderQuantity: 10,
         
         // Scheduled Order Fields
@@ -508,6 +505,10 @@ export default function Products() {
   };
 
   const handleEditProduct = (product) => {
+    console.log('Editing product:', product);
+    console.log('nextAvailableDate:', product.nextAvailableDate);
+    console.log('scheduleDetails:', product.scheduleDetails);
+    
     setEditingProduct({
       ...product,
       image: null,
@@ -520,15 +521,14 @@ export default function Products() {
       lowStockThreshold: product.lowStockThreshold || 5,
       leadTime: product.leadTime || '',
       leadTimeUnit: product.leadTimeUnit || 'days',
-      requiresConfirmation: product.requiresConfirmation !== undefined ? product.requiresConfirmation : true,
       maxOrderQuantity: product.maxOrderQuantity || 10,
       scheduleType: product.scheduleType || 'daily',
-      scheduleDetails: product.scheduleDetails || {
-        frequency: 'every_day',
-        customSchedule: [],
-        orderCutoffHours: 24
+      scheduleDetails: {
+        frequency: product.scheduleDetails?.frequency || 'every_day',
+        customSchedule: product.scheduleDetails?.customSchedule || [],
+        orderCutoffHours: product.scheduleDetails?.orderCutoffHours || 24
       },
-      nextAvailableDate: product.nextAvailableDate || '',
+      nextAvailableDate: product.nextAvailableDate ? new Date(product.nextAvailableDate).toISOString().split('T')[0] : '',
       
       // Ensure all dietary preferences are initialized
       isOrganic: product.isOrganic || false,
@@ -548,7 +548,7 @@ export default function Products() {
       // Ensure other fields are initialized
       unit: product.unit || 'piece',
       weight: product.weight || '',
-      expiryDate: product.expiryDate || '',
+      expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : '',
       tags: product.tags || []
     });
   };
@@ -574,7 +574,6 @@ export default function Products() {
         ...(editingProduct.productType === 'made_to_order' && {
           leadTime: parseInt(editingProduct.leadTime),
           leadTimeUnit: editingProduct.leadTimeUnit,
-          requiresConfirmation: editingProduct.requiresConfirmation,
           maxOrderQuantity: parseInt(editingProduct.maxOrderQuantity)
         }),
         ...(editingProduct.productType === 'scheduled_order' && {
@@ -635,7 +634,6 @@ export default function Products() {
       if (value === 'ready_to_ship') {
         updated.leadTime = '';
         updated.leadTimeUnit = 'days';
-        updated.requiresConfirmation = true;
         updated.maxOrderQuantity = 10;
         updated.scheduleType = 'daily';
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
@@ -651,8 +649,10 @@ export default function Products() {
         updated.lowStockThreshold = 5;
         updated.leadTime = '';
         updated.leadTimeUnit = 'days';
-        updated.requiresConfirmation = true;
         updated.maxOrderQuantity = 10;
+        updated.scheduleType = updated.scheduleType || 'daily';
+        updated.scheduleDetails = updated.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
+        updated.nextAvailableDate = updated.nextAvailableDate || '';
       }
       
       return updated;
@@ -667,7 +667,6 @@ export default function Products() {
       if (value === 'ready_to_ship') {
         updated.leadTime = '';
         updated.leadTimeUnit = 'days';
-        updated.requiresConfirmation = true;
         updated.maxOrderQuantity = 10;
         updated.scheduleType = 'daily';
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
@@ -683,8 +682,10 @@ export default function Products() {
         updated.lowStockThreshold = 5;
         updated.leadTime = '';
         updated.leadTimeUnit = 'days';
-        updated.requiresConfirmation = true;
         updated.maxOrderQuantity = 10;
+        updated.scheduleType = updated.scheduleType || 'daily';
+        updated.scheduleDetails = updated.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
+        updated.nextAvailableDate = updated.nextAvailableDate || '';
       }
       
       return updated;
@@ -1179,33 +1180,7 @@ export default function Products() {
                         </select>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Stock Quantity <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          required
-                          value={editingProduct.stock}
-                          onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                          placeholder="0"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
-                        <select
-                          value={editingProduct.unit || 'piece'}
-                          onChange={(e) => setEditingProduct({...editingProduct, unit: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                        >
-                          {units.map(unit => (
-                            <option key={unit} value={unit}>{unit}</option>
-                          ))}
-                        </select>
-                      </div>
+
                     </div>
                   </div>
 
@@ -1261,7 +1236,7 @@ export default function Products() {
                             <div className="text-center">
                               <div className="text-2xl mb-2">⚙️</div>
                               <div className="font-semibold text-gray-900">Made to Order</div>
-                              <div className="text-xs text-gray-600 mt-1">Custom products made after order confirmation</div>
+                              <div className="text-xs text-gray-600 mt-1">Custom products made to order specifications</div>
                             </div>
                           </label>
                           
@@ -1293,20 +1268,36 @@ export default function Products() {
                       {/* Common Fields for All Product Types */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Unit <span className="text-red-500">*</span>
-                          </label>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Unit</label>
                           <select
-                            required
-                            value={editingProduct.unit || 'piece'}
+                            value={editingProduct.unit}
                             onChange={(e) => setEditingProduct({...editingProduct, unit: e.target.value})}
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                           >
-                            {units.map(unit => (
-                              <option key={unit} value={unit}>{unit}</option>
-                            ))}
+                            <option value="piece">Piece</option>
+                            <option value="kg">Kilogram</option>
+                            <option value="lb">Pound</option>
+                            <option value="g">Gram</option>
+                            <option value="oz">Ounce</option>
+                            <option value="l">Liter</option>
+                            <option value="ml">Milliliter</option>
+                            <option value="dozen">Dozen</option>
+                            <option value="pack">Pack</option>
+                            <option value="bundle">Bundle</option>
                           </select>
-                          <p className="text-xs text-gray-500 mt-1">How the product is measured/sold</p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={editingProduct.weight}
+                            onChange={(e) => setEditingProduct({...editingProduct, weight: e.target.value})}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            placeholder="0.0"
+                          />
                         </div>
                       </div>
                       
@@ -1384,19 +1375,7 @@ export default function Products() {
                               placeholder="10"
                             />
                           </div>
-                          <div className="md:col-span-2">
-                            <label className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={editingProduct.requiresConfirmation || true}
-                                onChange={(e) => setEditingProduct({...editingProduct, requiresConfirmation: e.target.checked})}
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                              />
-                              <span className="ml-3 text-sm font-medium text-gray-700">
-                                Require customer confirmation before starting production
-                              </span>
-                            </label>
-                          </div>
+
                         </div>
                       )}
                       
@@ -1445,7 +1424,7 @@ export default function Products() {
                                   orderCutoffHours: parseInt(e.target.value)
                                 }
                               })}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                               placeholder="24"
                             />
                             <p className="text-xs text-gray-500 mt-1">How many hours before production to stop taking orders</p>
@@ -1455,36 +1434,7 @@ export default function Products() {
                     </div>
                   </div>
 
-                  {/* Category and Stock */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                      <select
-                        required
-                        value={editingProduct.category}
-                        onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value, subcategory: ''})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      >
-                        <option value="">Select Category</option>
-                        {Object.keys(categories).map((category) => (
-                          <option key={category} value={category}>{category}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
-                      <select
-                        value={editingProduct.subcategory}
-                        onChange={(e) => setEditingProduct({...editingProduct, subcategory: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      >
-                        <option value="">Select Subcategory</option>
-                        {editingProduct.category && categories[editingProduct.category]?.map((subcategory) => (
-                          <option key={subcategory} value={subcategory}>{subcategory}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+
 
                   {/* Description Section */}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
@@ -1816,18 +1766,7 @@ export default function Products() {
                     </h5>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Weight (optional)</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          value={editingProduct.weight || ''}
-                          onChange={(e) => setEditingProduct({...editingProduct, weight: e.target.value})}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
-                          placeholder="0.0"
-                        />
-                      </div>
+
                       
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Expiry Date (optional)</label>
@@ -2071,7 +2010,7 @@ export default function Products() {
                         <div className="text-center">
                           <div className="text-2xl mb-2">⚙️</div>
                           <div className="font-semibold text-gray-900">Made to Order</div>
-                          <div className="text-xs text-gray-600 mt-1">Custom products made after order confirmation</div>
+                          <div className="text-xs text-gray-600 mt-1">Custom products made to order specifications</div>
                         </div>
                       </label>
                       
@@ -2209,19 +2148,7 @@ export default function Products() {
                           placeholder="10"
                         />
                       </div>
-                      <div className="md:col-span-2">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={newProduct.requiresConfirmation}
-                            onChange={(e) => setNewProduct({...newProduct, requiresConfirmation: e.target.checked})}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span className="ml-3 text-sm font-medium text-gray-700">
-                            Require customer confirmation before starting production
-                          </span>
-                        </label>
-                      </div>
+
                     </div>
                   )}
                   

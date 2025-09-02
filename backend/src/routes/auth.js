@@ -289,6 +289,74 @@ router.get('/profile', verifyToken, async (req, res) => {
   }
 });
 
+// Check if user exists by email
+router.get('/check-email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        isGuest: user.isGuest
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error checking user by email:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create token for existing user
+router.post('/token-for-existing', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    // Find the existing user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Generate token for existing user
+    const token = jwt.sign(
+      { userId: user._id, role: user.role, isGuest: user.isGuest },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    res.json({
+      message: 'Token created for existing user',
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        isGuest: user.isGuest
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error creating token for existing user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Create guest user
 router.post('/guest', async (req, res) => {
   try {
@@ -300,7 +368,7 @@ router.post('/guest', async (req, res) => {
     const guestUser = new User({
       firstName: firstName || 'Guest',
       lastName: lastName || 'User',
-      email: email || `${guestId}@guest.local`,
+      email: email && email.trim() ? email : `${guestId}@guest.local`,
       password: 'guest_password_' + Math.random().toString(36).substr(2, 9),
       phone: phone || '',
       role: 'patron',
@@ -333,6 +401,52 @@ router.post('/guest', async (req, res) => {
     
   } catch (error) {
     console.error('Guest user creation error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code
+    });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update user profile
+router.put('/update-profile/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const updates = req.body;
+    
+    // Find and update the user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        firstName: updates.firstName,
+        lastName: updates.lastName,
+        phone: updates.phone
+      },
+      { new: true }
+    );
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      message: 'User profile updated successfully',
+      user: {
+        id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role,
+        isGuest: updatedUser.isGuest
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error updating user profile:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

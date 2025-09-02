@@ -483,10 +483,10 @@ export default function BusinessDetails() {
     
     // If it's a local path, prefix with backend URL
     if (imagePath.startsWith('/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
-    return imagePath;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
   };
 
   // Get available categories and subcategories for this artisan only

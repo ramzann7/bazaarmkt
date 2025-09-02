@@ -691,8 +691,8 @@ export const cartService = {
         headers.Authorization = `Bearer ${token}`;
       }
       
-      // Use relative URL that works with Vite proxy
-      const apiBaseUrl = '/api';
+      // Use the correct backend API URL
+      const apiBaseUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
       
       // The artisanId parameter is the artisan document ID from the cart item
       // Use the standard artisan endpoint

@@ -61,10 +61,7 @@ const productSchema = new mongoose.Schema({
     required: function() { return this.productType === 'made_to_order'; },
     default: 'days'
   },
-  requiresConfirmation: {
-    type: Boolean,
-    default: true
-  },
+
   maxOrderQuantity: {
     type: Number,
     min: 1,

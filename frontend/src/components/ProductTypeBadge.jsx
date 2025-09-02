@@ -61,13 +61,12 @@ const ProductTypeBadge = ({ product, showDetails = true, variant = 'default' }) 
       case 'made_to_order':
         const leadTime = product.leadTime || 1;
         const leadTimeUnit = product.leadTimeUnit || 'days';
-        const requiresConfirmation = product.requiresConfirmation !== false;
         
         return {
-          status: requiresConfirmation ? 'Requires Confirmation' : 'Production Ready',
+          status: 'Production Ready',
           description: `Lead time: ${leadTime} ${leadTimeUnit}`,
           timeFrame: `Ready in ${leadTime} ${leadTimeUnit}`,
-          urgency: requiresConfirmation ? 'Order confirmation needed' : null,
+          urgency: null,
           maxOrder: product.maxOrderQuantity ? `Max: ${product.maxOrderQuantity} units` : null
         };
       

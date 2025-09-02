@@ -4,7 +4,7 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService.js';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api',
   timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',

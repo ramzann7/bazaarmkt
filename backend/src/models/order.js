@@ -146,16 +146,7 @@ const orderSchema = new mongoose.Schema({
     artisan: String
   },
   
-  // Confirmation tracking for made-to-order products
-  requiresConfirmation: {
-    type: Boolean,
-    default: false
-  },
-  confirmedByPatron: {
-    type: Boolean,
-    default: false
-  },
-  confirmationDate: Date,
+
   
   createdAt: {
     type: Date,

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { authToken } from './authservice';
 
-const API_URL = '/api/orders';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/orders` : '/api/orders';
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`,
@@ -62,25 +62,43 @@ export const orderService = {
   // Create a new order
   createOrder: async (orderData) => {
     try {
-      // Check if user is guest and add guest info if needed
+      // Check if user is guest and redirect to guest order endpoint if needed
       const token = localStorage.getItem('token');
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
-          if (payload.isGuest && !orderData.guestInfo) {
-            // For guest users, ensure we have guest info
-            orderData.guestInfo = {
-              firstName: orderData.guestInfo?.firstName || 'Guest',
-              lastName: orderData.guestInfo?.lastName || 'User',
-              email: orderData.guestInfo?.email || 'guest@example.com',
-              phone: orderData.guestInfo?.phone || ''
+          if (payload.isGuest === true) {
+            console.log('🔍 User is guest, redirecting to guest order endpoint');
+            // For guest users, prepare guest order data and use the guest endpoint
+            const guestOrderData = {
+              ...orderData,
+              guestInfo: {
+                firstName: payload.firstName || 'Guest',
+                lastName: payload.lastName || 'User',
+                email: payload.email || 'guest@example.com',
+                phone: payload.phone || ''
+              },
+              paymentDetails: {
+                method: orderData.paymentMethod || 'credit_card',
+                cardNumber: '****', // Masked for security
+                expiryDate: '**/**',
+                cvv: '***',
+                cardholderName: 'Guest User'
+              }
             };
+            return await orderService.createGuestOrder(guestOrderData);
           }
         } catch (parseError) {
           console.warn('Could not parse token for guest check:', parseError);
         }
       }
 
+      console.log('🔍 Order Service Debug - API_URL:', API_URL);
+      console.log('🔍 Order Service Debug - VITE_API_URL:', import.meta.env.VITE_API_URL);
+      console.log('🔍 Order Service Debug - Final URL being called:', API_URL);
+      console.log('🔍 Order Service Debug - Order Data:', orderData);
+      console.log('🔍 Order Service Debug - Auth Headers:', getAuthHeaders());
+      
       const response = await axios.post(API_URL, orderData, {
         headers: getAuthHeaders()
       });

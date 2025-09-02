@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Link, useNavigate } from 'react-router-dom';
 import { getFeaturedProducts, getPopularProducts, clearCache, clearFeaturedProductsCache, clearPopularProductsCache } from '../services/productService';
-import { cartService } from '../services/cartService';
+
 import { 
   PRODUCT_CATEGORIES, 
   getPopularProducts as getPopularProductNames 
@@ -35,7 +35,8 @@ import LocationPrompt from './LocationPrompt';
 import LocationIndicator from './LocationIndicator';
 import { locationService } from '../services/locationService';
 import ProductTypeBadge from './ProductTypeBadge';
-import ProductReadinessModal from './ProductReadinessModal';
+
+import AddToCart from './AddToCart';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -62,10 +63,9 @@ export default function Home() {
   const [isLoadingNearby, setIsLoadingNearby] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCartPopup, setShowCartPopup] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+
   const [error, setError] = useState(null);
-  const [showReadinessModal, setShowReadinessModal] = useState(false);
-  const [readinessProduct, setReadinessProduct] = useState(null);
+
   const [userLocation, setUserLocation] = useState(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const navigate = useNavigate();
@@ -439,44 +439,7 @@ export default function Home() {
     setShowLocationPrompt(false);
   };
 
-  // Memoized cart handler
-  const handleAddToCart = useMemo(() => {
-    return async () => {
-      if (!selectedProduct) return;
 
-      try {
-        // Get current user ID from token
-        let currentUserId = null;
-        const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            currentUserId = payload.userId;
-          } catch (error) {
-            console.error('Error parsing token for userId:', error);
-          }
-        }
-
-        // Enhance product with complete artisan data before adding to cart
-        const enhancedProduct = await enhanceProductWithArtisanData(selectedProduct);
-        
-        // Use cartService to add to cart
-        await cartService.addToCart(enhancedProduct, quantity, currentUserId);
-        
-        toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
-        setShowCartPopup(false);
-        setSelectedProduct(null);
-        setQuantity(1);
-      } catch (error) {
-        console.error('Error adding to cart:', error);
-        if (error.message.includes('Artisans cannot add products to cart')) {
-          toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
-        } else {
-          toast.error('Failed to add item to cart');
-        }
-      }
-    };
-  }, [selectedProduct, quantity]);
 
   // Function to enhance product with complete artisan data
   const enhanceProductWithArtisanData = async (product) => {
@@ -537,54 +500,14 @@ export default function Home() {
   // Memoized product click handler
   const handleProductClick = useMemo(() => {
     return (product) => {
-      // Show readiness modal first to inform user about product availability
-      setReadinessProduct(product);
-      setShowReadinessModal(true);
+      setSelectedProduct(product);
+      setShowCartPopup(true);
     };
   }, []);
 
-  // Handle adding to cart from readiness modal
-  const handleAddToCartFromReadiness = async (product) => {
-    try {
-      // Get current user ID from token
-      let currentUserId = null;
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          currentUserId = payload.userId;
-        } catch (error) {
-          console.error('Error parsing token for userId:', error);
-        }
-      }
 
-      // Enhance product with complete artisan data before adding to cart
-      const enhancedProduct = await enhanceProductWithArtisanData(product);
-      
-      // Use cartService to add to cart
-      await cartService.addToCart(enhancedProduct, 1, currentUserId);
-      
-      toast.success('Product added to cart!');
-      setShowReadinessModal(false);
-      setReadinessProduct(null);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      if (error.message.includes('Artisans cannot add products to cart')) {
-        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
-      } else {
-        toast.error('Failed to add item to cart');
-      }
-    }
-  };
 
-  // Memoized quantity handlers
-  const handleQuantityChange = useMemo(() => {
-    return (newQuantity) => {
-      if (newQuantity >= 1 && newQuantity <= 99) {
-        setQuantity(newQuantity);
-      }
-    };
-  }, []);
+
 
   // Memoized search handler
   const handleSearch = useMemo(() => {
@@ -752,7 +675,6 @@ export default function Home() {
   const closeCartPopup = () => {
     setShowCartPopup(false);
     setSelectedProduct(null);
-    setQuantity(1);
   };
 
   // Helper function to get image URL
@@ -771,16 +693,16 @@ export default function Home() {
     
     // Handle relative paths (already have /uploads prefix)
     if (imagePath.startsWith('/uploads/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
     // Handle paths that need /uploads prefix
     if (imagePath.startsWith('/')) {
-      return imagePath;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
     // Handle paths without leading slash
-    return `/${imagePath}`;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
   };
 
   const formatPrice = (price) => {
@@ -822,11 +744,15 @@ export default function Home() {
           className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
           onError={(e) => {
+            console.log('❌ Product card image failed to load:', e.target.src);
             e.target.style.display = 'none';
             e.target.nextSibling.style.display = 'flex';
           }}
+          onLoad={(e) => {
+            console.log('✅ Product card image loaded successfully:', e.target.src);
+          }}
         />
-        <div className="w-full h-64 flex items-center justify-center bg-gray-200" style={{ display: product.image ? 'none' : 'flex' }}>
+        <div className={`w-full h-64 flex items-center justify-center bg-gray-200 ${product.image ? 'hidden' : 'flex'}`}>
           <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
         </div>
         {product.isFeatured && (
@@ -871,6 +797,8 @@ export default function Home() {
             <span className="text-sm text-gray-500">({(product.artisan?.rating?.average || 0).toFixed(1)})</span>
           </div>
         </div>
+        
+
       </div>
     </div>
   );
@@ -1098,123 +1026,59 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Cart Popup */}
+      {/* Enhanced Cart Popup */}
       {showCartPopup && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add to Cart</h3>
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900">Product Details</h3>
               <button
                 onClick={closeCartPopup}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
               >
                 <XMarkIcon className="w-6 h-6" />
               </button>
             </div>
 
-            {/* Product Info */}
-            <div className="p-6">
-              <div className="flex space-x-4 mb-6">
-                <div className="flex-shrink-0">
+            {/* Product Image */}
+            <div className="p-6 pb-0">
+              <div className="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
+                {selectedProduct.image ? (
                   <img
                     src={getImageUrl(selectedProduct.image)}
                     alt={selectedProduct.name}
-                    className="w-20 h-20 object-cover rounded-lg"
+                    className="w-full h-full object-cover"
                     onError={(e) => {
+                      console.log('❌ Image failed to load:', e.target.src);
                       e.target.style.display = 'none';
                       e.target.nextSibling.style.display = 'flex';
                     }}
+                    onLoad={(e) => {
+                      console.log('✅ Image loaded successfully:', e.target.src);
+                    }}
                   />
-                  <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center hidden">
-                    <BuildingStorefrontIcon className="w-8 h-8 text-gray-400" />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
-                  <p className="text-sm text-gray-500 mb-2">
-                    {selectedProduct.artisan?.artisanName || 'Unknown Artisan'}
-                  </p>
-                  <div className="text-xl font-bold text-amber-600">{formatPrice(selectedProduct.price)}</div>
+                ) : null}
+                <div className={`w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${selectedProduct.image ? 'hidden' : 'flex'}`}>
+                  <BuildingStorefrontIcon className="w-16 h-16 text-amber-400" />
                 </div>
               </div>
+            </div>
 
-              {/* Stock and Lead Time Info */}
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Stock Available:</span>
-                  <span className={`text-sm font-medium ${selectedProduct.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {selectedProduct.stock} {selectedProduct.unit || 'piece'}
-                    {selectedProduct.stock > 0 ? '' : ' (Out of Stock)'}
-                  </span>
-                </div>
-                
-                {selectedProduct.leadTimeHours && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Lead Time:</span>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <ClockIcon className="w-4 h-4 mr-1" />
-                      {selectedProduct.leadTimeHours} hours
-                    </div>
-                  </div>
-                )}
-
-                {selectedProduct.isOrganic && (
-                  <div className="flex items-center text-sm text-green-600">
-                    <SparklesIcon className="w-4 h-4 mr-1" />
-                    Organic Product
-                  </div>
-                )}
-
-                {selectedProduct.isGlutenFree && (
-                  <div className="flex items-center text-sm text-blue-600">
-                    Gluten-Free
-                  </div>
-                )}
-              </div>
-
-              {/* Quantity Selector */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
-                    className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <MinusIcon className="w-4 h-4" />
-                  </button>
-                  <span className="text-lg font-semibold text-gray-900 min-w-[3rem] text-center">{quantity}</span>
-                  <button
-                    onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= selectedProduct.stock}
-                    className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <PlusIcon className="w-4 h-4" />
-                  </button>
-                </div>
-                {quantity >= selectedProduct.stock && selectedProduct.stock > 0 && (
-                  <p className="text-sm text-amber-600 mt-1">Maximum available quantity reached</p>
-                )}
-              </div>
-
-              {/* Total Price */}
-              <div className="flex items-center justify-between mb-6 p-3 bg-gray-50 rounded-lg">
-                <span className="text-sm font-medium text-gray-700">Total:</span>
-                <span className="text-lg font-bold text-amber-600">
-                  {formatPrice(selectedProduct.price * quantity)}
-                </span>
-              </div>
-
-              {/* Add to Cart Button */}
-              <button
-                onClick={handleAddToCart}
-                disabled={selectedProduct.stock <= 0}
-                className="w-full flex items-center justify-center px-4 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ShoppingCartIcon className="w-5 h-5 mr-2" />
-                {selectedProduct.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-              </button>
+            {/* Enhanced Add to Cart Component */}
+            <div className="px-6 pb-6">
+              <AddToCart 
+                product={selectedProduct}
+                variant="modal"
+                onSuccess={(product, quantity) => {
+                  closeCartPopup();
+                  setSelectedProduct(null);
+                  toast.success(`Added ${quantity} ${quantity === 1 ? product.unit || 'piece' : product.unit + 's'} to cart!`);
+                }}
+                onError={(error) => {
+                  console.error('Add to cart error:', error);
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1228,18 +1092,7 @@ export default function Home() {
         />
       )}
 
-      {/* Product Readiness Modal */}
-      {showReadinessModal && readinessProduct && (
-        <ProductReadinessModal
-          product={readinessProduct}
-          isOpen={showReadinessModal}
-          onClose={() => {
-            setShowReadinessModal(false);
-            setReadinessProduct(null);
-          }}
-          onAddToCart={handleAddToCartFromReadiness}
-        />
-      )}
+
     </div>
   );
 }

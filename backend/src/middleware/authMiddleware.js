@@ -19,7 +19,14 @@ const verifyToken = async (req, res, next) => {
     }
 
     console.log('Found user:', user);
-    req.user = user;
+    
+    // Preserve JWT payload information in the user object
+    req.user = {
+      ...user.toObject(),
+      isGuest: decoded.isGuest || false,
+      guestId: decoded.guestId || null
+    };
+    
     next();
   } catch (error) {
     console.error('Token verification error:', error);

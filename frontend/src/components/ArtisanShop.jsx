@@ -32,6 +32,7 @@ import reviewService from '../services/reviewService';
 import { getProfile } from '../services/authservice';
 import { cartService } from '../services/cartService';
 import ProductTypeBadge from './ProductTypeBadge';
+import AddToCart from './AddToCart';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
@@ -258,8 +259,9 @@ export default function ArtisanShop() {
 
   const handleAddToCart = async (product) => {
     try {
-      // Pass the full product object to preserve artisan information
-      await cartService.addToCart(product, quantity);
+      // For guest users, pass null as userId to use guest cart
+      const userId = user ? user._id : null;
+      await cartService.addToCart(product, quantity, userId);
       setShowCartPopup(false);
       setSelectedProduct(null);
       updateCartCount();
@@ -325,7 +327,19 @@ export default function ArtisanShop() {
     if (!image) return null;
     if (typeof image === 'string') {
       if (image.startsWith('http')) return image;
-      return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/products/${image}`;
+      
+      // Check if the image path already contains /uploads/products/
+      if (image.startsWith('/uploads/products/')) {
+        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${image}`;
+      }
+      
+      // Check if the image path starts with uploads/products/ (without leading slash)
+      if (image.startsWith('uploads/products/')) {
+        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${image}`;
+      }
+      
+      // Default case: add /uploads/products/ prefix
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/uploads/products/${image}`;
     }
     return null;
   };
@@ -627,22 +641,30 @@ export default function ArtisanShop() {
                       <div className="aspect-square bg-gray-100 overflow-hidden">
                         {product.images && product.images.length > 0 ? (
                           <img
-                            src={product.images[0]}
+                            src={getImageUrl(product.images[0])}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
+                              console.log('❌ ArtisanShop product grid image failed to load:', e.target.src);
                               e.target.style.display = 'none';
                               e.target.nextSibling.style.display = 'flex';
+                            }}
+                            onLoad={(e) => {
+                              console.log('✅ ArtisanShop product grid image loaded successfully:', e.target.src);
                             }}
                           />
                         ) : product.image ? (
                           <img
-                            src={product.image}
+                            src={getImageUrl(product.image)}
                             alt={product.name}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
+                              console.log('❌ ArtisanShop product grid image failed to load:', e.target.src);
                               e.target.style.display = 'none';
                               e.target.nextSibling.style.display = 'flex';
+                            }}
+                            onLoad={(e) => {
+                              console.log('✅ ArtisanShop product grid image loaded successfully:', e.target.src);
                             }}
                           />
                         ) : null}
@@ -674,9 +696,6 @@ export default function ArtisanShop() {
                           <span className="text-sm font-bold text-orange-600">
                             {formatPrice(product.price)}
                           </span>
-                          <button className="bg-orange-600 text-white p-1.5 rounded-lg hover:bg-orange-700 transition-colors">
-                            <PlusIcon className="w-3 h-3" />
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -858,21 +877,36 @@ export default function ArtisanShop() {
               <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
                 {selectedProduct.images && selectedProduct.images.length > 0 ? (
                   <img
-                    src={selectedProduct.images[0]}
+                    src={getImageUrl(selectedProduct.images[0])}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.log('❌ ArtisanShop image failed to load:', e.target.src);
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                    onLoad={(e) => {
+                      console.log('✅ ArtisanShop image loaded successfully:', e.target.src);
+                    }}
                   />
                 ) : selectedProduct.image ? (
                   <img
-                    src={selectedProduct.image}
+                    src={getImageUrl(selectedProduct.image)}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.log('❌ ArtisanShop image failed to load:', e.target.src);
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                    onLoad={(e) => {
+                      console.log('✅ ArtisanShop image loaded successfully:', e.target.src);
+                    }}
                   />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
-                    <CameraIcon className="w-12 h-12 text-orange-400" />
-                  </div>
-                )}
+                ) : null}
+                <div className={`w-full h-48 bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center ${(selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image ? 'hidden' : 'flex'}`}>
+                  <CameraIcon className="w-12 h-12 text-orange-400" />
+                </div>
               </div>
             </div>
             
@@ -911,44 +945,19 @@ export default function ArtisanShop() {
               </div>
             </div>
             
-            {/* Quantity Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => handleQuantityChange(quantity - 1)}
-                  disabled={quantity <= 1}
-                  className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <MinusIcon className="w-4 h-4" />
-                </button>
-                <span className="text-lg font-semibold text-gray-900 min-w-[3rem] text-center">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= Math.min(99, selectedProduct.stock)}
-                  className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between mb-6 p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Total:</span>
-              <span className="text-lg font-bold text-orange-600">
-                {formatPrice(selectedProduct.price * quantity)}
-              </span>
-            </div>
-            
-            <button
-              onClick={() => handleAddToCart(selectedProduct)}
-              disabled={selectedProduct.stock <= 0}
-              className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {selectedProduct.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
-            </button>
+            {/* Enhanced Add to Cart Component */}
+            <AddToCart 
+              product={selectedProduct}
+              variant="modal"
+              onSuccess={(product, quantity) => {
+                setShowCartPopup(false);
+                setSelectedProduct(null);
+                toast.success(`Added ${quantity} ${quantity === 1 ? product.unit || 'piece' : product.unit + 's'} to cart!`);
+              }}
+              onError={(error) => {
+                console.error('Add to cart error:', error);
+              }}
+            />
           </div>
         </div>
       )}

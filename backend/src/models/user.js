@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: function() { return !this.isGuest; },
-    unique: function() { return !this.isGuest; },
+    unique: false, // Remove unique constraint to allow guest users with generated emails
     lowercase: true
   },
   password: {

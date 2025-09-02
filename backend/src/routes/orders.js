@@ -203,7 +203,8 @@ router.post('/guest', async (req, res) => {
         product: product._id,
         quantity: item.quantity,
         unitPrice: product.price,
-        totalPrice: itemTotal
+        totalPrice: itemTotal,
+        productType: item.productType || 'ready_to_ship' // Add required productType field
       });
       ordersByArtisan[artisanId].totalAmount += itemTotal;
     }
@@ -387,7 +388,8 @@ router.post('/', verifyToken, async (req, res) => {
         product: product._id,
         quantity: item.quantity,
         unitPrice: product.price,
-        totalPrice: itemTotal
+        totalPrice: itemTotal,
+        productType: item.productType || 'ready_to_ship' // Add required productType field
       });
       ordersByArtisan[artisanId].totalAmount += itemTotal;
     }

@@ -116,12 +116,12 @@ export default function Navbar() {
       console.log('🛒 Navbar received cart update:', { userId, count, currentUser: user?._id });
       
       // Update cart count if it's for the current user or guest
-      if ((user && userId === user._id) || (!user && userId === null)) {
+      if ((user && userId === user._id) || (!user && userId === null) || (isGuest && userId === null)) {
         console.log('🛒 Updating cart count to:', count);
         setCartCount(count);
         
         // Clear cache for authenticated users
-        if (user?._id) {
+        if (user?._id && !isGuest) {
           const cartCountKey = `cart_count_${user._id}`;
           cacheService.delete(cartCountKey);
         }
@@ -133,7 +133,7 @@ export default function Navbar() {
     return () => {
       window.removeEventListener('cartUpdated', handleCartUpdate);
     };
-  }, [user]);
+  }, [user, isGuest]);
 
   // Memoized search handler
   const handleSearch = useMemo(() => {

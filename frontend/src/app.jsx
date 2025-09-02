@@ -70,6 +70,7 @@ const RevenueTransparency = lazy(() => import("./components/RevenueTransparency.
 const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
+const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
@@ -146,6 +147,7 @@ function AppRoutes() {
           path="/orders"
           element={isAuthenticated ? <Orders /> : <Navigate to="/login" />}
         />
+        <Route path="/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/search-page" element={<Search />} />
         <Route path="/test-reference" element={<TestReferenceData />} />

@@ -239,9 +239,9 @@ export default function FindArtisans() {
       }
       // Handle relative paths
       if (imagePath.startsWith('/')) {
-        return imagePath;
+        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
       }
-              return `/${imagePath}`;
+              return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
     }
     
     return null;

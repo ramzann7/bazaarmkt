@@ -41,22 +41,21 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
       case 'made_to_order':
         const leadTime = product.leadTime || 1;
         const leadTimeUnit = product.leadTimeUnit || 'days';
-        const requiresConfirmation = product.requiresConfirmation !== false;
         
         return {
           icon: '⚙️',
           title: 'Made to Order',
-          status: requiresConfirmation ? 'Requires Confirmation' : 'Production Ready',
+          status: 'Production Ready',
           description: `This product will be custom-made for you with a ${leadTime} ${leadTimeUnit} lead time.`,
           details: [
             `Production Time: ${leadTime} ${leadTimeUnit}`,
-            requiresConfirmation ? 'Order confirmation required before production starts' : 'Production can begin immediately',
+            'Production can begin immediately',
             product.maxOrderQuantity ? `Maximum Order: ${product.maxOrderQuantity} units` : null,
             'Custom-made to your specifications'
           ].filter(Boolean),
           color: 'blue',
-          actionText: requiresConfirmation ? 'Add to Cart - Confirm Later' : 'Add to Cart - Start Production',
-          urgency: requiresConfirmation ? 'confirmation-needed' : null
+          actionText: 'Add to Cart - Start Production',
+          urgency: null
         };
       
       case 'scheduled_order':
@@ -116,7 +115,6 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
 
   const readinessInfo = getReadinessDetails(product);
   const isOutOfStock = product.productType === 'ready_to_ship' && product.stock <= 0;
-  const needsConfirmation = product.productType === 'made_to_order' && product.requiresConfirmation;
 
   const getColorClasses = (color) => {
     const colorMap = {
@@ -169,7 +167,6 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
           {/* Status Badge */}
           <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border ${getColorClasses(readinessInfo.color)}`}>
             {readinessInfo.status === 'Available Now' && <CheckCircleIcon className="w-4 h-4 mr-2" />}
-            {readinessInfo.status === 'Requires Confirmation' && <ExclamationTriangleIcon className="w-4 h-4 mr-2" />}
             {readinessInfo.status === 'Scheduled Production' && <ClockIcon className="w-4 h-4 mr-2" />}
             {readinessInfo.status}
           </div>
@@ -194,7 +191,6 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
                 <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
                 <span className="text-sm font-medium text-amber-800">
                   {readinessInfo.urgency === 'low-stock' && 'Low stock - order soon!'}
-                  {readinessInfo.urgency === 'confirmation-needed' && 'Order confirmation required'}
                   {readinessInfo.urgency === 'coming-soon' && 'Coming soon - limited availability'}
                   {readinessInfo.urgency === 'schedule-needed' && 'Schedule needs to be determined'}
                 </span>
@@ -238,11 +234,7 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
             )}
           </div>
           
-          {needsConfirmation && (
-            <p className="text-xs text-gray-500 mt-3 text-center">
-              ⚠️ This order requires confirmation before production begins
-            </p>
-          )}
+
         </div>
       </div>
     </div>

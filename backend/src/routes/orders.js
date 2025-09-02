@@ -128,7 +128,113 @@ router.get('/:orderId', verifyToken, async (req, res) => {
   }
 });
 
-// Create a new order
+// Create a guest order (no authentication required)
+router.post('/guest', async (req, res) => {
+  try {
+    console.log('Creating guest order with data:', req.body);
+    
+    const { items, deliveryAddress, deliveryInstructions, paymentMethod, guestInfo } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: 'Order must contain at least one item' });
+    }
+
+    // Validate guest info
+    if (!guestInfo || !guestInfo.firstName || !guestInfo.lastName) {
+      return res.status(400).json({ message: 'Guest orders require firstName and lastName' });
+    }
+
+    // Validate delivery address
+    if (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city) {
+      return res.status(400).json({ message: 'Guest orders require complete delivery address' });
+    }
+
+    // Group items by artisan
+    const ordersByArtisan = {};
+    
+    for (const item of items) {
+      const productId = item.productId || item.product;
+      
+      const product = await Product.findById(productId).populate('artisan');
+      
+      if (!product) {
+        return res.status(400).json({ message: `Product ${productId} not found` });
+      }
+
+      if (!product.artisan) {
+        return res.status(400).json({ message: `Product ${product.name} has no artisan information` });
+      }
+
+      const artisanId = product.artisan._id.toString();
+      
+      if (!ordersByArtisan[artisanId]) {
+        ordersByArtisan[artisanId] = {
+          artisan: product.artisan._id,
+          items: [],
+          totalAmount: 0
+        };
+      }
+
+      const itemTotal = product.price * item.quantity;
+      ordersByArtisan[artisanId].items.push({
+        product: product._id,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        totalPrice: itemTotal
+      });
+      ordersByArtisan[artisanId].totalAmount += itemTotal;
+    }
+
+    // Create separate orders for each artisan
+    const createdOrders = [];
+    
+    for (const [artisanId, artisanOrderData] of Object.entries(ordersByArtisan)) {
+      const orderData = {
+        artisan: artisanOrderData.artisan,
+        items: artisanOrderData.items,
+        totalAmount: artisanOrderData.totalAmount,
+        deliveryAddress,
+        deliveryInstructions,
+        paymentMethod,
+        status: 'pending',
+        paymentStatus: 'pending',
+        guestInfo: {
+          ...guestInfo,
+          guestId: guestInfo.guestId || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }
+      };
+      
+      const order = new Order(orderData);
+
+      const savedOrder = await order.save();
+      
+      // Calculate revenue for this order
+      try {
+        await RevenueService.calculateOrderRevenue(savedOrder._id);
+      } catch (revenueError) {
+        console.error('Error calculating revenue for order:', savedOrder._id, revenueError);
+        // Don't fail the order creation if revenue calculation fails
+      }
+      
+      const populatedOrder = await Order.findById(savedOrder._id)
+        .populate('artisan', 'artisanName type')
+        .populate('items.product', 'name description image price unit');
+      
+      createdOrders.push(populatedOrder);
+    }
+
+    res.status(201).json({
+      message: 'Guest order created successfully',
+      orders: createdOrders
+    });
+
+  } catch (error) {
+    console.error('Error creating guest order:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create a new order (authenticated users)
 router.post('/', verifyToken, async (req, res) => {
   try {
     console.log('Creating order for user:', {

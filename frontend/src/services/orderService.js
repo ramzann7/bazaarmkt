@@ -48,6 +48,17 @@ export const orderService = {
     }
   },
 
+  // Create a guest order (no authentication required)
+  createGuestOrder: async (orderData) => {
+    try {
+      const response = await axios.post(`${API_URL}/guest`, orderData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating guest order:', error);
+      throw error;
+    }
+  },
+
   // Create a new order
   createOrder: async (orderData) => {
     try {

@@ -683,8 +683,8 @@ const Cart = () => {
         }
       };
 
-      // Create order
-      const result = await orderService.createOrder(orderData);
+      // Create guest order using the guest endpoint
+      const result = await orderService.createGuestOrder(orderData);
       
       // Clear guest cart
       cartService.clearCart(null);

@@ -29,15 +29,9 @@ const Cart = () => {
   const [cart, setCart] = useState([]);
   const [cartByArtisan, setCartByArtisan] = useState({});
   const [checkoutStep, setCheckoutStep] = useState('cart');
-  const [guestProfile, setGuestProfile] = useState(null);
+
   
-  // Guest profile form
-  const [guestForm, setGuestForm] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: ''
-  });
+
   
   // User state
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -48,6 +42,10 @@ const Cart = () => {
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
   const [deliveryForm, setDeliveryForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
     street: '',
     city: '',
     state: '',
@@ -535,15 +533,14 @@ const Cart = () => {
         return;
       }
       
-      // Check if user is authenticated
-      if (!currentUserId || isGuest) {
-              // For guest users, go to guest profile step if they don't have a profile yet
-      if (isGuest && !guestProfile) {
-        setCheckoutStep('guest-profile');
+            // For guest users, allow them to proceed directly to delivery
+      if (isGuest) {
+        setCheckoutStep('delivery');
         return;
       }
-        
-        // For unauthenticated users, show login prompt
+      
+      // For unauthenticated users, show login prompt
+      if (!currentUserId) {
         toast.error('Please log in to continue with checkout');
         return;
       }
@@ -560,9 +557,7 @@ const Cart = () => {
   };
 
   const handlePreviousStep = () => {
-    if (checkoutStep === 'guest-profile') {
-      setCheckoutStep('cart');
-    } else if (checkoutStep === 'delivery') {
+    if (checkoutStep === 'delivery') {
       setCheckoutStep('cart');
     } else if (checkoutStep === 'payment') {
       setCheckoutStep('delivery');
@@ -598,46 +593,7 @@ const Cart = () => {
     }
   };
 
-  // Handle guest profile creation
-  const handleGuestProfileSubmit = async () => {
-    try {
-      if (!guestForm.firstName.trim() || !guestForm.lastName.trim()) {
-        toast.error('Please provide your first and last name');
-        return;
-      }
 
-      setIsLoading(true);
-      
-      // Create guest profile
-      const result = await guestService.createGuestProfile(guestForm);
-      
-      // Store the token and update state
-      localStorage.setItem('token', result.token);
-      setGuestProfile(result.user);
-      setIsGuest(true);
-      setCurrentUserId(result.user.id);
-      
-      // Update the user context to reflect guest status
-      if (window.updateAuthContext) {
-        window.updateAuthContext({
-          user: result.user,
-          isAuthenticated: true,
-          isGuest: true
-        });
-      }
-      
-      toast.success('Guest profile created successfully!');
-      
-      // Move to next step
-      setCheckoutStep('delivery');
-      
-    } catch (error) {
-      console.error('Error creating guest profile:', error);
-      toast.error('Failed to create guest profile. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Handle order placement for both authenticated users and guests
   const handlePlaceOrder = async () => {
@@ -687,6 +643,9 @@ const Cart = () => {
     try {
       setIsLoading(true);
       
+      // Generate unique guest ID for this order
+      const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      
       // Prepare order data for guest
       const orderData = {
         items: cart.map(item => ({
@@ -697,10 +656,11 @@ const Cart = () => {
         deliveryInstructions: deliveryForm.instructions || '',
         paymentMethod: 'credit_card', // Default for guests
         guestInfo: {
-          firstName: guestProfile.firstName,
-          lastName: guestProfile.lastName,
-          email: guestProfile.email || '',
-          phone: guestProfile.phone || ''
+          firstName: deliveryForm.firstName || 'Guest',
+          lastName: deliveryForm.lastName || 'User',
+          email: deliveryForm.email || '',
+          phone: deliveryForm.phone || '',
+          guestId: guestId
         }
       };
 
@@ -1038,157 +998,7 @@ const Cart = () => {
     );
   }
 
-  // Render guest profile step
-  if (checkoutStep === 'guest-profile') {
-    return (
-      <div className="min-h-screen bg-stone-50 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="flex items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
-              <UserIcon className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-stone-900 mb-2">Tell Us About Yourself</h1>
-              <p className="text-lg text-stone-600">Help our artisans know who they're creating for</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-8">
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-stone-900 mb-2">Guest Profile</h2>
-                  <p className="text-stone-600">Create a simple profile so our artisans can personalize your experience</p>
-                </div>
-                
-                <form onSubmit={(e) => { e.preventDefault(); handleGuestProfileSubmit(); }}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
-                        First Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={guestForm.firstName}
-                        onChange={(e) => setGuestForm({...guestForm, firstName: e.target.value})}
-                        className="input-field"
-                        placeholder="Enter your first name"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-stone-700 mb-2">
-                        Last Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={guestForm.lastName}
-                        onChange={(e) => setGuestForm({...guestForm, lastName: e.target.value})}
-                        className="input-field"
-                        placeholder="Enter your last name"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="label">
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={guestForm.phone}
-                        onChange={(e) => setGuestForm({...guestForm, phone: e.target.value})}
-                        className="input-field"
-                        placeholder="Enter your phone number"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        value={guestForm.email}
-                        onChange={(e) => setGuestForm({...guestForm, email: e.target.value})}
-                        className="input-field"
-                        placeholder="Enter your email (optional)"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between pt-6 border-t border-stone-200">
-                    <button
-                      type="button"
-                      onClick={() => setCheckoutStep('cart')}
-                      className="btn-secondary"
-                    >
-                      Back to Cart
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="btn-primary"
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          Creating Profile...
-                        </>
-                      ) : (
-                        'Continue to Delivery'
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-            
-            {/* Right Column - Order Summary */}
-            <div className="lg:col-span-1">
-              <div className="space-y-6">
-                {/* Order Summary */}
-                <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
-                  <h3 className="font-bold text-stone-900 mb-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
-                      <ShoppingBagIcon className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-lg">Order Summary</span>
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
-                      <span className="text-stone-600">Subtotal:</span>
-                      <span className="font-semibold text-stone-900">
-                        {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
-                      <span className="text-stone-600">Delivery Fees:</span>
-                      <span className="font-semibold text-stone-900">{formatPrice(getTotalDeliveryFees())}</span>
-                    </div>
-                    <div className="border-t border-stone-200 pt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-stone-800">Total:</span>
-                        <span className="font-bold text-lg text-stone-900">
-                          {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0) + getTotalDeliveryFees())}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-xs text-blue-800">
-                      <strong>Guest Checkout:</strong> Creating a profile helps our artisans personalize your experience and ensures smooth order processing.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   // Render delivery information page
   if (checkoutStep === 'delivery') {
@@ -1398,11 +1208,65 @@ const Cart = () => {
                       </div>
                     )}
 
+                    {/* Guest Information Form (for guest users) */}
+                    {isGuest && (
+                      <div className="border-t border-stone-200 pt-6 mb-6">
+                        <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
+                          <UserIcon className="w-5 h-5 text-blue-600" />
+                          Your Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-stone-700 mb-2">First Name *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.firstName}
+                              onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
+                              className="input-field"
+                              placeholder="Enter your first name"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-stone-700 mb-2">Last Name *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.lastName}
+                              onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
+                              className="input-field"
+                              placeholder="Enter your last name"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-stone-700 mb-2">Email Address</label>
+                            <input
+                              type="email"
+                              value={deliveryForm.email}
+                              onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
+                              className="input-field"
+                              placeholder="Enter your email (optional)"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-stone-700 mb-2">Phone Number</label>
+                            <input
+                              type="tel"
+                              value={deliveryForm.phone}
+                              onChange={(e) => handleDeliveryFormChange('phone', e.target.value)}
+                              className="input-field"
+                              placeholder="Enter your phone number (optional)"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Manual Address Form */}
                     <div className="border-t border-stone-200 pt-6">
                       <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
                         <PlusIcon className="w-5 h-5 text-green-600" />
-                        Or Add a New Address
+                        {isGuest ? 'Delivery Address' : 'Or Add a New Address'}
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -1479,12 +1343,17 @@ const Cart = () => {
                     <ArrowLeftIcon className="w-6 h-6 mr-3" />
                     Review Your Selection
                   </button>
-                  {isGuest ? (
-                    <button
-                      onClick={handleGuestCheckout}
-                      className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
-                      disabled={isAddressRequired() && !deliveryForm.street || isLoading}
-                    >
+                                      {isGuest ? (
+                      <button
+                        onClick={handleGuestCheckout}
+                        className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                        disabled={
+                          !deliveryForm.firstName || 
+                          !deliveryForm.lastName || 
+                          (isAddressRequired() && !deliveryForm.street) || 
+                          isLoading
+                        }
+                      >
                       {isLoading ? (
                         <>
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>

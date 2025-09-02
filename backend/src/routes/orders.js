@@ -152,22 +152,16 @@ router.post('/', verifyToken, async (req, res) => {
     // Group items by artisan
     const ordersByArtisan = {};
     
-    console.log('🔍 Processing order items:', items);
-    
     for (const item of items) {
       const productId = item.productId || item.product;
-      console.log('🔍 Processing item with productId:', productId);
       
       const product = await Product.findById(productId).populate('artisan');
-      console.log('🔍 Found product:', product ? { id: product._id, name: product.name, artisan: product.artisan } : 'null');
       
       if (!product) {
-        console.error('❌ Product not found:', productId);
         return res.status(400).json({ message: `Product ${productId} not found` });
       }
 
       if (!product.artisan) {
-        console.error('❌ Product has no artisan:', product.name, productId);
         return res.status(400).json({ message: `Product ${product.name} has no artisan information` });
       }
 
@@ -208,40 +202,27 @@ router.post('/', verifyToken, async (req, res) => {
       };
 
       // Add patron or guest info based on user type
-      console.log('Processing order for artisan:', artisanId, 'User isGuest:', req.user.isGuest, 'Guest info:', guestInfo);
-      
       if (req.user.isGuest === true && guestInfo) {
         orderData.guestInfo = guestInfo;
         // Ensure patron is not set for guest users
         delete orderData.patron;
-        console.log('Setting guest info for order');
       } else {
         orderData.patron = req.user._id;
         // Ensure guestInfo is completely removed for authenticated users
         delete orderData.guestInfo;
         // Also set guestInfo to undefined explicitly to prevent Mongoose from setting defaults
         orderData.guestInfo = undefined;
-        console.log('Setting patron for order:', req.user._id);
       }
-
-      // Debug: Check what's actually in orderData before creating the Order
-      console.log('🔍 Final orderData before Order creation:', JSON.stringify(orderData, null, 2));
-      console.log('🔍 orderData.guestInfo exists:', !!orderData.guestInfo);
-      console.log('🔍 orderData.patron exists:', !!orderData.patron);
       
       const order = new Order(orderData);
 
-      console.log('🔍 Saving order...');
       const savedOrder = await order.save();
-      console.log('✅ Order saved successfully:', savedOrder._id);
       
       // Calculate revenue for this order
       try {
-        console.log('🔍 Calculating revenue for order:', savedOrder._id);
         await RevenueService.calculateOrderRevenue(savedOrder._id);
-        console.log('✅ Revenue calculated successfully');
       } catch (revenueError) {
-        console.error('❌ Error calculating revenue for order:', savedOrder._id, revenueError);
+        console.error('Error calculating revenue for order:', savedOrder._id, revenueError);
         // Don't fail the order creation if revenue calculation fails
       }
       

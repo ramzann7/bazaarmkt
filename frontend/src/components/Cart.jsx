@@ -1291,18 +1291,6 @@ const Cart = () => {
                     </h2>
                     
                     {/* User Addresses */}
-                    {(() => {
-                      console.log('🔍 Rendering addresses section:', {
-                        userProfile: !!userProfile,
-                        addresses: userProfile?.addresses,
-                        addressesLength: userProfile?.addresses?.length,
-                        currentUserId,
-                        isGuest,
-                        checkoutStep
-                      });
-                      return null;
-                    })()}
-                    
                     {userProfile?.addresses && userProfile.addresses.length > 0 ? (
                       <div className="mb-6">
                         <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">

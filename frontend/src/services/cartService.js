@@ -415,8 +415,6 @@ export const cartService = {
         artisanGroups[artisanId].items.push(item);
       });
       
-      console.log('🏪 Artisan groups created:', artisanGroups);
-      
       // Fetch latest artisan data for each artisan
       for (const [artisanId, group] of Object.entries(artisanGroups)) {
         try {
@@ -490,7 +488,6 @@ export const cartService = {
         }
       }
       
-      console.log('🏪 Final groupedByArtisan result:', groupedByArtisan);
       return groupedByArtisan;
     } catch (error) {
       console.error('Error grouping cart by artisan:', error);
@@ -501,11 +498,8 @@ export const cartService = {
   // Sync cart data to ensure consistency
   syncCartData: async (userId) => {
     try {
-      console.log('🔄 Starting cart data sync for user:', userId);
-      
       // Get current cart from localStorage
       const currentCart = cartService.getCart(userId);
-      console.log('📦 Current cart from localStorage:', currentCart);
       
       // Get cart by artisan to see what should be there
       const cartByArtisan = await cartService.getCartByArtisan(userId);

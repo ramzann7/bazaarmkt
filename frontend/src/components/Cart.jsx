@@ -292,6 +292,7 @@ const Cart = () => {
     try {
       setCartLoading(true);
   
+      console.log('🔍 loadCart called');
       
       // Get current user info
       const token = localStorage.getItem('token');
@@ -303,6 +304,8 @@ const Cart = () => {
         userId = tokenData.userId;
         guestStatus = tokenData.isGuest;
         
+        console.log('🔍 Token found:', { userId, guestStatus });
+        
         // Only set currentUserId if it's not already set to avoid race conditions
         if (!currentUserId) {
           setCurrentUserId(userId);
@@ -310,12 +313,18 @@ const Cart = () => {
         if (!isGuest) {
           setIsGuest(guestStatus);
         }
+      } else {
+        console.log('🔍 No token found, treating as guest');
       }
+      
+      console.log('🔍 Final userId for cart loading:', userId);
       
       // Load cart data from localStorage
       const cartData = await cartService.getCart(userId);
+      console.log('🔍 Cart data loaded:', cartData);
       
       if (!cartData || cartData.length === 0) {
+        console.log('🔍 No cart data found, setting empty cart');
         setCart([]);
         setCartByArtisan({});
         return;
@@ -323,6 +332,7 @@ const Cart = () => {
       
       // Load cart by artisan (this fetches fresh artisan data)
       const cartByArtisanData = await cartService.getCartByArtisan(userId);
+      console.log('🔍 Cart by artisan loaded:', cartByArtisanData);
       
       // Set cart state
       setCart(cartData);

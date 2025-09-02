@@ -61,28 +61,34 @@ const isGuestUser = () => {
 export const cartService = {
   getCart: (userId) => {
     try {
+      console.log('🔍 getCart called with userId:', userId);
+      
       // If userId is explicitly null, treat as guest user
       if (userId === null) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
+        console.log('🔍 Guest cart key:', guestCartKey, 'Guest cart data:', guestCart);
         return guestCart ? JSON.parse(guestCart) : [];
       }
       
       // If no userId provided, try to get it from token
       if (!userId) {
         userId = getCurrentUserId();
+        console.log('🔍 No userId provided, got from token:', userId);
       }
       
       // If no userId or if it's a guest user, use guest cart
       if (!userId || isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
+        console.log('🔍 Using guest cart, key:', guestCartKey, 'data:', guestCart);
         return guestCart ? JSON.parse(guestCart) : [];
       }
       
       // For authenticated non-guest users, use user-specific cart
       const cartKey = getCartKey(userId);
       const cart = localStorage.getItem(cartKey);
+      console.log('🔍 Using user cart, key:', cartKey, 'data:', cart);
       return cart ? JSON.parse(cart) : [];
     } catch (error) {
       console.error('Error getting cart:', error);
@@ -117,17 +123,9 @@ export const cartService = {
         }
       }
       
-      // If no userId, create guest user automatically
+      // If no userId, treat as guest user (no automatic profile creation)
       if (!userId) {
-        try {
-          const { guestService } = await import('./guestService');
-          const guestData = await guestService.ensureGuestUser();
-          userId = guestData.userId;
-
-        } catch (error) {
-          console.error('Failed to create guest user:', error);
-          // Continue with guest cart in localStorage
-        }
+        userId = null; // Explicitly set to null for guest cart
       }
       
       const cart = cartService.getCart(userId);
@@ -361,7 +359,13 @@ export const cartService = {
       if (userId === null) {
         const cart = cartService.getCart(null);
         console.log('🔍 getCartByArtisan - Raw cart from localStorage (guest):', cart);
-        return {}; // Guest users don't have artisan-specific cart grouping
+        
+        // Process guest cart the same way as regular cart
+        if (!cart || cart.length === 0) {
+          return {};
+        }
+        
+        // Continue with normal processing for guest users
       }
       
       // If no userId provided, try to get it from token

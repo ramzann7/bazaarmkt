@@ -126,10 +126,12 @@ export const cartService = {
       // If no userId, treat as guest user (no automatic profile creation)
       if (!userId) {
         userId = null; // Explicitly set to null for guest cart
+        console.log('🔍 No userId, setting to null for guest cart');
       }
       
       const cart = cartService.getCart(userId);
       console.log('📦 Current cart before adding:', cart);
+      console.log('🔍 isGuestUser() result:', isGuestUser());
 
       
       const existingItem = cart.find(cartItem => cartItem._id === product._id);
@@ -178,15 +180,15 @@ export const cartService = {
       if (isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(cart));
-        console.log('💾 Saved to guest cart localStorage');
+        console.log('💾 Saved to guest cart localStorage, key:', guestCartKey, 'data:', cart);
       } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.setItem(cartKey, JSON.stringify(cart));
-        console.log('💾 Saved to user cart localStorage:', cartKey);
+        console.log('💾 Saved to user cart localStorage:', cartKey, 'data:', cart);
       } else {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(cart));
-        console.log('💾 Saved to guest cart localStorage (fallback)');
+        console.log('💾 Saved to guest cart localStorage (fallback), key:', guestCartKey, 'data:', cart);
       }
       
       const count = cartService.getCartCount(userId);

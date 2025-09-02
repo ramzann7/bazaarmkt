@@ -106,10 +106,19 @@ orderSchema.pre('save', function(next) {
 
 // Validate that either patron or guestInfo is provided
 orderSchema.pre('save', function(next) {
-  if (!this.patron && !this.guestInfo) {
+  // Check if patron exists and is a valid ObjectId
+  const hasPatron = this.patron && this.patron.toString && this.patron.toString().length > 0;
+  
+  // Check if guestInfo exists and has meaningful content
+  const hasGuestInfo = this.guestInfo && 
+                      this.guestInfo.firstName && 
+                      this.guestInfo.lastName && 
+                      this.guestInfo.email;
+  
+  if (!hasPatron && !hasGuestInfo) {
     return next(new Error('Either patron or guestInfo must be provided'));
   }
-  if (this.patron && this.guestInfo) {
+  if (hasPatron && hasGuestInfo) {
     return next(new Error('Cannot have both patron and guestInfo'));
   }
   next();

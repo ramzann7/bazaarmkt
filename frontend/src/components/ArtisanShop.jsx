@@ -20,7 +20,10 @@ import {
   TagIcon,
   SparklesIcon,
   CheckCircleIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { artisanService } from '../services/artisanService';
@@ -31,8 +34,6 @@ import { cartService } from '../services/cartService';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
-
-
   const { id } = useParams();
   const navigate = useNavigate();
   const [artisan, setArtisan] = useState(null);
@@ -47,6 +48,16 @@ export default function ArtisanShop() {
   const [quantity, setQuantity] = useState(1);
   const [user, setUser] = useState(null);
   const [cartCount, setCartCount] = useState(0);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newReview, setNewReview] = useState({
+    rating: 5,
+    title: '',
+    comment: ''
+  });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   useEffect(() => {
     loadArtisanShop();
@@ -69,7 +80,58 @@ export default function ArtisanShop() {
         productsData = Object.values(artisanData.products);
       }
       
-      setProducts(productsData);
+      // Enhance products with full artisan and seller data
+      const enhancedProducts = productsData.map(product => ({
+        ...product,
+        artisan: {
+          _id: artisanData._id,
+          artisanName: artisanData.artisanName || artisanData.businessName || artisanData.firstName + ' ' + artisanData.lastName,
+          type: artisanData.type || 'other',
+          address: artisanData.address,
+          deliveryOptions: artisanData.deliveryOptions || {
+            pickup: true,
+            delivery: false,
+            deliveryRadius: 0,
+            deliveryFee: 0,
+            freeDeliveryThreshold: 0,
+            professionalDelivery: {
+              enabled: false,
+              uberDirectEnabled: false,
+              serviceRadius: 25
+            }
+          },
+          pickupLocation: artisanData.pickupLocation,
+          pickupInstructions: artisanData.pickupInstructions,
+          pickupHours: artisanData.pickupHours,
+          deliveryInstructions: artisanData.deliveryInstructions
+        },
+        seller: {
+          _id: artisanData._id,
+          artisanName: artisanData.artisanName || artisanData.businessName || artisanData.firstName + ' ' + artisanData.lastName,
+          type: artisanData.type || 'other',
+          address: artisanData.address,
+          deliveryOptions: artisanData.deliveryOptions || {
+            pickup: true,
+            delivery: false,
+            deliveryRadius: 0,
+            deliveryFee: 0,
+            freeDeliveryThreshold: 0,
+            professionalDelivery: {
+              enabled: false,
+              uberDirectEnabled: false,
+              serviceRadius: 25
+            }
+          },
+          pickupLocation: artisanData.pickupLocation,
+          pickupInstructions: artisanData.pickupInstructions,
+          pickupHours: artisanData.pickupHours,
+          deliveryInstructions: artisanData.deliveryInstructions
+        },
+        sellerId: artisanData._id,
+        artisanId: artisanData._id
+      }));
+      
+      setProducts(enhancedProducts);
       
       // Load reviews
       try {
@@ -90,7 +152,7 @@ export default function ArtisanShop() {
           );
         }
         
-        setReviews(reviewsArray.slice(0, 5)); // Show latest 5 reviews
+        setReviews(reviewsArray);
       } catch (reviewError) {
         console.error('Error loading reviews:', reviewError);
         setReviews([]);
@@ -102,14 +164,12 @@ export default function ArtisanShop() {
         try {
           const isFav = await favoriteService.isArtisanFavorited(id);
           setIsFavorited(isFav);
-        } catch (favoriteError) {
-          console.error('Error checking favorite status:', favoriteError);
-          setIsFavorited(false);
+        } catch (error) {
+          console.error('Error checking favorite status:', error);
         }
       }
     } catch (error) {
       console.error('Error loading artisan shop:', error);
-      toast.error('Failed to load artisan shop');
     } finally {
       setIsLoading(false);
     }
@@ -117,11 +177,8 @@ export default function ArtisanShop() {
 
   const loadUserProfile = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const userData = await getProfile();
-        setUser(userData);
-      }
+      const userData = await getProfile();
+      setUser(userData);
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
@@ -129,7 +186,7 @@ export default function ArtisanShop() {
 
   const updateCartCount = async () => {
     try {
-      const count = await cartService.getCartCount();
+      const count = await cartService.getCartItemCount();
       setCartCount(count);
     } catch (error) {
       console.error('Error updating cart count:', error);
@@ -144,48 +201,107 @@ export default function ArtisanShop() {
 
     try {
       setIsLoadingFavorite(true);
-      const result = await favoriteService.toggleFavorite(id);
-      setIsFavorited(result.isFavorited);
-      
-      const action = result.action === 'added' ? 'followed' : 'unfollowed';
-      toast.success(`Successfully ${action} ${artisan?.artisanName || 'this artisan'}`);
+      if (isFavorited) {
+        await favoriteService.removeFavoriteArtisan(id);
+        setIsFavorited(false);
+        toast.success('Removed from favorites');
+      } else {
+        await favoriteService.addFavoriteArtisan(id);
+        setIsFavorited(true);
+        toast.success('Added to favorites');
+      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
-      toast.error('Failed to update follow status');
+      toast.error('Failed to update favorites');
     } finally {
       setIsLoadingFavorite(false);
     }
   };
 
-  const handleAddToCart = async (product) => {
-    if (!user) {
-      toast.error('Please log in to add items to cart');
-      return;
-    }
-
-    try {
-      await cartService.addToCart(product, quantity, user._id);
-      toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
-      setShowCartPopup(false);
-      setSelectedProduct(null);
-      setQuantity(1);
-      updateCartCount();
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
-    }
-  };
-
   const handleProductClick = (product) => {
     setSelectedProduct(product);
-    setQuantity(1);
     setShowCartPopup(true);
+    setQuantity(1);
   };
 
   const handleQuantityChange = (newQuantity) => {
     if (newQuantity >= 1 && newQuantity <= 99) {
       setQuantity(newQuantity);
     }
+  };
+
+  const handleAddToCart = async (product) => {
+    try {
+      // Pass the full product object to preserve artisan information
+      await cartService.addToCart(product, quantity);
+      setShowCartPopup(false);
+      setSelectedProduct(null);
+      updateCartCount();
+      toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add to cart');
+    }
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast.error('Please log in to leave a review');
+      return;
+    }
+
+    if (!newReview.title.trim() || !newReview.comment.trim()) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      await reviewService.createReview({
+        artisanId: id,
+        rating: newReview.rating,
+        title: newReview.title,
+        comment: newReview.comment
+      });
+      
+      // Reload reviews
+      const reviewsData = await reviewService.getArtisanReviews(id);
+      let reviewsArray = [];
+      if (Array.isArray(reviewsData)) {
+        reviewsArray = reviewsData;
+      } else if (reviewsData && Array.isArray(reviewsData.reviews)) {
+        reviewsArray = reviewsData.reviews;
+      } else if (reviewsData && Array.isArray(reviewsData.data)) {
+        reviewsArray = reviewsData.data;
+      }
+      setReviews(reviewsArray);
+      
+      // Reset form
+      setNewReview({
+        rating: 5,
+        title: '',
+        comment: ''
+      });
+      setShowReviewForm(false);
+      
+      toast.success('Review submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      toast.error('Failed to submit review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const getImageUrl = (image) => {
+    if (!image) return null;
+    if (typeof image === 'string') {
+      if (image.startsWith('http')) return image;
+      return `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/products/${image}`;
+    }
+    return null;
   };
 
   const formatPrice = (price) => {
@@ -196,65 +312,57 @@ export default function ArtisanShop() {
   };
 
   const formatLocation = (location) => {
-    if (!location) return '';
-    
-    // If location is an object with address properties
-    if (typeof location === 'object' && location !== null) {
-      if (location.street && location.city) {
-        return `${location.city}, ${location.state || ''}`.trim();
-      } else if (location.city) {
-        return location.city;
-      } else if (location.address) {
-        return location.address;
-      } else {
-        // Try to extract any string value from the object
-        const values = Object.values(location).filter(val => typeof val === 'string' && val.trim());
-        return values.length > 0 ? values[0] : '';
-      }
+    if (typeof location === 'string') return location;
+    if (location && typeof location === 'object') {
+      const parts = [];
+      if (location.city) parts.push(location.city);
+      if (location.state) parts.push(location.state);
+      return parts.join(', ');
     }
-    
-    // If location is already a string
-    return String(location);
+    return 'Location not specified';
+  };
+
+  const renderStars = (rating) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 !== 0;
+
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-amber-400" />);
+    }
+
+    if (hasHalfStar) {
+      stars.push(<StarIcon key={fullStars} className="w-4 h-4 text-amber-400" />);
+    }
+
+    const emptyStars = 5 - Math.ceil(rating);
+    for (let i = 0; i < emptyStars; i++) {
+      stars.push(<StarIcon key={fullStars + (hasHalfStar ? 1 : 0) + i} className="w-4 h-4 text-gray-300" />);
+    }
+
+    return stars;
   };
 
   const getAverageRating = () => {
-    if (!reviews || reviews.length === 0) return 0;
+    if (reviews.length === 0) return '0.0';
     const total = reviews.reduce((sum, review) => sum + review.rating, 0);
     return (total / reviews.length).toFixed(1);
   };
 
-  const renderStars = (rating) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <StarIconSolid 
-        key={i} 
-        className={`w-4 h-4 ${i < rating ? 'text-yellow-400' : 'text-gray-300'}`} 
-      />
-    ));
-  };
-
-  const filteredProducts = products.filter(product => {
-    if (selectedCategory !== 'all' && product.category !== selectedCategory) {
-      return false;
-    }
-    return true;
-  });
-
-  const categories = ['all', ...new Set(products.map(p => p.category))];
+  // Get unique categories from products
+  const categories = ['all', ...new Set(products.map(p => p.category).filter(Boolean))];
+  
+  // Filter products by category
+  const filteredProducts = selectedCategory === 'all' 
+    ? products 
+    : products.filter(p => p.category === selectedCategory);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-amber-50">
-        <div className="animate-pulse">
-          <div className="h-64 bg-gray-200"></div>
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="h-64 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading artisan shop...</p>
         </div>
       </div>
     );
@@ -262,13 +370,13 @@ export default function ArtisanShop() {
 
   if (!artisan) {
     return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Artisan Not Found</h1>
           <p className="text-gray-600 mb-4">The artisan you're looking for doesn't exist.</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700"
+            className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
           >
             Go Home
           </button>
@@ -278,262 +386,314 @@ export default function ArtisanShop() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50">
-      {/* Header / Hero Section */}
-      <div className="relative">
-        {/* Banner Image */}
-        <div className="h-64 md:h-80 bg-gradient-to-r from-amber-400 to-orange-500 relative overflow-hidden">
-          {artisan.bannerImage || artisan.banner || artisan.shopBanner ? (
-            <img 
-              src={artisan.bannerImage || artisan.banner || artisan.shopBanner} 
-              alt={`${artisan.artisanName} banner`}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <div className={`w-full h-full bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center ${artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
-            <CameraIcon className="w-16 h-16 text-white opacity-50" />
-          </div>
-          
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-          
-          {/* Profile Image */}
-          <div className="absolute -bottom-16 left-8">
-            <div className="w-32 h-32 rounded-full border-4 border-white bg-white shadow-lg overflow-hidden">
-              {artisan.businessImage || artisan.profileImage || artisan.profile || artisan.avatar ? (
-                <img 
-                  src={artisan.businessImage || artisan.profileImage || artisan.profile || artisan.avatar} 
-                  alt={artisan.artisanName}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-              ) : null}
-              <div className={`w-full h-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center ${artisan.businessImage || artisan.profileImage || artisan.profile || artisan.avatar ? 'hidden' : ''}`}>
-                <UserIcon className="w-12 h-12 text-amber-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Shop Info */}
-        <div className="max-w-7xl mx-auto px-4 pt-20 pb-8">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between">
-            <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
+    <div className="min-h-screen bg-gray-50">
+      {/* Sticky Header with Cart and Follow */}
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowRightIcon className="w-5 h-5 rotate-180" />
+              </button>
+              <h1 className="text-lg font-semibold text-gray-900 truncate">
+                {artisan.artisanName}
               </h1>
-              
-              {(artisan.tagline || artisan.bio || artisan.description) && (
-                <p className="text-lg text-gray-600 mb-3 italic">
-                  "{artisan.tagline || artisan.bio || artisan.description}"
-                </p>
-              )}
-              
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="flex items-center space-x-1">
-                  {renderStars(parseFloat(getAverageRating()))}
-                  <span className="text-sm text-gray-600 ml-1">
-                    {getAverageRating()} ({reviews.length} reviews)
-                  </span>
-                </div>
-                
-                {(artisan.location || artisan.city || artisan.address) && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <MapPinIcon className="w-4 h-4 mr-1" />
-                    {formatLocation(artisan.location || artisan.city || artisan.address)}
-                  </div>
-                )}
-              </div>
             </div>
             
-            <div className="flex items-center space-x-3 mt-4 md:mt-0">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={toggleFavorite}
                 disabled={isLoadingFavorite}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors ${
                   isFavorited 
                     ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {isFavorited ? (
-                  <HeartIconSolid className="w-5 h-5" />
+                  <HeartIconSolid className="w-4 h-4" />
                 ) : (
-                  <HeartIcon className="w-5 h-5" />
+                  <HeartIcon className="w-4 h-4" />
                 )}
-                <span>{isFavorited ? 'Following' : 'Follow'}</span>
+                <span className="hidden sm:inline">{isFavorited ? 'Following' : 'Follow'}</span>
               </button>
               
               <button
                 onClick={() => navigate('/cart')}
-                className="flex items-center space-x-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                className="flex items-center space-x-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
               >
-                <ShoppingCartIcon className="w-5 h-5" />
-                <span>Cart ({cartCount})</span>
+                <ShoppingCartIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Cart ({cartCount})</span>
+                <span className="sm:hidden">{cartCount}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Shop Story Section */}
-      {artisan.bio && (
-        <section className="bg-white py-12">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="bg-amber-50 rounded-2xl p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">About the Maker</h2>
-              <div className="flex flex-col md:flex-row items-start space-y-6 md:space-y-0 md:space-x-8">
-                <div className="flex-shrink-0">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-amber-200 to-orange-300">
-                    {artisan.businessImage || artisan.profileImage ? (
-                      <img 
-                        src={artisan.businessImage || artisan.profileImage} 
-                        alt={artisan.artisanName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <UserIcon className="w-8 h-8 text-amber-600" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <p className="text-lg text-gray-700 leading-relaxed">
-                    {artisan.bio}
+      {/* Compressed Hero Section */}
+      <div className="relative bg-gradient-to-r from-orange-50 to-amber-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="flex flex-col lg:flex-row items-start space-y-6 lg:space-y-0 lg:space-x-8">
+            {/* Business Info - Left Side */}
+            <div className="w-full lg:w-1/3">
+              <div className="space-y-4">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
+                </h1>
+                
+                {(artisan.tagline || artisan.bio || artisan.description) && (
+                  <p className="text-lg text-gray-600 leading-relaxed">
+                    {artisan.tagline || artisan.bio || artisan.description}
                   </p>
+                )}
+                
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-1">
+                    {renderStars(parseFloat(getAverageRating()))}
+                    <span className="text-sm text-gray-600">
+                      {getAverageRating()} ({reviews.length} reviews)
+                    </span>
+                  </div>
+                  
                   {(artisan.location || artisan.city || artisan.address) && (
-                    <div className="flex items-center mt-4 text-amber-600">
-                      <MapPinIcon className="w-5 h-5 mr-2" />
-                      <span className="font-medium">{formatLocation(artisan.location || artisan.city || artisan.address)}</span>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPinIcon className="w-4 h-4 mr-1" />
+                      <span>{formatLocation(artisan.location || artisan.city || artisan.address)}</span>
                     </div>
                   )}
                 </div>
+
+                {/* Shop Now Button */}
+                <button
+                  onClick={() => document.getElementById('products-section').scrollIntoView({ behavior: 'smooth' })}
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  Shop Now
+                </button>
               </div>
             </div>
+
+            {/* Business Image Banner - Right Side */}
+            <div className="w-full lg:w-2/3">
+              <div className="h-64 md:h-80 bg-gradient-to-r from-orange-400 to-amber-500 rounded-2xl relative overflow-hidden">
+                {artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? (
+                  <img 
+                    src={artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner} 
+                    alt={`${artisan.artisanName} business`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div className={`w-full h-full bg-gradient-to-br from-orange-300 to-amber-400 flex items-center justify-center ${artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
+                  <CameraIcon className="w-16 h-16 text-white opacity-50" />
+                </div>
+                
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* About the Maker - Collapsible */}
+      {artisan.bio && (
+        <section className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <button
+              onClick={() => setShowAbout(!showAbout)}
+              className="w-full flex items-center justify-between text-left"
+            >
+              <h2 className="text-xl font-bold text-gray-900">About the Maker</h2>
+              {showAbout ? (
+                <ChevronUpIcon className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
+            
+            {showAbout && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-gray-700 leading-relaxed">
+                  {artisan.bio}
+                </p>
+                {(artisan.location || artisan.city || artisan.address) && (
+                  <div className="flex items-center mt-3 text-orange-600">
+                    <MapPinIcon className="w-4 h-4 mr-2" />
+                    <span className="font-medium">{formatLocation(artisan.location || artisan.city || artisan.address)}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       )}
 
       {/* Product Catalog Section */}
-      <section className="py-12">
+      <section id="products-section" className="py-8">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Products</h2>
-            <div className="flex items-center space-x-2">
-              {categories.map(category => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    selectedCategory === category
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                  }`}
-                >
-                  {category === 'all' ? 'All' : category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <div
-                  key={product._id}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden"
-                  onClick={() => handleProductClick(product)}
-                >
-                  <div className="aspect-square bg-gray-100 overflow-hidden">
-                    {product.images && product.images.length > 0 ? (
-                      <img
-                        src={product.images[0]}
-                        alt={product.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${(product.images && product.images.length > 0) || product.image ? 'hidden' : ''}`}>
-                      <CameraIcon className="w-12 h-12 text-amber-400" />
-                    </div>
-                    
-                    {product.isFeatured && (
-                      <div className="absolute top-2 right-2 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                        Featured
-                      </div>
-                    )}
+          <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-8">
+            {/* Sidebar Filters */}
+            <div className="lg:w-64 mb-6 lg:mb-0">
+              <div className="lg:sticky lg:top-24">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-gray-900 flex items-center">
+                      <FunnelIcon className="w-4 h-4 mr-2" />
+                      Filters
+                    </h3>
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="lg:hidden"
+                    >
+                      {showFilters ? (
+                        <ChevronUpIcon className="w-4 h-4 text-gray-500" />
+                      ) : (
+                        <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                      )}
+                    </button>
                   </div>
                   
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
-                    {product.description && (
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {product.description}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-amber-600">
-                        {formatPrice(product.price)}
-                      </span>
-                      <button className="bg-amber-600 text-white p-2 rounded-lg hover:bg-amber-700 transition-colors">
-                        <PlusIcon className="w-4 h-4" />
-                      </button>
+                  <div className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
+                    <div className="space-y-2">
+                      {categories.map(category => (
+                        <button
+                          key={category}
+                          onClick={() => setSelectedCategory(category)}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            selectedCategory === category
+                              ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                              : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {category === 'all' ? 'All Products' : category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TagIcon className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
-              <p className="text-gray-500">
-                {selectedCategory === 'all' 
-                  ? 'This artisan hasn\'t added any products yet.'
-                  : `No products found in the ${selectedCategory} category.`
-                }
-              </p>
             </div>
-          )}
+
+            {/* Product Grid */}
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Products ({filteredProducts.length})
+                </h2>
+              </div>
+
+              {filteredProducts.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredProducts.map((product) => (
+                    <div
+                      key={product._id}
+                      className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden group"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      <div className="aspect-square bg-gray-100 overflow-hidden">
+                        {product.images && product.images.length > 0 ? (
+                          <img
+                            src={product.images[0]}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className={`w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center ${(product.images && product.images.length > 0) || product.image ? 'hidden' : ''}`}>
+                          <CameraIcon className="w-8 h-8 text-orange-400" />
+                        </div>
+                        
+                        {product.isFeatured && (
+                          <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                            Featured
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-3">
+                        <h3 className="font-semibold text-gray-900 mb-1 text-sm line-clamp-1">{product.name}</h3>
+                        {product.description && (
+                          <p className="text-xs text-gray-600 mb-2 line-clamp-1">
+                            {product.description}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-orange-600">
+                            {formatPrice(product.price)}
+                          </span>
+                          <button className="bg-orange-600 text-white p-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                            <PlusIcon className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <TagIcon className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
+                  <p className="text-gray-500">
+                    {selectedCategory === 'all' 
+                      ? 'This artisan hasn\'t added any products yet.'
+                      : `No products found in the ${selectedCategory} category.`
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Customer Reviews Section */}
-      {reviews.length > 0 && (
-        <section className="bg-white py-12">
-          <div className="max-w-4xl mx-auto px-4">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">What Customers Say</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <section className="bg-white py-8 border-t border-gray-200">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Customer Reviews</h2>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                {renderStars(parseFloat(getAverageRating()))}
+                <span className="text-sm text-gray-600">
+                  {getAverageRating()} ({reviews.length} reviews)
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* All Reviews */}
+          {reviews.length > 0 ? (
+            <div className="space-y-4 mb-8">
               {reviews.map((review) => (
-                <div key={review._id} className="bg-amber-50 rounded-xl p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center mr-3">
-                      <UserIcon className="w-5 h-5 text-amber-600" />
+                <div key={review._id} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-200 to-amber-300 flex items-center justify-center mr-3">
+                      <UserIcon className="w-5 h-5 text-orange-600" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-gray-900">
                         {review.user?.firstName} {review.user?.lastName?.charAt(0)}.
                       </p>
@@ -545,40 +705,104 @@ export default function ArtisanShop() {
                   {review.title && (
                     <h4 className="font-semibold text-gray-900 mb-2">{review.title}</h4>
                   )}
-                  <p className="text-gray-700 text-sm leading-relaxed">
+                  <p className="text-gray-700 leading-relaxed">
                     "{review.comment}"
                   </p>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* Call to Action Section */}
-      <section className="bg-gradient-to-r from-amber-500 to-orange-500 py-12">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Support Local Artisans</h2>
-          <p className="text-amber-100 mb-8 text-lg">
-            Every purchase supports a local maker and helps keep traditional crafts alive.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
-            <button
-              onClick={toggleFavorite}
-              disabled={isLoadingFavorite}
-              className="flex items-center space-x-2 px-6 py-3 bg-white text-amber-600 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-            >
-              <HeartIcon className="w-5 h-5" />
-              <span>{isFavorited ? 'Following' : 'Follow This Maker'}</span>
-            </button>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <StarIcon className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Reviews Yet</h3>
+              <p className="text-gray-500">Be the first to leave a review for this artisan!</p>
+            </div>
+          )}
+          
+          {/* Leave a Review Section */}
+          <div className="border-t border-gray-200 pt-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Leave a Review</h3>
+              <button
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className="text-orange-600 hover:text-orange-700 font-medium"
+              >
+                {showReviewForm ? 'Cancel' : 'Write Review'}
+              </button>
+            </div>
             
-            <button
-              onClick={() => navigate('/cart')}
-              className="flex items-center space-x-2 px-6 py-3 bg-amber-700 text-white rounded-lg hover:bg-amber-800 transition-colors font-medium"
-            >
-              <ShoppingCartIcon className="w-5 h-5" />
-              <span>View Cart ({cartCount})</span>
-            </button>
+            {showReviewForm && (
+              <form onSubmit={handleSubmitReview} className="bg-gray-50 rounded-xl p-6">
+                <div className="space-y-4">
+                  {/* Rating */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                    <div className="flex items-center space-x-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setNewReview({ ...newReview, rating: star })}
+                          className="focus:outline-none"
+                        >
+                          {star <= newReview.rating ? (
+                            <StarIconSolid className="w-6 h-6 text-orange-400" />
+                          ) : (
+                            <StarIcon className="w-6 h-6 text-gray-300" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Review Title <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newReview.title}
+                      onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Summarize your experience"
+                      maxLength={100}
+                    />
+                  </div>
+                  
+                  {/* Comment */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Review <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      required
+                      value={newReview.comment}
+                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                      placeholder="Share your experience with this artisan..."
+                      maxLength={500}
+                    />
+                    <div className="text-xs text-gray-500 mt-1 text-right">
+                      {newReview.comment.length}/500
+                    </div>
+                  </div>
+                  
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </section>
@@ -586,9 +810,9 @@ export default function ArtisanShop() {
       {/* Product Cart Popup */}
       {showCartPopup && selectedProduct && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
             <div className="flex items-start justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Add to Cart</h3>
+              <h3 className="text-xl font-bold text-gray-900">Product Details</h3>
               <button
                 onClick={() => setShowCartPopup(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -597,28 +821,65 @@ export default function ArtisanShop() {
               </button>
             </div>
             
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+            {/* Product Image */}
+            <div className="mb-6">
+              <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
                 {selectedProduct.images && selectedProduct.images.length > 0 ? (
                   <img
                     src={selectedProduct.images[0]}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                   />
+                ) : selectedProduct.image ? (
+                  <img
+                    src={selectedProduct.image}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
-                    <CameraIcon className="w-8 h-8 text-amber-400" />
+                  <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
+                    <CameraIcon className="w-12 h-12 text-orange-400" />
                   </div>
                 )}
               </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
-                <p className="text-lg font-bold text-amber-600">
+            </div>
+            
+            {/* Product Info */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <h4 className="text-xl font-bold text-gray-900 mb-2">{selectedProduct.name}</h4>
+                {selectedProduct.description && (
+                  <p className="text-gray-600 text-sm leading-relaxed">{selectedProduct.description}</p>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-2xl font-bold text-orange-600">
                   {formatPrice(selectedProduct.price)}
-                </p>
+                </span>
+                <span className="text-sm text-gray-500">
+                  {selectedProduct.unit || 'piece'}
+                </span>
+              </div>
+              
+              {/* Stock and Lead Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600 mb-1">Stock</div>
+                  <div className="font-semibold text-gray-900">
+                    {selectedProduct.stock > 0 ? `${selectedProduct.stock} available` : 'Out of stock'}
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-600 mb-1">Lead Time</div>
+                  <div className="font-semibold text-gray-900">
+                    {selectedProduct.leadTime ? `${selectedProduct.leadTime} ${selectedProduct.leadTimeUnit || 'days'}` : 'Contact artisan'}
+                  </div>
+                </div>
               </div>
             </div>
             
+            {/* Quantity Selector */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
               <div className="flex items-center space-x-3">
@@ -634,7 +895,7 @@ export default function ArtisanShop() {
                 </span>
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
-                  disabled={quantity >= 99}
+                  disabled={quantity >= Math.min(99, selectedProduct.stock)}
                   className="p-2 rounded-full border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
                 >
                   <PlusIcon className="w-4 h-4" />
@@ -644,16 +905,17 @@ export default function ArtisanShop() {
             
             <div className="flex items-center justify-between mb-6 p-3 bg-gray-50 rounded-lg">
               <span className="text-sm font-medium text-gray-700">Total:</span>
-              <span className="text-lg font-bold text-amber-600">
+              <span className="text-lg font-bold text-orange-600">
                 {formatPrice(selectedProduct.price * quantity)}
               </span>
             </div>
             
             <button
               onClick={() => handleAddToCart(selectedProduct)}
-              className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors font-medium"
+              disabled={selectedProduct.stock <= 0}
+              className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Add to Cart
+              {selectedProduct.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
             </button>
           </div>
         </div>
@@ -661,3 +923,4 @@ export default function ArtisanShop() {
     </div>
   );
 }
+

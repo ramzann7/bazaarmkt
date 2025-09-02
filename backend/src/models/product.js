@@ -135,24 +135,23 @@ const productSchema = new mongoose.Schema({
     default: false
   },
   
-  // Lead time for orders (in hours)
-  leadTimeHours: {
+  // Lead time for orders
+  leadTime: {
     type: Number,
-    default: 24,
+    default: 1,
     min: 0
   },
-  
-  // Seller Information
-  seller: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  leadTimeUnit: {
+    type: String,
+    enum: ['hours', 'days'],
+    default: 'days'
   },
   
-  // Artisan Information (for artisans)
+  // Artisan Information (required - replaces seller concept)
   artisan: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Artisan'
+    ref: 'Artisan',
+    required: true
   },
   
   // Timestamps
@@ -173,7 +172,7 @@ productSchema.pre('save', function(next) {
 });
 
 // Index for better query performance
-productSchema.index({ seller: 1, status: 1 });
+productSchema.index({ artisan: 1, status: 1 });
 productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ tags: 1 });
 

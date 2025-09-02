@@ -13,22 +13,40 @@ const getGuestCartKey = () => {
 const isGuestUser = () => {
   try {
     const token = localStorage.getItem('token');
-    if (!token) return false;
+    console.log('🔍 isGuestUser - token exists:', !!token);
+    
+    if (!token) {
+      console.log('👤 No token found, treating as guest user');
+      return true; // No token means guest user
+    }
     
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.isGuest === true;
+    console.log('🔍 Token payload:', payload);
+    console.log('🔍 isGuest flag:', payload.isGuest);
+    
+    // If token has isGuest: true, they're a guest user
+    // If token doesn't have isGuest or it's false, they're a regular user
+    const isGuest = payload.isGuest === true;
+    console.log('👤 Final guest status:', isGuest);
+    return isGuest;
   } catch (error) {
-    return false;
+    console.error('❌ Error checking guest status:', error);
+    console.log('👤 Error occurred, treating as guest user');
+    return true; // If we can't parse the token, treat as guest
   }
 };
 
 export const cartService = {
   getCart: (userId) => {
     try {
+      console.log('🔍 getCart called with userId:', userId);
+      console.log('🔍 isGuestUser() result:', isGuestUser());
+      
       // If no userId or if it's a guest user, use guest cart
       if (!userId || isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
+        console.log('👤 Using guest cart, key:', guestCartKey, 'data:', guestCart);
   
         return guestCart ? JSON.parse(guestCart) : [];
       }
@@ -36,16 +54,21 @@ export const cartService = {
       // For authenticated non-guest users, use user-specific cart
       const cartKey = getCartKey(userId);
       const cart = localStorage.getItem(cartKey);
+      console.log('👤 Using user cart, key:', cartKey, 'data:', cart);
 
       return cart ? JSON.parse(cart) : [];
     } catch (error) {
-      console.error('Error getting cart:', error);
+      console.error('❌ Error getting cart:', error);
       return [];
     }
   },
 
   addToCart: async (product, quantity = 1, userId) => {
     try {
+      console.log('🛒 Adding to cart:', { product: product.name, quantity, userId });
+      
+      // Debug the product structure to understand why artisan data is missing
+      cartService.debugProductStructure(product);
 
       
       // Check if user is an artisan (artisans cannot add to cart)
@@ -79,23 +102,36 @@ export const cartService = {
       }
       
       const cart = cartService.getCart(userId);
+      console.log('📦 Current cart before adding:', cart);
 
       
       const existingItem = cart.find(cartItem => cartItem._id === product._id);
       
       if (existingItem) {
         existingItem.quantity += quantity;
+        console.log('🔄 Updated existing item quantity:', existingItem);
       } else {
         // Enhanced product data with artisan information
         const enhancedProduct = {
           ...product,
           quantity: quantity,
           addedAt: new Date().toISOString(),
-          // Ensure artisan information is properly structured
-          artisan: product.artisan || {
-            artisanName: product.seller?.artisanName || 'Unknown Artisan',
-            type: product.seller?.type || 'other',
-            deliveryOptions: product.seller?.deliveryOptions || {
+          // Preserve original artisan data completely, including _id field
+          artisan: product.artisan ? {
+            ...product.artisan,  // Keep all original artisan fields including _id
+                    artisanName: product.artisan.artisanName || 'Unknown Artisan',
+        type: product.artisan.type || 'other',
+        deliveryOptions: product.artisan.deliveryOptions || {
+              pickup: true,
+              delivery: false,
+              deliveryRadius: 0,
+              deliveryFee: 0
+            }
+          } : {
+            // Fallback if no artisan data
+            artisanName: 'Unknown Artisan',
+            type: 'other',
+            deliveryOptions: {
               pickup: true,
               delivery: false,
               deliveryRadius: 0,
@@ -105,33 +141,39 @@ export const cartService = {
         };
         
         cart.push(enhancedProduct);
+        console.log('➕ Added new item to cart:', enhancedProduct);
       }
       
+      console.log('📦 Cart after adding:', cart);
 
       
       // Save to appropriate cart (guest or user)
       if (isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(cart));
+        console.log('💾 Saved to guest cart localStorage');
       } else if (userId) {
         const cartKey = getCartKey(userId);
         localStorage.setItem(cartKey, JSON.stringify(cart));
+        console.log('💾 Saved to user cart localStorage:', cartKey);
       } else {
         const guestCartKey = getGuestCartKey();
         localStorage.setItem(guestCartKey, JSON.stringify(cart));
+        console.log('💾 Saved to guest cart localStorage (fallback)');
       }
       
       const count = cartService.getCartCount(userId);
+      console.log('🔢 Cart count after adding:', count);
       
       // Dispatch cart update event
-      
       window.dispatchEvent(new CustomEvent('cartUpdated', { 
         detail: { cart, count, userId } 
       }));
+      console.log('📡 Dispatched cart update event');
       
       return cart;
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('❌ Error adding to cart:', error);
       throw error; // Re-throw to allow calling code to handle the error
     }
   },
@@ -274,43 +316,180 @@ export const cartService = {
     }
   },
 
-  getCartByArtisan: (userId) => {
+  getCartByArtisan: async (userId) => {
     try {
       const cart = cartService.getCart(userId);
+      console.log('🔍 getCartByArtisan - Raw cart from localStorage:', cart);
+      
       const groupedByArtisan = {};
       
+      // Group items by artisan
+      const artisanGroups = {};
       cart.forEach(item => {
-        // Handle both seller and artisan fields
-        const artisanId = item.seller?._id || item.artisan?._id || item.sellerId || item.artisanId || 'unknown';
-        const artisanName = item.artisan?.artisanName || item.seller?.artisanName || 
-                           `${item.seller?.firstName || item.artisan?.firstName || 'Unknown'} ${item.seller?.lastName || item.artisan?.lastName || 'Artisan'}`;
+        // Use only artisan ID since we've migrated away from seller concept
+        const artisanId = item.artisan?._id || item.artisanId || 'unknown';
         
-        if (!groupedByArtisan[artisanId]) {
+        // Debug logging to understand the ID structure
+        console.log('🔍 Cart item ID analysis:', {
+          productName: item.name,
+          artisanId: item.artisan?._id,
+          artisanIdField: item.artisanId,
+          selectedId: artisanId
+        });
+        
+        if (!artisanGroups[artisanId]) {
+          artisanGroups[artisanId] = {
+            items: [],
+            artisanId: artisanId
+          };
+        }
+        artisanGroups[artisanId].items.push(item);
+      });
+      
+      console.log('🏪 Artisan groups created:', artisanGroups);
+      
+      // Fetch latest artisan data for each artisan
+      for (const [artisanId, group] of Object.entries(artisanGroups)) {
+        try {
+          // Try to fetch latest artisan profile
+          const latestArtisanData = await cartService.fetchArtisanProfile(artisanId);
+          
+          if (latestArtisanData) {
+            // Use latest data from database
+            groupedByArtisan[artisanId] = {
+              artisan: {
+                _id: artisanId,
+                artisanName: latestArtisanData.artisanName || 'Unknown Artisan',
+                type: latestArtisanData.type || 'other',
+                deliveryOptions: latestArtisanData.deliveryOptions || {
+                  pickup: true,
+                  delivery: false,
+                  deliveryRadius: 0,
+                  deliveryFee: 0,
+                  freeDeliveryThreshold: 0
+                },
+                address: latestArtisanData.address,
+                pickupLocation: latestArtisanData.pickupLocation,
+                pickupInstructions: latestArtisanData.pickupInstructions,
+                pickupHours: latestArtisanData.pickupHours,
+                pickupSchedule: latestArtisanData.pickupSchedule,
+                deliveryInstructions: latestArtisanData.deliveryInstructions
+              },
+              items: group.items,
+              subtotal: group.items.reduce((total, item) => total + (parseFloat(item.price) * parseInt(item.quantity)), 0)
+            };
+          } else {
+            // Fallback to cart item data if fetch fails
+            const fallbackItem = group.items[0];
+            groupedByArtisan[artisanId] = {
+              artisan: {
+                _id: artisanId,
+                artisanName: fallbackItem.artisan?.artisanName || 'Unknown Artisan',
+                type: fallbackItem.artisan?.type || 'other',
+                deliveryOptions: fallbackItem.artisan?.deliveryOptions || {
+                  pickup: true,
+                  delivery: false,
+                  deliveryRadius: 0,
+                  deliveryFee: 0,
+                  freeDeliveryThreshold: 0
+                }
+              },
+              items: group.items,
+              subtotal: group.items.reduce((total, item) => total + (parseFloat(item.price) * parseInt(item.quantity)), 0)
+            };
+          }
+        } catch (error) {
+          console.error(`Error fetching artisan ${artisanId} profile:`, error);
+          // Fallback to cart item data
+          const fallbackItem = group.items[0];
           groupedByArtisan[artisanId] = {
             artisan: {
               _id: artisanId,
-              artisanName: artisanName,
-              type: item.artisan?.type || item.seller?.type || 'other',
-              deliveryOptions: item.artisan?.deliveryOptions || item.seller?.deliveryOptions || {
+              artisanName: fallbackItem.artisan?.artisanName || 'Unknown Artisan',
+              type: fallbackItem.artisan?.type || 'other',
+              deliveryOptions: fallbackItem.artisan?.deliveryOptions || {
                 pickup: true,
                 delivery: false,
                 deliveryRadius: 0,
-                deliveryFee: 0
+                deliveryFee: 0,
+                freeDeliveryThreshold: 0
               }
             },
-            items: [],
-            subtotal: 0
+            items: group.items,
+            subtotal: group.items.reduce((total, item) => total + (parseFloat(item.price) * parseInt(item.quantity)), 0)
           };
         }
-        
-        groupedByArtisan[artisanId].items.push(item);
-        groupedByArtisan[artisanId].subtotal += item.price * item.quantity;
-      });
+      }
       
+      console.log('🏪 Final groupedByArtisan result:', groupedByArtisan);
       return groupedByArtisan;
     } catch (error) {
       console.error('Error grouping cart by artisan:', error);
       return {};
+    }
+  },
+
+  // Sync cart data to ensure consistency
+  syncCartData: async (userId) => {
+    try {
+      console.log('🔄 Starting cart data sync for user:', userId);
+      
+      // Get current cart from localStorage
+      const currentCart = cartService.getCart(userId);
+      console.log('📦 Current cart from localStorage:', currentCart);
+      
+      // Get cart by artisan to see what should be there
+      const cartByArtisan = await cartService.getCartByArtisan(userId);
+      console.log('🏪 Cart by artisan data:', cartByArtisan);
+      
+      // Check for inconsistencies
+      const localStorageCount = currentCart.length;
+      const artisanCount = Object.values(cartByArtisan).reduce((total, artisanData) => {
+        return total + (artisanData.items?.length || 0);
+      }, 0);
+      
+      console.log('🔍 Sync consistency check:', {
+        localStorageCount,
+        artisanCount,
+        isConsistent: localStorageCount === artisanCount
+      });
+      
+      if (localStorageCount !== artisanCount) {
+        console.warn('⚠️ Cart inconsistency detected during sync!');
+        
+        // Rebuild cart from artisan data to ensure consistency
+        const syncedCart = [];
+        Object.values(cartByArtisan).forEach(artisanData => {
+          artisanData.items.forEach(item => {
+            syncedCart.push(item);
+          });
+        });
+        
+        // Update localStorage with synced data
+        if (isGuestUser()) {
+          const guestCartKey = getGuestCartKey();
+          localStorage.setItem(guestCartKey, JSON.stringify(syncedCart));
+        } else if (userId) {
+          const cartKey = getCartKey(userId);
+          localStorage.setItem(cartKey, JSON.stringify(syncedCart));
+        }
+        
+        console.log('✅ Cart synced successfully:', syncedCart);
+        
+        // Dispatch cart update event
+        const count = cartService.getCartCount(userId);
+        window.dispatchEvent(new CustomEvent('cartUpdated', { 
+          detail: { cart: syncedCart, count, userId } 
+        }));
+        
+        return syncedCart;
+      }
+      
+      console.log('✅ Cart is already consistent, no sync needed');
+      return currentCart;
+    } catch (error) {
+      console.error('Error syncing cart data:', error);
+      return cartService.getCart(userId);
     }
   },
 
@@ -361,9 +540,9 @@ export const cartService = {
         if (!item.quantity || item.quantity <= 0) {
           errors.push(`Invalid quantity for: ${item.name}`);
         }
-        if (!item.seller && !item.artisan) {
-          errors.push(`Missing seller information for: ${item.name}`);
-        }
+              if (!item.artisan) {
+        errors.push(`Missing artisan information for: ${item.name}`);
+      }
       });
       
       return {
@@ -453,5 +632,51 @@ export const cartService = {
         errors: ['Checkout validation failed']
       };
     }
+  },
+
+  // Function to fetch full artisan profile for better delivery options
+  fetchArtisanProfile: async (artisanId) => {
+    try {
+      // Use relative URL that works with Vite proxy
+      const apiBaseUrl = '/api';
+      
+      // The artisanId parameter is the artisan document ID from the cart item
+      // Use the standard artisan endpoint
+      const response = await fetch(`${apiBaseUrl}/artisans/${artisanId}`);
+      if (response.ok) {
+        return await response.json();
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error fetching artisan profile for ${artisanId}:`, error);
+      return null;
+    }
+  },
+
+  // Debug function to help identify product structure issues
+  debugProductStructure: (product) => {
+    console.log('=== PRODUCT STRUCTURE DEBUG ===');
+    console.log('Product:', product);
+    console.log('Product.artisan:', product.artisan);
+            console.log('Product.artisan:', product.artisan);
+        console.log('Product.artisanId:', product.artisanId);
+    console.log('Product.artisanId:', product.artisanId);
+    
+    if (product.artisan) {
+      console.log('Artisan._id:', product.artisan._id);
+      console.log('Artisan.artisanName:', product.artisan.artisanName);
+      console.log('Artisan.deliveryOptions:', product.artisan.deliveryOptions);
+    }
+    
+            if (product.artisan) {
+          console.log('Artisan._id:', product.artisan._id);
+          console.log('Artisan.artisanName:', product.artisan.artisanName);
+          console.log('Artisan.deliveryOptions:', product.artisan.deliveryOptions);
+        }
+  },
+
+  // Alias for getCartCount to maintain compatibility
+  getCartItemCount: (userId) => {
+    return cartService.getCartCount(userId);
   }
 };

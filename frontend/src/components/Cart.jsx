@@ -1,38 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   TrashIcon, 
   PlusIcon, 
-  MinusIcon,
-  ShoppingBagIcon,
-  TruckIcon,
+  MinusIcon, 
+  TruckIcon, 
   CreditCardIcon,
   MapPinIcon,
+  UserIcon,
+  ShoppingBagIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
   CheckIcon,
-  PlusCircleIcon,
-  XMarkIcon
+  ExclamationTriangleIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 import { cartService } from '../services/cartService';
-import { orderService } from '../services/orderService';
-import { authToken, getProfile } from '../services/authservice';
-import { guestService } from '../services/guestService';
-import { paymentService } from '../services/paymentService';
 import { deliveryService } from '../services/deliveryService';
-import toast from 'react-hot-toast';
+import { getProfile } from '../services/authservice';
+import { paymentService } from '../services/paymentService';
 
-export default function Cart() {
+const Cart = () => {
   const navigate = useNavigate();
+  
+  // Core cart state
   const [cart, setCart] = useState([]);
   const [cartByArtisan, setCartByArtisan] = useState({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isGuest, setIsGuest] = useState(false);
+  const [checkoutStep, setCheckoutStep] = useState('cart');
+  
+  // User state
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-  const [checkoutStep, setCheckoutStep] = useState('cart'); // cart, delivery, payment, confirmation
+  const [isGuest, setIsGuest] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  const [selectedAddress, setSelectedAddress] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  
+  // Delivery state
+  const [deliveryOptions, setDeliveryOptions] = useState({});
+  const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
   const [deliveryForm, setDeliveryForm] = useState({
     street: '',
     city: '',
@@ -40,410 +44,44 @@ export default function Cart() {
     zipCode: '',
     country: ''
   });
-  const [paymentForm, setPaymentForm] = useState({
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  
+  // Loading states
+  const [cartLoading, setCartLoading] = useState(false);
+  const [deliveryOptionsLoading, setDeliveryOptionsLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [updatingItems, setUpdatingItems] = useState(new Set());
+  const [successItems, setSuccessItems] = useState(new Set());
+  
+  // Payment state
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
+  const [showAddPaymentForm, setShowAddPaymentForm] = useState(false);
+  const [newPaymentForm, setNewPaymentForm] = useState({
     cardNumber: '',
     expiryMonth: '',
     expiryYear: '',
     cvv: '',
-    cardholderName: ''
+    cardholderName: '',
+    isDefault: false
   });
-  const [deliveryOptions, setDeliveryOptions] = useState({});
-  const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
-  const [showAddPaymentMethod, setShowAddPaymentMethod] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
+  const [paymentFormErrors, setPaymentFormErrors] = useState({});
 
-  useEffect(() => {
-    checkAuth();
-    
-    // Listen for cart updates
-    const handleCartUpdate = (event) => {
-      // For guest users (no currentUserId), always update when userId is null
-      // For authenticated users, update when userId matches
-      if ((!currentUserId && event.detail.userId === null) || 
-          (currentUserId && event.detail.userId === currentUserId)) {
-        loadCart();
-      }
-    };
-    
-    // Listen for profile updates to refresh cart data
-    const handleProfileUpdate = () => {
-      if (isAuthenticated && !isGuest) {
-        loadUserProfile();
-      }
-    };
-    
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    window.addEventListener('profileUpdated', handleProfileUpdate);
-    
-    return () => {
-      window.removeEventListener('cartUpdated', handleCartUpdate);
-      window.removeEventListener('profileUpdated', handleProfileUpdate);
-    };
-  }, [currentUserId, isAuthenticated, isGuest]);
-
-  const loadUserProfile = async () => {
+  // Helper function to parse JWT token
+  const parseToken = (token) => {
     try {
-      const profile = await getProfile();
-      setUserProfile(profile);
-      
-      // Load payment methods from profile
-      setIsLoadingPaymentMethods(true);
-      try {
-        // Use payment methods from profile directly
-        const methods = profile.paymentMethods || [];
-        setPaymentMethods(methods);
-        
-        // Set default payment method
-        const defaultPayment = methods.find(pay => pay.isDefault) || methods[0];
-        if (defaultPayment) {
-          setSelectedPaymentMethod(defaultPayment);
-          setPaymentForm({
-            cardNumber: `**** **** **** ${defaultPayment.last4}`,
-            expiryMonth: defaultPayment.expiryMonth.toString().padStart(2, '0'),
-            expiryYear: defaultPayment.expiryYear.toString(),
-            cvv: '',
-            cardholderName: defaultPayment.cardholderName
-          });
-
-        }
-      } catch (error) {
-        console.error('Error loading payment methods:', error);
-        setPaymentMethods([]);
-      } finally {
-        setIsLoadingPaymentMethods(false);
-      }
-      
-      // Set default address from profile
-      const defaultAddress = profile.addresses?.find(addr => addr.isDefault) || profile.addresses?.[0];
-      
-      if (defaultAddress) {
-        setSelectedAddress(defaultAddress);
-        setDeliveryForm({
-          street: defaultAddress.street,
-          city: defaultAddress.city,
-          state: defaultAddress.state,
-          zipCode: defaultAddress.zipCode,
-          country: defaultAddress.country
-        });
-      }
-      
-      // Load delivery options for each artisan
-      loadDeliveryOptions();
-    } catch (error) {
-      console.error('❌ Error loading user profile:', error);
-    }
-  };
-
-  const loadCart = () => {
-    // Load cart for both authenticated users and guest users
-    const cartItems = cartService.getCart(currentUserId);
-    const groupedCart = cartService.getCartByArtisan(currentUserId);
-    
-    setCart(cartItems);
-    setCartByArtisan(groupedCart);
-  };
-
-  const checkAuth = async () => {
-    const token = authToken.getToken();
-    
-    if (token) {
-      try {
-        const profile = await getProfile();
-        // Get userId from token
-        let userIdFromToken = null;
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            userIdFromToken = payload.userId;
-          } catch (error) {
-            console.error('Error parsing token for userId:', error);
-          }
-        }
-        
-        setCurrentUserId(userIdFromToken || profile._id);
-        setUserRole(profile.role);
-        setIsAuthenticated(true);
-        setIsGuest(guestService.isGuestUser());
-        
-        // Check if user is an artisan (artisans cannot access cart)
-        if (profile.role === 'artisan') {
-          toast.error('Artisans cannot access the cart. You are a seller, not a buyer.');
-          navigate('/');
-          return;
-        }
-        
-        loadCart();
-        loadUserProfile();
-      } catch (error) {
-        console.error('Error loading user profile:', error);
-        // If profile loading fails, treat as guest user
-        setIsAuthenticated(false);
-        setCurrentUserId(null);
-        setUserRole(null);
-        setIsGuest(true);
-        loadCart();
-      }
-    } else {
-      // No token - treat as guest user
-      setIsAuthenticated(false);
-      setCurrentUserId(null);
-      setUserRole(null);
-      setIsGuest(true);
-      loadCart();
-    }
-  };
-
-  const updateQuantity = (itemId, newQuantity) => {
-    if (newQuantity <= 0) {
-      cartService.removeFromCart(itemId, currentUserId);
-    } else {
-      cartService.updateQuantity(itemId, newQuantity, currentUserId);
-    }
-  };
-
-  const removeItem = (itemId) => {
-    cartService.removeFromCart(itemId, currentUserId);
-    toast.success('Item removed from cart');
-  };
-
-
-
-  const getTotalItems = () => {
-    return cart.reduce((total, item) => total + item.quantity, 0);
-  };
-
-  const getTotalAmount = () => {
-    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    const deliveryFees = getTotalDeliveryFees();
-    return subtotal + deliveryFees;
-  };
-
-  const getTotalDeliveryFees = () => {
-    let totalFees = 0;
-    
-    Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-      const selectedMethod = selectedDeliveryMethods[artisanId];
-      const deliveryOptions = deliveryOptions[artisanId];
-      
-      if (!selectedMethod || !deliveryOptions) return;
-      
-      if (selectedMethod === 'personalDelivery' && deliveryOptions.personalDelivery?.available) {
-        const subtotal = artisanData.subtotal;
-        const fee = deliveryOptions.personalDelivery.fee || 0;
-        const freeThreshold = deliveryOptions.personalDelivery.freeThreshold || 0;
-        
-        // Check if order qualifies for free delivery
-        if (subtotal < freeThreshold) {
-          totalFees += fee;
-        }
-      } else if (selectedMethod === 'professionalDelivery' && deliveryOptions.professionalDelivery?.available) {
-        // Calculate Uber Direct fee based on distance
-        const uberFee = calculateUberDirectFee(artisanId);
-        totalFees += uberFee;
-      }
-    });
-    
-    return totalFees;
-  };
-
-  const calculateUberDirectFee = (artisanId) => {
-    // This would typically use the Uber Direct API
-    // For now, we'll use a simplified calculation
-    const artisanData = cartByArtisan[artisanId];
-    if (!artisanData || !selectedAddress) return 0;
-    
-    // Calculate distance between artisan and delivery address
-    const artisanLocation = artisanData.artisan?.address;
-    const deliveryLocation = selectedAddress;
-    
-    if (!artisanLocation || !deliveryLocation) return 0;
-    
-    // Simplified distance calculation (in a real app, you'd use geocoding)
-    const distance = 10; // Placeholder - would be calculated from coordinates
-    
-    // Uber Direct pricing
-    const baseFee = 8;
-    const perKmFee = 1.5;
-    
-    return baseFee + (distance * perKmFee);
-  };
-
-  const isPersonalDeliveryAvailable = (artisanId) => {
-    const artisanData = cartByArtisan[artisanId];
-    if (!artisanData || !selectedAddress) return false;
-    
-    const deliveryOptions = deliveryOptions[artisanId];
-    if (!deliveryOptions?.personalDelivery?.available) return false;
-    
-    // Calculate distance between artisan and delivery address
-    const artisanLocation = artisanData.artisan?.address;
-    const deliveryLocation = selectedAddress;
-    
-    if (!artisanLocation || !deliveryLocation) return false;
-    
-    // Simplified distance calculation (in a real app, you'd use geocoding)
-    const distance = 10; // Placeholder - would be calculated from coordinates
-    const maxRadius = deliveryOptions.personalDelivery.radius || 10;
-    
-    return distance <= maxRadius;
-  };
-
-  const loadDeliveryOptions = () => {
-    const cartByArtisan = cartService.getCartByArtisan(currentUserId);
-    const options = {};
-    const selectedMethods = {};
-    
-    Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-      const deliveryOptions = deliveryService.getDeliveryOptions(artisanData.artisan);
-      options[artisanId] = deliveryOptions;
-      
-      // Set default delivery method (pickup if available, otherwise personal delivery, then professional delivery)
-      if (deliveryOptions.pickup.available) {
-        selectedMethods[artisanId] = 'pickup';
-      } else if (deliveryOptions.personalDelivery.available) {
-        selectedMethods[artisanId] = 'personalDelivery';
-      } else if (deliveryOptions.professionalDelivery.available) {
-        selectedMethods[artisanId] = 'professionalDelivery';
-      }
-    });
-    
-    setDeliveryOptions(options);
-    setSelectedDeliveryMethods(selectedMethods);
-  };
-
-  const handleCheckout = async () => {
-    if (cart.length === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
-
-    if (!isAuthenticated) {
-      // Redirect to dedicated guest checkout
-      navigate('/guest-checkout');
-      return;
-    }
-
-    const validation = cartService.validateCart(currentUserId);
-    if (!validation.isValid) {
-      toast.error('Cart validation failed: ' + validation.errors.join(', '));
-      return;
-    }
-
-    setCheckoutStep('delivery');
-  };
-
-  const handleContinueToPayment = async () => {
-    // Validate delivery address
-    if (!deliveryForm.street || !deliveryForm.city || !deliveryForm.state || !deliveryForm.zipCode) {
-      toast.error('Please fill in all required delivery address fields');
-      return;
-    }
-    
-    // For authenticated users, refresh profile data to ensure we have the latest
-    if (isAuthenticated && !isGuest) {
-      try {
-        await loadUserProfile();
-      } catch (error) {
-        console.error('Error refreshing profile data:', error);
-        // Continue with current data if refresh fails
-      }
-    }
-    
-    // Set the selected address from the form
-    setSelectedAddress({
-      street: deliveryForm.street,
-      city: deliveryForm.city,
-      state: deliveryForm.state,
-      zipCode: deliveryForm.zipCode,
-      country: deliveryForm.country || 'Canada'
-    });
-    
-    setCheckoutStep('payment');
-  };
-
-  const handlePlaceOrder = async () => {
-    setIsLoading(true);
-    
-    try {
-      // Validate address
-      if (!selectedAddress) {
-        toast.error('Please select a delivery address');
-        return;
-      }
-      
-      // For authenticated users, validate against profile data
-      if (isAuthenticated && !isGuest) {
-        const checkoutValidation = await cartService.validateCheckoutData(
-          currentUserId, 
-          selectedAddress, 
-          selectedPaymentMethod
-        );
-        
-        if (!checkoutValidation.isValid) {
-          toast.error('Checkout validation failed: ' + checkoutValidation.errors.join(', '));
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        // For guest users, validate payment form fields
-        if (!paymentForm.cardNumber || !paymentForm.expiryMonth || !paymentForm.expiryYear || !paymentForm.cvv || !paymentForm.cardholderName) {
-          toast.error('Please fill in all payment information fields');
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // Prepare order data
-      const orderData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          quantity: item.quantity
-        })),
-        deliveryAddress: {
-          street: selectedAddress.street,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          zipCode: selectedAddress.zipCode,
-          country: selectedAddress.country
-        },
-        deliveryInstructions: "",
-        isGuestOrder: isGuest, // Add flag for guest orders
-        ...(isGuest ? {
-          // Guest payment information
-          paymentMethod: 'credit_card',
-          paymentInfo: {
-            cardNumber: paymentForm.cardNumber,
-            expiryMonth: paymentForm.expiryMonth,
-            expiryYear: paymentForm.expiryYear,
-            cvv: paymentForm.cvv,
-            cardholderName: paymentForm.cardholderName
-          }
-        } : {
-          // Authenticated user payment information
-          paymentMethod: selectedPaymentMethod.type,
-          paymentMethodId: selectedPaymentMethod._id
-        })
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        userId: payload.userId,
+        isGuest: payload.isGuest || false
       };
-
-      // Call order API
-      const result = await orderService.createOrder(orderData);
-      
-      // Clear cart after successful order
-      cartService.clearCart(currentUserId);
-      
-      setCheckoutStep('confirmation');
-      toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
-      
     } catch (error) {
-      console.error('Error placing order:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      console.error('Error parsing token:', error);
+      return { userId: null, isGuest: true };
     }
   };
 
+  // Helper function to format price
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-CA', {
       style: 'currency',
@@ -451,358 +89,552 @@ export default function Cart() {
     }).format(price);
   };
 
-  if (checkoutStep === 'confirmation') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmed!</h2>
-          <p className="text-gray-600 mb-6">
-            {isGuest 
-              ? "Thank you for your order! We'll send you updates via email. Create an account to track your orders and save your information for future purchases."
-              : "Thank you for your order. We'll send you updates on your order status."
-            }
-          </p>
-          <div className="space-y-3">
-            {!isGuest && (
-              <button
-                onClick={() => navigate('/orders')}
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-              >
-                View My Orders
-              </button>
-            )}
-            {isGuest && (
-              <button
-                onClick={() => navigate('/register')}
-                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-              >
-                Create Account to Track Orders
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setCheckoutStep('cart');
-                navigate('/');
-              }}
-              className="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              Continue Shopping
-            </button>
-          </div>
-        </div>
-      </div>
+  // Helper function to check if address is required
+  const isAddressRequired = () => {
+    return Object.values(selectedDeliveryMethods).some(method => 
+      method === 'personalDelivery' || method === 'professionalDelivery'
     );
-  }
+  };
 
-  if (checkoutStep === 'payment') {
+  // Helper function to get delivery fee for a specific artisan
+  const getDeliveryFeeForArtisan = (artisanId) => {
+    const selectedMethod = selectedDeliveryMethods[artisanId];
+    const artisanDeliveryOptions = deliveryOptions[artisanId];
+    
+    if (!selectedMethod || !artisanDeliveryOptions) return 0;
+    
+    if (selectedMethod === 'personalDelivery' && artisanDeliveryOptions.personalDelivery?.available) {
+      const artisanData = cartByArtisan[artisanId];
+      if (!artisanData) return 0;
+      
+      const subtotal = artisanData.subtotal;
+      const fee = artisanDeliveryOptions.personalDelivery.fee || 0;
+      const freeThreshold = artisanDeliveryOptions.personalDelivery.freeThreshold || 0;
+      
+      // Check if order qualifies for free delivery
+      if (subtotal < freeThreshold) {
+        return fee;
+      }
+      return 0; // Free delivery
+    } else if (selectedMethod === 'professionalDelivery' && artisanDeliveryOptions.professionalDelivery?.available) {
+      // Calculate Uber Direct fee based on distance
+      return calculateUberDirectFee(artisanId);
+    }
+    
+    return 0; // Pickup is free
+  };
+
+  // Calculate Uber Direct delivery fee (placeholder implementation)
+  const calculateUberDirectFee = (artisanId) => {
+    // This would integrate with Uber Direct API
+    // For now, return a fixed fee
+    return 15;
+  };
+
+  // Load user's payment methods
+  const loadPaymentMethods = async () => {
+    if (!currentUserId || isGuest) {
+      console.log('🚫 Skipping payment methods load:', { currentUserId, isGuest });
+      return;
+    }
+    
+    console.log('🔄 Loading payment methods for user:', currentUserId);
+    
+    try {
+      const methods = await paymentService.getPaymentMethods();
+      console.log('✅ Payment methods loaded:', methods);
+      setPaymentMethods(methods);
+      
+      // Set default payment method if available
+      const defaultMethod = methods.find(method => method.isDefault);
+      if (defaultMethod) {
+        console.log('🎯 Setting default payment method:', defaultMethod);
+        setSelectedPaymentMethod(defaultMethod);
+      } else {
+        console.log('⚠️ No default payment method found');
+      }
+    } catch (error) {
+      console.error('❌ Error loading payment methods:', error);
+    }
+  };
+
+  // Validate payment form
+  const validatePaymentForm = () => {
+    const errors = {};
+    
+    if (!newPaymentForm.cardNumber) {
+      errors.cardNumber = 'Card number is required';
+    } else if (!paymentService.validateCreditCard(newPaymentForm.cardNumber)) {
+      errors.cardNumber = 'Invalid card number';
+    }
+    
+    if (!newPaymentForm.expiryMonth || !newPaymentForm.expiryYear) {
+      errors.expiry = 'Expiry date is required';
+    } else if (!paymentService.validateExpiryDate(newPaymentForm.expiryMonth, newPaymentForm.expiryYear)) {
+      errors.expiry = 'Invalid expiry date';
+    }
+    
+    if (!newPaymentForm.cvv) {
+      errors.cvv = 'CVV is required';
+    } else {
+      const cardBrand = paymentService.getCardBrand(newPaymentForm.cardNumber);
+      if (!paymentService.validateCVV(newPaymentForm.cvv, cardBrand)) {
+        errors.cvv = 'Invalid CVV';
+      }
+    }
+    
+    if (!newPaymentForm.cardholderName) {
+      errors.cardholderName = 'Cardholder name is required';
+    }
+    
+    setPaymentFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle payment form submission
+  const handlePaymentFormSubmit = async () => {
+    if (!validatePaymentForm()) return;
+    
+    try {
+      setPaymentLoading(true);
+      
+      const paymentData = {
+        type: 'credit_card',
+        cardNumber: newPaymentForm.cardNumber,
+        expiryMonth: parseInt(newPaymentForm.expiryMonth),
+        expiryYear: parseInt(newPaymentForm.expiryYear),
+        cvv: newPaymentForm.cvv,
+        cardholderName: newPaymentForm.cardholderName,
+        isDefault: newPaymentForm.isDefault,
+        brand: paymentService.getCardBrand(newPaymentForm.cardNumber)
+      };
+      
+      await paymentService.addPaymentMethod(paymentData);
+      
+      // Reload payment methods
+      await loadPaymentMethods();
+      
+      // Reset form
+      setNewPaymentForm({
+        cardNumber: '',
+        expiryMonth: '',
+        expiryYear: '',
+        cvv: '',
+        cardholderName: '',
+        isDefault: false
+      });
+      setShowAddPaymentForm(false);
+      setPaymentFormErrors({});
+      
+      toast.success('Payment method added successfully');
+    } catch (error) {
+      console.error('Error adding payment method:', error);
+      toast.error('Failed to add payment method');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // Handle payment form changes
+  const handlePaymentFormChange = (field, value) => {
+    setNewPaymentForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (paymentFormErrors[field]) {
+      setPaymentFormErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+  };
+
+  // Get total delivery fees across all artisans
+  const getTotalDeliveryFees = () => {
+    let totalFees = 0;
+    
+    Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
+      totalFees += getDeliveryFeeForArtisan(artisanId);
+    });
+    
+    return totalFees;
+  };
+
+  // Get total amount including delivery fees
+  const getTotalAmount = () => {
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const deliveryFees = getTotalDeliveryFees();
+    return subtotal + deliveryFees;
+  };
+
+  // Check if personal delivery is available for an artisan
+  const isPersonalDeliveryAvailable = (artisanId) => {
+    const artisanDeliveryOptions = deliveryOptions[artisanId];
+    return artisanDeliveryOptions?.personalDelivery?.available || false;
+  };
+
+  // Load cart data - completely rebuilt for reliability
+  const loadCart = async () => {
+    try {
+      setCartLoading(true);
+      console.log('🔄 Starting cart load...');
+      
+      // Get current user info
+      const token = localStorage.getItem('token');
+      let userId = null;
+      let guestStatus = true;
+      
+      if (token) {
+        const tokenData = parseToken(token);
+        userId = tokenData.userId;
+        guestStatus = tokenData.isGuest;
+        setCurrentUserId(userId);
+        setIsGuest(guestStatus);
+      }
+      
+      console.log('👤 User info:', { userId, guestStatus });
+      
+      // Load cart data from localStorage
+      const cartData = await cartService.getCart(userId);
+      console.log('📦 Cart data loaded:', cartData);
+      
+      if (!cartData || cartData.length === 0) {
+        console.log('📦 Cart is empty');
+        setCart([]);
+        setCartByArtisan({});
+        return;
+      }
+      
+      // Load cart by artisan (this fetches fresh artisan data)
+      const cartByArtisanData = await cartService.getCartByArtisan(userId);
+      console.log('🏪 Cart by artisan loaded:', cartByArtisanData);
+      
+      // Set cart state
+      setCart(cartData);
+      setCartByArtisan(cartByArtisanData);
+      
+      console.log('✅ Cart loaded successfully:', {
+        cartItems: cartData.length,
+        artisanGroups: Object.keys(cartByArtisanData).length
+      });
+      
+    } catch (error) {
+      console.error('❌ Error loading cart:', error);
+      toast.error('Failed to load cart');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  // Load delivery options - completely rebuilt
+  const loadDeliveryOptions = async () => {
+    if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
+      console.log('📦 No cart data available for delivery options');
+      return;
+    }
+    
+    try {
+      setDeliveryOptionsLoading(true);
+      console.log('🔄 Loading delivery options...');
+      
+      const options = {};
+      const methods = {};
+      
+      // Process each artisan's delivery options
+      Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
+        console.log('🏪 Processing artisan:', artisanId, artisanData.artisan?.artisanName);
+        
+        if (artisanData.artisan?.deliveryOptions) {
+          // Use the delivery service to structure options
+          const processedOptions = deliveryService.structureDeliveryOptions(artisanData.artisan.deliveryOptions);
+          options[artisanId] = processedOptions;
+          
+          // Set default delivery method
+          if (processedOptions.pickup?.available) {
+            methods[artisanId] = 'pickup';
+          } else if (processedOptions.personalDelivery?.available) {
+            methods[artisanId] = 'personalDelivery';
+          } else if (processedOptions.professionalDelivery?.available) {
+            methods[artisanId] = 'professionalDelivery';
+          }
+          
+          console.log('✅ Delivery options processed for artisan:', artisanId, processedOptions);
+        } else {
+          console.log('⚠️ No delivery options found for artisan:', artisanId);
+        }
+      });
+      
+      setDeliveryOptions(options);
+      setSelectedDeliveryMethods(methods);
+      
+      console.log('✅ Delivery options loaded:', { options, methods });
+      
+    } catch (error) {
+      console.error('❌ Error loading delivery options:', error);
+    } finally {
+      setDeliveryOptionsLoading(false);
+    }
+  };
+
+  // Load user profile
+  const loadUserProfile = async () => {
+    if (!currentUserId || isGuest) return;
+    
+    try {
+      const profile = await getProfile();
+      setUserProfile(profile);
+      console.log('👤 User profile loaded:', profile);
+    } catch (error) {
+      console.error('❌ Error loading user profile:', error);
+    }
+  };
+
+  // Check authentication status
+  const checkAuth = async () => {
+    const token = localStorage.getItem('token');
+    console.log('🔐 Checking auth, token exists:', !!token);
+    
+    if (token) {
+      const tokenData = parseToken(token);
+      console.log('🔑 Token parsed:', tokenData);
+      setCurrentUserId(tokenData.userId);
+      setIsGuest(tokenData.isGuest);
+      
+      if (!tokenData.isGuest) {
+        console.log('👤 Loading profile and payment methods for authenticated user');
+        await loadUserProfile();
+        await loadPaymentMethods();
+      } else {
+        console.log('👻 Guest user, skipping profile and payment methods');
+      }
+    } else {
+      console.log('🚫 No token found, user not authenticated');
+    }
+    
+    await loadCart();
+  };
+
+  // Handle cart updates
+  const handleCartUpdate = async () => {
+    await loadCart();
+  };
+
+  // Handle quantity changes with instant UI updates
+  const handleQuantityChange = async (productId, newQuantity) => {
+    // Prevent multiple simultaneous updates for the same item
+    if (updatingItems.has(productId)) return;
+    
+    try {
+      setUpdatingItems(prev => new Set(prev).add(productId));
+      
+      // Optimistically update the UI immediately
+      const updatedCart = cart.map(item => 
+        item._id === productId 
+          ? { ...item, quantity: newQuantity }
+          : item
+      ).filter(item => item.quantity > 0);
+      
+      setCart(updatedCart);
+      
+      // Update cartByArtisan state immediately
+      const updatedCartByArtisan = {};
+      updatedCart.forEach(item => {
+        const artisanId = item.artisan?._id || item.artisanId;
+        if (!updatedCartByArtisan[artisanId]) {
+          updatedCartByArtisan[artisanId] = {
+            artisan: item.artisan,
+            items: [],
+            subtotal: 0
+          };
+        }
+        updatedCartByArtisan[artisanId].items.push(item);
+        updatedCartByArtisan[artisanId].subtotal += item.price * item.quantity;
+      });
+      setCartByArtisan(updatedCartByArtisan);
+      
+      // Show immediate feedback
+      if (newQuantity <= 0) {
+        toast.success('Item removed from cart');
+      } else {
+        toast.success('Quantity updated');
+      }
+      
+      // Update localStorage in the background
+      if (newQuantity <= 0) {
+        await cartService.removeFromCart(productId, currentUserId);
+      } else {
+        await cartService.updateQuantity(productId, newQuantity, currentUserId);
+      }
+      
+      // Dispatch cart update event for navbar
+      const totalItems = updatedCart.reduce((sum, item) => sum + item.quantity, 0);
+      window.dispatchEvent(new CustomEvent('cartUpdated', {
+        detail: { count: totalItems, userId: currentUserId }
+      }));
+      
+      // Show success state briefly
+      setSuccessItems(prev => new Set(prev).add(productId));
+      setTimeout(() => {
+        setSuccessItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(productId);
+          return newSet;
+        });
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ Error updating quantity:', error);
+      toast.error('Failed to update quantity');
+      
+      // Revert on error by reloading cart
+      await handleCartUpdate();
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }
+  };
+
+  // Handle delivery method selection
+  const handleDeliveryMethodChange = (artisanId, method) => {
+    setSelectedDeliveryMethods(prev => ({
+      ...prev,
+      [artisanId]: method
+    }));
+  };
+
+  // Handle delivery form changes
+  const handleDeliveryFormChange = (field, value) => {
+    setDeliveryForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Handle address selection
+  const handleAddressSelect = (address) => {
+    setSelectedAddress(address);
+    if (address) {
+      setDeliveryForm({
+        street: address.street || '',
+        city: address.city || '',
+        state: address.state || '',
+        zipCode: address.zipCode || '',
+        country: address.country || ''
+      });
+    }
+  };
+
+  // Handle checkout step navigation
+  const handleNextStep = () => {
+    if (checkoutStep === 'cart') {
+      if (cart.length === 0) {
+        toast.error('Cart is empty');
+        return;
+      }
+      setCheckoutStep('delivery');
+    } else if (checkoutStep === 'delivery') {
+      if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
+        toast.error('Please provide delivery address');
+        return;
+      }
+      setCheckoutStep('payment');
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (checkoutStep === 'delivery') {
+      setCheckoutStep('cart');
+    } else if (checkoutStep === 'payment') {
+      setCheckoutStep('delivery');
+    }
+  };
+
+  // Handle checkout
+  const handleCheckout = async () => {
+    try {
+      // Validate delivery options
+      const hasDeliveryMethod = Object.keys(selectedDeliveryMethods).length > 0;
+      if (!hasDeliveryMethod) {
+        toast.error('Please select delivery methods');
+        return;
+      }
+
+      if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
+        toast.error('Please provide delivery address');
+        return;
+      }
+
+      // Navigate to checkout page with cart data
+      navigate('/checkout', {
+        state: {
+          cart,
+          cartByArtisan,
+          deliveryOptions,
+          selectedDeliveryMethods,
+          deliveryAddress: selectedAddress || deliveryForm
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error during checkout:', error);
+      toast.error('Checkout failed');
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  // Load delivery options when cart data changes
+  useEffect(() => {
+    if (Object.keys(cartByArtisan).length > 0) {
+      loadDeliveryOptions();
+    }
+  }, [cartByArtisan]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔄 Cart state changed:', { 
+      cart: cart.length, 
+      cartByArtisan: Object.keys(cartByArtisan).length, 
+      currentUserId 
+    });
+  }, [cart, cartByArtisan, currentUserId]);
+
+  // Monitor payment methods state changes for debugging
+  useEffect(() => {
+    console.log('💳 Payment methods state changed:', { paymentMethods, selectedPaymentMethod });
+  }, [paymentMethods, selectedPaymentMethod]);
+
+  // Monitor cart total changes for animation
+  const [cartTotal, setCartTotal] = useState(0);
+  useEffect(() => {
+    const newTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    if (newTotal !== cartTotal) {
+      setCartTotal(newTotal);
+    }
+  }, [cart, cartTotal]);
+
+  // Render loading skeleton
+  if (cartLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Payment Information</h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Order Summary */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
-                <div className="space-y-3">
-                  {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                    <div key={artisanId} className="border rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {artisanData.artisan?.artisanName || 'Unknown Artisan'}
-                      </h4>
-                      <div className="space-y-2">
-                        {artisanData.items.map(item => (
-                          <div key={item._id} className="flex justify-between text-sm">
-                            <span>{item.name} x {item.quantity}</span>
-                            <span>{formatPrice(item.price * item.quantity)}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t pt-2 mt-2">
-                        <div className="flex justify-between font-medium">
-                          <span>Subtotal:</span>
-                          <span>{formatPrice(artisanData.subtotal)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total:</span>
-                    <span>{formatPrice(getTotalAmount())}</span>
-                  </div>
-                </div>
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="animate-pulse">
+            <div className="h-12 bg-stone-200 rounded-2xl w-1/3 mb-8"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-48 bg-white rounded-2xl shadow-lg"></div>
+                ))}
               </div>
-
-              {/* Payment Form */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
-                
-                {/* Saved Payment Methods - Only show for authenticated users */}
-                {!isGuest && (
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-gray-700">Payment Methods</h4>
-                      <button
-                        onClick={() => setShowAddPaymentMethod(!showAddPaymentMethod)}
-                        className="flex items-center text-sm text-orange-600 hover:text-orange-700"
-                      >
-                        <PlusCircleIcon className="w-4 h-4 mr-1" />
-                        Add New Card
-                      </button>
-                    </div>
-                    
-                    {isLoadingPaymentMethods ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto"></div>
-                        <p className="text-sm text-gray-600 mt-2">Loading payment methods...</p>
-                      </div>
-                    ) : paymentMethods.length > 0 ? (
-                      <div className="space-y-2">
-                        {paymentMethods.map((payment) => (
-                          <div
-                            key={payment._id}
-                            onClick={async () => {
-                              setSelectedPaymentMethod(payment);
-                              setPaymentForm({
-                                cardNumber: `**** **** **** ${payment.last4}`,
-                                expiryMonth: payment.expiryMonth.toString().padStart(2, '0'),
-                                expiryYear: payment.expiryYear.toString(),
-                                cvv: '',
-                                cardholderName: payment.cardholderName
-                              });
-                              
-                              // For authenticated users, ensure we have the latest profile data
-                              if (isAuthenticated && !isGuest) {
-                                try {
-                          
-                                  await loadUserProfile();
-                                } catch (error) {
-                                  console.error('❌ Error refreshing profile data:', error);
-                                }
-                              }
-                            }}
-                            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                              selectedPaymentMethod?._id === payment._id
-                                ? 'border-orange-500 bg-orange-50'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  {payment.type === 'credit_card' ? 'Credit Card' : 'Debit Card'} 
-                                  {payment.isDefault && <span className="text-xs text-orange-600"> (Default)</span>}
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  **** **** **** {payment.last4} • Expires {payment.expiryMonth}/{payment.expiryYear}
-                                </div>
-                                <div className="text-sm text-gray-600">
-                                  {payment.cardholderName}
-                                </div>
-                              </div>
-                              {selectedPaymentMethod?._id === payment._id && (
-                                <CheckIcon className="w-5 h-5 text-orange-500" />
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
-                        <CreditCardIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">No saved payment methods</p>
-                        <p className="text-xs text-gray-500">Add a payment method to speed up checkout</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Add New Payment Method Form */}
-                {!isGuest && showAddPaymentMethod && (
-                  <div className="mb-6 p-4 border border-orange-200 rounded-lg bg-orange-50">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-sm font-medium text-orange-800">Add New Payment Method</h4>
-                      <button
-                        onClick={() => setShowAddPaymentMethod(false)}
-                        className="text-orange-600 hover:text-orange-700"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-orange-700 mb-1">
-                          Card Number
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="1234 5678 9012 3456"
-                          className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="block text-xs font-medium text-orange-700 mb-1">
-                            Expiry
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="MM/YY"
-                            className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-orange-700 mb-1">
-                            CVV
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="123"
-                            className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-orange-700 mb-1">
-                            Name
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="Cardholder Name"
-                            className="w-full px-3 py-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <button className="flex-1 bg-orange-600 text-white py-2 px-3 rounded-lg text-sm hover:bg-orange-700 transition-colors">
-                          Save Card
-                        </button>
-                        <button 
-                          onClick={() => setShowAddPaymentMethod(false)}
-                          className="flex-1 bg-gray-200 text-gray-700 py-2 px-3 rounded-lg text-sm hover:bg-gray-300 transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Guest User Notice */}
-                {isGuest && (
-                  <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-orange-600 text-xs">ℹ</span>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-orange-800">Guest Checkout</h4>
-                        <p className="text-sm text-orange-700">Please enter your payment information below. Your payment details will be securely processed.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Manual Payment Form */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentForm.cardNumber}
-                      onChange={(e) => setPaymentForm({...paymentForm, cardNumber: e.target.value})}
-                      placeholder="1234 5678 9012 3456"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Expiry Date
-                      </label>
-                      <input
-                        type="text"
-                        value={`${paymentForm.expiryMonth}/${paymentForm.expiryYear}`}
-                        onChange={(e) => {
-                          const [month, year] = e.target.value.split('/');
-                          setPaymentForm({
-                            ...paymentForm, 
-                            expiryMonth: month || '', 
-                            expiryYear: year || ''
-                          });
-                        }}
-                        placeholder="MM/YY"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        CVV
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentForm.cvv}
-                        onChange={(e) => setPaymentForm({...paymentForm, cvv: e.target.value})}
-                        placeholder="123"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cardholder Name
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentForm.cardholderName}
-                      onChange={(e) => setPaymentForm({...paymentForm, cardholderName: e.target.value})}
-                      placeholder="John Doe"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                
-                <div className="mt-6 space-y-3">
-                  <button
-                    onClick={handlePlaceOrder}
-                    disabled={isLoading}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCardIcon className="w-5 h-5 mr-2" />
-                        Place Order - {formatPrice(getTotalAmount())}
-                      </>
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={() => setCheckoutStep('delivery')}
-                    className="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Back to Delivery
-                  </button>
-                </div>
+              <div className="lg:col-span-1">
+                <div className="h-64 bg-white rounded-2xl shadow-lg"></div>
               </div>
             </div>
           </div>
@@ -811,510 +643,805 @@ export default function Cart() {
     );
   }
 
-  if (checkoutStep === 'delivery') {
-    return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Delivery Information</h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Order Summary */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
-                <div className="space-y-3">
-                  {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                    <div key={artisanId} className="border rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-2">
-                        {artisanData.artisan?.artisanName || 'Unknown Artisan'}
-                      </h4>
-                      <div className="space-y-2">
-                        {artisanData.items.map(item => (
-                          <div key={item._id} className="flex justify-between text-sm">
-                            <span>{item.name} x {item.quantity}</span>
-                            <span>{formatPrice(item.price * item.quantity)}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t pt-2 mt-2">
-                        <div className="flex justify-between font-medium">
-                          <span>Subtotal:</span>
-                          <span>{formatPrice(artisanData.subtotal)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total:</span>
-                    <span>{formatPrice(getTotalAmount())}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Delivery Form */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Delivery Address</h3>
-                
-                {/* Saved Addresses - Only show for authenticated users */}
-                {!isGuest && userProfile?.addresses && userProfile.addresses.length > 0 && (
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Saved Addresses</h4>
-                    <div className="space-y-2">
-                      {userProfile.addresses.map((address, index) => (
-                        <div
-                          key={address._id}
-                          onClick={() => {
-                            setSelectedAddress(address);
-                            setDeliveryForm({
-                              street: address.street,
-                              city: address.city,
-                              state: address.state,
-                              zipCode: address.zipCode,
-                              country: address.country
-                            });
-                          }}
-                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                            selectedAddress?._id === address._id
-                              ? 'border-emerald-500 bg-emerald-50'
-                              : 'border-amber-200 hover:border-amber-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-slate-800">
-                                {address.label} {address.isDefault && <span className="text-xs text-emerald-600">(Default)</span>}
-                              </div>
-                              <div className="text-sm text-slate-600">
-                                {address.street}, {address.city}, {address.state} {address.zipCode}
-                              </div>
-                            </div>
-                            {selectedAddress?._id === address._id && (
-                              <CheckIcon className="w-5 h-5 text-emerald-500" />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Guest User Notice */}
-                {isGuest && (
-                  <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-orange-600 text-xs">ℹ</span>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-orange-800">Guest Checkout</h4>
-                        <p className="text-sm text-orange-700">Please enter your delivery address below. You can create an account after checkout to save your information for future orders.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Manual Address Form */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Street Address
-                    </label>
-                    <input
-                      type="text"
-                      value={deliveryForm.street}
-                      onChange={(e) => setDeliveryForm({...deliveryForm, street: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        City
-                      </label>
-                      <input
-                        type="text"
-                        value={deliveryForm.city}
-                        onChange={(e) => setDeliveryForm({...deliveryForm, city: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Province
-                      </label>
-                      <input
-                        type="text"
-                        value={deliveryForm.state}
-                        onChange={(e) => setDeliveryForm({...deliveryForm, state: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Postal Code
-                      </label>
-                      <input
-                        type="text"
-                        value={deliveryForm.zipCode}
-                        onChange={(e) => setDeliveryForm({...deliveryForm, zipCode: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Country
-                      </label>
-                      <input
-                        type="text"
-                        value={deliveryForm.country}
-                        onChange={(e) => setDeliveryForm({...deliveryForm, country: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Delivery Instructions (Optional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="Any special delivery instructions..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                
-                <div className="mt-6 space-y-3">
-                  <button
-                    onClick={handleContinueToPayment}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center"
-                  >
-                    <TruckIcon className="w-5 h-5 mr-2" />
-                    Continue to Payment
-                  </button>
-                  
-                  <button
-                    onClick={() => setCheckoutStep('cart')}
-                    className="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Back to Cart
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Main cart view
+  // Render empty cart
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ShoppingBagIcon className="w-12 h-12 text-gray-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
-          <p className="text-gray-600 mb-6">
-            Start shopping to add items to your cart
-          </p>
-
-          <div className="space-x-2">
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
+              <ShoppingBagIcon className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-stone-900 mb-4 animate-fade-in">Your Collection Awaits</h1>
+            <p className="text-stone-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
             <button
               onClick={() => navigate('/')}
-              className="bg-orange-500 text-white py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors"
+              className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 animate-fade-in-delay-2"
             >
-              Start Shopping
+              Discover Artisans
             </button>
-            
-
           </div>
-
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Shopping Cart</h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-600">{getTotalItems()} items</span>
-              
-
+  // Render main cart view
+  if (checkoutStep === 'cart') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8 relative">
+        {/* Loading Overlay */}
+        {updatingItems.size > 0 && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4">
+              <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin"></div>
+              <p className="text-lg font-semibold text-stone-700">Updating Cart...</p>
+              <p className="text-sm text-stone-500">Please wait while we update your selection</p>
             </div>
           </div>
-
-          <div className="space-y-6">
-            {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-              <div key={artisanId} className="border rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-orange-600 font-semibold">
-                        {artisanData.artisan?.artisanName?.[0] || 'A'}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {artisanData.artisan?.artisanName || 'Unknown Artisan'}
-                      </h3>
-                      <p className="text-sm text-gray-600 capitalize">
-                        {artisanData.artisan?.type || 'Artisan'} • {deliveryOptions[artisanId]?.pickup?.available ? 'Pickup Available' : ''} {deliveryOptions[artisanId]?.personalDelivery?.available ? '• Personal Delivery Available' : ''} {deliveryOptions[artisanId]?.professionalDelivery?.available ? '• Professional Delivery Available' : ''}
-                      </p>
+        )}
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
+              <ShoppingBagIcon className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-stone-900 mb-2">Your Artisan Collection</h1>
+              <p className="text-lg text-stone-600">Review the beautiful creations you've selected from our artisans</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Cart Items */}
+            <div className="lg:col-span-2 space-y-4">
+              {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
+                <div key={artisanId} className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6 hover:shadow-2xl hover:border-stone-200 transition-all duration-300">
+                  {/* Artisan Header */}
+                  <div className="border-b border-stone-200 pb-4 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-semibold text-stone-900">
+                          {artisanData.artisan?.artisanName || 'Unknown Artisan'}
+                        </h3>
+                        <p className="text-stone-600 text-sm capitalize">
+                          {artisanData.artisan?.type?.replace('_', ' ') || 'Artisan'}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center">
+                        <UserIcon className="w-6 h-6 text-white" />
+                      </div>
                     </div>
                   </div>
-                  
-                  {/* Delivery Options */}
-                  {deliveryOptions[artisanId] && (
-                    <div className="flex flex-wrap gap-2">
-                      {deliveryOptions[artisanId].pickup.available && (
-                        <button
-                          onClick={() => setSelectedDeliveryMethods({
-                            ...selectedDeliveryMethods,
-                            [artisanId]: 'pickup'
-                          })}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            selectedDeliveryMethods[artisanId] === 'pickup'
-                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+
+                  {/* Delivery Options Tags */}
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {deliveryOptions[artisanId]?.pickup?.available && (
+                      <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                        <CheckIcon className="w-3 h-3" />
+                        Pickup Available
+                      </span>
+                    )}
+                    {deliveryOptions[artisanId]?.personalDelivery?.available && (
+                      <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-200 flex items-center gap-1">
+                        <TruckIcon className="w-3 h-3" />
+                        Personal Delivery: ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
+                        {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
+                          ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
+                        }
+                      </span>
+                    )}
+                    {deliveryOptions[artisanId]?.professionalDelivery?.available && (
+                      <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-200 flex items-center gap-1">
+                        <TruckIcon className="w-3 h-3" />
+                        Professional Delivery Available
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Cart Items */}
+                  <div className="space-y-4">
+                    {artisanData.items.map((item) => (
+                                              <div 
+                          key={item._id} 
+                          className={`flex items-center space-x-4 border-b border-stone-100 pb-4 last:border-b-0 transition-all duration-300 ease-in-out ${
+                            updatingItems.has(item._id) ? 'animate-pulse' : ''
+                          } ${
+                            successItems.has(item._id) ? 'ring-2 ring-emerald-200 bg-emerald-50' : ''
                           }`}
+                          style={{
+                            opacity: updatingItems.has(item._id) ? 0.7 : 1,
+                            transform: updatingItems.has(item._id) ? 'scale(0.98)' : 'scale(1)'
+                          }}
                         >
-                          🏪 Pickup
-                        </button>
-                      )}
-                      {deliveryOptions[artisanId].personalDelivery.available && isPersonalDeliveryAvailable(artisanId) && (
+                        <div className="relative">
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-20 h-20 object-cover rounded-xl shadow-md"
+                          />
+                          <div className="absolute -top-2 -right-2 bg-amber-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                            {item.quantity}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-stone-900 text-lg mb-1">{item.name}</h4>
+                          <p className="text-sm text-stone-600 line-clamp-2 mb-2">{item.description}</p>
+                          <p className="text-sm text-stone-500 font-medium">
+                            {item.unit} • {formatPrice(item.price)}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleQuantityChange(item._id, item.quantity - 1)}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                              item.quantity <= 1 || updatingItems.has(item._id)
+                                ? 'bg-stone-100 text-stone-400 cursor-not-allowed' 
+                                : 'bg-stone-100 hover:bg-stone-200 text-stone-700 hover:scale-110'
+                            }`}
+                            disabled={item.quantity <= 1 || updatingItems.has(item._id)}
+                          >
+                            {updatingItems.has(item._id) ? (
+                              <div className="w-4 h-4 border-2 border-stone-400 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <MinusIcon className="w-4 h-4" />
+                            )}
+                          </button>
+                          <span className="w-12 text-center font-semibold text-stone-900 select-none">
+                            {updatingItems.has(item._id) ? '...' : item.quantity}
+                          </span>
+                          <button
+                            onClick={() => handleQuantityChange(item._id, item.quantity + 1)}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                              updatingItems.has(item._id)
+                                ? 'bg-amber-100 text-amber-400 cursor-not-allowed'
+                                : 'bg-amber-100 hover:bg-amber-200 text-amber-700 hover:scale-110 group'
+                            }`}
+                            disabled={updatingItems.has(item._id)}
+                          >
+                            {updatingItems.has(item._id) ? (
+                              <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              <PlusIcon className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
+                            )}
+                          </button>
+                        </div>
+                        <div className="text-right min-w-[80px]">
+                          <p className="font-bold text-lg text-stone-900 transition-all duration-300 ease-in-out">
+                            {formatPrice(item.price * item.quantity)}
+                          </p>
+                          {successItems.has(item._id) && (
+                            <div className="flex items-center justify-end mt-1">
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                              <span className="text-xs text-emerald-600 ml-1 font-medium">Updated</span>
+                            </div>
+                          )}
+                        </div>
                         <button
-                          onClick={() => setSelectedDeliveryMethods({
-                            ...selectedDeliveryMethods,
-                            [artisanId]: 'personalDelivery'
-                          })}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            selectedDeliveryMethods[artisanId] === 'personalDelivery'
-                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          onClick={() => handleQuantityChange(item._id, 0)}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 group ${
+                            updatingItems.has(item._id)
+                              ? 'bg-red-100 text-red-400 cursor-not-allowed'
+                              : 'bg-red-100 hover:bg-red-200 text-red-600'
                           }`}
+                          title="Remove item"
+                          disabled={updatingItems.has(item._id)}
                         >
-                          🚚 Personal Delivery
-                          {deliveryOptions[artisanId].personalDelivery.fee > 0 && (
-                            <span className="ml-1">(+${deliveryOptions[artisanId].personalDelivery.fee})</span>
+                          {updatingItems.has(item._id) ? (
+                            <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <TrashIcon className="w-4 h-4 group-hover:scale-110 transition-transform duration-200" />
                           )}
                         </button>
-                      )}
-                      {deliveryOptions[artisanId].personalDelivery.available && !isPersonalDeliveryAvailable(artisanId) && (
-                        <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-400 cursor-not-allowed">
-                          🚚 Personal Delivery (Outside Range)
-                        </div>
-                      )}
-                      {deliveryOptions[artisanId].professionalDelivery.available && (
-                        <button
-                          onClick={() => setSelectedDeliveryMethods({
-                            ...selectedDeliveryMethods,
-                            [artisanId]: 'professionalDelivery'
-                          })}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            selectedDeliveryMethods[artisanId] === 'professionalDelivery'
-                              ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Artisan Subtotal */}
+                  <div className="mt-6 pt-4 border-t border-stone-200">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-semibold text-stone-700">Subtotal:</span>
+                      <span className="text-xl font-bold text-stone-900 transition-all duration-300 ease-in-out">
+                        {formatPrice(artisanData.subtotal)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6 sticky top-8">
+                <h3 className="text-xl font-semibold text-stone-900 mb-6">Order Summary</h3>
+                
+                                  <div className="space-y-4 mb-6">
+                    <div className="flex justify-between items-center">
+                      <span className="text-stone-600">Subtotal:</span>
+                      <span className="font-semibold text-stone-900 text-lg transition-all duration-300 ease-in-out">
+                        {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
+                      </span>
+                    </div>
+                    <div className="border-t border-stone-200 pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-stone-600">Total:</span>
+                        <span 
+                          className={`font-bold text-stone-900 text-xl transition-all duration-300 ease-in-out ${
+                            cartTotal !== cart.reduce((total, item) => total + (item.price * item.quantity), 0) 
+                              ? 'animate-bounce-subtle text-amber-600' 
+                              : ''
                           }`}
                         >
-                          🚛 Professional Delivery
-                          <span className="ml-1">(Uber Direct)</span>
-                        </button>
-                      )}
+                          {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
+                        </span>
+                      </div>
+                      <p className="text-xs text-stone-500 mt-1">Delivery fees will be calculated based on your selection</p>
+                    </div>
+                  </div>
+
+                <button
+                  onClick={handleNextStep}
+                  className="w-full btn-primary text-lg py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                >
+                  Choose Your Delivery Method
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render delivery information page
+  if (checkoutStep === 'delivery') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
+              <TruckIcon className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-stone-900 mb-2">How would you like to receive your order?</h1>
+              <p className="text-lg text-stone-600">Choose your preferred way to connect with our artisans</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column - Delivery Options and Address */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+                {/* Step 1: Delivery Options */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-stone-900 mb-6 flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">1</span>
+                    </div>
+                    Choose Your Connection Method
+                  </h2>
+                  
+                  {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
+                    <div key={artisanId} className="mb-8 p-6 border border-stone-200 rounded-2xl bg-gradient-to-br from-stone-50 to-white hover:shadow-xl transition-all duration-300">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-stone-900">
+                            {artisanData.artisan?.artisanName || 'Unknown Artisan'}
+                          </h3>
+                          <p className="text-stone-600">Select how you'd like to receive your order</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {deliveryOptions[artisanId]?.pickup?.available && (
+                          <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50 transition-all duration-300 cursor-pointer group">
+                            <input
+                              type="radio"
+                              name={`delivery-${artisanId}`}
+                              value="pickup"
+                              checked={selectedDeliveryMethods[artisanId] === 'pickup'}
+                              onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
+                              className="text-emerald-600 w-6 h-6"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                                  <MapPinIcon className="w-4 h-4 text-emerald-600" />
+                                </div>
+                                <div>
+                                  <span className="text-stone-900 font-bold text-lg">Visit the Artisan</span>
+                                  <span className="text-emerald-600 text-sm font-semibold ml-2">(Free Pickup)</span>
+                                </div>
+                              </div>
+                              <p className="text-stone-600 text-sm">Experience the artisan's space and connect personally</p>
+                            </div>
+                          </label>
+                        )}
+                        
+                        {deliveryOptions[artisanId]?.personalDelivery?.available && (
+                          <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-amber-300 hover:bg-amber-50 transition-all duration-300 cursor-pointer group">
+                            <input
+                              type="radio"
+                              name={`delivery-${artisanId}`}
+                              value="personalDelivery"
+                              checked={selectedDeliveryMethods[artisanId] === 'personalDelivery'}
+                              onChange={() => handleDeliveryMethodChange(artisanId, 'personalDelivery')}
+                              className="text-amber-600 w-6 h-6"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                                  <TruckIcon className="w-4 h-4 text-amber-600" />
+                                </div>
+                                <div>
+                                  <span className="text-stone-900 font-bold text-lg">Personal Delivery</span>
+                                  <span className="text-stone-600 text-sm ml-2">
+                                    ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
+                                    {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
+                                      ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                              <p className="text-stone-600 text-sm">The artisan personally delivers to your doorstep</p>
+                            </div>
+                          </label>
+                        )}
+                        
+                        {deliveryOptions[artisanId]?.professionalDelivery?.available && (
+                          <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-purple-300 hover:bg-purple-50 transition-all duration-300 cursor-pointer group">
+                            <input
+                              type="radio"
+                              name={`delivery-${artisanId}`}
+                              value="professionalDelivery"
+                              checked={selectedDeliveryMethods[artisanId] === 'professionalDelivery'}
+                              onChange={() => handleDeliveryMethodChange(artisanId, 'professionalDelivery')}
+                              className="text-purple-600 w-6 h-6"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                  <ShieldCheckIcon className="w-4 h-4 text-purple-600" />
+                                </div>
+                                <div>
+                                  <span className="text-stone-900 font-bold text-lg">Professional Delivery</span>
+                                  <span className="text-stone-600 text-sm ml-2">(Uber Direct - $15)</span>
+                                </div>
+                              </div>
+                              <p className="text-stone-600 text-sm">Reliable, tracked delivery with professional service</p>
+                            </div>
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Address Requirement Notice */}
+                <div className="mb-6">
+                  {isAddressRequired() ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-blue-600" />
+                      <p className="text-blue-800 text-sm font-medium">
+                        Address required for selected delivery methods
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+                      <CheckIcon className="w-5 h-5 text-emerald-600" />
+                      <p className="text-emerald-800 text-sm font-medium">
+                        No address required for pickup orders
+                      </p>
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  {artisanData.items.map(item => (
-                    <div key={item._id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                      {/* Product Image */}
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        {item.image ? (
-                          <img
-                            src={item.image.startsWith('http') ? item.image : item.image}
-                            alt={item.name}
-                            className="w-full h-full object-cover rounded-lg"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="w-full h-full flex items-center justify-center" style={{ display: item.image ? 'none' : 'flex' }}>
-                          <span className="text-2xl">📦</span>
+                {/* Step 2: Delivery Address */}
+                {isAddressRequired() && (
+                  <div className="mb-8">
+                    <h2 className="text-2xl font-bold text-stone-900 mb-6 flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">2</span>
+                      </div>
+                      Where should we deliver your order?
+                    </h2>
+                    
+                    {/* User Addresses */}
+                    {userProfile?.addresses && userProfile.addresses.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
+                          <MapPinIcon className="w-5 h-5 text-blue-600" />
+                          Your Saved Addresses
+                        </h3>
+                        <div className="space-y-3">
+                          {userProfile.addresses.map((address, index) => (
+                            <label key={index} className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 cursor-pointer group">
+                              <input
+                                type="radio"
+                                name="saved-address"
+                                checked={selectedAddress === address}
+                                onChange={() => handleAddressSelect(address)}
+                                className="text-blue-600 w-6 h-6"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                    <MapPinIcon className="w-4 h-4 text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-stone-900">
+                                      {address.street}, {address.city}, {address.state} {address.zipCode}
+                                    </p>
+                                    <p className="text-sm text-stone-600">{address.country}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </label>
+                          ))}
                         </div>
                       </div>
+                    )}
 
-                      {/* Product Details */}
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{item.name}</h4>
-                        <p className="text-sm text-gray-600">{item.description}</p>
-                        <p className="text-sm text-gray-500">per {item.unit}</p>
+                    {/* Manual Address Form */}
+                    <div className="border-t border-stone-200 pt-6">
+                      <h3 className="font-semibold text-stone-900 mb-4 flex items-center gap-2">
+                        <PlusIcon className="w-5 h-5 text-green-600" />
+                        Or Add a New Address
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">Street Address</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.street}
+                            onChange={(e) => handleDeliveryFormChange('street', e.target.value)}
+                            className="input-field"
+                            placeholder="123 Main St"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">City</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.city}
+                            onChange={(e) => handleDeliveryFormChange('city', e.target.value)}
+                            className="input-field"
+                            placeholder="Montreal"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">State/Province</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.state}
+                            onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
+                            className="input-field"
+                            placeholder="Quebec"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">ZIP/Postal Code</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.zipCode}
+                            onChange={(e) => handleDeliveryFormChange('zipCode', e.target.value)}
+                            className="input-field"
+                            placeholder="H2K 3K2"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">Country</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.country}
+                            onChange={(e) => handleDeliveryFormChange('country', e.target.value)}
+                            className="input-field"
+                            placeholder="Canada"
+                          />
+                        </div>
                       </div>
-
-                      {/* Quantity Controls */}
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => updateQuantity(item._id, item.quantity - 1)}
-                          className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
-                        >
-                          <MinusIcon className="w-4 h-4" />
-                        </button>
-                        <span className="w-12 text-center font-medium">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item._id, item.quantity + 1)}
-                          className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center hover:bg-gray-300 transition-colors"
-                        >
-                          <PlusIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Price */}
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">
-                          {formatPrice(item.price * item.quantity)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {formatPrice(item.price)} each
-                        </p>
-                      </div>
-
-                      {/* Remove Button */}
-                      <button
-                        onClick={() => removeItem(item._id)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
                     </div>
-                  ))}
+                  </div>
+                )}
+
+                {/* Navigation Buttons */}
+                <div className="flex justify-between mt-8 pt-6 border-t border-stone-200">
+                  <button
+                    onClick={handlePreviousStep}
+                    className="btn-secondary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200"
+                  >
+                    <ArrowLeftIcon className="w-6 h-6 mr-3" />
+                    Review Your Selection
+                  </button>
+                  <button
+                    onClick={handleNextStep}
+                    className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                    disabled={isAddressRequired() && !selectedAddress && !deliveryForm.street}
+                  >
+                    Complete Your Order
+                    <ArrowRightIcon className="w-6 h-6 ml-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right Column - Cost Summary and Order Summary */}
+            <div className="lg:col-span-1">
+              <div className="space-y-6">
+                {/* Delivery Cost Summary */}
+                <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+                  <h3 className="font-bold text-stone-900 mb-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                      <TruckIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-lg">Delivery Summary</span>
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
+                      const deliveryFee = getDeliveryFeeForArtisan(artisanId);
+                      const selectedMethod = selectedDeliveryMethods[artisanId];
+                      
+                      return (
+                        <div key={artisanId} className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
+                          <span className="font-medium text-stone-700">{artisanData.artisan?.artisanName || 'Unknown Artisan'}:</span>
+                          <span className={`font-semibold ${
+                            selectedMethod === 'pickup' ? 'text-emerald-600' : 
+                            selectedMethod === 'personalDelivery' ? 
+                              (deliveryFee > 0 ? 'text-amber-600' : 'text-emerald-600') :
+                            selectedMethod === 'professionalDelivery' ? 'text-purple-600' : 'text-stone-500'
+                          }`}>
+                            {selectedMethod === 'pickup' ? 'Free Pickup' : 
+                             selectedMethod === 'personalDelivery' ? 
+                               (deliveryFee > 0 ? `$${deliveryFee}` : 'Free Delivery') :
+                             selectedMethod === 'professionalDelivery' ? '$15' : 'Not Selected'
+                            }
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <div className="border-t border-stone-200 pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-stone-800">Total Delivery:</span>
+                        <span className="font-bold text-lg text-stone-900">{formatPrice(getTotalDeliveryFees())}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="border-t pt-4 mt-4">
-                  <div className="flex justify-between font-medium">
-                    <span>Subtotal:</span>
-                    <span>{formatPrice(artisanData.subtotal)}</span>
+                {/* Order Summary */}
+                <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+                  <h3 className="font-bold text-stone-900 mb-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
+                      <ShoppingBagIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-lg">Order Summary</span>
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
+                      <span className="text-stone-600">Subtotal:</span>
+                      <span className="font-semibold text-stone-900">
+                        {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
+                      <span className="text-stone-600">Delivery Fees:</span>
+                      <span className="font-semibold text-stone-900">{formatPrice(getTotalDeliveryFees())}</span>
+                    </div>
+                    <div className="border-t border-stone-200 pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold text-stone-800 text-lg">Total:</span>
+                        <span className="font-bold text-xl text-stone-900">{formatPrice(getTotalAmount())}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
+        </div>
+      </div>
+    );
+  }
 
-          {/* Cart Summary */}
-          <div className="border-t pt-6 mt-6">
-            {/* Delivery Fee Breakdown */}
-            {getTotalDeliveryFees() > 0 && (
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">Delivery Fees</h4>
-                <div className="space-y-2">
-                  {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
-                    const selectedMethod = selectedDeliveryMethods[artisanId];
-                    const deliveryOptions = deliveryOptions[artisanId];
-                    
-                    if (!selectedMethod || !deliveryOptions) return null;
-                    
-                    let fee = 0;
-                    let methodName = '';
-                    
-                    if (selectedMethod === 'personalDelivery' && deliveryOptions.personalDelivery?.available) {
-                      const subtotal = artisanData.subtotal;
-                      const baseFee = deliveryOptions.personalDelivery.fee || 0;
-                      const freeThreshold = deliveryOptions.personalDelivery.freeThreshold || 0;
-                      
-                      if (subtotal < freeThreshold) {
-                        fee = baseFee;
-                        methodName = 'Personal Delivery';
-                      }
-                    } else if (selectedMethod === 'professionalDelivery' && deliveryOptions.professionalDelivery?.available) {
-                      fee = calculateUberDirectFee(artisanId);
-                      methodName = 'Professional Delivery (Uber Direct)';
-                    }
-                    
-                    if (fee > 0) {
-                      return (
-                        <div key={artisanId} className="flex justify-between text-sm">
-                          <span>{artisanData.artisan?.artisanName || 'Artisan'} - {methodName}</span>
-                          <span>{formatPrice(fee)}</span>
+  // Render payment page (placeholder)
+  if (checkoutStep === 'payment') {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center mb-8">
+            <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+              <CreditCardIcon className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-stone-900">Payment Information</h1>
+          </div>
+          
+          <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+            {!isGuest && paymentMethods.length > 0 ? (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
+                
+                {/* Saved Payment Methods */}
+                <div className="space-y-3">
+                  {paymentMethods.map((method) => (
+                    <label key={method._id} className="flex items-center space-x-3 p-4 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all duration-200 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payment-method"
+                        checked={selectedPaymentMethod?._id === method._id}
+                        onChange={() => setSelectedPaymentMethod(method)}
+                        className="text-amber-600 w-5 h-5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CreditCardIcon className="w-5 h-5 text-stone-500" />
+                          <span className="font-medium text-stone-900">
+                            {method.brand?.toUpperCase()} •••• {method.last4}
+                          </span>
+                          {method.isDefault && (
+                            <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">
+                              Default
+                            </span>
+                          )}
                         </div>
-                      );
-                    }
-                    
-                    return null;
-                  })}
+                        <p className="text-sm text-stone-600">
+                          Expires {method.expiryMonth}/{method.expiryYear}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                
+                {/* Add New Payment Method Button */}
+                <button
+                  onClick={() => setShowAddPaymentForm(true)}
+                  className="btn-outline w-full"
+                >
+                  Add New Payment Method
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <CreditCardIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-stone-900 mb-2">No Payment Methods</h3>
+                <p className="text-stone-600 mb-4">
+                  {isGuest ? 'Guest users need to add payment information to complete their order.' : 'Add a payment method to complete your order.'}
+                </p>
+                <button
+                  onClick={() => setShowAddPaymentForm(true)}
+                  className="btn-primary"
+                >
+                  Add Payment Method
+                </button>
+              </div>
+            )}
+            
+            {/* Add Payment Method Form */}
+            {showAddPaymentForm && (
+              <div className="mt-8 p-6 bg-stone-50 rounded-2xl border border-stone-200">
+                <h3 className="text-lg font-semibold text-stone-900 mb-4">Add New Payment Method</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-stone-700 mb-2">Card Number</label>
+                    <input
+                      type="text"
+                      value={newPaymentForm.cardNumber}
+                      onChange={(e) => handlePaymentFormChange('cardNumber', e.target.value)}
+                      className="input-field"
+                      placeholder="1234 5678 9012 3456"
+                      maxLength="19"
+                    />
+                    {paymentFormErrors.cardNumber && (
+                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cardNumber}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">Cardholder Name</label>
+                    <input
+                      type="text"
+                      value={newPaymentForm.cardholderName}
+                      onChange={(e) => handlePaymentFormChange('cardholderName', e.target.value)}
+                      className="input-field"
+                      placeholder="John Doe"
+                    />
+                    {paymentFormErrors.cardholderName && (
+                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cardholderName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">Expiry Date</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={newPaymentForm.expiryMonth}
+                        onChange={(e) => handlePaymentFormChange('expiryMonth', e.target.value)}
+                        className="input-field"
+                        placeholder="MM"
+                        maxLength="2"
+                      />
+                      <input
+                        type="text"
+                        value={newPaymentForm.expiryYear}
+                        onChange={(e) => handlePaymentFormChange('expiryYear', e.target.value)}
+                        className="input-field"
+                        placeholder="YY"
+                        maxLength="2"
+                      />
+                    </div>
+                    {paymentFormErrors.expiry && (
+                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.expiry}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-700 mb-2">CVV</label>
+                    <input
+                      type="text"
+                      value={newPaymentForm.cvv}
+                      onChange={(e) => handlePaymentFormChange('cvv', e.target.value)}
+                      className="input-field"
+                      placeholder="123"
+                      maxLength="4"
+                    />
+                    {paymentFormErrors.cvv && (
+                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cvv}</p>
+                    )}
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={newPaymentForm.isDefault}
+                        onChange={(e) => handlePaymentFormChange('isDefault', e.target.checked)}
+                        className="text-amber-600 w-4 h-4"
+                      />
+                      <span className="text-sm text-stone-700">Set as default payment method</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowAddPaymentForm(false)}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePaymentFormSubmit}
+                    disabled={paymentLoading}
+                    className="btn-primary"
+                  >
+                    {paymentLoading ? 'Adding...' : 'Add Payment Method'}
+                  </button>
                 </div>
               </div>
             )}
             
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-lg font-semibold">Total:</span>
-              <span className="text-2xl font-bold text-orange-600">
-                {formatPrice(getTotalAmount())}
-              </span>
+            <div className="flex justify-between">
+              <button
+                onClick={handlePreviousStep}
+                className="btn-secondary"
+              >
+                <ArrowLeftIcon className="w-5 h-5 mr-2" />
+                Back to Delivery
+              </button>
+              <button
+                onClick={handleCheckout}
+                className="btn-accent"
+              >
+                Complete Order
+                <CheckIcon className="w-5 h-5 ml-2" />
+              </button>
             </div>
-
-            {!isAuthenticated ? (
-              <div className="space-y-3">
-                <div className="text-center text-sm text-gray-600 mb-4">
-                  <p>Sign in to save your cart and track orders</p>
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => navigate('/login')}
-                    className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={handleCheckout}
-                    disabled={isLoading}
-                    className="flex-1 bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center disabled:opacity-50"
-                  >
-                    {isLoading ? (
-                      <span>Creating Guest Account...</span>
-                    ) : (
-                      <>
-                        <ShoppingBagIcon className="w-5 h-5 mr-2" />
-                        Continue as Guest
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => navigate('/')}
-                  className="flex-1 bg-gray-200 text-gray-800 py-3 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Continue Shopping
-                </button>
-                <button
-                  onClick={handleCheckout}
-                  className="flex-1 bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center"
-                >
-                  <ShoppingBagIcon className="w-5 h-5 mr-2" />
-                  {isGuest ? 'Continue as Guest' : 'Proceed to Checkout'}
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+
+  return null;
+};
+
+export default Cart;

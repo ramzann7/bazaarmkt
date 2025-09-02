@@ -84,6 +84,9 @@ export const deliveryService = {
 
   // Get delivery options for an artisan
   getDeliveryOptions: (artisan) => {
+    console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan);
+    console.log('🔄 Artisan deliveryOptions:', artisan.deliveryOptions);
+    
     const options = artisan.deliveryOptions || {
       pickup: true,
       delivery: false,
@@ -99,6 +102,16 @@ export const deliveryService = {
         restrictions: ''
       }
     };
+
+    // Debug logging for delivery options
+    console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan.artisanName);
+    console.log('🔄 Raw delivery options:', options);
+    console.log('🔄 Personal delivery availability check:', {
+      delivery: options.delivery,
+      deliveryRadius: options.deliveryRadius,
+      deliveryFee: options.deliveryFee,
+      willBeAvailable: options.delivery || (options.deliveryRadius > 0 && options.deliveryFee >= 0)
+    });
 
     // Determine pickup address
     let pickupAddress = artisan.pickupLocation || '';
@@ -128,14 +141,15 @@ export const deliveryService = {
         useBusinessAddress: artisan.pickupUseBusinessAddress || false
       },
       personalDelivery: {
-        available: options.delivery,
+        available: true, // Always show personal delivery option
         label: 'Personal Delivery',
-        description: `Personal delivery within ${options.deliveryRadius}km`,
+        description: options.deliveryRadius > 0 ? `Personal delivery within ${options.deliveryRadius}km` : 'Personal delivery available',
         fee: options.deliveryFee || 0,
         radius: options.deliveryRadius || 0,
         freeThreshold: options.freeDeliveryThreshold || 0,
         icon: '🚚',
-        instructions: artisan.deliveryInstructions || ''
+        instructions: artisan.deliveryInstructions || '',
+        properlyConfigured: options.delivery && options.deliveryRadius > 0 && options.deliveryFee >= 0
       },
       professionalDelivery: {
         available: options.professionalDelivery?.enabled || false,
@@ -246,5 +260,40 @@ export const deliveryService = {
       default:
         return '📦';
     }
+  },
+
+  // Structure delivery options for consistent use across components
+  structureDeliveryOptions: (artisanDeliveryOptions) => {
+    if (!artisanDeliveryOptions) {
+      return {
+        pickup: { available: false },
+        personalDelivery: { available: false },
+        professionalDelivery: { available: false }
+      };
+    }
+
+    const { pickup, delivery, deliveryRadius, deliveryFee, freeDeliveryThreshold } = artisanDeliveryOptions;
+    
+    return {
+      pickup: {
+        available: pickup || false,
+        location: artisanDeliveryOptions.pickupLocation || 'Artisan location',
+        instructions: artisanDeliveryOptions.pickupInstructions || '',
+        hours: artisanDeliveryOptions.pickupHours || 'Business hours'
+      },
+      personalDelivery: {
+        available: delivery || false,
+        radius: deliveryRadius || 0,
+        fee: deliveryFee || 0,
+        freeThreshold: freeDeliveryThreshold || 0,
+        instructions: artisanDeliveryOptions.deliveryInstructions || ''
+      },
+      professionalDelivery: {
+        available: artisanDeliveryOptions.professionalDelivery?.enabled || false,
+        serviceRadius: artisanDeliveryOptions.professionalDelivery?.serviceRadius || 25,
+        packaging: artisanDeliveryOptions.professionalDelivery?.packaging || 'Standard',
+        restrictions: artisanDeliveryOptions.professionalDelivery?.restrictions || 'None'
+      }
+    };
   }
 };

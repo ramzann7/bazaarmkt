@@ -87,7 +87,7 @@ router.get('/:id', async (req, res) => {
     console.log('Route /:id - includeProducts:', includeProducts);
     console.log('Route /:id - req.query:', req.query);
     
-    const artisan = await Artisan.findById(req.params.id)
+    let artisan = await Artisan.findById(req.params.id)
       .populate('user', 'firstName lastName email phone');
     
     if (!artisan) {
@@ -102,50 +102,20 @@ router.get('/:id', async (req, res) => {
       console.log('IncludeProducts parameter:', includeProducts);
       
       // Check if artisan has a valid user reference
-      if (artisan.user && artisan.user._id) {
-        try {
-          console.log('Searching for products with seller:', artisan.user._id);
-          const products = await Product.find({ 
-            seller: artisan.user._id, 
-            status: 'active' 
-          });
-          
-          console.log('Found products:', products.length);
-          console.log('Product names:', products.map(p => p.name));
-          
-          const productCount = await Product.countDocuments({ 
-            seller: artisan.user._id, 
-            status: 'active' 
-          });
-
-          console.log('Product count:', productCount);
-
-          return res.json({
-            ...artisan.toObject(),
-            products: products,
-            productCount: productCount
-          });
-        } catch (error) {
-          console.error(`Error fetching products for artisan ${artisan._id}:`, error);
-          return res.json({
-            ...artisan.toObject(),
-            products: [],
-            productCount: 0
-          });
-        }
-      } else {
-        console.log('No valid user reference found');
-        return res.json({
-          ...artisan.toObject(),
-          products: [],
-          productCount: 0
-        });
+      if (artisan.user?._id) {
+        const products = await Product.find({ 
+          seller: artisan.user._id,
+          status: 'active'
+        }).select('name price image category');
+        
+        artisan = artisan.toObject();
+        artisan.products = products;
       }
     }
 
     res.json(artisan);
   } catch (error) {
-    console.error('Error fetching artisan:', error);
+    console.error('Error fetching artisan by ID:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

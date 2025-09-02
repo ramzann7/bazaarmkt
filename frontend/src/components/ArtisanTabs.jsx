@@ -766,8 +766,8 @@ export function OperationsTab({ profile, onSave, isSaving }) {
             <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
             <input
               type="number"
-              value={operations.yearsInBusiness}
-              onChange={(e) => setOperations({ ...operations, yearsInBusiness: parseInt(e.target.value) })}
+              value={operations.yearsInBusiness || 0}
+              onChange={(e) => setOperations({ ...operations, yearsInBusiness: parseInt(e.target.value) || 0 })}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
               min="0"
               placeholder="e.g., 3"
@@ -1086,7 +1086,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
         state: profile.pickupAddress?.state || '',
         zipCode: profile.pickupAddress?.zipCode || ''
       },
-      schedule: {
+      schedule: profile.pickupSchedule || {
         monday: { enabled: false, open: '09:00', close: '17:00' },
         tuesday: { enabled: false, open: '09:00', close: '17:00' },
         wednesday: { enabled: false, open: '09:00', close: '17:00' },
@@ -1113,6 +1113,56 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
       restrictions: profile.deliveryOptions?.professionalDelivery?.restrictions || ''
     }
   });
+
+  // Update state when profile changes (e.g., when navigating to this tab)
+  React.useEffect(() => {
+    if (profile) {
+      console.log('🔄 DeliveryTab: Profile updated, refreshing delivery state');
+      console.log('🔄 Profile pickupSchedule:', profile.pickupSchedule);
+      console.log('🔄 Profile deliveryOptions:', profile.deliveryOptions);
+      
+      setDelivery({
+        pickup: {
+          enabled: profile.deliveryOptions?.pickup !== false,
+          location: profile.pickupLocation || '',
+          instructions: profile.pickupInstructions || '',
+          hours: profile.pickupHours || '',
+          useBusinessAddress: profile.pickupUseBusinessAddress !== false,
+          address: {
+            street: profile.pickupAddress?.street || '',
+            city: profile.pickupAddress?.city || '',
+            state: profile.pickupAddress?.state || '',
+            zipCode: profile.pickupAddress?.zipCode || ''
+          },
+          schedule: profile.pickupSchedule || {
+            monday: { enabled: false, open: '09:00', close: '17:00' },
+            tuesday: { enabled: false, open: '09:00', close: '17:00' },
+            wednesday: { enabled: false, open: '09:00', close: '17:00' },
+            thursday: { enabled: false, open: '09:00', close: '17:00' },
+            friday: { enabled: false, open: '09:00', close: '17:00' },
+            saturday: { enabled: false, open: '10:00', close: '16:00' },
+            sunday: { enabled: false, open: '10:00', close: '16:00' }
+          }
+        },
+        personalDelivery: {
+          enabled: profile.deliveryOptions?.delivery || false,
+          radius: profile.deliveryOptions?.deliveryRadius || 10,
+          fee: profile.deliveryOptions?.deliveryFee || 5,
+          freeThreshold: profile.deliveryOptions?.freeDeliveryThreshold || 50,
+          timeSlots: profile.deliveryTimeSlots || [],
+          instructions: profile.deliveryInstructions || ''
+        },
+        professionalDelivery: {
+          enabled: profile.deliveryOptions?.professionalDelivery?.enabled || false,
+          uberDirectEnabled: profile.deliveryOptions?.professionalDelivery?.uberDirectEnabled || false,
+          serviceRadius: profile.deliveryOptions?.professionalDelivery?.serviceRadius || 25,
+          regions: profile.deliveryOptions?.professionalDelivery?.regions || [],
+          packaging: profile.deliveryOptions?.professionalDelivery?.packaging || '',
+          restrictions: profile.deliveryOptions?.professionalDelivery?.restrictions || ''
+        }
+      });
+    }
+  }, [profile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1337,6 +1387,10 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 🕒 Pickup Schedule <span className="text-red-500">*</span>
               </label>
+              
+              {/* Debug info */}
+              {console.log('🔄 Rendering pickup schedule with data:', delivery.pickup.schedule)}
+              
               <div className="space-y-3">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
                   <div key={day} className="flex items-center space-x-4 p-3 border border-gray-200 rounded-lg bg-white">
@@ -1449,6 +1503,13 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
             <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
               💡 <strong>Great for:</strong> Building relationships with customers and ensuring product quality during delivery
             </div>
+            {!delivery.personalDelivery.enabled && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-xs text-yellow-800">
+                  ⚠️ <strong>Currently disabled:</strong> Enable this option to offer personal delivery to your customers
+                </p>
+              </div>
+            )}
           </div>
         </div>
         
@@ -1464,10 +1525,10 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                     type="range"
                     min="1"
                     max="50"
-                    value={delivery.personalDelivery.radius}
+                    value={delivery.personalDelivery.radius || 10}
                     onChange={(e) => setDelivery({ 
                       ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, radius: parseInt(e.target.value) } 
+                      personalDelivery: { ...delivery.personalDelivery, radius: parseInt(e.target.value) || 10 } 
                     })}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
                     required
@@ -1495,10 +1556,10 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                   </div>
                   <input
                     type="number"
-                    value={delivery.personalDelivery.fee}
+                    value={delivery.personalDelivery.fee || 0}
                     onChange={(e) => setDelivery({ 
                       ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, fee: parseFloat(e.target.value) } 
+                      personalDelivery: { ...delivery.personalDelivery, fee: parseFloat(e.target.value) || 0 } 
                     })}
                     className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                     min="0"
@@ -1567,10 +1628,10 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                   </div>
                   <input
                     type="number"
-                    value={delivery.personalDelivery.freeThreshold}
+                    value={delivery.personalDelivery.freeThreshold || 0}
                     onChange={(e) => setDelivery({ 
                       ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, freeThreshold: parseFloat(e.target.value) } 
+                      personalDelivery: { ...delivery.personalDelivery, freeThreshold: parseFloat(e.target.value) || 0 } 
                     })}
                     className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                     min="0"
@@ -1728,7 +1789,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                       ...delivery, 
                       professionalDelivery: { 
                         ...delivery.professionalDelivery, 
-                        serviceRadius: parseInt(e.target.value) 
+                        serviceRadius: parseInt(e.target.value) || 25 
                       } 
                     })}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"

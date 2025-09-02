@@ -453,8 +453,11 @@ export default function Home() {
           }
         }
 
+        // Enhance product with complete artisan data before adding to cart
+        const enhancedProduct = await enhanceProductWithArtisanData(selectedProduct);
+        
         // Use cartService to add to cart
-        await cartService.addToCart(selectedProduct, quantity, currentUserId);
+        await cartService.addToCart(enhancedProduct, quantity, currentUserId);
         
         toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
         setShowCartPopup(false);
@@ -470,6 +473,84 @@ export default function Home() {
       }
     };
   }, [selectedProduct, quantity]);
+
+  // Function to enhance product with complete artisan data
+  const enhanceProductWithArtisanData = async (product) => {
+    try {
+      // If product already has complete artisan data, return as is
+      if (product.artisan?._id && product.artisan?.deliveryOptions) {
+        return product;
+      }
+
+      // Fetch complete artisan data
+              const artisanId = product.artisan?._id || product.artisanId;
+      if (!artisanId) {
+        console.warn('Product missing artisan ID, cannot enhance:', product);
+        return product;
+      }
+
+      const response = await fetch(`/api/artisans/${artisanId}`);
+      if (!response.ok) {
+        console.warn('Failed to fetch artisan data for product:', product);
+        return product;
+      }
+
+      const artisanData = await response.json();
+      
+      // Enhance the product with complete artisan information
+      return {
+        ...product,
+        artisan: {
+          _id: artisanData._id,  // Artisan document ID
+          artisanName: artisanData.artisanName || artisanData.businessName || `${artisanData.firstName || ''} ${artisanData.lastName || ''}`.trim(),
+          type: artisanData.type || 'other',
+          address: artisanData.address,
+          deliveryOptions: artisanData.deliveryOptions || {
+            pickup: true,
+            delivery: false,
+            deliveryRadius: 0,
+            deliveryFee: 0,
+            freeDeliveryThreshold: 0,
+            professionalDelivery: {
+              enabled: false,
+              uberDirectEnabled: false,
+              serviceRadius: 25
+            }
+          },
+          pickupLocation: artisanData.pickupLocation,
+          pickupInstructions: artisanData.pickupInstructions,
+          pickupHours: artisanData.pickupHours,
+          deliveryInstructions: artisanData.deliveryInstructions
+        },
+        artisan: {
+          _id: artisanData._id,
+          artisanName: artisanData.artisanName || artisanData.businessName || `${artisanData.firstName || ''} ${artisanData.lastName || ''}`.trim(),
+          type: artisanData.type || 'other',
+          address: artisanData.address,
+          deliveryOptions: artisanData.deliveryOptions || {
+            pickup: true,
+            delivery: false,
+            deliveryRadius: 0,
+            deliveryFee: 0,
+            freeDeliveryThreshold: 0,
+            professionalDelivery: {
+              enabled: false,
+              uberDirectEnabled: false,
+              serviceRadius: 25
+            }
+          },
+          pickupLocation: artisanData.pickupLocation,
+          pickupInstructions: artisanData.pickupInstructions,
+          pickupHours: artisanData.pickupHours,
+          deliveryInstructions: artisanData.deliveryInstructions
+        },
+        artisanId: artisanData._id      // Set to Artisan ID
+      };
+    } catch (error) {
+      console.error('Error enhancing product with artisan data:', error);
+      return product; // Return original product if enhancement fails
+    }
+  };
 
   // Memoized product click handler
   const handleProductClick = useMemo(() => {
@@ -752,7 +833,7 @@ export default function Home() {
           {product.name}
         </h3>
         <p className="text-sm text-gray-500">
-          {product.artisan?.artisanName || `${product.seller?.firstName} ${product.seller?.lastName}`}
+          {product.artisan?.artisanName || 'Unknown Artisan'}
         </p>
         {showDistance && (product.distance || product.formattedDistance) && (
           <div className="mt-2">
@@ -1031,7 +1112,7 @@ export default function Home() {
                 <div className="flex-1">
                   <h4 className="text-lg font-semibold text-gray-900 mb-1">{selectedProduct.name}</h4>
                   <p className="text-sm text-gray-500 mb-2">
-                    {selectedProduct.artisan?.artisanName || `${selectedProduct.seller?.firstName} ${selectedProduct.seller?.lastName}`}
+                    {selectedProduct.artisan?.artisanName || 'Unknown Artisan'}
                   </p>
                   <div className="text-xl font-bold text-amber-600">{formatPrice(selectedProduct.price)}</div>
                 </div>

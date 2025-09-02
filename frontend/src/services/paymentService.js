@@ -1,30 +1,45 @@
 // src/services/paymentService.js
 import axios from 'axios';
 
-const API_URL = '/api';
+// Create axios instance for payment API calls
+const paymentApi = axios.create({
+  baseURL: '/api',
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add auth token to requests
+paymentApi.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export const paymentService = {
-  // Get user's payment methods
+  // Get user's saved payment methods
   getPaymentMethods: async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data.paymentMethods || [];
+      const response = await paymentApi.get('/profile/payment-methods');
+      return response.data;
     } catch (error) {
       console.error('Error fetching payment methods:', error);
-      return [];
+      throw error;
     }
   },
 
   // Add a new payment method
   addPaymentMethod: async (paymentData) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/profile/payment-methods`, paymentData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await paymentApi.post('/profile/payment-methods', paymentData);
       return response.data;
     } catch (error) {
       console.error('Error adding payment method:', error);
@@ -32,30 +47,13 @@ export const paymentService = {
     }
   },
 
-  // Update a payment method
-  updatePaymentMethod: async (paymentMethodId, paymentData) => {
+  // Remove a payment method
+  removePaymentMethod: async (paymentMethodId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.put(`${API_URL}/profile/payment-methods/${paymentMethodId}`, paymentData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await paymentApi.delete(`/profile/payment-methods/${paymentMethodId}`);
       return response.data;
     } catch (error) {
-      console.error('Error updating payment method:', error);
-      throw error;
-    }
-  },
-
-  // Delete a payment method
-  deletePaymentMethod: async (paymentMethodId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.delete(`${API_URL}/profile/payment-methods/${paymentMethodId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error deleting payment method:', error);
+      console.error('Error removing payment method:', error);
       throw error;
     }
   },
@@ -63,10 +61,7 @@ export const paymentService = {
   // Set default payment method
   setDefaultPaymentMethod: async (paymentMethodId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.patch(`${API_URL}/profile/payment-methods/${paymentMethodId}/default`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await paymentApi.patch(`/profile/payment-methods/${paymentMethodId}/default`);
       return response.data;
     } catch (error) {
       console.error('Error setting default payment method:', error);
@@ -74,166 +69,93 @@ export const paymentService = {
     }
   },
 
-  // Validate card number (Luhn algorithm) - More flexible for different card types
-  validateCardNumber: (cardNumber) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
-    
-    // Check if it's a test card number (for development)
-    const testCards = [
-      '4111111111111111', // Visa test
-      '5555555555554444', // Mastercard test
-      '378282246310005',  // Amex test
-      '6011111111111117', // Discover test
-      '4242424242424242', // Visa test
-      '4000056655665556', // Visa test
-      '5555555555554444', // Mastercard test
-      '2223003122003222', // Mastercard test
-      '5200828282828210', // Mastercard test
-      '5105105105105100', // Mastercard test
-      '378734493671000',  // Amex test
-      '371449635398431',  // Amex test
-      '6011111111111117', // Discover test
-      '6011000990139424', // Discover test
-      '3056930009020004', // Diners Club test
-      '3566002020360505', // JCB test
-    ];
-    
-    // Allow test cards in development
-    if (testCards.includes(cleanNumber)) {
-      return true;
+  // Process payment for an order
+  processPayment: async (orderData, paymentMethodId) => {
+    try {
+      const response = await paymentApi.post('/payments/process', {
+        orderData,
+        paymentMethodId
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      throw error;
     }
-    
-    // Basic format check - more flexible for different card types
-    if (!/^\d{13,19}$/.test(cleanNumber)) {
-      return false;
-    }
+  },
 
-    // Get card brand to validate length
-    const brand = paymentService.getCardBrand(cleanNumber);
-    const validLengths = {
-      'visa': [13, 16, 19],
-      'mastercard': [16],
-      'amex': [15],
-      'discover': [16, 19],
-      'diners': [14, 16, 19],
-      'jcb': [16, 19],
-      'unionpay': [16, 17, 18, 19],
-      'unknown': [13, 14, 15, 16, 17, 18, 19] // Allow unknown cards with standard lengths
-    };
+  // Validate credit card number (Luhn algorithm)
+  validateCreditCard: (cardNumber) => {
+    if (!cardNumber) return false;
     
-    const allowedLengths = validLengths[brand] || validLengths.unknown;
-    if (!allowedLengths.includes(cleanNumber.length)) {
-      return false;
-    }
-
-    // Luhn algorithm validation
+    // Remove spaces and dashes
+    const cleanNumber = cardNumber.replace(/\s+/g, '').replace(/-/g, '');
+    
+    // Check if it's all digits
+    if (!/^\d+$/.test(cleanNumber)) return false;
+    
+    // Luhn algorithm
     let sum = 0;
     let isEven = false;
-
+    
     for (let i = cleanNumber.length - 1; i >= 0; i--) {
       let digit = parseInt(cleanNumber[i]);
-
+      
       if (isEven) {
         digit *= 2;
         if (digit > 9) {
           digit -= 9;
         }
       }
-
+      
       sum += digit;
       isEven = !isEven;
     }
-
+    
     return sum % 10 === 0;
   },
 
-  // Get validation error message for card number
-  getCardNumberError: (cardNumber) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
+  // Format credit card number for display
+  formatCreditCardNumber: (cardNumber) => {
+    if (!cardNumber) return '';
     
-    if (!cleanNumber) {
-      return 'Card number is required';
-    }
+    const cleanNumber = cardNumber.replace(/\s+/g, '').replace(/-/g, '');
+    const groups = cleanNumber.match(/.{1,4}/g);
     
-    if (!/^\d+$/.test(cleanNumber)) {
-      return 'Card number must contain only digits';
-    }
-    
-    if (cleanNumber.length < 13) {
-      return 'Card number is too short';
-    }
-    
-    if (cleanNumber.length > 19) {
-      return 'Card number is too long';
-    }
-    
-    // Check if it's a valid card brand
-    const brand = paymentService.getCardBrand(cleanNumber);
-    if (brand === 'unknown') {
-      return 'Unsupported card type';
-    }
-    
-    // If it passes all checks but fails Luhn, it's invalid
-    if (!paymentService.validateCardNumber(cleanNumber)) {
-      return 'Invalid card number';
-    }
-    
-    return null; // No error
+    return groups ? groups.join(' ') : cleanNumber;
   },
 
-  // Get card brand from number - Enhanced for more card types
+  // Mask credit card number for security
+  maskCreditCardNumber: (cardNumber) => {
+    if (!cardNumber) return '';
+    
+    const cleanNumber = cardNumber.replace(/\s+/g, '').replace(/-/g, '');
+    if (cleanNumber.length < 4) return cleanNumber;
+    
+    const last4 = cleanNumber.slice(-4);
+    const masked = '*'.repeat(cleanNumber.length - 4);
+    
+    return masked + last4;
+  },
+
+  // Get card brand from number
   getCardBrand: (cardNumber) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
+    if (!cardNumber) return 'unknown';
+    
+    const cleanNumber = cardNumber.replace(/\s+/g, '').replace(/-/g, '');
     
     // Visa
-    if (/^4/.test(cleanNumber)) {
-      return 'visa';
-    }
-    // Mastercard (including new 2-series)
-    if (/^5[1-5]/.test(cleanNumber) || /^2[2-7]/.test(cleanNumber)) {
-      return 'mastercard';
-    }
+    if (/^4/.test(cleanNumber)) return 'visa';
+    
+    // Mastercard
+    if (/^5[1-5]/.test(cleanNumber) || /^2[2-7]/.test(cleanNumber)) return 'mastercard';
+    
     // American Express
-    if (/^3[47]/.test(cleanNumber)) {
-      return 'amex';
-    }
+    if (/^3[47]/.test(cleanNumber)) return 'amex';
+    
     // Discover
-    if (/^6(?:011|5)/.test(cleanNumber)) {
-      return 'discover';
-    }
-    // Diners Club
-    if (/^3(?:0[0-5]|[68])/.test(cleanNumber)) {
-      return 'diners';
-    }
-    // JCB
-    if (/^(?:2131|1800|35)/.test(cleanNumber)) {
-      return 'jcb';
-    }
-    // UnionPay
-    if (/^62/.test(cleanNumber)) {
-      return 'unionpay';
-    }
+    if (/^6(?:011|5)/.test(cleanNumber)) return 'discover';
     
     return 'unknown';
-  },
-
-  // Format card number for display
-  formatCardNumber: (cardNumber) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
-    const brand = paymentService.getCardBrand(cleanNumber);
-    
-    if (brand === 'amex') {
-      return cleanNumber.replace(/(\d{4})(\d{6})(\d{5})/, '$1 $2 $3');
-    } else {
-      return cleanNumber.replace(/(\d{4})(\d{4})(\d{4})(\d{4})/, '$1 $2 $3 $4');
-    }
-  },
-
-  // Mask card number for display
-  maskCardNumber: (cardNumber) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
-    const last4 = cleanNumber.slice(-4);
-    return `**** **** **** ${last4}`;
   },
 
   // Validate expiry date
@@ -242,28 +164,23 @@ export const paymentService = {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
     
-    const expMonth = parseInt(month);
-    const expYear = parseInt(year);
+    const inputYear = parseInt(year);
+    const inputMonth = parseInt(month);
     
-    if (expYear < currentYear) {
-      return false;
-    }
+    if (inputYear < currentYear) return false;
+    if (inputYear === currentYear && inputMonth < currentMonth) return false;
+    if (inputMonth < 1 || inputMonth > 12) return false;
     
-    if (expYear === currentYear && expMonth < currentMonth) {
-      return false;
-    }
-    
-    return expMonth >= 1 && expMonth <= 12;
+    return true;
   },
 
   // Validate CVV
   validateCVV: (cvv, cardBrand) => {
-    const cleanCVV = cvv.replace(/\s/g, '');
+    if (!cvv) return false;
     
-    if (cardBrand === 'amex') {
-      return /^\d{4}$/.test(cleanCVV);
-    } else {
-      return /^\d{3}$/.test(cleanCVV);
-    }
+    const cvvLength = cardBrand === 'amex' ? 4 : 3;
+    return /^\d+$/.test(cvv) && cvv.length === cvvLength;
   }
 };
+
+export default paymentService;

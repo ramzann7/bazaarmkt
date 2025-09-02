@@ -327,7 +327,7 @@ router.get('/test-search', async (req, res) => {
     const products = await Product.find({
       status: 'active',
       name: { $regex: q, $options: 'i' }
-    }).populate('seller', 'firstName lastName email phone').populate('artisan', 'artisanName type description');
+    }).populate('artisan', 'artisanName type description address deliveryOptions');
     
     console.log('Found products:', products.length);
     res.json({ products });
@@ -380,8 +380,7 @@ router.get('/search', async (req, res) => {
     };
     
     const products = await Product.find(query)
-      .populate('seller', 'firstName lastName email phone')
-      .populate('artisan', 'artisanName type description');
+      .populate('artisan', 'artisanName type description address deliveryOptions');
     
     console.log('Found products:', products.length);
     
@@ -478,23 +477,34 @@ router.get('/search', async (req, res) => {
     // Sort by relevance score
     rankedProducts.sort((a, b) => b.relevanceScore - a.relevanceScore);
     
-    // Populate artisan information for each product
-    const Artisan = require('../models/artisan');
-    const productsWithArtisan = await Promise.all(
-      rankedProducts.map(async (product) => {
-        try {
-          const artisan = await Artisan.findOne({ user: product.seller?._id || product.seller });
-          const productObj = product.toObject ? product.toObject() : product;
-          productObj.artisan = artisan;
-          return productObj;
-        } catch (error) {
-          console.error('Error populating artisan for product:', product._id, error);
-          const productObj = product.toObject ? product.toObject() : product;
-          productObj.artisan = null;
-          return productObj;
-        }
-      })
-    );
+    // Transform products to include artisan information
+    const productsWithArtisan = rankedProducts.map((product) => {
+      const productObj = product.toObject ? product.toObject() : product;
+      
+      // Extract artisan information directly from populated field
+      let artisanInfo = null;
+      if (product.artisan && product.artisan.artisanName) {
+        artisanInfo = { 
+          _id: product.artisan._id,
+          artisanName: product.artisan.artisanName,
+          type: product.artisan.type,
+          address: product.artisan.address,
+          deliveryOptions: product.artisan.deliveryOptions
+        };
+      } else {
+        // Fallback if no artisan data
+        artisanInfo = { 
+          _id: null,
+          artisanName: 'Unknown Artisan',
+          type: 'other',
+          address: null,
+          deliveryOptions: null
+        };
+      }
+      
+      productObj.artisan = artisanInfo;
+      return productObj;
+    });
     
     res.json({ 
       products: productsWithArtisan,
@@ -584,8 +594,7 @@ router.get('/enhanced-search', async (req, res) => {
 
     // Get products with artisan information
     let products = await Product.find(query)
-      .populate('seller', 'firstName lastName email phone')
-      .populate('artisan', 'artisanName type description location rating isVerified');
+      .populate('artisan', 'artisanName type description address deliveryOptions rating isVerified');
 
     // Enhanced ranking algorithm
     if (enhancedRanking === 'true') {
@@ -643,8 +652,8 @@ router.get('/enhanced-suggestions', async (req, res) => {
       {
         $lookup: {
           from: 'artisans',
-          localField: 'seller',
-          foreignField: 'user',
+          localField: 'artisan',
+          foreignField: '_id',
           as: 'artisan'
         }
       },
@@ -855,8 +864,7 @@ router.get('/', async (req, res) => {
     
     // Get products
     let products = await Product.find(query)
-      .populate('seller', 'firstName lastName email phone')
-      .populate('artisan', 'artisanName type description');
+      .populate('artisan', 'artisanName type description address deliveryOptions');
     
     console.log('Found products:', products.length);
     
@@ -974,27 +982,38 @@ router.get('/', async (req, res) => {
       }
       
       products = await Product.find(query)
-        .populate('seller', 'firstName lastName email phone')
+        .populate('artisan', 'artisanName type description address deliveryOptions')
         .sort(sortOptions);
     }
     
-    // Populate artisan information for each product
-    const Artisan = require('../models/artisan');
-    const productsWithArtisan = await Promise.all(
-      products.map(async (product) => {
-        try {
-          const artisan = await Artisan.findOne({ user: product.seller?._id || product.seller });
-          const productObj = product.toObject ? product.toObject() : product;
-          productObj.artisan = artisan;
-          return productObj;
-        } catch (error) {
-          console.error('Error populating artisan for product:', product._id, error);
-          const productObj = product.toObject ? product.toObject() : product;
-          productObj.artisan = null;
-          return productObj;
-        }
-      })
-    );
+    // Transform products to include artisan information
+    const productsWithArtisan = products.map((product) => {
+      const productObj = product.toObject ? product.toObject() : product;
+      
+      // Extract artisan information directly from populated field
+      let artisanInfo = null;
+      if (product.artisan && product.artisan.artisanName) {
+        artisanInfo = { 
+          _id: product.artisan._id,
+          artisanName: product.artisan.artisanName,
+          type: product.artisan.type,
+          address: product.artisan.address,
+          deliveryOptions: product.artisan.deliveryOptions
+        };
+      } else {
+        // Fallback if no artisan data
+        artisanInfo = { 
+          _id: null,
+          artisanName: 'Unknown Artisan',
+          type: 'other',
+          address: null,
+          deliveryOptions: null
+        };
+      }
+      
+      productObj.artisan = artisanInfo;
+      return productObj;
+    });
     
     const response = {
       products: productsWithArtisan,
@@ -1013,15 +1032,24 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get seller's products (requires authentication)
+// Get artisan's products (requires authentication)
 router.get('/my-products', verifyToken, async (req, res) => {
   try {
-    const products = await Product.find({ seller: req.user._id })
+    // Find the artisan profile for the current user
+    const Artisan = require('../models/artisan');
+    const artisan = await Artisan.findOne({ user: req.user._id });
+    
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan profile not found' });
+    }
+    
+    const products = await Product.find({ artisan: artisan._id })
+      .populate('artisan', 'artisanName type address deliveryOptions')
       .sort({ createdAt: -1 });
     
     res.json(products);
   } catch (error) {
-    console.error('Error fetching seller products:', error);
+    console.error('Error fetching artisan products:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1030,24 +1058,42 @@ router.get('/my-products', verifyToken, async (req, res) => {
 router.get('/artisan/:artisanId', async (req, res) => {
   try {
     const products = await Product.find({ 
-              seller: req.params.artisanId,
+      artisan: req.params.artisanId,
       status: 'active'
     })
-    .populate('seller', 'firstName lastName email')
+    .populate('artisan', 'artisanName type address deliveryOptions')
     .sort({ createdAt: -1 });
     
-    // Populate artisan information
-    const Artisan = require('../models/artisan');
-    const productsWithArtisan = await Promise.all(
-      products.map(async (product) => {
-        const artisan = await Artisan.findOne({ user: product.seller._id });
-        const productObj = product.toObject ? product.toObject() : product;
-        productObj.artisan = artisan;
-        return productObj;
-      })
-    );
+    // Transform products to include artisan information
+    const productsWithArtisan = products.map((product) => {
+      const productObj = product.toObject ? product.toObject() : product;
+      
+      // Extract artisan information directly from populated field
+      let artisanInfo = null;
+      if (product.artisan && product.artisan.artisanName) {
+        artisanInfo = { 
+          _id: product.artisan._id,
+          artisanName: product.artisan.artisanName,
+          type: product.artisan.type,
+          address: product.artisan.address,
+          deliveryOptions: product.artisan.deliveryOptions
+        };
+      } else {
+        // Fallback if no artisan data
+        artisanInfo = { 
+          _id: null,
+          artisanName: 'Unknown Artisan',
+          type: 'other',
+          address: null,
+          deliveryOptions: null
+        };
+      }
+      
+      productObj.artisan = artisanInfo;
+      return productObj;
+    });
     
-          res.json(productsWithArtisan);
+    res.json(productsWithArtisan);
   } catch (error) {
     console.error('Error fetching artisan products:', error);
     res.status(500).json({ message: 'Server error' });
@@ -1061,45 +1107,39 @@ router.get('/featured', async (req, res) => {
       isFeatured: true, 
       status: 'active'
     })
-    .populate('seller', 'firstName lastName artisanName')
+    .populate('artisan', 'artisanName type address deliveryOptions')
     .sort({ createdAt: -1 })
     .limit(12)
     .lean(); // Use lean() for better performance
 
-    // Populate artisan information for each product
-    const Artisan = require('../models/artisan');
-    const productsWithArtisan = await Promise.all(
-      featuredProducts.map(async (product) => {
-        try {
-          const artisan = await Artisan.findOne({ user: product.seller._id }).lean();
-          console.log(`Product ${product.name}: Artisan found:`, artisan ? artisan.artisanName : 'No artisan profile');
-          
-          // If no artisan profile exists, create a fallback using the seller's name
-          let artisanInfo = null;
-          if (artisan && artisan.artisanName) {
-            artisanInfo = { artisanName: artisan.artisanName };
-          } else if (product.seller) {
-            // Fallback to seller's name if no artisan profile exists
-            artisanInfo = { 
-              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
-            };
-          }
-          
-          return {
-            ...product,
-            artisan: artisanInfo
-          };
-        } catch (error) {
-          console.error(`Error finding artisan for product ${product.name}:`, error);
-          return {
-            ...product,
-            artisan: product.seller ? { 
-              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
-            } : null
-          };
-        }
-      })
-    );
+    // Transform products to include artisan information
+    const productsWithArtisan = featuredProducts.map((product) => {
+      // Extract artisan information directly from populated field
+      let artisanInfo = null;
+      if (product.artisan && product.artisan.artisanName) {
+        artisanInfo = { 
+          _id: product.artisan._id,
+          artisanName: product.artisan.artisanName,
+          type: product.artisan.type,
+          address: product.artisan.address,
+          deliveryOptions: product.artisan.deliveryOptions
+        };
+      } else {
+        // Fallback if no artisan data
+        artisanInfo = { 
+          _id: null,
+          artisanName: 'Unknown Artisan',
+          type: 'other',
+          address: null,
+          deliveryOptions: null
+        };
+      }
+      
+      return {
+        ...product,
+        artisan: artisanInfo
+      };
+    });
 
     res.json({
       success: true,
@@ -1173,18 +1213,18 @@ router.get('/popular', async (req, res) => {
           'product.status': 'active'
         }
       },
-      // Lookup seller information
+      // Lookup artisan information
       {
         $lookup: {
-          from: 'users',
-          localField: 'product.seller',
+          from: 'artisans',
+          localField: 'product.artisan',
           foreignField: '_id',
-          as: 'seller'
+          as: 'artisan'
         }
       },
-      // Unwind seller array
+      // Unwind artisan array
       {
-        $unwind: '$seller'
+        $unwind: '$artisan'
       },
       // Project the final structure
       {
@@ -1209,12 +1249,12 @@ router.get('/popular', async (req, res) => {
           status: '$product.status',
           createdAt: '$product.createdAt',
           updatedAt: '$product.updatedAt',
-          seller: {
-            _id: '$seller._id',
-            firstName: '$seller.firstName',
-            lastName: '$seller.lastName',
-            email: '$seller.email',
-            phone: '$seller.phone'
+          artisan: {
+            _id: '$artisan._id',
+            artisanName: '$artisan.artisanName',
+            type: '$artisan.type',
+            address: '$artisan.address',
+            deliveryOptions: '$artisan.deliveryOptions'
           },
           popularity: {
             totalQuantity: '$totalQuantity',
@@ -1225,39 +1265,34 @@ router.get('/popular', async (req, res) => {
       }
     ]);
 
-    // Populate artisan information for each product
-    const Artisan = require('../models/artisan');
-    const productsWithArtisan = await Promise.all(
-      popularProducts.map(async (product) => {
-        try {
-          const artisan = await Artisan.findOne({ user: product.seller._id }).lean();
-          
-          // If no artisan profile exists, create a fallback using the seller's name
-          let artisanInfo = null;
-          if (artisan && artisan.artisanName) {
-            artisanInfo = { artisanName: artisan.artisanName };
-          } else if (product.seller) {
-            // Fallback to seller's name if no artisan profile exists
-            artisanInfo = { 
-              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
-            };
-          }
-          
-          return {
-            ...product,
-            artisan: artisanInfo
-          };
-        } catch (error) {
-          console.error(`Error finding artisan for popular product ${product.name}:`, error);
-          return {
-            ...product,
-            artisan: product.seller ? { 
-              artisanName: `${product.seller.firstName} ${product.seller.lastName}` 
-            } : null
-          };
-        }
-      })
-    );
+    // Transform products to include artisan information
+    const productsWithArtisan = popularProducts.map((product) => {
+      // Extract artisan information directly from populated field
+      let artisanInfo = null;
+      if (product.artisan && product.artisan.artisanName) {
+        artisanInfo = { 
+          _id: product.artisan._id,
+          artisanName: product.artisan.artisanName,
+          type: product.artisan.type,
+          address: product.artisan.address,
+          deliveryOptions: product.artisan.deliveryOptions
+        };
+      } else {
+        // Fallback if no artisan data
+        artisanInfo = { 
+          _id: null,
+          artisanName: 'Unknown Artisan',
+          type: 'other',
+          address: null,
+          deliveryOptions: null
+        };
+      }
+      
+      return {
+        ...product,
+        artisan: artisanInfo
+      };
+    });
 
     res.json({
       success: true,
@@ -1279,17 +1314,31 @@ router.get('/popular', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id)
-      .populate('seller', 'firstName lastName email phone');
+      .populate('artisan', 'artisanName type address deliveryOptions');
     
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    // Populate artisan information
-    const Artisan = require('../models/artisan');
-    const artisan = await Artisan.findOne({ user: product.seller._id });
+    // Transform product to include artisan information
     const productObj = product.toObject();
-    productObj.artisan = artisan;
+    if (product.artisan) {
+      productObj.artisan = {
+        _id: product.artisan._id,
+        artisanName: product.artisan.artisanName,
+        type: product.artisan.type,
+        address: product.artisan.address,
+        deliveryOptions: product.artisan.deliveryOptions
+      };
+    } else {
+      productObj.artisan = {
+        _id: null,
+        artisanName: 'Unknown Artisan',
+        type: 'other',
+        address: null,
+        deliveryOptions: null
+      };
+    }
     
     res.json(productObj);
   } catch (error) {
@@ -1355,6 +1404,10 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
     const Artisan = require('../models/artisan');
     const artisanProfile = await Artisan.findOne({ user: req.user._id });
     
+    if (!artisanProfile) {
+      return res.status(400).json({ message: 'You must have an artisan profile to create products' });
+    }
+
     const product = new Product({
       name,
       description,
@@ -1372,8 +1425,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       isVegan: isVegan === 'true' || isVegan === true,
       isHalal: isHalal === 'true' || isHalal === true,
       leadTimeHours: leadTimeHours ? parseInt(leadTimeHours) : 24,
-      seller: req.user._id,
-      artisan: artisanProfile ? artisanProfile._id : null
+      artisan: artisanProfile._id
     });
     
     await product.save();
@@ -1397,8 +1449,11 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    // Check if user owns the product
-    if (product.seller.toString() !== req.user._id.toString()) {
+    // Check if user owns the product by checking if they have the artisan profile
+    const Artisan = require('../models/artisan');
+    const userArtisan = await Artisan.findOne({ user: req.user._id });
+    
+    if (!userArtisan || product.artisan.toString() !== userArtisan._id.toString()) {
       return res.status(403).json({ message: 'Not authorized to update this product' });
     }
     
@@ -1468,8 +1523,11 @@ router.delete('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    // Check if user owns the product
-    if (product.seller.toString() !== req.user._id.toString()) {
+    // Check if user owns the product by checking if they have the artisan profile
+    const Artisan = require('../models/artisan');
+    const userArtisan = await Artisan.findOne({ user: req.user._id });
+    
+    if (!userArtisan || product.artisan.toString() !== userArtisan._id.toString()) {
       return res.status(403).json({ message: 'Not authorized to delete this product' });
     }
     
@@ -1518,7 +1576,7 @@ router.patch('/:id/stock', verifyToken, async (req, res) => {
   }
 });
 
-// Update product inventory (for seller management)
+// Update product inventory (for artisan management)
 router.patch('/:id/inventory', verifyToken, async (req, res) => {
   try {
     const { stock, status } = req.body;
@@ -1529,8 +1587,11 @@ router.patch('/:id/inventory', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    // Check if user owns the product
-    if (product.seller.toString() !== req.user._id.toString()) {
+    // Check if user owns the product by checking if they have the artisan profile
+    const Artisan = require('../models/artisan');
+    const userArtisan = await Artisan.findOne({ user: req.user._id });
+    
+    if (!userArtisan || product.artisan.toString() !== userArtisan._id.toString()) {
       return res.status(403).json({ message: 'Not authorized to update this product' });
     }
     

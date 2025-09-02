@@ -47,6 +47,8 @@ export default function Products() {
     unit: 'piece',
     weight: '',
     expiryDate: '',
+    leadTime: '',
+    leadTimeUnit: 'days',
     // Enhanced dietary preferences
     isOrganic: false,
     isGlutenFree: false,
@@ -299,6 +301,8 @@ export default function Products() {
         price: parseFloat(newProduct.price),
         stock: parseInt(newProduct.stock),
         weight: parseFloat(newProduct.weight) || null,
+        leadTime: parseInt(newProduct.leadTime) || null,
+        leadTimeUnit: newProduct.leadTimeUnit || 'days',
         tags: newProduct.tags
         // Keep image as File object if it exists, let createProduct handle the upload
       };
@@ -316,6 +320,8 @@ export default function Products() {
         image: null,
         imagePreview: null,
         stock: '',
+        leadTime: '',
+        leadTimeUnit: 'days',
         tags: [],
         unit: 'piece',
         weight: '',
@@ -406,6 +412,8 @@ export default function Products() {
       unit: product.unit || 'piece',
       weight: product.weight || '',
       expiryDate: product.expiryDate || '',
+      leadTime: product.leadTime || '',
+      leadTimeUnit: product.leadTimeUnit || 'days',
       tags: product.tags || []
     });
   };
@@ -439,7 +447,9 @@ export default function Products() {
         isRaw: editingProduct.isRaw || false,
         // Include other fields
         unit: editingProduct.unit || 'piece',
-        expiryDate: editingProduct.expiryDate || null
+        expiryDate: editingProduct.expiryDate || null,
+        leadTime: editingProduct.leadTime || null,
+        leadTimeUnit: editingProduct.leadTimeUnit || 'days'
       };
       
       const updatedProduct = await updateProduct(editingProduct._id, productData);
@@ -1007,6 +1017,29 @@ export default function Products() {
                       onChange={(e) => setNewProduct({...newProduct, expiryDate: e.target.value})}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                     />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Lead Time</label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="number"
+                        min="0"
+                        value={newProduct.leadTime}
+                        onChange={(e) => setNewProduct({...newProduct, leadTime: e.target.value})}
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                        placeholder="e.g., 3"
+                      />
+                      <select
+                        value={newProduct.leadTimeUnit}
+                        onChange={(e) => setNewProduct({...newProduct, leadTimeUnit: e.target.value})}
+                        className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                      >
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">How long it takes to prepare/ship this item</p>
                   </div>
                 </div>
               </div>
@@ -1794,6 +1827,29 @@ export default function Products() {
                           onChange={(e) => setEditingProduct({...editingProduct, expiryDate: e.target.value})}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                         />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Lead Time</label>
+                        <div className="flex space-x-2">
+                          <input
+                            type="number"
+                            min="0"
+                            value={editingProduct.leadTime || ''}
+                            onChange={(e) => setEditingProduct({...editingProduct, leadTime: e.target.value})}
+                            className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                            placeholder="e.g., 3"
+                          />
+                          <select
+                            value={editingProduct.leadTimeUnit || 'days'}
+                            onChange={(e) => setEditingProduct({...editingProduct, leadTimeUnit: e.target.value})}
+                            className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                          </select>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">How long it takes to prepare/ship this item</p>
                       </div>
                     </div>
                   </div>

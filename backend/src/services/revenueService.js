@@ -9,8 +9,8 @@ class RevenueService {
   static async calculateOrderRevenue(orderId) {
     try {
       const order = await Order.findById(orderId)
-        .populate('buyer', 'firstName lastName email')
-        .populate('artisan', 'firstName lastName email')
+        .populate('patron', 'firstName lastName email')
+        .populate('artisan', 'artisanName type')
         .populate('items.product', 'name price');
 
       if (!order) {
@@ -26,7 +26,7 @@ class RevenueService {
       const revenue = new Revenue({
         orderId: order._id,
         artisanId: order.artisan,
-        patronId: order.buyer,
+        patronId: order.patron,
         grossAmount,
         platformCommission,
         artisanEarnings,

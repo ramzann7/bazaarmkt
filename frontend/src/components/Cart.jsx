@@ -417,6 +417,10 @@ const Cart = () => {
           console.error('❌ Error loading profile or payment methods:', error);
         }
       }
+    } else {
+      // No token means guest user
+      setCurrentUserId(null);
+      setIsGuest(true);
     }
     
     await loadCart();
@@ -543,19 +547,24 @@ const Cart = () => {
         return;
       }
       
-            // For guest users, allow them to proceed directly to delivery
+      console.log('🔍 handleNextStep - isGuest:', isGuest, 'currentUserId:', currentUserId);
+      
+      // For guest users, allow them to proceed directly to delivery
       if (isGuest) {
+        console.log('🔍 Guest user proceeding to delivery');
         setCheckoutStep('delivery');
         return;
       }
       
       // For unauthenticated users, show login prompt
       if (!currentUserId) {
+        console.log('🔍 No currentUserId, showing login prompt');
         toast.error('Please log in to continue with checkout');
         return;
       }
       
       // For authenticated users, go to delivery step
+      console.log('🔍 Authenticated user proceeding to delivery');
       setCheckoutStep('delivery');
     } else if (checkoutStep === 'delivery') {
       if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
@@ -589,9 +598,9 @@ const Cart = () => {
         return;
       }
 
-      // For guest users, navigate to guest checkout
+      // For guest users, use guest checkout function
       if (isGuest) {
-        navigate('/guest-checkout');
+        await handleGuestCheckout();
         return;
       }
 

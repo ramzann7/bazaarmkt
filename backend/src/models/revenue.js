@@ -15,7 +15,13 @@ const revenueSchema = new mongoose.Schema({
   patronId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
+  },
+  guestInfo: {
+    firstName: String,
+    lastName: String,
+    email: String,
+    phone: String
   },
   
   // Financial breakdown
@@ -106,6 +112,17 @@ const revenueSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+// Validate that either patronId or guestInfo is provided
+revenueSchema.pre('save', function(next) {
+  if (!this.patronId && !this.guestInfo) {
+    return next(new Error('Either patronId or guestInfo must be provided'));
+  }
+  if (this.patronId && this.guestInfo) {
+    return next(new Error('Cannot have both patronId and guestInfo'));
+  }
+  next();
 });
 
 // Update timestamp on save

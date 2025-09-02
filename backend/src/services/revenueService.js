@@ -23,17 +23,25 @@ class RevenueService {
       const artisanEarnings = grossAmount - platformCommission;
 
       // Create revenue record
-      const revenue = new Revenue({
+      const revenueData = {
         orderId: order._id,
         artisanId: order.artisan,
-        patronId: order.patron,
         grossAmount,
         platformCommission,
         artisanEarnings,
         commissionRate,
         paymentProcessor: 'stripe', // Default, can be updated
         status: 'pending'
-      });
+      };
+
+      // Add patron or guest info based on order type
+      if (order.patron) {
+        revenueData.patronId = order.patron;
+      } else if (order.guestInfo) {
+        revenueData.guestInfo = order.guestInfo;
+      }
+
+      const revenue = new Revenue(revenueData);
 
       await revenue.save();
 

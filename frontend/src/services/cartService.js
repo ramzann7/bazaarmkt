@@ -744,5 +744,8 @@ export const cartService = {
       userId = getCurrentUserId();
     }
     return cartService.getCartCount(userId);
-  }
+  },
+
+  // Export the isGuestUser function
+  isGuestUser: () => isGuestUser()
 };

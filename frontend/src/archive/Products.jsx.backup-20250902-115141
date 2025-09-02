@@ -1,31 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  PlusIcon, 
-  PencilIcon, 
-  TrashIcon, 
-  CameraIcon, 
-  XMarkIcon,
+  PlusIcon,
+  TrashIcon,
+  CameraIcon,
   ArrowLeftIcon,
+  PencilIcon,
+  XMarkIcon,
+  CheckIcon,
   ExclamationTriangleIcon,
   LightBulbIcon,
   SparklesIcon,
-  EyeSlashIcon,
-  CheckIcon
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
 import { getMyProducts, createProduct, updateProduct, deleteProduct, uploadImage, updateInventory, getAllProducts } from '../services/productService';
 import { getProfile } from '../services/authservice';
-import { promotionalService } from '../services/promotionalService';
+import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 import ProductPromotions from './ProductPromotions';
-import ProductTypeBadge from './ProductTypeBadge';
+import { promotionalService } from '../services/promotionalService';
 import DistanceBadge from './DistanceBadge';
-import { getAllCategories, getAllSubcategories } from '../data/productReference';
+import ProductTypeBadge from './ProductTypeBadge';
 import toast from 'react-hot-toast';
+
+// Debug imports
+console.log('Products component - PRODUCT_CATEGORIES:', PRODUCT_CATEGORIES);
+console.log('Products component - getAllCategories:', getAllCategories);
+console.log('Products component - getAllSubcategories:', getAllSubcategories);
 
 export default function Products() {
   const navigate = useNavigate();
-  
-  // State variables
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [showPromotions, setShowPromotions] = useState(false);
@@ -34,7 +37,6 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all');
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -93,8 +95,6 @@ export default function Products() {
   const [allProducts, setAllProducts] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [productPromotions, setProductPromotions] = useState({});
-  
-  // Refs
   const nameInputRef = useRef(null);
   const suggestionsRef = useRef(null);
 
@@ -324,22 +324,6 @@ export default function Products() {
     const value = e.target.value;
     const formattedValue = formatDescription(value);
     setNewProduct({...newProduct, description: formattedValue});
-  };
-
-  const handlePriceChange = (e) => {
-    setNewProduct({...newProduct, price: e.target.value});
-  };
-
-  const handleCategoryChange = (e) => {
-    setNewProduct({...newProduct, category: e.target.value, subcategory: ''});
-  };
-
-  const handleSubcategoryChange = (e) => {
-    setNewProduct({...newProduct, subcategory: e.target.value});
-  };
-
-  const handleTagChange = (e) => {
-    setNewTag(e.target.value);
   };
 
   // Photo checker
@@ -696,8 +680,10 @@ export default function Products() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      {/* Main Content */}
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="mb-8 text-center">
@@ -754,15 +740,15 @@ export default function Products() {
                 </div>
                 
                 <form onSubmit={handleAddProduct} className="space-y-8">
-              {/* Basic Information Section */}
-              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
-                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <SparklesIcon className="w-5 h-5 mr-2 text-orange-600" />
-                  Basic Information
-                </h5>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="relative">
+                  {/* Basic Information Section */}
+                  <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <SparklesIcon className="w-5 h-5 mr-2 text-orange-600" />
+                      Basic Information
+                    </h5>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="relative">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Product Name <span className="text-red-500">*</span>
                     </label>
@@ -1488,54 +1474,155 @@ export default function Products() {
         {/* Products List */}
         {products.length > 0 ? (
           <div className="space-y-6">
-            {/* Enhanced Inventory Summary */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
-              <h4 className="text-xl font-bold text-gray-900 mb-6 text-center">Inventory Overview</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-lg font-bold">{products.length}</span>
+            {/* Enhanced Interactive Inventory Overview */}
+            <div className="space-y-6">
+              {/* Main Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Total Products */}
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-200 cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-orange-700">Total Products</p>
+                      <p className="text-3xl font-bold text-orange-900">{products.length}</p>
+                      <p className="text-xs text-orange-600 mt-1">In your catalog</p>
+                    </div>
+                    <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">📦</span>
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Total Products</div>
-                  <div className="text-sm text-gray-600">In your catalog</div>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.status === 'active').length}</span>
+
+                {/* Active Products */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-700">Active</p>
+                      <p className="text-3xl font-bold text-green-900">{products.filter(p => p.status === 'active').length}</p>
+                      <p className="text-xs text-green-600 mt-1">Available for sale</p>
+                    </div>
+                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">✅</span>
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Active</div>
-                  <div className="text-sm text-gray-600">Available for sale</div>
                 </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'ready_to_ship').length}</span>
+
+                {/* Total Sales */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-700">Total Sold</p>
+                      <p className="text-3xl font-bold text-blue-900">{products.reduce((sum, p) => sum + (p.soldCount || 0), 0)}</p>
+                      <p className="text-xs text-blue-600 mt-1">Units sold</p>
+                    </div>
+                    <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">💰</span>
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Ready to Ship</div>
-                  <div className="text-sm text-gray-600">In stock</div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'made_to_order').length}</span>
+
+                {/* Revenue */}
+                <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200 cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-sm hover:shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-purple-700">Revenue</p>
+                      <p className="text-3xl font-bold text-purple-900">${products.reduce((sum, p) => sum + ((p.soldCount || 0) * (p.price || 0)), 0).toFixed(2)}</p>
+                      <p className="text-xs text-purple-600 mt-1">From sales</p>
+                    </div>
+                    <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg font-bold">📈</span>
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-gray-900">Made to Order</div>
-                  <div className="text-sm text-gray-600">Custom products</div>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-lg font-bold">{products.filter(p => p.productType === 'scheduled_order').length}</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">Scheduled</div>
-                  <div className="text-sm text-gray-600">Time-based</div>
-                </div>
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl text-center transform hover:scale-105 transition-all duration-200">
-                  <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-white text-lg font-bold">{products.reduce((sum, p) => sum + (p.soldCount || 0), 0)}</span>
-                  </div>
-                  <div className="text-lg font-bold text-gray-900">Total Sold</div>
-                  <div className="text-sm text-gray-600">Units sold</div>
                 </div>
               </div>
-            </div>
+
+              {/* Product Type Breakdown */}
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-200">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <LightBulbIcon className="w-5 h-5 mr-2 text-indigo-600" />
+                  Product Type Breakdown
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Ready to Ship */}
+                  <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition-all duration-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">📦</span>
+                        <div>
+                          <h5 className="font-semibold text-gray-900">Ready to Ship</h5>
+                          <p className="text-xs text-gray-600">In stock products</p>
+                        </div>
+                      </div>
+                      <span className="text-2xl font-bold text-indigo-600">{products.filter(p => p.productType === 'ready_to_ship').length}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {products.filter(p => p.productType === 'ready_to_ship' && p.status === 'active').length} active
+                    </div>
+                  </div>
+
+                  {/* Made to Order */}
+                  <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition-all duration-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">⚙️</span>
+                        <div>
+                          <h5 className="font-semibold text-gray-900">Made to Order</h5>
+                          <p className="text-xs text-gray-600">Custom products</p>
+                        </div>
+                      </div>
+                      <span className="text-2xl font-bold text-indigo-600">{products.filter(p => p.productType === 'made_to_order').length}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {products.filter(p => p.productType === 'made_to_order' && p.status === 'active').length} active
+                    </div>
+                  </div>
+
+                  {/* Scheduled Orders */}
+                  <div className="bg-white rounded-lg p-4 border-2 border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 cursor-pointer transition-all duration-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">📅</span>
+                        <div>
+                          <h5 className="font-semibold text-gray-900">Scheduled</h5>
+                          <p className="text-xs text-gray-600">Time-based products</p>
+                        </div>
+                      </div>
+                      <span className="text-2xl font-bold text-indigo-600">{products.filter(p => p.productType === 'scheduled_order').length}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {products.filter(p => p.productType === 'scheduled_order' && p.status === 'active').length} active
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <SparklesIcon className="w-5 h-5 mr-2 text-amber-600" />
+                    Quick Actions
+                  </h4>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => setShowAddForm(true)}
+                      className="inline-flex items-center px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors shadow-sm hover:shadow-md"
+                    >
+                      <PlusIcon className="w-4 h-4 mr-2" />
+                      Add Product
+                    </button>
+                    <button
+                      className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 transition-colors shadow-sm hover:shadow-md"
+                    >
+                      <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
+                      Low Stock Alert
+                    </button>
+                    <button
+                      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors shadow-sm hover:shadow-md"
+                    >
+                      <EyeSlashIcon className="w-4 h-4 mr-2" />
+                      Inactive Products
+                    </button>
+                  </div>
+                </div>
+              </div>
 
             {/* Products Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1773,6 +1860,7 @@ export default function Products() {
           </div>
         )}
 
+        {/* Modals */}
         {/* Edit Product Modal */}
         {editingProduct && (
           <div 
@@ -2586,243 +2674,9 @@ export default function Products() {
         )}
       </div>
     </div>
-
-    {/* Modals - Outside Main Container */}
-    {/* Add Product Modal */}
-    {showAddForm && (
-      <div 
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
-        onClick={handleCloseAddModal}
-      >
-        <div 
-          className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-y-auto shadow-2xl border border-gray-200 modal-content"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h4 className="text-3xl font-bold text-gray-900 mb-2">✨ Add New Product</h4>
-                <p className="text-gray-600">Create a compelling product listing that will attract customers</p>
-              </div>
-              <button
-                onClick={handleCloseAddModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <XMarkIcon className="w-8 h-8" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddProduct} className="space-y-8">
-              {/* Basic Information Section */}
-              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 p-6 rounded-xl border border-orange-200">
-                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <SparklesIcon className="w-5 h-5 mr-2 text-orange-600" />
-                  Basic Information
-                </h5>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="relative">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Product Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      ref={nameInputRef}
-                      type="text"
-                      required
-                      value={newProduct.name}
-                      onChange={handleNameChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                      placeholder="e.g., Organic Honeycrisp Apples – 2 lb bag"
-                    />
-                    <div className="flex items-center mt-2 text-xs text-gray-500">
-                      <LightBulbIcon className="w-3 h-3 mr-1 text-orange-500" />
-                      <span>Use descriptive names that highlight key features</span>
-                    </div>
-                    
-                    {/* Autocomplete suggestions */}
-                    {showSuggestions && (
-                      <div 
-                        ref={suggestionsRef}
-                        className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-xl max-h-48 overflow-y-auto"
-                      >
-                        {productSuggestions.map((suggestion, index) => (
-                          <div
-                            key={index}
-                            onClick={() => handleSuggestionClick(suggestion)}
-                            className="px-4 py-3 hover:bg-orange-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
-                          >
-                            <div className="font-medium text-gray-900">{suggestion.name}</div>
-                            <div className="text-xs text-gray-500">Existing product</div>
-                          </div>
-                        ))}
-                        <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 rounded-b-xl">
-                          Click to use existing name or continue typing for a new product
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      required
-                      value={newProduct.category}
-                      onChange={(e) => setNewProduct({...newProduct, category: e.target.value, subcategory: ''})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                    >
-                      <option value="">Select a category</option>
-                      {Object.keys(categories).map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Subcategory</label>
-                    <select
-                      value={newProduct.subcategory}
-                      onChange={(e) => setNewProduct({...newProduct, subcategory: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                    >
-                      <option value="">Select a subcategory</option>
-                      {newProduct.category && categories[newProduct.category]?.map(subcategory => (
-                        <option key={subcategory} value={subcategory}>{subcategory}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Price <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-3 text-gray-500">$</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        value={newProduct.price}
-                        onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                        className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Product Type & Management Section */}
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-xl border border-indigo-200">
-                <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <LightBulbIcon className="w-5 h-5 mr-2 text-indigo-600" />
-                  Product Type & Management
-                </h5>
-                
-                <div className="space-y-6">
-                  {/* Product Type Selection */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Product Type <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Ready to Ship */}
-                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        newProduct.productType === 'ready_to_ship' 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="productType"
-                          value="ready_to_ship"
-                          checked={newProduct.productType === 'ready_to_ship'}
-                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">📦</div>
-                          <div className="font-semibold text-gray-900">Ready to Ship</div>
-                          <div className="text-xs text-gray-600 mt-1">Products in stock, ready for immediate shipping</div>
-                        </div>
-                      </label>
-                      
-                      {/* Made to Order */}
-                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        newProduct.productType === 'made_to_order' 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="productType"
-                          value="made_to_order"
-                          checked={newProduct.productType === 'made_to_order'}
-                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">⚙️</div>
-                          <div className="font-semibold text-gray-900">Made to Order</div>
-                          <div className="text-xs text-gray-600 mt-1">Custom products made after order confirmation</div>
-                        </div>
-                      </label>
-                      
-                      {/* Scheduled Orders */}
-                      <label className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                        newProduct.productType === 'scheduled_order' 
-                          ? 'border-indigo-500 bg-indigo-50' 
-                          : 'border-gray-200 hover:border-indigo-300'
-                      }`}>
-                        <input
-                          type="radio"
-                          name="productType"
-                          value="scheduled_order"
-                          checked={newProduct.productType === 'scheduled_order'}
-                          onChange={(e) => handleAddProductTypeChange(e.target.value)}
-                          className="sr-only"
-                        />
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">📅</div>
-                          <div className="font-semibold text-gray-900">Scheduled Orders</div>
-                          <div className="text-xs text-gray-600 mt-1">Products made at specific times/dates</div>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Type-specific fields will be added here */}
-                  <div className="text-center text-gray-500">
-                    Product type specific fields will be implemented here
-                  </div>
-                </div>
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex space-x-4 pt-6 border-t border-gray-200">
-                <button
-                  type="submit"
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-4 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  <PlusIcon className="w-5 h-5 mr-2" />
-                  Add Product
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseAddModal}
-                  className="px-8 py-4 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400 transition-colors font-semibold"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
       </div>
-    )}
-  </>
+    </div>
+    </>
   );
 }
 

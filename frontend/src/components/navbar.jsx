@@ -50,7 +50,7 @@ export default function Navbar() {
   // Update cart count when user changes
   useOptimizedEffect(() => {
     if (user) {
-      setIsGuest(guestService.isGuestUser());
+      setIsGuest(cartService.isGuestUser());
       
       // Cache cart count for authenticated users
       const cartCountKey = `cart_count_${user._id}`;

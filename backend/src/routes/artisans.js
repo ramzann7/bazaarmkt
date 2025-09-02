@@ -45,11 +45,11 @@ router.get('/', async (req, res) => {
           try {
             const [products, productCount] = await Promise.all([
               Product.find({ 
-                seller: artisan.user._id, 
+                artisan: artisan._id, 
                 status: 'active' 
               }).limit(3).lean(),
               Product.countDocuments({ 
-                seller: artisan.user._id, 
+                artisan: artisan._id, 
                 status: 'active' 
               })
             ]);
@@ -84,26 +84,17 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { includeProducts } = req.query;
-    console.log('🔍 Route /:id - Artisan ID requested:', req.params.id);
-    console.log('🔍 Route /:id - includeProducts:', includeProducts);
-    console.log('🔍 Route /:id - req.query:', req.query);
     
     let artisan = await Artisan.findById(req.params.id)
       .populate('user', 'firstName lastName email phone');
     
     if (!artisan) {
-      console.log('❌ Artisan not found for ID:', req.params.id);
       return res.status(404).json({ message: 'Artisan not found' });
     }
-    
-    console.log('✅ Artisan found:', artisan.artisanName, 'ID:', artisan._id);
 
     // If includeProducts is requested, add products
     if (includeProducts === 'true') {
       const Product = require('../models/product');
-      
-      console.log('🔍 Fetching products for artisan ID:', artisan._id);
-      console.log('🔍 IncludeProducts parameter:', includeProducts);
       
       // Fetch products linked to this artisan
       const products = await Product.find({ 
@@ -111,12 +102,8 @@ router.get('/:id', async (req, res) => {
         status: 'active'
       }).select('name price image category subcategory description stock unit soldCount tags isOrganic isGlutenFree isVegan isHalal weight expiryDate leadTimeHours');
       
-      console.log(`🔍 Products query result: ${products.length} products found`);
-      console.log('🔍 Sample products:', products.slice(0, 2).map(p => ({ name: p.name, artisan: p.artisan })));
-      
       artisan = artisan.toObject();
       artisan.products = products;
-      console.log(`✅ Final artisan data has ${artisan.products.length} products`);
     }
 
     res.json(artisan);

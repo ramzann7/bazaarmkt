@@ -398,13 +398,7 @@ export const cartService = {
         // Use only artisan ID since we've migrated away from seller concept
         const artisanId = item.artisan?._id || item.artisanId || 'unknown';
         
-        // Debug logging to understand the ID structure
-        console.log('🔍 Cart item ID analysis:', {
-          productName: item.name,
-          artisanId: item.artisan?._id,
-          artisanIdField: item.artisanId,
-          selectedId: artisanId
-        });
+
         
         if (!artisanGroups[artisanId]) {
           artisanGroups[artisanId] = {
@@ -700,15 +694,35 @@ export const cartService = {
   // Function to fetch full artisan profile for better delivery options
   fetchArtisanProfile: async (artisanId) => {
     try {
+      // Get the token for authentication
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
       // Use relative URL that works with Vite proxy
       const apiBaseUrl = '/api';
       
       // The artisanId parameter is the artisan document ID from the cart item
       // Use the standard artisan endpoint
-      const response = await fetch(`${apiBaseUrl}/artisans/${artisanId}`);
+      const response = await fetch(`${apiBaseUrl}/artisans/${artisanId}`, {
+        headers
+      });
+      
       if (response.ok) {
         return await response.json();
       }
+      
+      if (response.status === 404) {
+        console.warn(`Artisan ${artisanId} not found`);
+        return null;
+      }
+      
+      console.error(`Error fetching artisan profile: ${response.status} ${response.statusText}`);
       return null;
     } catch (error) {
       console.error(`Error fetching artisan profile for ${artisanId}:`, error);
@@ -716,27 +730,7 @@ export const cartService = {
     }
   },
 
-  // Debug function to help identify product structure issues
-  debugProductStructure: (product) => {
-    console.log('=== PRODUCT STRUCTURE DEBUG ===');
-    console.log('Product:', product);
-    console.log('Product.artisan:', product.artisan);
-            console.log('Product.artisan:', product.artisan);
-        console.log('Product.artisanId:', product.artisanId);
-    console.log('Product.artisanId:', product.artisanId);
-    
-    if (product.artisan) {
-      console.log('Artisan._id:', product.artisan._id);
-      console.log('Artisan.artisanName:', product.artisan.artisanName);
-      console.log('Artisan.deliveryOptions:', product.artisan.deliveryOptions);
-    }
-    
-            if (product.artisan) {
-          console.log('Artisan._id:', product.artisan._id);
-          console.log('Artisan.artisanName:', product.artisan.artisanName);
-          console.log('Artisan.deliveryOptions:', product.artisan.deliveryOptions);
-        }
-  },
+
 
   // Alias for getCartCount to maintain compatibility
   getCartItemCount: (userId) => {

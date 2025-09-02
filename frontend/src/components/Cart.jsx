@@ -537,11 +537,11 @@ const Cart = () => {
       
       // Check if user is authenticated
       if (!currentUserId || isGuest) {
-        // For guest users, go to guest profile step
-        if (isGuest) {
-          setCheckoutStep('guest-profile');
-          return;
-        }
+              // For guest users, go to guest profile step if they don't have a profile yet
+      if (isGuest && !guestProfile) {
+        setCheckoutStep('guest-profile');
+        return;
+      }
         
         // For unauthenticated users, show login prompt
         toast.error('Please log in to continue with checkout');
@@ -617,6 +617,15 @@ const Cart = () => {
       setIsGuest(true);
       setCurrentUserId(result.user.id);
       
+      // Update the user context to reflect guest status
+      if (window.updateAuthContext) {
+        window.updateAuthContext({
+          user: result.user,
+          isAuthenticated: true,
+          isGuest: true
+        });
+      }
+      
       toast.success('Guest profile created successfully!');
       
       // Move to next step
@@ -630,7 +639,7 @@ const Cart = () => {
     }
   };
 
-  // Handle order placement for authenticated users
+  // Handle order placement for both authenticated users and guests
   const handlePlaceOrder = async () => {
     try {
       setIsLoading(true);
@@ -666,6 +675,54 @@ const Cart = () => {
       
     } catch (error) {
       console.error('❌ Error placing order:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle guest checkout (simplified flow)
+  const handleGuestCheckout = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Prepare order data for guest
+      const orderData = {
+        items: cart.map(item => ({
+          productId: item._id,
+          quantity: item.quantity
+        })),
+        deliveryAddress: deliveryForm,
+        deliveryInstructions: deliveryForm.instructions || '',
+        paymentMethod: 'credit_card', // Default for guests
+        guestInfo: {
+          firstName: guestProfile.firstName,
+          lastName: guestProfile.lastName,
+          email: guestProfile.email || '',
+          phone: guestProfile.phone || ''
+        }
+      };
+
+      // Create order
+      const result = await orderService.createOrder(orderData);
+      
+      // Clear guest cart
+      cartService.clearCart(null);
+      
+      // Show success message
+      toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
+      
+      // Navigate to order confirmation
+      navigate('/orders', { 
+        state: { 
+          message: 'Order placed successfully!',
+          orders: result.orders 
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error placing guest order:', error);
       const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
       toast.error(errorMessage);
     } finally {
@@ -1422,14 +1479,34 @@ const Cart = () => {
                     <ArrowLeftIcon className="w-6 h-6 mr-3" />
                     Review Your Selection
                   </button>
-                  <button
-                    onClick={handleNextStep}
-                    className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
-                    disabled={isAddressRequired() && !selectedAddress && !deliveryForm.street}
-                  >
-                    Complete Your Order
-                    <ArrowRightIcon className="w-6 h-6 ml-3" />
-                  </button>
+                  {isGuest ? (
+                    <button
+                      onClick={handleGuestCheckout}
+                      className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                      disabled={isAddressRequired() && !deliveryForm.street || isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          Complete Guest Order
+                          <ArrowRightIcon className="w-6 h-6 ml-3" />
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleNextStep}
+                      className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                      disabled={isAddressRequired() && !selectedAddress && !deliveryForm.street}
+                    >
+                      Continue to Payment
+                      <ArrowRightIcon className="w-6 h-6 ml-3" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

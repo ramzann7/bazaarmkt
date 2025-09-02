@@ -35,32 +35,24 @@ const getCurrentUserId = () => {
 const isGuestUser = () => {
   try {
     const token = localStorage.getItem('token');
-    console.log('🔍 isGuestUser - token exists:', !!token);
     
     if (!token) {
-      console.log('👤 No token found, treating as guest user');
       return true; // No token means guest user
     }
     
     const payload = JSON.parse(atob(token.split('.')[1]));
-    console.log('🔍 Token payload:', payload);
     
     // Check if token is expired
     if (payload.exp && payload.exp * 1000 < Date.now()) {
-      console.log('👤 Token expired, treating as guest user');
       localStorage.removeItem('token'); // Remove expired token
       return true;
     }
     
-    // If token has userId and role, they're a regular user
-    // If token doesn't have these fields, they might be a guest user
-    const isGuest = !payload.userId || !payload.role;
-    console.log('👤 Final guest status:', isGuest);
+    // Check if this is a guest user based on the token payload
+    const isGuest = payload.isGuest === true;
     return isGuest;
   } catch (error) {
-    console.error('❌ Error checking guest status:', error);
-    console.log('👤 Error occurred, treating as guest user');
-    // Remove invalid token
+    console.error('Error checking guest status:', error);
     localStorage.removeItem('token');
     return true; // If we can't parse the token, treat as guest
   }
@@ -73,7 +65,6 @@ export const cartService = {
       if (userId === null) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
-        console.log('👤 Using guest cart (explicit null), key:', guestCartKey, 'data:', guestCart);
         return guestCart ? JSON.parse(guestCart) : [];
       }
       
@@ -82,26 +73,19 @@ export const cartService = {
         userId = getCurrentUserId();
       }
       
-      console.log('🔍 getCart called with userId:', userId);
-      console.log('🔍 isGuestUser() result:', isGuestUser());
-      
       // If no userId or if it's a guest user, use guest cart
       if (!userId || isGuestUser()) {
         const guestCartKey = getGuestCartKey();
         const guestCart = localStorage.getItem(guestCartKey);
-        console.log('👤 Using guest cart, key:', guestCartKey, 'data:', guestCart);
-  
         return guestCart ? JSON.parse(guestCart) : [];
       }
       
       // For authenticated non-guest users, use user-specific cart
       const cartKey = getCartKey(userId);
       const cart = localStorage.getItem(cartKey);
-      console.log('👤 Using user cart, key:', cartKey, 'data:', cart);
-
       return cart ? JSON.parse(cart) : [];
     } catch (error) {
-      console.error('❌ Error getting cart:', error);
+      console.error('Error getting cart:', error);
       return [];
     }
   },
@@ -114,9 +98,6 @@ export const cartService = {
       }
       
       console.log('🛒 Adding to cart:', { product: product.name, quantity, userId });
-      
-      // Debug the product structure to understand why artisan data is missing
-      cartService.debugProductStructure(product);
 
       
       // Check if user is an artisan (artisans cannot add to cart)

@@ -103,6 +103,16 @@ router.get('/artisan/stats', verifyToken, async (req, res) => {
   }
 });
 
+// Test route to verify the file is loading (must be before parameterized routes)
+router.get('/test', (req, res) => {
+  res.json({ message: 'Orders route is working' });
+});
+
+// Simple test POST route
+router.post('/test-post', (req, res) => {
+  res.json({ message: 'POST test route is working', body: req.body });
+});
+
 // Get a specific order by ID
 router.get('/:orderId', verifyToken, async (req, res) => {
   try {

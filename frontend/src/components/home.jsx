@@ -203,36 +203,81 @@ export default function Home() {
       try {
         // For patrons and artisans, use their profile/business address
         if (user && user.coordinates) {
-          console.log('📍 User coordinates found:', {
-            user: user._id,
-            coordinates: user.coordinates,
-            latType: typeof user.coordinates.latitude,
-            lngType: typeof user.coordinates.longitude,
-            hasLat: user.coordinates.latitude !== undefined,
-            hasLng: user.coordinates.longitude !== undefined
-          });
+          // Check if coordinates are valid numbers
+          const lat = parseFloat(user.coordinates.latitude);
+          const lng = parseFloat(user.coordinates.longitude);
           
-          setUserLocation({
-            latitude: user.coordinates.latitude,
-            longitude: user.coordinates.longitude,
-            address: user.addresses?.[0]?.city || user.artisanName || 'Your location'
-          });
-          console.log('📍 Using user profile location:', {
-            latitude: user.coordinates.latitude,
-            longitude: user.coordinates.longitude
-          });
-          return;
+          if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            console.log('📍 User coordinates found:', {
+              user: user._id,
+              coordinates: user.coordinates,
+              latType: typeof lat,
+              lngType: typeof lng,
+              hasLat: !isNaN(lat),
+              hasLng: !isNaN(lng),
+              lat: lat,
+              lng: lng
+            });
+            
+            const userLocationData = {
+              latitude: lat,
+              longitude: lng,
+              address: user.addresses?.[0]?.city || user.artisanName || 'Your location',
+              source: 'user_profile',
+              confidence: user.coordinates.confidence || 100
+            };
+            
+            setUserLocation(userLocationData);
+            console.log('📍 Using user profile location:', userLocationData);
+            
+            // Cache this location for future use
+            locationService.saveUserLocation({
+              address: userLocationData.address,
+              lat: lat,
+              lng: lng,
+              confidence: userLocationData.confidence,
+              formattedAddress: userLocationData.address,
+              source: 'user_profile'
+            });
+            
+            return;
+          } else {
+            console.warn('⚠️ User coordinates are invalid:', user.coordinates);
+          }
         }
         
-        // For guests, check for saved location
+        // For guests or users without valid coordinates, check for saved location
         const savedLocation = locationService.getUserLocation();
-        if (savedLocation) {
-          setUserLocation(savedLocation);
-          console.log('📍 Loaded saved location for guest:', savedLocation.address);
-        } else {
-          // Show location prompt for guests if not shown before
-          if (!user && !locationService.hasLocationPromptBeenShown()) {
-            setShowLocationPrompt(true);
+        if (savedLocation && savedLocation.lat && savedLocation.lng) {
+          const lat = parseFloat(savedLocation.lat);
+          const lng = parseFloat(savedLocation.lng);
+          
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setUserLocation({
+              latitude: lat,
+              longitude: lng,
+              address: savedLocation.address || 'Saved location',
+              source: 'saved_location',
+              confidence: savedLocation.confidence || 80
+            });
+            console.log('📍 Loaded saved location:', {
+              latitude: lat,
+              longitude: lng,
+              address: savedLocation.address
+            });
+            return;
+          }
+        }
+        
+        // If no valid location found, show location prompt for guests
+        if (!user && !locationService.hasLocationPromptBeenShown()) {
+          setShowLocationPrompt(true);
+        } else if (user && !user.coordinates) {
+          // For authenticated users without coordinates, try to get from their address
+          const userAddress = user.addresses?.[0];
+          if (userAddress && userAddress.city) {
+            console.log('📍 Attempting to geocode user address:', userAddress);
+            // This will be handled in the nearby products loading
           }
         }
       } catch (error) {
@@ -302,36 +347,104 @@ export default function Home() {
       console.log('🌍 Loading nearby products...');
       setIsLoadingNearby(true);
       
-      // Get user location
+      // Get user location with improved fallback system
       let location = null;
+      let locationSource = 'unknown';
       
-      // First, try to get user coordinates from profile
-      if (user?.coordinates) {
+      // First, try to get user coordinates from profile (already validated)
+      if (userLocation && userLocation.latitude && userLocation.longitude) {
         location = {
-          latitude: user.coordinates.latitude,
-          longitude: user.coordinates.longitude
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude
         };
-        console.log('✅ Using user coordinates from profile (patron/artisan):', {
+        locationSource = userLocation.source || 'user_profile';
+        console.log('✅ Using validated user location:', {
           latitude: location.latitude,
-          longitude: location.longitude
+          longitude: location.longitude,
+          source: locationSource
         });
-      } else {
-        // Try to get user coordinates from geocoding service
-        try {
-          const userCoords = await geocodingService.getUserCoordinates();
-          if (userCoords) {
-            location = {
-              latitude: userCoords.latitude,
-              longitude: userCoords.longitude
-            };
-            console.log('✅ Using user coordinates from geocoding service:', location);
-          }
-        } catch (error) {
-          console.log('No saved coordinates found:', error);
+      } else if (user?.coordinates) {
+        // Fallback: try to parse user coordinates directly
+        const lat = parseFloat(user.coordinates.latitude);
+        const lng = parseFloat(user.coordinates.longitude);
+        
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          location = { latitude: lat, longitude: lng };
+          locationSource = 'user_coordinates_fallback';
+          console.log('✅ Using user coordinates fallback:', location);
         }
       }
       
-      // If no location found, try browser geolocation
+      // If no location from user profile, try saved location
+      if (!location) {
+        const savedLocation = locationService.getUserLocation();
+        if (savedLocation && savedLocation.lat && savedLocation.lng) {
+          const lat = parseFloat(savedLocation.lat);
+          const lng = parseFloat(savedLocation.lng);
+          
+          if (!isNaN(lat) && !isNaN(lng)) {
+            location = { latitude: lat, longitude: lng };
+            locationSource = 'saved_location';
+            console.log('✅ Using saved location:', location);
+          }
+        }
+      }
+      
+      // If still no location, try to geocode user address
+      if (!location && user?.addresses?.[0]) {
+        try {
+          const userAddress = user.addresses[0];
+          const addressString = [
+            userAddress.street,
+            userAddress.city,
+            userAddress.state,
+            userAddress.zipCode,
+            userAddress.country
+          ].filter(Boolean).join(', ');
+          
+          if (addressString) {
+            console.log('🌍 Attempting to geocode user address:', addressString);
+            
+            // Check cache first for geocoding
+            const geocodeCacheKey = `geocode_${btoa(addressString).replace(/[^a-zA-Z0-9]/g, '')}`;
+            const cachedGeocode = cacheService.getFast(geocodeCacheKey);
+            
+            if (cachedGeocode) {
+              location = {
+                latitude: cachedGeocode.latitude,
+                longitude: cachedGeocode.longitude
+              };
+              locationSource = 'cached_geocode';
+              console.log('✅ Using cached geocode result:', location);
+            } else {
+              // Perform geocoding
+              const geocoded = await geocodingService.geocodeAddress(addressString);
+              if (geocoded && geocoded.latitude && geocoded.longitude) {
+                location = {
+                  latitude: geocoded.latitude,
+                  longitude: geocoded.longitude
+                };
+                locationSource = 'fresh_geocode';
+                console.log('✅ Fresh geocoding successful:', location);
+                
+                // Update user coordinates in profile if geocoding was successful
+                if (user && user._id) {
+                  try {
+                    // This would typically be done through an API call to update the user profile
+                    console.log('💾 Geocoded coordinates should be saved to user profile');
+                  } catch (error) {
+                    console.warn('Could not update user profile with coordinates:', error);
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Geocoding user address failed:', error);
+        }
+      }
+      
+      // If still no location, try browser geolocation
       if (!location && navigator.geolocation) {
         try {
           const position = await new Promise((resolve, reject) => {
@@ -346,15 +459,22 @@ export default function Home() {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude
           };
+          locationSource = 'browser_geolocation';
           console.log('✅ Using browser geolocation:', location);
+          
+          // Save this location for future use
+          if (location.latitude && location.longitude) {
+            locationService.updateLocationFromGPS(location.latitude, location.longitude);
+          }
         } catch (error) {
           console.log('Browser geolocation failed:', error);
         }
       }
       
-      // If still no location, use default (Toronto)
+      // Final fallback: use default location (Toronto)
       if (!location) {
         location = { latitude: 43.6532, longitude: -79.3832 }; // Toronto
+        locationSource = 'default_location';
         console.log('📍 Using default location (Toronto):', location);
       }
       
@@ -372,15 +492,28 @@ export default function Home() {
         return;
       }
       
-      setUserLocation(location);
+      // Update user location state if we found a valid location
+      if (!userLocation || userLocation.latitude !== location.latitude || userLocation.longitude !== location.longitude) {
+        setUserLocation({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          address: locationSource === 'default_location' ? 'Toronto, ON' : 'Your location',
+          source: locationSource,
+          confidence: locationSource === 'user_profile' ? 100 : 
+                     locationSource === 'saved_location' ? 80 :
+                     locationSource === 'cached_geocode' ? 70 :
+                     locationSource === 'fresh_geocode' ? 60 :
+                     locationSource === 'browser_geolocation' ? 90 : 50
+        });
+      }
       
-      // Create cache key based on location
-      const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${location.latitude.toFixed(2)}_${location.longitude.toFixed(2)}`;
+      // Create cache key based on location with source for better cache management
+      const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${location.latitude.toFixed(3)}_${location.longitude.toFixed(3)}_${locationSource}`;
       
-      // Check cache first
+      // Check cache first with longer TTL for nearby products
       const cachedNearby = cacheService.getFast(cacheKey);
       if (cachedNearby) {
-        console.log('✅ Using cached nearby products');
+        console.log('✅ Using cached nearby products from:', locationSource);
         setNearbyProducts(cachedNearby);
         setIsLoadingNearby(false);
         return;

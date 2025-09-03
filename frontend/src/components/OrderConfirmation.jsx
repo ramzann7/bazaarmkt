@@ -50,21 +50,39 @@ export default function OrderConfirmation() {
   }, [location.state, navigate]);
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Date not available';
+      }
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Date not available';
+    }
   };
 
   const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Time not available';
+      }
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'Time not available';
+    }
   };
 
   const handleCreateAccount = async (e) => {
@@ -129,8 +147,28 @@ export default function OrderConfirmation() {
   }
 
   const { orders, message, guestInfo, orderSummary } = orderData;
+  
+  // Ensure orders is an array and has valid data
+  if (!Array.isArray(orders) || orders.length === 0) {
+    console.error('Invalid orders data:', orders);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Order Data Error</h1>
+            <p className="text-gray-600 mb-6">Unable to display order confirmation. Please contact support.</p>
+            <Link to="/" className="btn-primary">Return to Home</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   const totalOrders = orders.length;
-  const totalAmount = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalAmount = orders.reduce((sum, order) => {
+    const amount = order.totalAmount || order.total || 0;
+    return sum + amount;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
@@ -160,45 +198,54 @@ export default function OrderConfirmation() {
 
           {/* Orders List */}
           <div className="space-y-6">
-            {orders.map((order, index) => (
-              <div key={order._id} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-blue-600 font-semibold text-sm">{index + 1}</span>
+            {orders.map((order, index) => {
+              // Ensure order has required fields
+              const orderId = order._id || order.id || `order-${index + 1}`;
+              const orderNumber = typeof orderId === 'string' && orderId.length >= 8 
+                ? orderId.slice(-8).toUpperCase() 
+                : `ORDER${String(index + 1).padStart(3, '0')}`;
+              
+              return (
+                <div key={orderId} className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-sm">{index + 1}</span>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            Order #{orderNumber}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            from {order.artisan?.firstName || 'Unknown'} {order.artisan?.lastName || 'Artisan'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          Order #{order._id.slice(-8).toUpperCase()}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          from {order.artisan?.firstName} {order.artisan?.lastName}
-                        </p>
-                      </div>
-                    </div>
                     
                     {/* Items */}
                     <div className="ml-11 space-y-2">
-                      {order.items.map((item, itemIndex) => (
+                      {Array.isArray(order.items) ? order.items.map((item, itemIndex) => (
                         <div key={itemIndex} className="flex justify-between items-center text-sm">
                           <span className="text-gray-700">
                             {item.quantity}x {item.product?.name || 'Product'}
                           </span>
                           <span className="font-medium text-gray-900">
-                            ${(item.unitPrice * item.quantity).toFixed(2)}
+                            ${((item.unitPrice || 0) * (item.quantity || 1)).toFixed(2)}
                           </span>
                         </div>
-                      ))}
+                      )) : (
+                        <div className="text-sm text-gray-500">No items found</div>
+                      )}
                     </div>
                   </div>
                   
                   <div className="text-right ml-4">
                     <p className="text-2xl font-bold text-gray-900">
-                      ${order.totalAmount.toFixed(2)}
+                      ${(order.totalAmount || order.total || 0).toFixed(2)}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {order.items.length} item{order.items.length > 1 ? 's' : ''}
+                      {Array.isArray(order.items) ? order.items.length : 0} item{(Array.isArray(order.items) ? order.items.length : 0) > 1 ? 's' : ''}
                     </p>
                   </div>
                 </div>
@@ -207,28 +254,28 @@ export default function OrderConfirmation() {
                 <div className="ml-11 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="flex items-center gap-2 text-gray-600">
                     <ClockIcon className="w-4 h-4" />
-                    <span>Placed on {formatDate(order.createdAt)}</span>
+                    <span>Placed on {formatDate(order.createdAt || new Date())}</span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <MapPinIcon className="w-4 h-4" />
-                    <span>{order.deliveryAddress?.city}, {order.deliveryAddress?.state}</span>
+                    <span>{order.deliveryAddress?.city || 'Unknown'}, {order.deliveryAddress?.state || 'Unknown'}</span>
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
 
           {/* Total Amount */}
           <div className="border-t border-gray-200 pt-6 mt-6">
             <div className="flex justify-between items-center">
               <span className="text-xl font-semibold text-gray-900">Total Amount</span>
-              <span className="text-3xl font-bold text-green-600">${totalAmount.toFixed(2)}</span>
+              <span className="text-3xl font-bold text-green-600">${(totalAmount || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
 
         {/* Guest Information Card */}
-        {guestInfo && (
+        {guestInfo && guestInfo.firstName && guestInfo.lastName && (
           <div className="bg-white rounded-2xl shadow-xl border border-blue-200 p-8 mb-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -276,8 +323,8 @@ export default function OrderConfirmation() {
                   <div>
                     <p className="text-sm text-gray-600">Delivery Address</p>
                     <p className="font-medium text-gray-900">
-                      {orderData.orders[0]?.deliveryAddress?.street}<br />
-                      {orderData.orders[0]?.deliveryAddress?.city}, {orderData.orders[0]?.deliveryAddress?.state} {orderData.orders[0]?.deliveryAddress?.zipCode}
+                      {orderData.orders[0]?.deliveryAddress?.street || 'Address not available'}<br />
+                      {orderData.orders[0]?.deliveryAddress?.city || 'City'}, {orderData.orders[0]?.deliveryAddress?.state || 'State'} {orderData.orders[0]?.deliveryAddress?.zipCode || ''}
                     </p>
                   </div>
                 </div>
@@ -288,7 +335,7 @@ export default function OrderConfirmation() {
                     <div>
                       <p className="text-sm text-gray-600">Delivery Instructions</p>
                       <p className="font-medium text-gray-900">
-                        {orderData.orders[0].deliveryInstructions}
+                        {orderData.orders[0]?.deliveryInstructions || 'No special instructions'}
                       </p>
                     </div>
                   </div>

@@ -736,7 +736,7 @@ export default function FindArtisans() {
         </div>
       </div>
     );
-  };
+  }, [navigate, favoriteStatuses, favoriteLoadingStates, artisanPromotions]);
 
   // Loading state for results section only
   const renderLoadingSkeleton = () => (

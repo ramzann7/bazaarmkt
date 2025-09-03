@@ -55,6 +55,36 @@ const BrevoTest = () => {
     setTestResults(results);
   };
 
+  // Test Brevo API connection
+  const testBrevoConnection = async () => {
+    setIsLoading(true);
+    const results = [...testResults];
+
+    try {
+      // Import and test Brevo connection
+      const { testBrevoConnection: testConnection } = await import('../services/brevoService');
+      const connectionResult = await testConnection();
+      
+      results.push({
+        test: 'Brevo API Connection',
+        status: connectionResult.success ? '✅ PASS' : '❌ FAIL',
+        message: connectionResult.success 
+          ? 'Brevo API connection successful' 
+          : `Connection failed: ${connectionResult.error} (Status: ${connectionResult.status})`
+      });
+
+    } catch (error) {
+      results.push({
+        test: 'Brevo API Connection',
+        status: '❌ ERROR',
+        message: `Error: ${error.message}`
+      });
+    }
+
+    setTestResults(results);
+    setIsLoading(false);
+  };
+
   // Test sending a notification email
   const testNotificationEmail = async () => {
     setIsLoading(true);
@@ -255,6 +285,15 @@ const BrevoTest = () => {
             >
               <CogIcon className="w-4 h-4" />
               Test Brevo Status
+            </button>
+            
+            <button
+              onClick={testBrevoConnection}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+            >
+              <CogIcon className="w-4 h-4" />
+              Test Brevo Connection
             </button>
             
             <button

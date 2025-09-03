@@ -6,8 +6,13 @@ let BREVO_API_KEY = null;
 
 // Initialize the Brevo service with API key
 export const initializeBrevo = (apiKey) => {
-  BREVO_API_KEY = apiKey;
-  console.log('🔧 Brevo service initialized');
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+    throw new Error('Invalid API key provided');
+  }
+  
+  BREVO_API_KEY = apiKey.trim();
+  console.log('🔧 Brevo service initialized with API key:', `***${apiKey.slice(-4)}`);
+  console.log('🔧 API key length:', apiKey.length);
 };
 
 // Get Brevo API headers
@@ -26,20 +31,31 @@ const getBrevoHeaders = () => {
 // Send transactional email
 export const sendTransactionalEmail = async (emailData) => {
   try {
+    console.log('🔍 sendTransactionalEmail called');
+    console.log('🔍 BREVO_API_KEY status:', BREVO_API_KEY ? 'Set' : 'Not set');
+    console.log('🔍 API Key preview:', BREVO_API_KEY ? `***${BREVO_API_KEY.slice(-4)}` : 'None');
+    
     if (!BREVO_API_KEY) {
       throw new Error('Brevo API key not initialized');
     }
 
+    const headers = getBrevoHeaders();
+    console.log('🔍 Headers being sent:', headers);
+    console.log('🔍 API URL:', `${BREVO_API_URL}/smtp/email`);
+    console.log('🔍 Email data:', emailData);
+
     const response = await axios.post(
       `${BREVO_API_URL}/smtp/email`,
       emailData,
-      { headers: getBrevoHeaders() }
+      { headers }
     );
 
     console.log('✅ Brevo email sent successfully:', response.data);
     return response.data;
   } catch (error) {
     console.error('❌ Error sending Brevo email:', error.response?.data || error.message);
+    console.error('❌ Error status:', error.response?.status);
+    console.error('❌ Error headers:', error.response?.headers);
     throw error;
   }
 };
@@ -112,6 +128,10 @@ export const deleteContact = async (email) => {
 // Send order completion email
 export const sendOrderCompletionEmail = async (orderData, recipientEmail, recipientName) => {
   try {
+    console.log('🔍 Brevo sendOrderCompletionEmail called with:', { orderData, recipientEmail, recipientName });
+    console.log('🔍 BREVO_API_KEY status:', BREVO_API_KEY ? 'Set' : 'Not set');
+    console.log('🔍 API Key preview:', BREVO_API_KEY ? `***${BREVO_API_KEY.slice(-4)}` : 'None');
+    
     const emailData = {
       sender: {
         name: 'Bazaar Market',
@@ -128,6 +148,9 @@ export const sendOrderCompletionEmail = async (orderData, recipientEmail, recipi
       textContent: generateOrderCompletionText(orderData, recipientName)
     };
 
+    console.log('🔍 Email data prepared:', emailData);
+    console.log('🔍 Headers to be sent:', getBrevoHeaders());
+    
     return await sendTransactionalEmail(emailData);
   } catch (error) {
     console.error('❌ Error sending order completion email:', error);
@@ -361,4 +384,35 @@ export const getBrevoStatus = () => {
     initialized: !!BREVO_API_KEY,
     apiKey: BREVO_API_KEY ? '***' + BREVO_API_KEY.slice(-4) : null
   };
+};
+
+// Test Brevo API connection
+export const testBrevoConnection = async () => {
+  try {
+    if (!BREVO_API_KEY) {
+      throw new Error('Brevo API key not initialized');
+    }
+
+    console.log('🔍 Testing Brevo connection...');
+    console.log('🔍 API Key preview:', `***${BREVO_API_KEY.slice(-4)}`);
+    
+    // Test with a simple API call to get account info
+    const response = await axios.get(
+      `${BREVO_API_URL}/account`,
+      { headers: getBrevoHeaders() }
+    );
+
+    console.log('✅ Brevo connection test successful:', response.data);
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    console.error('❌ Brevo connection test failed:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data || error.message,
+      status: error.response?.status
+    };
+  }
 };

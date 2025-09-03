@@ -287,8 +287,7 @@ export default function ArtisanShop() {
 
     try {
       setIsSubmittingReview(true);
-      await reviewService.createReview({
-        artisanId: id,
+      await reviewService.addReview(id, {
         rating: newReview.rating,
         title: newReview.title,
         comment: newReview.comment

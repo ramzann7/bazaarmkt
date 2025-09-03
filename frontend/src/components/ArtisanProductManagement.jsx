@@ -144,45 +144,70 @@ export default function ArtisanProductManagement() {
   };
 
   const loadArtisanProducts = async () => {
-    // Mock data for now - replace with actual API call
-    return [
-      {
-        _id: '1',
-        name: 'Artisan Bread',
-        description: 'Fresh baked artisan bread',
-        price: 5.99,
-        category: 'bakery',
-        status: 'active',
-        stock: 20,
-        image: null,
-        createdAt: new Date(),
-        promotionalFeatures: []
-      },
-      {
-        _id: '2',
-        name: 'Organic Honey',
-        description: 'Pure organic honey from local bees',
-        price: 12.99,
-        category: 'produce',
-        status: 'active',
-        stock: 15,
-        image: null,
-        createdAt: new Date(),
-        promotionalFeatures: []
-      },
-      {
-        _id: '3',
-        name: 'Fresh Milk',
-        description: 'Farm fresh whole milk',
-        price: 4.99,
-        category: 'dairy',
-        status: 'active',
-        stock: 30,
-        image: null,
-        createdAt: new Date(),
-        promotionalFeatures: []
-      }
-    ];
+    try {
+      // Load actual artisan products from the backend
+      const response = await productService.getArtisanProducts();
+      return response.data || [];
+    } catch (error) {
+      console.error('Error loading artisan products:', error);
+      // Fallback to mock data if API fails
+      return [
+        {
+          _id: '1',
+          name: 'Artisan Bread',
+          description: 'Fresh baked artisan bread',
+          price: 5.99,
+          unit: 'piece',
+          category: 'bakery',
+          subcategory: 'bread',
+          status: 'active',
+          stock: 20,
+          weight: '500g',
+          dimensions: '20x10x5 cm',
+          allergens: 'Gluten, Wheat',
+          ingredients: 'Flour, Water, Salt, Yeast',
+          image: null,
+          createdAt: new Date(),
+          promotionalFeatures: []
+        },
+        {
+          _id: '2',
+          name: 'Organic Honey',
+          description: 'Pure organic honey from local bees',
+          price: 12.99,
+          unit: 'kg',
+          category: 'produce',
+          subcategory: 'honey',
+          status: 'active',
+          stock: 15,
+          weight: '1kg',
+          dimensions: '15x10x8 cm',
+          allergens: 'None',
+          ingredients: '100% Pure Honey',
+          image: null,
+          createdAt: new Date(),
+          promotionalFeatures: []
+        },
+        {
+          _id: '3',
+          name: 'Fresh Milk',
+          description: 'Farm fresh whole milk',
+          price: 4.99,
+          unit: 'l',
+          category: 'dairy',
+          subcategory: 'milk',
+          status: 'active',
+          stock: 30,
+          weight: '1L',
+          dimensions: '10x8x8 cm',
+          allergens: 'Dairy',
+          ingredients: 'Whole Milk',
+          image: null,
+          createdAt: new Date(),
+          promotionalFeatures: []
+        }
+      ];
+    }
   };
 
   const applyFiltersAndSort = () => {
@@ -364,13 +389,25 @@ export default function ArtisanProductManagement() {
                 Manage your products and promotional features
               </p>
             </div>
-            <button
-              onClick={handleAddProduct}
-              className="bg-[#D77A61] text-white px-6 py-3 rounded-lg hover:bg-[#C06A51] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <PlusIcon className="w-5 h-5" />
-              <span>Add Product</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={loadProducts}
+                className="bg-[#E6B655] text-white px-4 py-2 rounded-lg hover:bg-[#D4A545] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+                title="Refresh Products"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span>Refresh</span>
+              </button>
+              <button
+                onClick={handleAddProduct}
+                className="bg-[#D77A61] text-white px-6 py-3 rounded-lg hover:bg-[#C06A51] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <PlusIcon className="w-5 h-5" />
+                <span>Add Product</span>
+              </button>
+            </div>
           </div>
           <div className="flex items-center justify-center space-x-8 text-sm text-gray-600">
             <div className="flex items-center space-x-2">
@@ -478,20 +515,53 @@ export default function ArtisanProductManagement() {
                           <div>
                             <span className="font-medium">Category:</span>
                             <p className="capitalize">{product.category}</p>
+                            {product.subcategory && (
+                              <p className="text-xs text-gray-500 capitalize">({product.subcategory})</p>
+                            )}
                           </div>
                           <div>
                             <span className="font-medium">Price:</span>
-                            <p>${product.price}</p>
+                            <p>${product.price} / {product.unit || 'piece'}</p>
                           </div>
                           <div>
                             <span className="font-medium">Stock:</span>
-                            <p>{product.stock}</p>
+                            <div className="flex items-center space-x-2">
+                              <p className={product.stock <= 5 ? 'text-red-600 font-semibold' : ''}>
+                                {product.stock}
+                              </p>
+                              {product.stock <= 5 && (
+                                <span className="text-xs text-red-500">Low Stock!</span>
+                              )}
+                            </div>
                           </div>
                           <div>
                             <span className="font-medium">Created:</span>
                             <p>{new Date(product.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
+                        
+                        {/* Additional Product Details */}
+                        {(product.weight || product.dimensions || product.allergens) && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-500">
+                              {product.weight && (
+                                <div>
+                                  <span className="font-medium">Weight:</span> {product.weight}
+                                </div>
+                              )}
+                              {product.dimensions && (
+                                <div>
+                                  <span className="font-medium">Dimensions:</span> {product.dimensions}
+                                </div>
+                              )}
+                              {product.allergens && (
+                                <div>
+                                  <span className="font-medium">Allergens:</span> {product.allergens}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -533,6 +603,34 @@ export default function ArtisanProductManagement() {
                       >
                         <TrashIcon className="w-5 h-5" />
                       </button>
+                    </div>
+                    
+                    {/* Quick Stock Update */}
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Quick Stock Update:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          defaultValue={product.stock}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                          onBlur={(e) => {
+                            const newStock = parseInt(e.target.value);
+                            if (newStock !== product.stock && !isNaN(newStock)) {
+                              handleStockUpdate(product._id, newStock);
+                            }
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              const newStock = parseInt(e.target.value);
+                              if (newStock !== product.stock && !isNaN(newStock)) {
+                                handleStockUpdate(product._id, newStock);
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-xs text-gray-500">units</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -786,6 +884,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     description: product?.description || '',
     price: product?.price || '',
     unit: product?.unit || 'piece',
+    productType: product?.productType || 'physical',
     category: product?.category || 'bakery',
     subcategory: product?.subcategory || '',
     stock: product?.stock || '',
@@ -793,7 +892,17 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     dimensions: product?.dimensions || '',
     allergens: product?.allergens || '',
     ingredients: product?.ingredients || '',
-    image: product?.image || null
+    image: product?.image || null,
+    status: product?.status || 'active',
+    isOrganic: product?.isOrganic || false,
+    isGlutenFree: product?.isGlutenFree || false,
+    isVegan: product?.isVegan || false,
+    preparationTime: product?.preparationTime || '',
+    shelfLife: product?.shelfLife || '',
+    storageInstructions: product?.storageInstructions || '',
+    servingSize: product?.servingSize || '',
+    calories: product?.calories || '',
+    nutritionalInfo: product?.nutritionalInfo || ''
   });
 
   const handleSubmit = (e) => {
@@ -811,6 +920,59 @@ const ProductForm = ({ product, onSave, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Product Type Selection */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          Product Type *
+        </label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div
+            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+              formData.productType === 'physical'
+                ? 'border-[#D77A61] bg-[#F5F1EA]'
+                : 'border-gray-200 hover:border-[#D77A61]/50'
+            }`}
+            onClick={() => setFormData({...formData, productType: 'physical'})}
+          >
+            <div className="text-center">
+              <CubeIcon className="w-8 h-8 mx-auto mb-2 text-[#D77A61]" />
+              <h4 className="font-semibold text-gray-900">Physical Product</h4>
+              <p className="text-sm text-gray-600">Tangible items with inventory</p>
+            </div>
+          </div>
+          
+          <div
+            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+              formData.productType === 'service'
+                ? 'border-[#D77A61] bg-[#F5F1EA]'
+                : 'border-gray-200 hover:border-[#D77A61]/50'
+            }`}
+            onClick={() => setFormData({...formData, productType: 'service'})}
+          >
+            <div className="text-center">
+              <ClockIcon className="w-8 h-8 mx-auto mb-2 text-[#D77A61]" />
+              <h4 className="font-semibold text-gray-900">Service</h4>
+              <p className="text-sm text-gray-600">Time-based services</p>
+            </div>
+          </div>
+          
+          <div
+            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+              formData.productType === 'digital'
+                ? 'border-[#D77A61] bg-[#F5F1EA]'
+                : 'border-gray-200 hover:border-[#D77A61]/50'
+            }`}
+            onClick={() => setFormData({...formData, productType: 'digital'})}
+          >
+            <div className="text-center">
+              <SparklesIcon className="w-8 h-8 mx-auto mb-2 text-[#D77A61]" />
+              <h4 className="font-semibold text-gray-900">Digital</h4>
+              <p className="text-sm text-gray-600">Downloadable content</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -911,6 +1073,23 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
           />
         </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Status
+          </label>
+          <select
+            name="status"
+            value={formData.status}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="out_of_stock">Out of Stock</option>
+            <option value="draft">Draft</option>
+          </select>
+        </div>
       </div>
 
       <div>
@@ -983,6 +1162,138 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           placeholder="List main ingredients..."
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
         />
+      </div>
+
+      {/* Dietary Information */}
+      <div className="border-t border-gray-200 pt-4">
+        <h4 className="text-lg font-medium text-gray-900 mb-3">Dietary Information</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              name="isOrganic"
+              checked={formData.isOrganic}
+              onChange={(e) => setFormData({...formData, isOrganic: e.target.checked})}
+              className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61]"
+            />
+            <span className="text-sm text-gray-700">Organic</span>
+          </label>
+          
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              name="isGlutenFree"
+              checked={formData.isGlutenFree}
+              onChange={(e) => setFormData({...formData, isGlutenFree: e.target.checked})}
+              className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61]"
+            />
+            <span className="text-sm text-gray-700">Gluten Free</span>
+          </label>
+          
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              name="isVegan"
+              checked={formData.isVegan}
+              onChange={(e) => setFormData({...formData, isVegan: e.target.checked})}
+              className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61]"
+            />
+            <span className="text-sm text-gray-700">Vegan</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Additional Information */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Preparation Time
+          </label>
+          <input
+            type="text"
+            name="preparationTime"
+            value={formData.preparationTime}
+            onChange={handleChange}
+            placeholder="e.g., 30 minutes, 2 hours"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Shelf Life
+          </label>
+          <input
+            type="text"
+            name="shelfLife"
+            value={formData.shelfLife}
+            onChange={handleChange}
+            placeholder="e.g., 7 days, 3 months"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Storage Instructions
+        </label>
+        <textarea
+          name="storageInstructions"
+          value={formData.storageInstructions}
+          onChange={handleChange}
+          rows="2"
+          placeholder="e.g., Keep refrigerated, Store in a cool dry place..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+        />
+      </div>
+
+      {/* Nutritional Information */}
+      <div className="border-t border-gray-200 pt-4">
+        <h4 className="text-lg font-medium text-gray-900 mb-3">Nutritional Information</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Serving Size
+            </label>
+            <input
+              type="text"
+              name="servingSize"
+              value={formData.servingSize}
+              onChange={handleChange}
+              placeholder="e.g., 100g, 1 cup"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Calories per Serving
+            </label>
+            <input
+              type="number"
+              name="calories"
+              value={formData.calories}
+              onChange={handleChange}
+              placeholder="e.g., 150"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nutritional Info
+            </label>
+            <textarea
+              name="nutritionalInfo"
+              value={formData.nutritionalInfo}
+              onChange={handleChange}
+              rows="2"
+              placeholder="e.g., Protein: 5g, Carbs: 20g, Fat: 2g..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">

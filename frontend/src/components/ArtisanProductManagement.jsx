@@ -145,68 +145,14 @@ export default function ArtisanProductManagement() {
 
   const loadArtisanProducts = async () => {
     try {
-      // Load actual artisan products from the backend
-      const response = await productService.getArtisanProducts();
-      return response.data || [];
+      // Load actual artisan products from the backend using the authenticated user's artisan profile
+      const products = await productService.getMyProducts();
+      console.log('Loaded artisan products:', products);
+      return products || [];
     } catch (error) {
       console.error('Error loading artisan products:', error);
-      // Fallback to mock data if API fails
-      return [
-        {
-          _id: '1',
-          name: 'Artisan Bread',
-          description: 'Fresh baked artisan bread',
-          price: 5.99,
-          unit: 'piece',
-          category: 'bakery',
-          subcategory: 'bread',
-          status: 'active',
-          stock: 20,
-          weight: '500g',
-          dimensions: '20x10x5 cm',
-          allergens: 'Gluten, Wheat',
-          ingredients: 'Flour, Water, Salt, Yeast',
-          image: null,
-          createdAt: new Date(),
-          promotionalFeatures: []
-        },
-        {
-          _id: '2',
-          name: 'Organic Honey',
-          description: 'Pure organic honey from local bees',
-          price: 12.99,
-          unit: 'kg',
-          category: 'produce',
-          subcategory: 'honey',
-          status: 'active',
-          stock: 15,
-          weight: '1kg',
-          dimensions: '15x10x8 cm',
-          allergens: 'None',
-          ingredients: '100% Pure Honey',
-          image: null,
-          createdAt: new Date(),
-          promotionalFeatures: []
-        },
-        {
-          _id: '3',
-          name: 'Fresh Milk',
-          description: 'Farm fresh whole milk',
-          price: 4.99,
-          unit: 'l',
-          category: 'dairy',
-          subcategory: 'milk',
-          status: 'active',
-          stock: 30,
-          weight: '1L',
-          dimensions: '10x8x8 cm',
-          allergens: 'Dairy',
-          ingredients: 'Whole Milk',
-          image: null,
-          createdAt: new Date(),
-          promotionalFeatures: []
-        }
-      ];
+      toast.error('Failed to load your products. Please try again.');
+      return [];
     }
   };
 
@@ -409,82 +355,156 @@ export default function ArtisanProductManagement() {
               </button>
             </div>
           </div>
-          <div className="flex items-center justify-center space-x-8 text-sm text-gray-600">
-            <div className="flex items-center space-x-2">
-              <StarIcon className="w-5 h-5 text-amber-500" />
-              <span className="font-medium">Featured Product: $25</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <SparklesIcon className="w-5 h-5 text-purple-500" />
-              <span className="font-medium">Sponsored Product: $40/7 days</span>
+          
+          {/* Promotional Features Info */}
+          <div className="bg-gradient-to-r from-amber-50 to-purple-50 rounded-xl p-6 border border-amber-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Promotional Features</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-amber-200">
+                <StarIcon className="w-6 h-6 text-amber-500" />
+                <div>
+                  <span className="font-semibold text-amber-700">Featured Product</span>
+                  <p className="text-sm text-gray-600">$25 - Homepage visibility with distance-based ranking</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
+                <SparklesIcon className="w-6 h-6 text-purple-500" />
+                <div>
+                  <span className="font-semibold text-purple-700">Sponsored Product</span>
+                  <p className="text-sm text-gray-600">$40/7 days - Enhanced search visibility</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Search and Filters */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                />
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Search & Filter Products</h3>
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search Products</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, description, or category..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200"
+                  />
+                </div>
               </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-              >
-                <option value="all">All Categories</option>
-                <option value="bakery">Bakery</option>
-                <option value="dairy">Dairy</option>
-                <option value="produce">Produce</option>
-                <option value="meat">Meat</option>
-                <option value="beverages">Beverages</option>
-                <option value="snacks">Snacks</option>
-              </select>
               
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="out_of_stock">Out of Stock</option>
-              </select>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="bakery">Bakery</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="produce">Produce</option>
+                    <option value="meat">Meat</option>
+                    <option value="beverages">Beverages</option>
+                    <option value="snacks">Snacks</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
+                  >
+                    <option value="createdAt">Date Created</option>
+                    <option value="name">Name</option>
+                    <option value="price">Price</option>
+                    <option value="stock">Stock</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
+                  >
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Products List */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
-          <div className="px-6 py-4 border-b border-gray-200 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Products ({filteredProducts.length})
-            </h3>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900">
+                My Products
+              </h3>
+              <p className="text-gray-600 mt-1">
+                {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">Last updated:</span>
+              <span className="text-sm font-medium text-gray-700">
+                {new Date().toLocaleTimeString()}
+              </span>
+            </div>
           </div>
 
           {filteredProducts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>No products found</p>
+            <div className="text-center py-12">
+              <CubeIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+              <p className="text-gray-500 mb-6">
+                {searchQuery || selectedCategory !== 'all' || selectedStatus !== 'all' 
+                  ? 'Try adjusting your search or filters' 
+                  : 'Get started by adding your first product'}
+              </p>
+              {!searchQuery && selectedCategory === 'all' && selectedStatus === 'all' && (
+                <button
+                  onClick={handleAddProduct}
+                  className="bg-[#D77A61] text-white px-6 py-3 rounded-lg hover:bg-[#C06A51] transition-colors duration-200 flex items-center space-x-2 mx-auto"
+                >
+                  <PlusIcon className="w-5 h-5" />
+                  <span>Add Your First Product</span>
+                </button>
+              )}
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="space-y-4">
               {filteredProducts.map((product) => (
-                <div key={product._id} className="p-6">
+                <div key={product._id} className="bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
                   <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="flex items-start space-x-4 flex-1">
+                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm">
                         {product.image ? (
                           <img
                             src={product.image}
@@ -492,71 +512,83 @@ export default function ArtisanProductManagement() {
                             className="w-full h-full object-cover rounded-lg"
                           />
                         ) : (
-                          <span className="text-gray-400 text-xs">No Image</span>
+                          <div className="text-center">
+                            <CubeIcon className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                            <span className="text-xs text-gray-400">No Image</span>
+                          </div>
                         )}
                       </div>
                       
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="font-semibold text-gray-900">{product.name}</h4>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <h4 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h4>
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            product.status === 'active' ? 'bg-green-100 text-green-800' : 
+                            product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                            product.status === 'out_of_stock' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {product.status === 'active' ? 'Active' : 'Inactive'}
+                            {product.status === 'active' ? 'Active' : 
+                             product.status === 'inactive' ? 'Inactive' :
+                             product.status === 'out_of_stock' ? 'Out of Stock' :
+                             'Draft'}
                           </span>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPromotionStatus(product).color}`}>
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPromotionStatus(product).color} bg-opacity-10`}>
                             {getPromotionStatus(product).text}
                           </span>
                         </div>
                         
-                        <p className="text-sm text-gray-600 mb-2">{product.description}</p>
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <span className="font-medium">Category:</span>
-                            <p className="capitalize">{product.category}</p>
+                            <span className="font-medium text-gray-700">Category:</span>
+                            <p className="capitalize text-gray-600">{product.category}</p>
                             {product.subcategory && (
                               <p className="text-xs text-gray-500 capitalize">({product.subcategory})</p>
                             )}
                           </div>
                           <div>
-                            <span className="font-medium">Price:</span>
-                            <p>${product.price} / {product.unit || 'piece'}</p>
+                            <span className="font-medium text-gray-700">Price:</span>
+                            <p className="text-gray-600">${product.price} / {product.unit || 'piece'}</p>
                           </div>
                           <div>
-                            <span className="font-medium">Stock:</span>
+                            <span className="font-medium text-gray-700">Stock:</span>
                             <div className="flex items-center space-x-2">
-                              <p className={product.stock <= 5 ? 'text-red-600 font-semibold' : ''}>
+                              <p className={`${product.stock <= 5 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
                                 {product.stock}
                               </p>
                               {product.stock <= 5 && (
-                                <span className="text-xs text-red-500">Low Stock!</span>
+                                <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">Low Stock!</span>
                               )}
                             </div>
                           </div>
                           <div>
-                            <span className="font-medium">Created:</span>
-                            <p>{new Date(product.createdAt).toLocaleDateString()}</p>
+                            <span className="font-medium text-gray-700">Created:</span>
+                            <p className="text-gray-600">{new Date(product.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         
                         {/* Additional Product Details */}
                         {(product.weight || product.dimensions || product.allergens) && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-500">
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                               {product.weight && (
-                                <div>
-                                  <span className="font-medium">Weight:</span> {product.weight}
+                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium text-gray-700">Weight:</span>
+                                  <p className="text-gray-600">{product.weight}</p>
                                 </div>
                               )}
                               {product.dimensions && (
-                                <div>
-                                  <span className="font-medium">Dimensions:</span> {product.dimensions}
+                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium text-gray-700">Dimensions:</span>
+                                  <p className="text-gray-600">{product.dimensions}</p>
                                 </div>
                               )}
                               {product.allergens && (
-                                <div>
-                                  <span className="font-medium">Allergens:</span> {product.allergens}
+                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium text-gray-700">Allergens:</span>
+                                  <p className="text-gray-600">{product.allergens}</p>
                                 </div>
                               )}
                             </div>
@@ -565,71 +597,73 @@ export default function ArtisanProductManagement() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setShowProductModal(true);
-                        }}
-                        className="p-2 text-blue-600 hover:text-blue-700 transition-colors"
-                        title="View Details"
-                      >
-                        <EyeIcon className="w-5 h-5" />
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setSelectedProduct(product);
-                          setShowPromotionModal(true);
-                        }}
-                        className="p-2 text-purple-600 hover:text-purple-700 transition-colors"
-                        title="Promote Product"
-                      >
-                        <SparklesIcon className="w-5 h-5" />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleEditProduct(product)}
-                        className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Edit Product"
-                      >
-                        <PencilIcon className="w-5 h-5" />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeleteProduct(product._id)}
-                        className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete Product"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    {/* Quick Stock Update */}
-                    <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="flex flex-col items-end space-y-3 ml-4">
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">Quick Stock Update:</span>
-                        <input
-                          type="number"
-                          min="0"
-                          defaultValue={product.stock}
-                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                          onBlur={(e) => {
-                            const newStock = parseInt(e.target.value);
-                            if (newStock !== product.stock && !isNaN(newStock)) {
-                              handleStockUpdate(product._id, newStock);
-                            }
+                        <button
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setShowProductModal(true);
                           }}
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
+                          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="View Details"
+                        >
+                          <EyeIcon className="w-5 h-5" />
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            setSelectedProduct(product);
+                            setShowPromotionModal(true);
+                          }}
+                          className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                          title="Promote Product"
+                        >
+                          <SparklesIcon className="w-5 h-5" />
+                        </button>
+                        
+                        <button
+                          onClick={() => handleEditProduct(product)}
+                          className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Edit Product"
+                        >
+                          <PencilIcon className="w-5 h-5" />
+                        </button>
+                        
+                        <button
+                          onClick={() => handleDeleteProduct(product._id)}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Product"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                      
+                      {/* Quick Stock Update */}
+                      <div className="bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">Stock:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            defaultValue={product.stock}
+                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                            onBlur={(e) => {
                               const newStock = parseInt(e.target.value);
                               if (newStock !== product.stock && !isNaN(newStock)) {
                                 handleStockUpdate(product._id, newStock);
                               }
-                            }
-                          }}
-                        />
-                        <span className="text-xs text-gray-500">units</span>
+                            }}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                const newStock = parseInt(e.target.value);
+                                if (newStock !== product.stock && !isNaN(newStock)) {
+                                  handleStockUpdate(product._id, newStock);
+                                }
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-gray-500">units</span>
+                        </div>
                       </div>
                     </div>
                   </div>

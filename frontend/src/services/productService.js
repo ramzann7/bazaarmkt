@@ -293,6 +293,8 @@ export const getProductCategories = async () => {
   return response.data;
 };
 
+
+
 // Upload image to server (if you have image upload endpoint)
 export const uploadImage = async (file) => {
   const token = localStorage.getItem('token');

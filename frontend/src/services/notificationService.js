@@ -1,6 +1,22 @@
 import axios from 'axios';
+import { 
+  sendOrderCompletionEmail as sendBrevoOrderCompletionEmail,
+  sendOrderUpdateEmail as sendBrevoOrderUpdateEmail,
+  createOrUpdateContact,
+  getContactByEmail,
+  isBrevoInitialized,
+  initializeBrevo
+} from './brevoService';
 
 const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+
+// Initialize Brevo service (call this when you have the API key)
+export const initializeNotificationService = (brevoApiKey) => {
+  if (brevoApiKey) {
+    initializeBrevo(brevoApiKey);
+    console.log('🔧 Notification service initialized with Brevo');
+  }
+};
 
 export const notificationService = {
   // Send order completion notification (primary method for guests)
@@ -103,6 +119,47 @@ export const notificationService = {
   // Send order completion email (detailed email for guests)
   sendOrderCompletionEmail: async (notificationData) => {
     try {
+      // Try Brevo first if available
+      if (isBrevoInitialized()) {
+        console.log('📧 Sending order completion email via Brevo');
+        
+        // Create or update contact in Brevo
+        try {
+          await createOrUpdateContact({
+            email: notificationData.userEmail,
+            attributes: {
+              FIRSTNAME: (notificationData.userName || 'Customer').split(' ')[0] || notificationData.userName || 'Customer',
+              LASTNAME: (notificationData.userName || 'Customer').split(' ').slice(1).join(' ') || '',
+              ORDER_COUNT: 1,
+              LAST_ORDER_DATE: new Date().toISOString(),
+              TOTAL_SPENT: notificationData.orderDetails.totalAmount || 0
+            }
+          });
+        } catch (contactError) {
+          console.warn('⚠️ Could not create/update Brevo contact:', contactError.message);
+        }
+        
+        // Prepare order data for Brevo
+        const orderData = {
+          _id: notificationData.orderId,
+          orderNumber: notificationData.orderDetails.orderNumber,
+          totalAmount: notificationData.orderDetails.totalAmount,
+          items: notificationData.orderDetails.items,
+          deliveryAddress: notificationData.orderDetails.deliveryAddress,
+          createdAt: new Date().toISOString(),
+          deliveryMethod: notificationData.isGuest ? 'pickup' : 'delivery'
+        };
+        
+        // Send email via Brevo
+        return await sendBrevoOrderCompletionEmail(
+          orderData, 
+          notificationData.userEmail, 
+          notificationData.userName || 'Customer'
+        );
+      }
+      
+      // Fallback to backend API if Brevo not available
+      console.log('📧 Sending order completion email via backend API');
       const emailData = {
         to: notificationData.userEmail,
         subject: `🎉 Order Confirmed! #${notificationData.orderDetails.orderNumber}`,
@@ -132,6 +189,45 @@ export const notificationService = {
   // Send order update email
   sendOrderUpdateEmail: async (notificationData) => {
     try {
+      // Try Brevo first if available
+      if (isBrevoInitialized()) {
+        console.log('📧 Sending order update email via Brevo');
+        
+        // Update contact in Brevo with order update
+        try {
+          await createOrUpdateContact({
+            email: notificationData.userEmail,
+            attributes: {
+              FIRSTNAME: (notificationData.userName || 'Customer').split(' ')[0] || notificationData.userName || 'Customer',
+              LASTNAME: (notificationData.userName || 'Customer').split(' ').slice(1).join(' ') || '',
+              LAST_ORDER_UPDATE: new Date().toISOString(),
+              UPDATE_TYPE: notificationData.updateType
+            }
+          });
+        } catch (contactError) {
+          console.warn('⚠️ Could not update Brevo contact:', contactError.message);
+        }
+        
+        // Prepare order data for Brevo
+        const orderData = {
+          _id: notificationData.orderId,
+          orderNumber: notificationData.orderDetails.orderNumber,
+          totalAmount: notificationData.orderDetails.totalAmount,
+          createdAt: new Date().toISOString()
+        };
+        
+        // Send email via Brevo
+        return await sendBrevoOrderUpdateEmail(
+          orderData, 
+          notificationData.userEmail, 
+          notificationData.userName || 'Customer',
+          notificationData.updateType,
+          notificationData.updateDetails
+        );
+      }
+      
+      // Fallback to backend API if Brevo not available
+      console.log('📧 Sending order update email via backend API');
       const updateMessages = {
         'status_change': 'Your order status has been updated',
         'shipping': 'Your order has been shipped',
@@ -263,5 +359,18 @@ export const notificationService = {
       console.error('Error marking all notifications as read:', error);
       throw error;
     }
+  },
+
+  // Check if Brevo is available
+  isBrevoAvailable: () => {
+    return isBrevoInitialized();
+  },
+
+  // Get service status
+  getServiceStatus: () => {
+    return {
+      brevo: isBrevoInitialized(),
+      backend: true // Backend API is always available
+    };
   }
 };

@@ -1450,12 +1450,106 @@ const Cart = () => {
                   )}
                 </div>
 
-                {/* Step 2: Delivery Address */}
-                {isAddressRequired() && (
+                {/* Guest Information Form (for guest users) - Always show for guests */}
+                {isGuest && (
                   <div className="mb-6">
                     <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
                       <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
                         <span className="text-white font-bold text-xs">2</span>
+                      </div>
+                      Your Information
+                      {!isAddressRequired() && (
+                        <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
+                          Required for pickup orders
+                        </span>
+                      )}
+                    </h2>
+                    
+                    <div className="border-t border-stone-200 pt-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">First Name *</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.firstName}
+                            onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
+                            className="input-field text-sm py-2"
+                            placeholder="First name"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">Last Name *</label>
+                          <input
+                            type="text"
+                            value={deliveryForm.lastName}
+                            onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
+                            className="input-field text-sm py-2"
+                            placeholder="Last name"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address *</label>
+                          <input
+                            type="email"
+                            value={deliveryForm.email}
+                            onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
+                            className="input-field"
+                            placeholder="Enter your email address"
+                            required
+                          />
+                          {/* Show existing account notification */}
+                          {existingUser && (
+                            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                              <div className="flex items-center gap-2 text-blue-800">
+                                <CheckCircleIcon className="w-4 h4" />
+                                <span className="text-sm font-medium">
+                                  Welcome back! Using existing account for {existingUser.email}
+                                </span>
+                              </div>
+                              <p className="text-xs text-blue-600 mt-1">
+                                Your information will be updated with this order.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-stone-700 mb-2">Phone Number</label>
+                          <input
+                            type="tel"
+                            value={deliveryForm.phone}
+                            onChange={(e) => handleDeliveryFormChange('phone', e.target.value)}
+                            className="input-field"
+                            placeholder="Enter your phone number (optional)"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Pickup Information Notice */}
+                      {!isAddressRequired() && (
+                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <MapPinIcon className="w-4 h-4 text-emerald-600" />
+                            <div>
+                              <p className="text-emerald-800 text-sm font-medium">Pickup Order</p>
+                              <p className="text-emerald-700 text-xs">
+                                You'll visit the artisan to collect your order. We'll use your email to identify you and send order updates.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Delivery Address (only when required) */}
+                {isAddressRequired() && (
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-xs">3</span>
                       </div>
                       Where should we deliver your order?
                     </h2>
@@ -1516,94 +1610,7 @@ const Cart = () => {
                       </div>
                     )}
 
-                    {/* Guest Information Form (for guest users) - Always show for guests */}
-                    {isGuest && (
-                      <div className="border-t border-stone-200 pt-4 mb-4">
-                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                          <UserIcon className="w-4 h-4 text-blue-600" />
-                          Your Information
-                          {!isAddressRequired() && (
-                            <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
-                              Required for pickup orders
-                            </span>
-                          )}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">First Name *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.firstName}
-                              onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
-                              className="input-field text-sm py-2"
-                              placeholder="First name"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">Last Name *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.lastName}
-                              onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
-                              className="input-field text-sm py-2"
-                              placeholder="Last name"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address *</label>
-                            <input
-                              type="email"
-                              value={deliveryForm.email}
-                              onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
-                              className="input-field"
-                              placeholder="Enter your email address"
-                              required
-                            />
-                            {/* Show existing account notification */}
-                            {existingUser && (
-                              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                                <div className="flex items-center gap-2 text-blue-800">
-                                  <CheckCircleIcon className="w-4 h4" />
-                                  <span className="text-sm font-medium">
-                                    Welcome back! Using existing account for {existingUser.email}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-blue-600 mt-1">
-                                  Your information will be updated with this order.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-stone-700 mb-2">Phone Number</label>
-                            <input
-                              type="tel"
-                              value={deliveryForm.phone}
-                              onChange={(e) => handleDeliveryFormChange('phone', e.target.value)}
-                              className="input-field"
-                              placeholder="Enter your phone number (optional)"
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Pickup Information Notice */}
-                        {!isAddressRequired() && (
-                          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <MapPinIcon className="w-4 h-4 text-emerald-600" />
-                              <div>
-                                <p className="text-emerald-800 text-sm font-medium">Pickup Order</p>
-                                <p className="text-emerald-700 text-xs">
-                                  You'll visit the artisan to collect your order. We'll use your email to identify you and send order updates.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+
 
 
 

@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom CSS Variables for Artisan Theme */
+:root {
+  --color-cream: #F5F1EA;
+  --color-forest: #3C6E47;
+  --color-terracotta: #D77A61;
+  --color-gold: #E6B655;
+  --color-dark: #2E2E2E;
+  --color-text: #1F2937;
+}
+
 /* Custom animations for cart interactions */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -80,7 +90,7 @@
 
 @layer base {
   body {
-    @apply bg-stone-50 text-stone-800 font-sans;
+    @apply bg-[#F5F1EA] text-gray-900 font-sans;
     font-family: 'Inter', sans-serif;
   }
   

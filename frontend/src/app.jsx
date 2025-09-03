@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
 import Navbar from "./components/navbar.jsx";
+import Footer from "./components/Footer.jsx";
 import { performanceService } from "./services/performanceService";
 import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
@@ -33,6 +34,7 @@ const ArtisanOnlyRoute = ({ children }) => {
 const Home = lazy(() => import("./components/home.jsx"));
 const Login = lazy(() => import("./components/login.jsx"));
 const Register = lazy(() => import("./components/register.jsx"));
+const Signup = lazy(() => import("./components/register.jsx")); // Alias for signup route
 const Dashboard = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
 const Artisans = lazy(() => import("./components/artisans.jsx"));
 const Profile = lazy(() => import("./components/Profile.jsx"));
@@ -228,6 +230,7 @@ function App() {
       <AuthProvider>
         <Navbar />
         <AppRoutes />
+        <Footer />
       </AuthProvider>
     </Router>
   );

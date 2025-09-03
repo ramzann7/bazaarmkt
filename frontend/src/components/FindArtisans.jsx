@@ -398,7 +398,7 @@ export default function FindArtisans() {
         className={`rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 group cursor-pointer ${
           isOpen === false 
             ? 'bg-gray-50 opacity-75 hover:opacity-90 hover:shadow-md' 
-            : 'bg-white hover:shadow-lg hover:border-amber-200'
+            : 'bg-white hover:shadow-lg hover:border-[#E6B655]'
         }`}
         onClick={() => navigate(`/artisan/${artisan._id}`)}
         role="button"
@@ -618,19 +618,19 @@ export default function FindArtisans() {
   );
 
   return (
-    <div className="min-h-screen bg-amber-50">
-      {/* Subtle Search Section */}
-      <div className="bg-white shadow-sm border-b border-amber-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Find Local Artisans</h1>
-              <p className="text-gray-600 mt-1">
-                Discover exceptional local artisans and their premium products
-              </p>
-            </div>
+    <div className="min-h-screen bg-[#F5F1EA]">
+              {/* Search Section */}
+        <div className="bg-white shadow-sm border-b border-[#E6B655]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 font-serif mb-2">Find Local Artisans</h1>
+                <p className="text-lg text-gray-600">
+                  Discover exceptional local artisans and their premium products
+                </p>
+              </div>
             
-            {/* Subtle Search Bar */}
+            {/* Enhanced Search Bar */}
             <div className="flex items-center space-x-4">
               <form onSubmit={handleSearch} className="relative">
                 <input
@@ -638,14 +638,14 @@ export default function FindArtisans() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search artisans..."
-                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-80 pl-12 pr-6 py-3 border-2 border-[#E6B655] rounded-xl focus:ring-4 focus:ring-[#E6B655]/20 focus:border-[#3C6E47] transition-all duration-200 text-lg placeholder-gray-500 shadow-lg"
                 />
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-[#E6B655]" />
               </form>
               
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 border border-amber-200 rounded-lg hover:bg-amber-50"
+                className="flex items-center space-x-2 px-6 py-3 border-2 border-[#E6B655] rounded-xl hover:bg-[#E6B655] hover:text-white transition-all duration-200 font-medium shadow-lg"
               >
                 <FunnelIcon className="w-5 h-5" />
                 <span>Filters</span>
@@ -658,7 +658,7 @@ export default function FindArtisans() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Horizontal Scrollable Category Section (Uber Eats Style) */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Explore by Category</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Explore by Category</h2>
           <div className="relative">
             {/* Horizontal Scrollable Container */}
             <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -668,12 +668,12 @@ export default function FindArtisans() {
                   onClick={() => handleArtisanTypeSelect(type.id)}
                   className={`group flex-shrink-0 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 min-w-[140px] ${
                     selectedType === type.id
-                      ? 'ring-2 ring-amber-500 bg-amber-50'
-                      : 'hover:border-amber-200'
+                      ? 'ring-2 ring-[#D77A61] bg-[#F5F1EA]'
+                      : 'hover:border-[#E6B655]'
                   }`}
                 >
                   <div className="text-3xl mb-2 group-hover:scale-110 transition-transform text-center">{type.icon}</div>
-                  <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors text-sm text-center">
+                  <h3 className="font-medium text-gray-900 group-hover:text-[#D77A61] transition-colors text-sm text-center">
                     {type.name}
                   </h3>
                   <p className="text-xs text-gray-500 mt-1 text-center line-clamp-2">{type.description}</p>
@@ -682,7 +682,7 @@ export default function FindArtisans() {
             </div>
             
             {/* Gradient Overlay for Scroll Indication */}
-            <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-amber-50 to-transparent pointer-events-none"></div>
+            <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-[#F5F1EA] to-transparent pointer-events-none"></div>
           </div>
         </div>
 
@@ -696,7 +696,7 @@ export default function FindArtisans() {
                   <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
                   <button
                     onClick={clearFilters}
-                    className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                    className="text-sm text-[#D77A61] hover:text-[#3C6E47] font-medium"
                   >
                     Clear All
                   </button>
@@ -708,7 +708,7 @@ export default function FindArtisans() {
                   <select
                     value={selectedType}
                     onChange={(e) => handleArtisanTypeSelect(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E6B655] focus:border-transparent"
                   >
                     {artisanTypes.map((type) => (
                       <option key={type.value} value={type.value}>
@@ -724,7 +724,7 @@ export default function FindArtisans() {
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#E6B655] focus:border-transparent"
                   >
                     {categories.map((category) => (
                       <option key={category.value} value={category.value}>

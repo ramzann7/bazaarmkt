@@ -8,7 +8,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   BuildingStorefrontIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  SparklesIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../contexts/AuthContext";
 import { cartService } from "../services/cartService";
@@ -310,57 +311,57 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="bg-white shadow-lg border-b border-stone-200 sticky top-0 z-50">
+    <nav className="bg-[#D77A61] shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <OptimizedLink to="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
-              <BuildingStorefrontIcon className="w-6 h-6 text-white" />
+          <OptimizedLink to="/" className="flex items-center space-x-2 flex-shrink-0">
+            <div className="w-8 h-8 bg-[#E6B655] rounded-lg flex items-center justify-center shadow-lg">
+              <BuildingStorefrontIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="text-2xl font-bold text-gradient">The Bazaar</span>
+            <span className="text-xl font-bold text-white font-serif tracking-wide">The Bazaar</span>
           </OptimizedLink>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8 ml-12">
-            <OptimizedLink to="/" className="nav-link">
+          <div className="hidden md:flex items-center space-x-6 ml-8 flex-shrink-0">
+            <OptimizedLink to="/" className="text-white hover:text-[#E6B655] transition-colors font-medium text-sm">
               Home
             </OptimizedLink>
-              <OptimizedLink to="/find-artisans" className="nav-link">
+              <OptimizedLink to="/find-artisans" className="text-white hover:text-[#E6B655] transition-colors font-medium text-sm">
                 Find Artisan
               </OptimizedLink>
-            <Link to="/community" className="nav-link">
+            <Link to="/community" className="text-white hover:text-[#E6B655] transition-colors font-medium text-sm">
               Community
             </Link>
           </div>
 
           {/* Enhanced Search Bar with Category Dropdown */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-8 search-container">
+          <div className="hidden md:flex flex-1 max-w-lg mx-6 search-container">
             <form onSubmit={handleSearch} className="w-full">
               <div className="relative">
-                <div className="flex">
+                <div className="flex shadow-lg">
                   {/* Category Dropdown */}
                   <div className="relative">
                     <button
                       type="button"
                       onClick={toggleCategoryDropdown}
-                      className={`flex items-center space-x-2 px-4 py-2 border border-r-0 border-gray-300 rounded-l-full transition-colors min-w-[140px] ${
+                      className={`flex items-center space-x-2 px-3 py-2 border border-r-0 border-[#E6B655] rounded-l-full transition-all duration-200 min-w-[140px] font-medium ${
                         selectedCategory !== 'all' || selectedSubcategory 
-                          ? 'bg-amber-50 border-amber-300 hover:bg-amber-100' 
-                          : 'bg-gray-50 hover:bg-gray-100'
+                          ? 'bg-[#E6B655] text-white border-[#E6B655] hover:bg-[#3C6E47] hover:border-[#3C6E47]' 
+                          : 'bg-white text-gray-700 hover:bg-[#F5F1EA] hover:border-[#3C6E47]'
                       }`}
                     >
-                      <span className="text-lg">
+                      <span className="text-base">
                         {selectedSubcategory ? selectedSubcategory.icon : 
                          selectedCategory === 'all' ? '🌟' : 
                          categories.find(c => c.key === selectedCategory)?.icon || '🌟'}
                       </span>
-                      <span className="text-sm font-medium text-gray-700 truncate">
+                      <span className="text-xs font-medium truncate">
                         {selectedSubcategory ? selectedSubcategory.name : 
                          selectedCategory === 'all' ? 'All Products' : 
                          categories.find(c => c.key === selectedCategory)?.name || 'All Products'}
                       </span>
-                      <ChevronDownIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                      <ChevronDownIcon className="w-3 h-3 flex-shrink-0" />
                     </button>
                     
                     {/* Clear selection button */}
@@ -377,20 +378,20 @@ export default function Navbar() {
                     
                     {/* Main Categories Dropdown */}
                     {showCategoryDropdown && (
-                      <div className="absolute top-full left-0 mt-1 w-80 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
+                      <div className="absolute top-full left-0 mt-2 w-96 bg-white border-2 border-[#E6B655] rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto">
                         {productCategories.map((category) => (
                           <button
                             key={category.id}
                             onClick={() => handleCategoryChange(category.id)}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                            className="w-full flex items-center space-x-3 px-6 py-4 text-left hover:bg-[#F5F1EA] transition-all duration-200 border-b border-gray-100 last:border-b-0"
                           >
-                            <span className="text-lg">{category.icon}</span>
+                            <span className="text-xl">{category.icon}</span>
                             <div className="flex-1 text-left">
-                              <div className="text-sm font-medium text-gray-700">{category.name}</div>
-                              <div className="text-xs text-gray-500">{category.description}</div>
+                              <div className="text-sm font-semibold text-gray-800">{category.name}</div>
+                              <div className="text-xs text-gray-600">{category.description}</div>
                             </div>
                             {category.id !== 'all' && getSubcategoriesForCategory(category.id).length > 0 && (
-                              <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+                              <ChevronDownIcon className="w-4 h-4 text-[#E6B655]" />
                             )}
                           </button>
                         ))}
@@ -443,22 +444,25 @@ export default function Navbar() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={togglePopularSearches}
-                    placeholder="Search for anything from local artisans..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-r-full focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                    placeholder="Search for products..."
+                    className="flex-1 px-4 py-2 border border-[#E6B655] rounded-r-full focus:ring-2 focus:ring-[#E6B655]/20 focus:border-[#3C6E47] transition-all duration-200 text-sm placeholder-gray-500"
                   />
                 </div>
                 
                 {/* Popular Searches Dropdown */}
                 {showPopularSearches && searchQuery === '' && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
-                    <div className="p-4">
-                      <p className="text-sm font-medium text-gray-700 mb-3">Popular searches:</p>
-                      <div className="flex flex-wrap gap-2">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-[#E6B655] rounded-xl shadow-2xl z-50">
+                    <div className="p-6">
+                      <p className="text-base font-semibold text-gray-800 mb-4 flex items-center">
+                        <SparklesIcon className="w-5 h-5 text-[#E6B655] mr-2" />
+                        Popular product searches:
+                      </p>
+                      <div className="flex flex-wrap gap-3">
                         {popularSearches.map((search) => (
                           <button
                             key={search}
                             onClick={() => handlePopularSearch(search)}
-                            className="px-3 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-700 rounded-full text-sm transition-colors"
+                            className="px-4 py-2 bg-[#F5F1EA] hover:bg-[#E6B655] text-gray-700 hover:text-white rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border border-[#E6B655]"
                           >
                             {search}
                           </button>
@@ -468,19 +472,19 @@ export default function Navbar() {
                   </div>
                 )}
                 
-                <MagnifyingGlassIcon className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                <MagnifyingGlassIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#E6B655] pointer-events-none" />
               </div>
             </form>
           </div>
 
           {/* Right side actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 flex-shrink-0">
             {/* Cart - Available for all users except artisans */}
             {(!user || user?.role !== 'artisan') && (
-              <Link to="/cart" className="relative p-2 text-stone-700 hover:text-amber-600 transition-colors duration-300">
-                <ShoppingBagIcon className="w-6 h-6" />
+              <Link to="/cart" className="relative p-2 text-white hover:text-[#E6B655] transition-colors duration-300">
+                <ShoppingBagIcon className="w-5 h-5" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-[#3C6E47] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
@@ -489,11 +493,11 @@ export default function Navbar() {
 
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (
-              <div className="flex items-center space-x-3">
-                <Link to="/login" className="text-gray-700 hover:text-amber-600 transition-colors text-sm font-medium">
+              <div className="flex items-center space-x-2">
+                <Link to="/login" className="text-white hover:text-[#E6B655] transition-colors text-sm font-semibold px-3 py-2 rounded-lg hover:bg-white/10">
                   Sign In
                 </Link>
-                <Link to="/register" className="bg-amber-600 text-white px-4 py-2 rounded-full hover:bg-amber-700 transition-colors text-sm font-medium">
+                <Link to="/register" className="bg-[#3C6E47] text-white px-4 py-2 rounded-lg hover:bg-[#2E2E2E] transition-all duration-200 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
                   Join Now
                 </Link>
               </div>

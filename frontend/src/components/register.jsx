@@ -5,6 +5,7 @@ import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon, UserIcon } from "@heroic
 import { registerUser, getProfile } from "../services/authservice";
 import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
+import { PRODUCT_CATEGORIES } from "../data/productReference";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -28,9 +29,18 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
+    let value = e.target.value;
+    
+    // Special handling for artisan name to ensure first letter of each word is capitalized
+    if (e.target.name === 'artisanName') {
+      value = value.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ');
+    }
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [e.target.name]: value,
     });
   };
 
@@ -52,6 +62,18 @@ export default function Register() {
       return;
     }
 
+    // Validate artisan-specific fields
+    if (formData.role === 'artisan') {
+      if (!formData.artisanName || formData.artisanName.trim() === '') {
+        toast.error("Business name is required for artisan accounts");
+        return;
+      }
+      if (!formData.businessType || formData.businessType === '') {
+        toast.error("Business type is required for artisan accounts");
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
@@ -59,9 +81,13 @@ export default function Register() {
       
       // Prepare artisan data if registering as artisan
       if (formData.role === 'artisan') {
-        registerData.artisanName = formData.artisanName || `${formData.firstName} ${formData.lastName}`;
-        registerData.type = formData.businessType;
-        registerData.description = formData.businessDescription || `Artisan profile for ${formData.firstName} ${formData.lastName}`;
+        registerData.artisanData = {
+          artisanName: formData.artisanName || `${formData.firstName} ${formData.lastName}`,
+          type: formData.businessType,
+          description: formData.businessDescription || `Artisan profile for ${formData.firstName} ${formData.lastName}`,
+          category: [formData.businessType], // Set the main category based on business type
+          specialties: [] // Will be populated during profile setup
+        };
       }
       
       const result = await registerUser(registerData);
@@ -88,15 +114,15 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+          <div className="mx-auto w-20 h-20 bg-[#D77A61] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <BuildingStorefrontIcon className="w-10 h-10 text-white" />
           </div>
-                      <h2 className="text-4xl font-bold text-stone-900 mb-2">Join The Bazaar</h2>
-          <p className="text-stone-600 text-lg">Create your account and start your journey</p>
+                      <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join The Bazaar</h2>
+          <p className="text-gray-600 text-lg">Create your account and start your journey</p>
         </div>
 
         {/* Register Form */}
@@ -209,10 +235,10 @@ export default function Register() {
             {/* Artisan-specific fields */}
             {formData.role === 'artisan' && (
               <>
-                {/* Business Name Field */}
+                {/* Artisan Name Field */}
                 <div className="form-group">
                   <label htmlFor="artisanName" className="form-label">
-                    Business Name
+                    Artisan Name *
                   </label>
                   <input
                     id="artisanName"
@@ -222,8 +248,12 @@ export default function Register() {
                     value={formData.artisanName}
                     onChange={handleChange}
                     className="form-input focus-luxury"
-                    placeholder="Enter your business name"
+                    placeholder="Enter your artisan name"
+                    required
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    ✨ Each word will be automatically capitalized for consistency
+                  </p>
                 </div>
 
                 {/* Business Type Field */}
@@ -238,17 +268,15 @@ export default function Register() {
                     onChange={handleChange}
                     className="form-input focus-luxury"
                   >
-                    <option value="food_beverages">Food & Beverages</option>
-                    <option value="handmade_crafts">Handmade Crafts</option>
-                    <option value="clothing_accessories">Clothing & Accessories</option>
-                    <option value="home_garden">Home & Garden</option>
-                    <option value="beauty_wellness">Beauty & Wellness</option>
-                    <option value="bakery">Bakery</option>
-                    <option value="restaurant">Restaurant</option>
-                    <option value="cafe">Cafe</option>
-                    <option value="farm">Farm</option>
-                    <option value="other">Other</option>
+                    {Object.entries(PRODUCT_CATEGORIES).map(([key, category]) => (
+                      <option key={key} value={key}>
+                        {category.icon} {category.name}
+                      </option>
+                    ))}
                   </select>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Select the main category that best describes your business
+                  </p>
                 </div>
 
                 {/* Business Description Field */}

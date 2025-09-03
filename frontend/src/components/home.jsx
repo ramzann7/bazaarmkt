@@ -818,25 +818,25 @@ export default function Home() {
   }, [loadFeaturedProducts, loadPopularProducts]);
 
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div className="min-h-screen bg-[#F5F1EA]">
       {/* Featured Products Grid */}
-      <section className="py-12">
+      <section className="py-16">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
+            <h2 className="text-3xl font-bold text-gray-900 font-serif">Featured Products</h2>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => {
                   clearFeaturedProductsCache();
                   loadFeaturedProducts();
                 }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                className="text-sm text-[#3C6E47] hover:text-[#2E2E2E] font-medium"
               >
                 Refresh
               </button>
               <Link 
                 to="/search" 
-                className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
+                className="flex items-center space-x-2 text-[#D77A61] hover:text-[#3C6E47] font-medium"
               >
                 <span>View all</span>
                 <ArrowRightIcon className="w-4 h-4" />
@@ -867,13 +867,13 @@ export default function Home() {
       </section>
 
       {/* Popular Products Section */}
-      <section className="py-12 bg-white">
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Popular Products</h2>
+            <h2 className="text-3xl font-bold text-gray-900 font-serif">Popular Products</h2>
             <Link 
               to="/search" 
-              className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
+              className="flex items-center space-x-2 text-[#D77A61] hover:text-[#3C6E47] font-medium"
             >
               <span>View all</span>
               <ArrowRightIcon className="w-4 h-4" />
@@ -903,12 +903,12 @@ export default function Home() {
       </section>
 
       {/* Close to You Section */}
-      <section className="py-12 bg-amber-50">
+      <section className="py-16 bg-[#F5F1EA]">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">
-              <MapPinIcon className="w-8 h-8 text-amber-600" />
-              <h2 className="text-3xl font-bold text-gray-900">Close to You</h2>
+              <MapPinIcon className="w-8 h-8 text-[#3C6E47]" />
+              <h2 className="text-3xl font-bold text-gray-900 font-serif">Close to You</h2>
             </div>
             {/* Only show location indicator for guests */}
             {!user && <LocationIndicator onLocationUpdate={handleLocationSet} />}

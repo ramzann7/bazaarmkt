@@ -33,6 +33,8 @@ router.post('/register', async (req, res) => {
         type: artisanData.type || 'food_beverages',
         artisanName: artisanData.artisanName || `${firstName} ${lastName}`,
         description: artisanData.description || `Artisan profile for ${firstName} ${lastName}`,
+        category: artisanData.category || [artisanData.type || 'food_beverages'],
+        specialties: artisanData.specialties || [],
         address: artisanData.address || {
           street: '',
           city: '',

@@ -954,10 +954,10 @@ const Cart = () => {
   // Render loading skeleton
   if (cartLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
+      <div className="min-h-screen bg-[#F5F1EA] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="animate-pulse">
-            <div className="h-12 bg-stone-200 rounded-2xl w-1/3 mb-8"></div>
+            <div className="h-12 bg-[#E6B655] rounded-2xl w-1/3 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 {[1, 2, 3].map((i) => (
@@ -977,17 +977,17 @@ const Cart = () => {
   // Render empty cart
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
+      <div className="min-h-screen bg-[#F5F1EA] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
+            <div className="mx-auto w-24 h-24 bg-[#D77A61] rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
               <ShoppingBagIcon className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-stone-900 mb-4 animate-fade-in">Your Collection Awaits</h1>
-            <p className="text-stone-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in font-serif">Your Collection Awaits</h1>
+            <p className="text-gray-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
             <button
               onClick={() => navigate('/')}
-              className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 animate-fade-in-delay-2"
+              className="bg-[#D77A61] text-white text-lg px-8 py-4 rounded-full hover:bg-[#3C6E47] transition-colors hover:scale-105 transition-transform duration-200 animate-fade-in-delay-2"
             >
               Discover Artisans
             </button>
@@ -1000,26 +1000,26 @@ const Cart = () => {
   // Render main cart view
   if (checkoutStep === 'cart') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8 relative">
+      <div className="min-h-screen bg-[#F5F1EA] py-8 relative">
         {/* Loading Overlay */}
         {updatingItems.size > 0 && (
           <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
             <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4">
-              <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin"></div>
-              <p className="text-lg font-semibold text-stone-700">Updating Cart...</p>
-              <p className="text-sm text-stone-500">Please wait while we update your selection</p>
+              <div className="w-16 h-16 border-4 border-[#E6B655] border-t-[#D77A61] rounded-full animate-spin"></div>
+              <p className="text-lg font-semibold text-gray-700">Updating Cart...</p>
+              <p className="text-sm text-gray-500">Please wait while we update your selection</p>
             </div>
           </div>
         )}
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
+            <div className="w-12 h-12 bg-[#D77A61] rounded-2xl flex items-center justify-center mr-4 shadow-lg">
               <ShoppingBagIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-stone-900 mb-1">Your Artisan Collection</h1>
-              <p className="text-base text-stone-600">Review the beautiful creations you've selected</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1 font-serif">Your Artisan Collection</h1>
+              <p className="text-base text-gray-600">Review the beautiful creations you've selected</p>
             </div>
           </div>
           

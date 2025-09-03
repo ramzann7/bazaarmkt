@@ -477,9 +477,9 @@ export default function Profile() {
   // If user data isn't loaded yet, show loading
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading user data...</p>
         </div>
       </div>
@@ -489,9 +489,9 @@ export default function Profile() {
   // Defensive render logic
   if (!isProviderReady) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
           <p className="text-gray-600">Initializing authentication...</p>
         </div>
       </div>
@@ -501,9 +501,9 @@ export default function Profile() {
   // Check if AuthContext is ready
   if (!isProviderReady) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
           <p className="text-gray-600">Initializing authentication...</p>
         </div>
       </div>
@@ -512,9 +512,9 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
@@ -523,12 +523,12 @@ export default function Profile() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">Unable to load profile</p>
           <button 
             onClick={() => navigate('/login')}
-            className="btn-primary"
+            className="bg-[#D77A61] text-white px-4 py-2 rounded-full hover:bg-[#3C6E47] transition-colors"
           >
             Go to Login
           </button>
@@ -584,14 +584,14 @@ export default function Profile() {
   const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
+    <div className="min-h-screen bg-[#F5F1EA]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Enhanced Header */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-6 shadow-lg">
-            <UserIcon className="w-10 h-10 text-orange-600" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#D77A61] rounded-full mb-6 shadow-lg">
+            <UserIcon className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">My Profile</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-3 font-serif">My Profile</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             {isArtisan 
               ? "Manage your artisan business profile, operations, and customer information"
@@ -603,18 +603,26 @@ export default function Profile() {
         {/* Enhanced Profile Header */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8 transform hover:scale-[1.02] transition-transform duration-300">
           <div className="flex items-center space-x-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center shadow-lg">
-              <UserIcon className="w-10 h-10 text-orange-600" />
+            <div className="w-20 h-20 bg-[#D77A61] rounded-full flex items-center justify-center shadow-lg">
+              <UserIcon className="w-10 h-10 text-white" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {profile.firstName} {profile.lastName}
-                </h2>
+                <div>
+                  {isArtisan && artisanProfile?.artisanName ? (
+                    <h2 className="text-2xl font-bold text-[#D77A61] font-serif">
+                      🏪 {artisanProfile.artisanName}
+                    </h2>
+                  ) : (
+                    <h2 className="text-2xl font-bold text-gray-900 font-serif">
+                      {profile.firstName} {profile.lastName}
+                    </h2>
+                  )}
+                </div>
                 <button
                   onClick={forceRefreshProfile}
                   disabled={isRefreshing}
-                  className={`p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors duration-200 ${
+                  className={`p-2 text-gray-500 hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-full transition-colors duration-200 ${
                     isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                   title={isRefreshing ? "Refreshing..." : "Refresh profile data"}
@@ -623,10 +631,10 @@ export default function Profile() {
                 </button>
               </div>
               <p className="text-lg text-gray-600 mb-1">{profile.email}</p>
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#E6B655] text-[#2E2E2E]">
                 <span className="capitalize">{profile.role}</span>
                 {isArtisan && (
-                  <span className="ml-2 text-xs bg-orange-200 px-2 py-0.5 rounded-full">
+                  <span className="ml-2 text-xs bg-[#D77A61] text-white px-2 py-0.5 rounded-full">
                     Business Owner
                   </span>
                 )}
@@ -635,7 +643,7 @@ export default function Profile() {
             {isArtisan && (
               <div className="text-right">
                 <div className="text-sm text-gray-500">Business Status</div>
-                <div className="text-lg font-semibold text-green-600">Active</div>
+                <div className="text-lg font-semibold text-[#3C6E47]">Active</div>
               </div>
             )}
           </div>
@@ -645,7 +653,7 @@ export default function Profile() {
 
         {/* Enhanced Tabs */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-orange-50 to-orange-100 border-b border-orange-200">
+          <div className="bg-gradient-to-r from-[#F5F1EA] to-[#E6B655] border-b border-[#E6B655]">
             <nav className="flex space-x-1 px-6" aria-label="Tabs">
               {tabs.map((tab) => (
                 <button
@@ -654,8 +662,8 @@ export default function Profile() {
                   className={`
                     py-4 px-6 font-medium text-sm rounded-t-lg transition-all duration-200 flex items-center space-x-2
                     ${activeTab === tab.id
-                      ? 'bg-white text-orange-600 shadow-sm border-b-2 border-orange-500'
-                      : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'
+                      ? 'bg-white text-[#D77A61] shadow-sm border-b-2 border-[#D77A61]'
+                      : 'text-gray-600 hover:text-[#D77A61] hover:bg-[#F5F1EA]'
                     }
                   `}
                 >

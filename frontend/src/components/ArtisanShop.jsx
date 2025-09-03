@@ -399,9 +399,9 @@ export default function ArtisanShop() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading artisan shop...</p>
         </div>
       </div>
@@ -410,13 +410,13 @@ export default function ArtisanShop() {
 
   if (!artisan) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Artisan Not Found</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4 font-serif">Artisan Not Found</h1>
           <p className="text-gray-600 mb-4">The artisan you're looking for doesn't exist.</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+            className="bg-[#D77A61] text-white px-6 py-2 rounded-lg hover:bg-[#3C6E47] transition-colors"
           >
             Go Home
           </button>
@@ -426,19 +426,19 @@ export default function ArtisanShop() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F5F1EA]">
       {/* Sticky Header with Cart and Follow */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-[#E6B655] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate(-1)}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-gray-600 hover:text-[#D77A61] transition-colors"
               >
                 <ArrowRightIcon className="w-5 h-5 rotate-180" />
               </button>
-              <h1 className="text-lg font-semibold text-gray-900 truncate">
+              <h1 className="text-lg font-semibold text-gray-900 truncate font-serif">
                 {artisan.artisanName}
               </h1>
             </div>
@@ -449,8 +449,8 @@ export default function ArtisanShop() {
                 disabled={isLoadingFavorite}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors ${
                   isFavorited 
-                    ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    ? 'bg-[#F5F1EA] border-[#D77A61] text-[#D77A61] hover:bg-[#D77A61] hover:text-white' 
+                    : 'bg-white border-[#E6B655] text-gray-700 hover:bg-[#F5F1EA]'
                 }`}
               >
                 {isFavorited ? (
@@ -463,7 +463,7 @@ export default function ArtisanShop() {
               
               <button
                 onClick={() => navigate('/cart')}
-                className="flex items-center space-x-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                className="flex items-center space-x-2 px-3 py-2 bg-[#D77A61] text-white rounded-lg hover:bg-[#3C6E47] transition-colors"
               >
                 <ShoppingCartIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Cart ({cartCount})</span>
@@ -475,13 +475,13 @@ export default function ArtisanShop() {
       </div>
 
       {/* Compressed Hero Section */}
-      <div className="relative bg-gradient-to-r from-orange-50 to-amber-50">
+      <div className="relative bg-gradient-to-r from-[#F5F1EA] to-[#E6B655]">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="flex flex-col lg:flex-row items-start space-y-6 lg:space-y-0 lg:space-x-8">
             {/* Business Info - Left Side */}
             <div className="w-full lg:w-1/3">
               <div className="space-y-4">
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-gray-900 font-serif">
                   {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
                 </h1>
                 

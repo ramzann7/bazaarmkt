@@ -694,25 +694,25 @@ export default function Products() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61]"></div>
       </div>
     );
   }
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-[#F5F1EA] py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4 shadow-lg">
-              <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-[#D77A61] rounded-full mb-4 shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-3">Product Management</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-3 font-serif">Product Management</h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
               Manage your product inventory, track sales, and keep your customers updated
             </p>
@@ -726,7 +726,7 @@ export default function Products() {
               </button>
               <button 
                 onClick={showAddForm ? handleCloseAddModal : handleOpenAddModal}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="bg-[#D77A61] text-white px-6 py-3 rounded-xl hover:bg-[#3C6E47] transition-all duration-200 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <PlusIcon className="w-5 h-5 mr-2" />
                 <span>{showAddForm ? 'Cancel' : 'Add New Product'}</span>
@@ -762,7 +762,7 @@ export default function Products() {
                   <select
                     value={activeFilter}
                     onChange={(e) => setActiveFilter(e.target.value)}
-                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#E6B655] focus:border-transparent transition-all duration-200"
                   >
                     <option value="all">All Products</option>
                     <option value="active">Active Only</option>
@@ -775,16 +775,16 @@ export default function Products() {
               
               {/* Key Metrics Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg text-center">
-                  <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div className="bg-gradient-to-br from-[#F5F1EA] to-[#E6B655] p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-[#D77A61] rounded-full flex items-center justify-center mx-auto mb-2">
                     <span className="text-white text-sm font-bold">{products.length}</span>
                   </div>
                   <div className="text-sm font-semibold text-gray-900">Total</div>
                   <div className="text-xs text-gray-600">Products</div>
                 </div>
                 
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg text-center">
-                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                <div className="bg-gradient-to-br from-[#F5F1EA] to-[#3C6E47] p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-[#3C6E47] rounded-full flex items-center justify-center mx-auto mb-2">
                     <span className="text-white text-sm font-bold">{products.filter(p => p.status === 'active').length}</span>
                   </div>
                   <div className="text-sm font-semibold text-gray-900">Active</div>

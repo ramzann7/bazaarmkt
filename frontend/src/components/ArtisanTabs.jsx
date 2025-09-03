@@ -292,7 +292,57 @@ export function OverviewTab({ profile, onSave, isSaving }) {
             required
           />
           <p className="text-xs text-gray-500 mt-2">
-            ✨ Auto-capitalized for consistency
+            ✨ Each word auto-capitalized for consistency
+          </p>
+        </div>
+      </div>
+
+      {/* Business Type Display */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+        <div className="max-w-2xl">
+          <label className="block text-lg font-bold text-gray-900 mb-2">
+            🏷️ Business Type
+          </label>
+          <p className="text-sm text-gray-600 mb-4">
+            Your business category helps customers find you and understand what you offer
+          </p>
+          <div className="bg-white rounded-lg border-2 border-green-300 p-4">
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">
+                {PRODUCT_CATEGORIES[profile.type]?.icon || '🏪'}
+              </span>
+              <div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {PRODUCT_CATEGORIES[profile.type]?.name || 'Business Type'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {PRODUCT_CATEGORIES[profile.type]?.description || 'Business category description'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            ℹ️ Business type is set during registration and cannot be changed here
+          </p>
+        </div>
+      </div>
+
+      {/* Business Description Display */}
+      <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200">
+        <div className="max-w-2xl">
+          <label className="block text-lg font-bold text-gray-900 mb-2">
+            📝 Business Description
+          </label>
+          <p className="text-sm text-gray-600 mb-4">
+            Tell customers about your business and what makes you unique
+          </p>
+          <div className="bg-white rounded-lg border-2 border-purple-300 p-4">
+            <p className="text-gray-900">
+              {profile.description || 'No business description provided yet. Add one to help customers understand your business better.'}
+            </p>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            ℹ️ Business description is set during registration and can be updated in the Operations tab
           </p>
         </div>
       </div>

@@ -133,9 +133,9 @@ export default function OrderConfirmation() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
           <p className="text-gray-600 text-lg">Loading order confirmation...</p>
         </div>
       </div>
@@ -152,12 +152,12 @@ export default function OrderConfirmation() {
   if (!Array.isArray(orders) || orders.length === 0) {
     console.error('Invalid orders data:', orders);
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
+      <div className="min-h-screen bg-[#F5F1EA]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Order Data Error</h1>
+            <h1 className="text-2xl font-bold text-[#D77A61] mb-4 font-serif">Order Data Error</h1>
             <p className="text-gray-600 mb-6">Unable to display order confirmation. Please contact support.</p>
-            <Link to="/" className="btn-primary">Return to Home</Link>
+            <Link to="/" className="bg-[#D77A61] text-white px-6 py-3 rounded-full hover:bg-[#3C6E47] transition-colors">Return to Home</Link>
           </div>
         </div>
       </div>
@@ -171,14 +171,14 @@ export default function OrderConfirmation() {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-[#F5F1EA]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Success Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6 shadow-lg">
-            <CheckCircleIcon className="w-12 h-12 text-green-600" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#3C6E47] rounded-full mb-6 shadow-lg">
+            <CheckCircleIcon className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+          <h1 className="text-4xl font-bold text-gray-900 mb-3 font-serif">
             Order Confirmed! 🎉
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -187,12 +187,12 @@ export default function OrderConfirmation() {
         </div>
 
         {/* Order Summary Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-green-200 p-8 mb-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-[#E6B655] p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Order Summary</h2>
+            <h2 className="text-2xl font-bold text-gray-900 font-serif">Order Summary</h2>
             <div className="text-right">
               <p className="text-sm text-gray-600">Total Orders</p>
-              <p className="text-3xl font-bold text-green-600">{totalOrders}</p>
+              <p className="text-3xl font-bold text-[#3C6E47]">{totalOrders}</p>
             </div>
           </div>
 

@@ -45,15 +45,15 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+          <div className="mx-auto w-20 h-20 bg-[#D77A61] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <BuildingStorefrontIcon className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-4xl font-bold text-stone-900 mb-2">Welcome Back</h2>
-          <p className="text-stone-600 text-lg">Sign in to your account to continue shopping</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Welcome Back</h2>
+          <p className="text-gray-600 text-lg">Sign in to your account to continue shopping</p>
         </div>
 
         {/* Login Form */}

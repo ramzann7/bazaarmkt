@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -8,13 +8,16 @@ import {
   EnvelopeIcon,
   SparklesIcon,
   FunnelIcon,
-  EyeIcon
+  EyeIcon,
+  HeartIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 import { artisanService } from '../services/artisanService';
 import { promotionalService } from '../services/promotionalService';
+import { favoriteService } from '../services/favoriteService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { 
   PRODUCT_CATEGORIES, 
@@ -37,7 +40,9 @@ const ArtisanSkeleton = () => (
 export default function FindArtisans() {
   const [artisans, setArtisans] = useState([]);
   const [filteredArtisans, setFilteredArtisans] = useState([]);
+  const [favoriteArtisans, setFavoriteArtisans] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -45,7 +50,10 @@ export default function FindArtisans() {
   const [showFilters, setShowFilters] = useState(false);
   const [error, setError] = useState(null);
   const [artisanPromotions, setArtisanPromotions] = useState({});
+  const [favoriteStatuses, setFavoriteStatuses] = useState({});
+  const [favoriteLoadingStates, setFavoriteLoadingStates] = useState({});
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
   // Memoize static data to prevent re-renders
   const artisanTypes = useMemo(() => {
@@ -113,6 +121,13 @@ export default function FindArtisans() {
     }
   }, []);
 
+  // Load favorite artisans for authenticated patrons
+  useEffect(() => {
+    if (isAuthenticated && user && user.role === 'patron') {
+      loadFavoriteArtisans();
+    }
+  }, [isAuthenticated, user]);
+
   const loadAllArtisans = async () => {
     try {
       setIsLoading(true);
@@ -153,10 +168,30 @@ export default function FindArtisans() {
     }
   };
 
+  const loadFavoriteArtisans = async () => {
+    try {
+      setIsLoadingFavorites(true);
+      const favorites = await favoriteService.getFavoriteArtisans();
+      setFavoriteArtisans(favorites);
+      
+      // Create a map of favorite statuses for quick lookup
+      const statusMap = {};
+      favorites.forEach(fav => {
+        statusMap[fav._id] = true;
+      });
+      setFavoriteStatuses(statusMap);
+    } catch (error) {
+      console.error('Error loading favorite artisans:', error);
+      toast.error('Failed to load favorite artisans');
+    } finally {
+      setIsLoadingFavorites(false);
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) {
-      loadAllArtisans();
+      setFilteredArtisans(artisans);
       return;
     }
 
@@ -171,12 +206,47 @@ export default function FindArtisans() {
       console.error('Error searching artisans:', error);
       setError('Failed to search artisans');
       toast.error('Failed to search artisans');
-      setArtisans([]);
       setFilteredArtisans([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Optimized filtering with useMemo
+  const filteredAndSortedArtisans = useMemo(() => {
+    let filtered = filteredArtisans;
+
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(artisan => 
+        artisan.products?.some(product => 
+          product.category === selectedCategory || product.subcategory === selectedCategory
+        )
+      );
+    }
+
+    // Apply sorting
+    if (sortBy === 'name') {
+      filtered = [...filtered].sort((a, b) => 
+        (a.artisanName || '').localeCompare(b.artisanName || '')
+      );
+    } else if (sortBy === 'rating') {
+      filtered = [...filtered].sort((a, b) => 
+        (b.rating?.average || 0) - (a.rating?.average || 0)
+      );
+    } else if (sortBy === 'distance') {
+      // Sort by distance if coordinates are available
+      if (user?.coordinates) {
+        filtered = [...filtered].sort((a, b) => {
+          const aDistance = a.distance || Infinity;
+          const bDistance = b.distance || Infinity;
+          return aDistance - bDistance;
+        });
+      }
+    }
+
+    return filtered;
+  }, [filteredArtisans, selectedCategory, sortBy, user?.coordinates]);
 
   const handleArtisanTypeSelect = async (artisanType) => {
     setSelectedType(artisanType);
@@ -217,6 +287,42 @@ export default function FindArtisans() {
     setFilteredArtisans([]);
     setIsLoading(false);
   };
+
+  const handleToggleFavorite = useCallback(async (artisanId, event) => {
+    event.stopPropagation(); // Prevent card click when clicking favorite button
+    
+    if (!isAuthenticated) {
+      toast.error('Please log in to save favorite artisans');
+      return;
+    }
+
+    // Set loading state for this specific artisan
+    setFavoriteLoadingStates(prev => ({ ...prev, [artisanId]: true }));
+
+    try {
+      const result = await favoriteService.toggleFavorite(artisanId);
+      
+      if (result.action === 'added') {
+        toast.success('Artisan added to favorites');
+        // Update local state
+        setFavoriteStatuses(prev => ({ ...prev, [artisanId]: true }));
+        // Reload favorites to get updated list
+        loadFavoriteArtisans();
+      } else {
+        toast.success('Artisan removed from favorites');
+        // Update local state
+        setFavoriteStatuses(prev => ({ ...prev, [artisanId]: false }));
+        // Reload favorites to get updated list
+        loadFavoriteArtisans();
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorite status');
+    } finally {
+      // Clear loading state
+      setFavoriteLoadingStates(prev => ({ ...prev, [artisanId]: false }));
+    }
+  }, [isAuthenticated]);
 
   // Enhanced image URL handling
   const getImageUrl = (imagePath) => {
@@ -381,7 +487,7 @@ export default function FindArtisans() {
     return { text: 'No ratings yet', isNew: false };
   };
 
-  const renderArtisanCard = (artisan) => {
+  const renderArtisanCard = useCallback((artisan) => {
     if (!artisan) return null;
     
     const isOpen = isArtisanOpen(artisan);
@@ -497,6 +603,30 @@ export default function FindArtisans() {
             )}
           </div>
 
+          {/* Favorite Button */}
+          {isAuthenticated && (
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={(e) => handleToggleFavorite(artisan._id, e)}
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  favoriteStatuses[artisan._id]
+                    ? 'bg-red-500 text-white shadow-lg hover:bg-red-600'
+                    : 'bg-white/80 text-gray-600 hover:bg-white hover:text-red-500 shadow-md'
+                }`}
+                title={favoriteStatuses[artisan._id] ? 'Remove from favorites' : 'Add to favorites'}
+                disabled={favoriteLoadingStates[artisan._id]}
+              >
+                {favoriteLoadingStates[artisan._id] ? (
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                ) : favoriteStatuses[artisan._id] ? (
+                  <HeartIconSolid className="w-5 h-5" />
+                ) : (
+                  <HeartIcon className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          )}
+
 
         </div>
 
@@ -610,26 +740,33 @@ export default function FindArtisans() {
 
   // Loading state for results section only
   const renderLoadingSkeleton = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="loading-skeleton h-96 rounded-2xl"></div>
+        <div key={i} className="animate-pulse">
+          <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
+          <div className="space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+          </div>
+        </div>
       ))}
     </div>
   );
 
   return (
     <div className="min-h-screen bg-[#F5F1EA]">
-              {/* Search Section */}
-        <div className="bg-white shadow-sm border-b border-[#E6B655]">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 font-serif mb-2">Find Local Artisans</h1>
-                <p className="text-lg text-gray-600">
-                  Discover exceptional local artisans and their premium products
-                </p>
-              </div>
-            
+      {/* Search Section */}
+      <div className="bg-white shadow-sm border-b border-[#E6B655]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 font-serif mb-2">Find Local Artisans</h1>
+              <p className="text-lg text-gray-600">
+                Discover exceptional local artisans and their premium products
+              </p>
+            </div>
+          
             {/* Enhanced Search Bar */}
             <div className="flex items-center space-x-4">
               <form onSubmit={handleSearch} className="relative">
@@ -685,6 +822,90 @@ export default function FindArtisans() {
             <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-[#F5F1EA] to-transparent pointer-events-none"></div>
           </div>
         </div>
+
+        {/* Favorite Artisans Section - Only for Patrons */}
+        {isAuthenticated && user?.role === 'patron' && favoriteArtisans.length > 0 && (
+          <div className="bg-white shadow-sm border-b border-gray-200 mb-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 font-serif mb-2">❤️ Your Favorite Artisans</h2>
+                <p className="text-gray-600">
+                  Quick access to artisans you love - no need to search every time!
+                </p>
+              </div>
+              
+              {isLoadingFavorites ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {favoriteArtisans.map(artisan => (
+                    <div
+                      key={artisan._id}
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02] group"
+                      onClick={() => navigate(`/artisan/${artisan._id}`)}
+                    >
+                      {/* Favorite Button */}
+                      <div className="flex justify-end mb-2">
+                        <button
+                          onClick={(e) => handleToggleFavorite(artisan._id, e)}
+                          className={`p-2 text-red-500 hover:text-red-600 transition-colors ${
+                            favoriteLoadingStates[artisan._id] ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          title="Remove from favorites"
+                          disabled={favoriteLoadingStates[artisan._id]}
+                        >
+                          {favoriteLoadingStates[artisan._id] ? (
+                            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <HeartIconSolid className="w-5 h-5" />
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Artisan Image */}
+                      <div className="relative mb-4">
+                        <img
+                          src={getArtisanImages(artisan)[0] || getDefaultArtisanImage(artisan.type)}
+                          alt={artisan.artisanName || artisan.businessName}
+                          className="w-full h-32 object-cover rounded-lg"
+                          loading="lazy"
+                        />
+                        <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                          ❤️ Favorite
+                        </div>
+                      </div>
+
+                      {/* Artisan Info */}
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
+                          {artisan.artisanName || artisan.businessName}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {artisan.type ? artisanTypes.find(t => t.value === artisan.type)?.label : 'Local Artisan'}
+                        </p>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <MapPinIcon className="w-4 h-4 mr-1" />
+                          <span>{artisan.address?.city || 'Location not specified'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Filters and Results */}
         <div className="flex gap-8">
@@ -757,11 +978,12 @@ export default function FindArtisans() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedType && selectedType !== 'all' ? `${filteredArtisans.length} Local Artisans` : 'All Local Artisans'}
+                  {selectedType && selectedType !== 'all' ? `${filteredAndSortedArtisans.length} Local Artisans` : 'All Local Artisans'}
                 </h2>
                 <p className="text-gray-600 text-sm">
                   {selectedType && selectedType !== 'all' && `Showing ${artisanTypes.find(t => t.value === selectedType)?.label}`}
                   {selectedCategory && ` • ${categories.find(c => c.value === selectedCategory)?.label}`}
+                  {sortBy !== 'name' && ` • Sorted by ${sortBy}`}
                 </p>
               </div>
             </div>
@@ -783,9 +1005,9 @@ export default function FindArtisans() {
                   Retry
                 </button>
               </div>
-            ) : filteredArtisans.length > 0 ? (
+            ) : filteredAndSortedArtisans.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredArtisans.map(renderArtisanCard)}
+                {filteredAndSortedArtisans.map(renderArtisanCard)}
               </div>
             ) : (
               <div className="text-center py-12">

@@ -75,6 +75,7 @@ const AdminProductManagement = lazy(() => import("./components/AdminProductManag
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
 const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
+const ArtisanProductManagement = lazy(() => import("./components/ArtisanProductManagement.jsx"));
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
@@ -174,6 +175,14 @@ function AppRoutes() {
         <Route path="/artisan/:id" element={<ArtisanShop />} />
         <Route path="/shop/:id" element={<ArtisanShop />} />
         <Route path="/find-artisans" element={<FindArtisans />} />
+        <Route
+          path="/my-products"
+          element={
+            <ArtisanOnlyRoute>
+              <ArtisanProductManagement />
+            </ArtisanOnlyRoute>
+          }
+        />
         <Route path="/community" element={<Community />} />
         <Route path="/event/:id" element={<EventDetails />} />
         <Route

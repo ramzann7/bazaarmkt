@@ -1,5 +1,5 @@
 // src/components/Home.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -19,7 +19,7 @@ import {
   ShoppingCartIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getFeaturedProducts, getPopularProducts, clearCache, clearFeaturedProductsCache, clearPopularProductsCache } from '../services/productService';
 
 import { 

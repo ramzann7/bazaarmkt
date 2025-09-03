@@ -9,13 +9,14 @@ const promotionalFeatureSchema = new mongoose.Schema({
   },
   productId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product'
+    ref: 'Product',
+    required: true
   },
   
-  // Feature type
+  // Feature type - Updated for new system
   featureType: {
     type: String,
-    enum: ['product_featured', 'product_sponsored', 'artisan_spotlight', 'category_promotion', 'search_boost', 'homepage_featured'],
+    enum: ['featured_product', 'sponsored_product', 'artisan_spotlight', 'category_promotion', 'search_boost', 'homepage_featured'],
     required: true
   },
   
@@ -30,10 +31,10 @@ const promotionalFeatureSchema = new mongoose.Schema({
   },
   isActive: {
     type: Boolean,
-    default: true
+    default: false // Changed to false, requires admin approval
   },
   
-  // Pricing
+  // Pricing - Updated for new system
   price: {
     type: Number,
     required: true,
@@ -42,6 +43,14 @@ const promotionalFeatureSchema = new mongoose.Schema({
   currency: {
     type: String,
     default: 'USD'
+  },
+  
+  // Feature duration in days
+  durationDays: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 365
   },
   
   // Payment details
@@ -57,11 +66,12 @@ const promotionalFeatureSchema = new mongoose.Schema({
   transactionId: String,
   paymentDate: Date,
   
-  // Feature specifications
+  // Feature specifications - Enhanced for new system
   specifications: {
     placement: {
       type: String,
-      enum: ['homepage', 'category_page', 'search_results', 'product_page', 'email_newsletter', 'social_media']
+      enum: ['homepage', 'category_page', 'search_results', 'product_page', 'email_newsletter', 'social_media'],
+      required: true
     },
     priority: {
       type: Number,
@@ -74,24 +84,35 @@ const promotionalFeatureSchema = new mongoose.Schema({
     targetAudience: [String],
     geographicTarget: {
       type: String,
-      enum: ['local', 'regional', 'national', 'international']
+      enum: ['local', 'regional', 'national', 'international'],
+      default: 'local'
+    },
+    // New fields for enhanced targeting
+    searchKeywords: [String], // For sponsored products
+    categoryBoost: [String], // Categories to boost in
+    proximityBoost: {
+      type: Boolean,
+      default: true // Boost for nearby users
     }
   },
   
-  // Performance tracking
+  // Performance tracking - Enhanced
   performance: {
     impressions: { type: Number, default: 0 },
     clicks: { type: Number, default: 0 },
     conversions: { type: Number, default: 0 },
     revenue: { type: Number, default: 0 },
     ctr: { type: Number, default: 0 }, // Click-through rate
-    cpc: { type: Number, default: 0 }  // Cost per click
+    cpc: { type: Number, default: 0 }, // Cost per click
+    searchAppearances: { type: Number, default: 0 }, // For sponsored products
+    searchClicks: { type: Number, default: 0 }, // For sponsored products
+    searchCTR: { type: Number, default: 0 } // Search click-through rate
   },
   
-  // Status and approval
+  // Status and approval - Enhanced workflow
   status: {
     type: String,
-    enum: ['pending_approval', 'approved', 'rejected', 'active', 'paused', 'completed', 'cancelled'],
+    enum: ['pending_approval', 'approved', 'rejected', 'active', 'paused', 'completed', 'cancelled', 'expired'],
     default: 'pending_approval'
   },
   approvedBy: {
@@ -100,6 +121,16 @@ const promotionalFeatureSchema = new mongoose.Schema({
   },
   approvedAt: Date,
   rejectionReason: String,
+  
+  // Auto-expiration handling
+  autoExpire: {
+    type: Boolean,
+    default: true
+  },
+  lastProcessed: {
+    type: Date,
+    default: Date.now
+  },
   
   // Notes
   notes: String,
@@ -129,6 +160,40 @@ promotionalFeatureSchema.methods.calculatePerformance = function() {
   if (this.performance.clicks > 0) {
     this.performance.cpc = this.price / this.performance.clicks;
   }
+  if (this.performance.searchAppearances > 0) {
+    this.performance.searchCTR = (this.performance.searchClicks / this.performance.searchAppearances) * 100;
+  }
 };
+
+// Check if feature is active and not expired
+promotionalFeatureSchema.methods.isCurrentlyActive = function() {
+  const now = new Date();
+  return this.status === 'active' && 
+         this.isActive === true && 
+         this.startDate <= now && 
+         this.endDate >= now;
+};
+
+// Get remaining days
+promotionalFeatureSchema.methods.getRemainingDays = function() {
+  const now = new Date();
+  if (this.endDate <= now) return 0;
+  const diffTime = this.endDate - now;
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Calculate ROI
+promotionalFeatureSchema.methods.calculateROI = function() {
+  if (this.price === 0) return 0;
+  return ((this.performance.revenue - this.price) / this.price) * 100;
+};
+
+// Indexes for better performance
+promotionalFeatureSchema.index({ featureType: 1, status: 1, isActive: 1 });
+promotionalFeatureSchema.index({ productId: 1, status: 1 });
+promotionalFeatureSchema.index({ artisanId: 1, status: 1 });
+promotionalFeatureSchema.index({ startDate: 1, endDate: 1 });
+promotionalFeatureSchema.index({ 'specifications.placement': 1, status: 1 });
+promotionalFeatureSchema.index({ status: 1, isActive: 1, endDate: 1 });
 
 module.exports = mongoose.model('PromotionalFeature', promotionalFeatureSchema);

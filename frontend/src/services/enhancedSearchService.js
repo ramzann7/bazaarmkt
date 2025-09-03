@@ -10,7 +10,7 @@ class EnhancedSearchService {
     this.baseURL = API_URL;
   }
 
-  // Main enhanced search function with distance calculations
+  // Main enhanced search function with distance calculations and sponsored products
   async searchProducts(searchQuery, userLocation = null, filters = {}) {
     try {
       const params = new URLSearchParams();
@@ -52,19 +52,104 @@ class EnhancedSearchService {
       params.append('includeProximity', 'true');
       params.append('includeEngagement', 'true');
       params.append('includeDistance', 'true');
+      params.append('includeSponsored', 'true'); // New parameter for sponsored products
       
       const response = await axios.get(`${this.baseURL}/enhanced-search?${params.toString()}`);
+      
+      // Get sponsored products for this search
+      let sponsoredProducts = [];
+      try {
+        sponsoredProducts = await this.getSponsoredProductsForSearch(searchQuery, filters.category, userLocation);
+        console.log('✨ Found sponsored products for search:', sponsoredProducts.length);
+      } catch (error) {
+        console.log('Could not fetch sponsored products:', error);
+      }
       
       // Add distance information to results if user location is available
       if (userLocation && response.data.products) {
         response.data.products = await this.addDistanceInfo(response.data.products, userLocation);
       }
       
-      return response.data;
+      // Integrate sponsored products with enhanced ranking
+      const enhancedResults = this.integrateSponsoredProducts(
+        response.data.products || [],
+        sponsoredProducts,
+        searchQuery,
+        userLocation
+      );
+      
+      return {
+        ...response.data,
+        products: enhancedResults,
+        sponsoredCount: sponsoredProducts.length
+      };
     } catch (error) {
       console.error('Enhanced search error:', error);
       throw error;
     }
+  }
+
+  // Get sponsored products for search integration
+  async getSponsoredProductsForSearch(searchQuery, category, userLocation) {
+    try {
+      const { promotionalService } = await import('./promotionalService');
+      return await promotionalService.getArtisanSpotlightProducts(
+        category,
+        5, // Limit sponsored products in search
+        searchQuery,
+        userLocation
+      );
+    } catch (error) {
+      console.error('Error fetching sponsored products for search:', error);
+      return [];
+    }
+  }
+
+  // Integrate sponsored products with search results
+  integrateSponsoredProducts(regularProducts, sponsoredProducts, searchQuery, userLocation) {
+    if (!sponsoredProducts || sponsoredProducts.length === 0) {
+      return regularProducts;
+    }
+
+    // Mark sponsored products
+    const markedSponsored = sponsoredProducts.map(product => ({
+      ...product,
+      isSponsored: true,
+      sponsoredBadge: {
+        type: 'sponsored_product',
+        label: 'Sponsored',
+        color: 'bg-purple-100 text-purple-800 border-purple-200',
+        icon: '✨',
+        description: 'Enhanced search visibility'
+      },
+      // Boost relevance score for sponsored products
+      enhancedRelevanceScore: (product.relevanceScore || 0) + 200
+    }));
+
+    // Combine and sort by relevance
+    const allProducts = [...markedSponsored, ...regularProducts];
+    
+    return allProducts.sort((a, b) => {
+      // Sponsored products get priority
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      
+      // Then sort by relevance score
+      const aScore = a.enhancedRelevanceScore || a.relevanceScore || 0;
+      const bScore = b.enhancedRelevanceScore || b.relevanceScore || 0;
+      
+      if (aScore !== bScore) return bScore - aScore;
+      
+      // If same score, sponsored products come first
+      if (a.isSponsored && b.isSponsored) return 0;
+      
+      // Finally, sort by distance if available
+      if (a.distance !== undefined && b.distance !== undefined) {
+        return a.distance - b.distance;
+      }
+      
+      return 0;
+    });
   }
 
   // Get search suggestions with ranking

@@ -543,7 +543,7 @@ export default function Navbar() {
                               <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
                                 My Profile
                               </Link>
-                              <Link to="/products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/my-products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
                                 My Products
                               </Link>
                               <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
@@ -718,25 +718,25 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-stone-200">
+        <div className="md:hidden bg-white border-t border-[#D77A61]/20">
           <div className="px-2 pt-2 pb-3 space-y-1">
             <OptimizedLink
               to="/"
-              className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+              className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
               Home
             </OptimizedLink>
             <OptimizedLink
               to="/find-artisans"
-              className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+              className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
               Find Artisan
             </OptimizedLink>
             <Link
               to="/community"
-              className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+              className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
               Community
@@ -759,28 +759,28 @@ export default function Navbar() {
                         <>
                           <Link
                             to="/dashboard"
-                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
                             Dashboard
                           </Link>
                           <Link
                             to="/profile"
-                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
                             My Profile
                           </Link>
                           <Link
                             to="/products"
-                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
                             My Products
                           </Link>
                           <Link
                             to="/orders"
-                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
                             My Orders
@@ -791,14 +791,14 @@ export default function Navbar() {
                         <>
                           <Link
                             to="/profile"
-                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
                             My Profile
                           </Link>
                           <Link
                             to="/orders"
-                            className="block px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
                             My Orders
@@ -813,7 +813,7 @@ export default function Navbar() {
               <>
                 <button
                   onClick={handleLogout}
-                  className="block w-full text-left px-3 py-2 text-base font-medium text-stone-700 hover:text-amber-600 hover:bg-stone-50 rounded-lg transition-colors duration-300"
+                  className="block w-full text-left px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                 >
                   {isGuest ? 'Clear Session' : 'Sign Out'}
                 </button>
@@ -823,14 +823,14 @@ export default function Navbar() {
               <div className="pt-4 space-y-2">
                 <Link
                   to="/login"
-                  className="block w-full text-center px-3 py-2 text-base font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors duration-300"
+                  className="block w-full text-center px-3 py-2 text-base font-medium text-[#2E2E2E] bg-[#F5F1EA] hover:bg-[#E6B655] hover:text-white rounded-lg transition-colors duration-300"
                   onClick={toggleMobileMenu}
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors duration-300"
+                  className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#D77A61] hover:bg-[#C06A51] rounded-lg transition-colors duration-300"
                   onClick={toggleMobileMenu}
                 >
                   Join Now
@@ -839,14 +839,14 @@ export default function Navbar() {
                   <>
                     <Link
                       to="/cart"
-                      className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors duration-300"
+                      className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#3C6E47] hover:bg-[#2E5A3A] rounded-lg transition-colors duration-300"
                       onClick={toggleMobileMenu}
                     >
                       View Cart ({cartCount})
                     </Link>
                     <Link
                       to="/guest-checkout"
-                      className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors duration-300"
+                      className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#E6B655] hover:bg-[#D4A545] rounded-lg transition-colors duration-300"
                       onClick={toggleMobileMenu}
                     >
                       Guest Checkout ({cartCount})

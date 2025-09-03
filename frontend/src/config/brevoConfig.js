@@ -1,72 +1,70 @@
-// Brevo API Configuration
+// Brevo API configuration
 export const BREVO_CONFIG = {
-  // API endpoints
   API_URL: 'https://api.brevo.com/v3',
-  
-  // Email templates and settings
   EMAIL_SETTINGS: {
     sender: {
       name: 'Bazaar Market',
       email: 'noreply@bazaarmkt.com'
     },
     replyTo: 'support@bazaarmkt.com',
-    defaultSubject: 'Bazaar Market - Order Update'
+    defaultSubject: 'Bazaar Market Notification'
   },
-  
-  // Contact attributes mapping
   CONTACT_ATTRIBUTES: {
-    FIRSTNAME: 'firstName',
-    LASTNAME: 'lastName',
-    PHONE: 'phone',
-    ORDER_COUNT: 'orderCount',
-    LAST_ORDER_DATE: 'lastOrderDate',
-    TOTAL_SPENT: 'totalSpent',
-    LAST_ORDER_UPDATE: 'lastOrderUpdate',
-    UPDATE_TYPE: 'updateType',
-    PREFERRED_DELIVERY: 'preferredDelivery',
-    LOCATION: 'location'
+    firstName: 'FIRSTNAME',
+    lastName: 'LASTNAME',
+    email: 'EMAIL',
+    phone: 'PHONE',
+    address: 'ADDRESS',
+    city: 'CITY',
+    state: 'STATE',
+    zipCode: 'ZIPCODE',
+    country: 'COUNTRY'
   },
-  
-  // Email templates
   TEMPLATES: {
-    ORDER_COMPLETION: 'order_completion',
-    ORDER_UPDATE: 'order_update',
-    WELCOME: 'welcome',
-    PROMOTIONAL: 'promotional'
+    orderCompletion: 'order_completion_template',
+    orderUpdate: 'order_update_template',
+    welcome: 'welcome_template'
   },
-  
-  // List IDs for different user segments
   LISTS: {
-    ALL_CUSTOMERS: 'all_customers',
-    ACTIVE_CUSTOMERS: 'active_customers',
-    GUEST_USERS: 'guest_users',
-    PATRON_USERS: 'patron_users'
+    customers: 'customers_list',
+    guests: 'guests_list',
+    artisans: 'artisans_list'
   }
 };
 
-// Environment-specific settings
+// Get Brevo configuration with environment-specific settings
 export const getBrevoConfig = () => {
-  const isDevelopment = import.meta.env.DEV;
+  const config = { ...BREVO_CONFIG };
   
-  return {
-    ...BREVO_CONFIG,
-    // Override settings for development
-    EMAIL_SETTINGS: {
-      ...BREVO_CONFIG.EMAIL_SETTINGS,
-      // Use test email for development
-      email: isDevelopment ? 'test@bazaarmkt.com' : 'noreply@bazaarmkt.com'
-    }
-  };
+  // Override with environment variables if available
+  if (import.meta.env.VITE_BREVO_API_KEY) {
+    config.API_KEY = import.meta.env.VITE_BREVO_API_KEY;
+  }
+  
+  // Development overrides
+  if (import.meta.env.DEV) {
+    config.EMAIL_SETTINGS.sender.email = 'test@bazaarmkt.com';
+  }
+  
+  return config;
 };
 
-// Validation functions
-export const validateBrevoConfig = (config) => {
-  const required = ['API_URL', 'EMAIL_SETTINGS'];
-  const missing = required.filter(key => !config[key]);
+// Validate Brevo configuration
+export const validateBrevoConfig = () => {
+  const config = getBrevoConfig();
+  const requiredKeys = ['API_URL'];
   
-  if (missing.length > 0) {
-    throw new Error(`Missing required Brevo configuration: ${missing.join(', ')}`);
+  for (const key of requiredKeys) {
+    if (!config[key]) {
+      console.error(`❌ Missing required Brevo config: ${key}`);
+      return false;
+    }
   }
   
   return true;
+};
+
+// Get API key from environment or return null
+export const getBrevoApiKey = () => {
+  return import.meta.env.VITE_BREVO_API_KEY || null;
 };

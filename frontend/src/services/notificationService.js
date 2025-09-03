@@ -12,9 +12,18 @@ const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/
 
 // Initialize Brevo service (call this when you have the API key)
 export const initializeNotificationService = (brevoApiKey) => {
-  if (brevoApiKey) {
-    initializeBrevo(brevoApiKey);
-    console.log('🔧 Notification service initialized with Brevo');
+  try {
+    if (brevoApiKey) {
+      initializeBrevo(brevoApiKey);
+      console.log('🔧 Notification service initialized with provided Brevo API key');
+    } else {
+      // Try to initialize with environment variable
+      initializeBrevo();
+      console.log('🔧 Notification service initialized with environment Brevo API key');
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not initialize Brevo service:', error.message);
+    console.log('ℹ️ Notification service will use backend fallback');
   }
 };
 

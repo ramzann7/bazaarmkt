@@ -1,17 +1,30 @@
 import axios from 'axios';
+import { getBrevoConfig, getBrevoApiKey } from '../config/brevoConfig';
 
 // Brevo API configuration
-const BREVO_API_URL = 'https://api.brevo.com/v3';
+const BREVO_CONFIG = getBrevoConfig();
+const BREVO_API_URL = BREVO_CONFIG.API_URL;
 let BREVO_API_KEY = null;
 
 // Initialize the Brevo service with API key
 export const initializeBrevo = (apiKey) => {
+  // First try to get from environment variable
+  const envApiKey = getBrevoApiKey();
+  
+  if (envApiKey) {
+    BREVO_API_KEY = envApiKey.trim();
+    console.log('🔧 Brevo service initialized with environment API key:', `***${envApiKey.slice(-4)}`);
+    console.log('🔧 API key length:', envApiKey.length);
+    return;
+  }
+  
+  // Fall back to provided API key
   if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length === 0) {
-    throw new Error('Invalid API key provided');
+    throw new Error('Invalid API key provided and no environment variable found');
   }
   
   BREVO_API_KEY = apiKey.trim();
-  console.log('🔧 Brevo service initialized with API key:', `***${apiKey.slice(-4)}`);
+  console.log('🔧 Brevo service initialized with provided API key:', `***${apiKey.slice(-4)}`);
   console.log('🔧 API key length:', apiKey.length);
 };
 

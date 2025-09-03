@@ -98,7 +98,8 @@ function AppRoutes() {
     }
     
     // Initialize Brevo notification service
-    initializeNotificationService('TnLMjUfmtA3F6QY4');
+    // API key will be loaded from environment variable or use fallback
+    initializeNotificationService();
     
     return () => {
       performanceService.endTimer('app_mount');

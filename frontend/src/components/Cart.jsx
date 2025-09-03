@@ -446,6 +446,7 @@ const Cart = () => {
       // No token means guest user
       setCurrentUserId(null);
       setIsGuest(true);
+      console.log('🔍 No token found, setting user as guest');
     }
     
     await loadCart();
@@ -595,17 +596,14 @@ const Cart = () => {
       
       console.log('🔍 handleNextStep - isGuest:', isGuest, 'currentUserId:', currentUserId);
       
-      // For guest users, allow them to proceed directly to delivery
-      if (isGuest) {
-        console.log('🔍 Guest user proceeding to delivery');
+      // For guest users or unauthenticated users, allow them to proceed to delivery
+      if (isGuest || !currentUserId) {
+        // Set as guest if not already set
+        if (!isGuest) {
+          setIsGuest(true);
+        }
+        console.log('🔍 Guest/unauthenticated user proceeding to delivery');
         setCheckoutStep('delivery');
-        return;
-      }
-      
-      // For unauthenticated users, show login prompt
-      if (!currentUserId) {
-        console.log('🔍 No currentUserId, showing login prompt');
-        toast.error('Please log in to continue with checkout');
         return;
       }
       

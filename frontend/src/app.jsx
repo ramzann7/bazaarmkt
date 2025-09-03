@@ -10,6 +10,7 @@ import { preloadProfileFast } from "./services/profileService";
 import { preloadService } from "./services/preloadService";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import { orderNotificationService } from "./services/orderNotificationService";
+import { initializeNotificationService } from './services/notificationService';
 
 // Artisan-only route component
 const ArtisanOnlyRoute = ({ children }) => {
@@ -46,6 +47,7 @@ const Search = lazy(() => import("./components/Search.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 const SimpleTest = lazy(() => import("./components/SimpleTest.jsx"));
 const SearchTrackingTest = lazy(() => import("./components/SearchTrackingTest.jsx"));
+const BrevoTest = lazy(() => import("./components/BrevoTest.jsx"));
 
 const DashboardTest = lazy(() => import("./components/dashboard/DashboardTest.jsx"));
 const UserRoleCheck = lazy(() => import("./components/dashboard/UserRoleCheck.jsx"));
@@ -94,6 +96,9 @@ function AppRoutes() {
     if (isAuthenticated) {
       orderNotificationService.connect();
     }
+    
+    // Initialize Brevo notification service
+    initializeNotificationService('TnLMjUfmtA3F6QY4');
     
     return () => {
       performanceService.endTimer('app_mount');
@@ -153,6 +158,7 @@ function AppRoutes() {
         <Route path="/test-reference" element={<TestReferenceData />} />
         <Route path="/simple-test" element={<SimpleTest />} />
         <Route path="/search-tracking-test" element={<SearchTrackingTest />} />
+        <Route path="/brevo-test" element={<BrevoTest />} />
 
         <Route path="/dashboard-test" element={<DashboardTest />} />
         <Route path="/user-role-check" element={<UserRoleCheck />} />

@@ -146,7 +146,7 @@ export default function OrderConfirmation() {
     return null;
   }
 
-  const { orders, message, guestInfo, orderSummary } = orderData;
+  const { orders, message, guestInfo, orderSummary, isPickupOrder } = orderData;
   
   // Ensure orders is an array and has valid data
   if (!Array.isArray(orders) || orders.length === 0) {
@@ -323,22 +323,43 @@ export default function OrderConfirmation() {
                   <div>
                     <p className="text-sm text-gray-600">Delivery Address</p>
                     <p className="font-medium text-gray-900">
-                      {orderData.orders[0]?.deliveryAddress?.street || 'Address not available'}<br />
-                      {orderData.orders[0]?.deliveryAddress?.city || 'City'}, {orderData.orders[0]?.deliveryAddress?.state || 'State'} {orderData.orders[0]?.deliveryAddress?.zipCode || ''}
+                      {isPickupOrder ? (
+                        <>
+                          <span className="text-emerald-600 font-medium">Pickup at Artisan Location</span><br />
+                          <span className="text-gray-600">Local pickup - no address required</span>
+                        </>
+                      ) : (
+                        <>
+                          {orderData.orders[0]?.deliveryAddress?.street || 'Address not available'}<br />
+                          {orderData.orders[0]?.deliveryAddress?.city || 'City'}, {orderData.orders[0]?.deliveryAddress?.state || 'State'} {orderData.orders[0]?.deliveryAddress?.zipCode || ''}
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
 
-                {orderData.orders[0]?.deliveryInstructions && (
+                {isPickupOrder ? (
                   <div className="flex items-start gap-3">
-                    <ShoppingBagIcon className="w-5 h-5 text-gray-400 mt-1" />
+                    <MapPinIcon className="w-5 h-5 text-emerald-400 mt-1" />
                     <div>
-                      <p className="text-sm text-gray-600">Delivery Instructions</p>
-                      <p className="font-medium text-gray-900">
-                        {orderData.orders[0]?.deliveryInstructions || 'No special instructions'}
+                      <p className="text-sm text-gray-600">Pickup Instructions</p>
+                      <p className="font-medium text-gray-900 text-emerald-700">
+                        Visit the artisan location to collect your order. Bring your email confirmation.
                       </p>
                     </div>
                   </div>
+                ) : (
+                  orderData.orders[0]?.deliveryInstructions && (
+                    <div className="flex items-start gap-3">
+                      <ShoppingBagIcon className="w-5 h-5 text-gray-400 mt-1" />
+                      <div>
+                        <p className="text-sm text-gray-600">Delivery Instructions</p>
+                        <p className="font-medium text-gray-900">
+                          {orderData.orders[0]?.deliveryInstructions || 'No special instructions'}
+                        </p>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -387,9 +408,14 @@ export default function OrderConfirmation() {
                   <span className="text-purple-600 text-sm font-bold">3</span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">Ready for Pickup/Delivery</h3>
+                  <h3 className="font-semibold text-gray-900">
+                    {isPickupOrder ? 'Ready for Pickup' : 'Ready for Pickup/Delivery'}
+                  </h3>
                   <p className="text-sm text-gray-600">
-                    You'll be notified when your orders are ready for pickup or delivery.
+                    {isPickupOrder 
+                      ? 'You\'ll be notified when your order is ready for pickup at the artisan location.'
+                      : 'You\'ll be notified when your orders are ready for pickup or delivery.'
+                    }
                   </p>
                 </div>
               </div>
@@ -401,7 +427,10 @@ export default function OrderConfirmation() {
                 <div>
                   <h3 className="font-semibold text-gray-900">Enjoy Your Order</h3>
                   <p className="text-sm text-gray-600">
-                    Pick up your order or receive delivery and enjoy your local artisan products!
+                    {isPickupOrder 
+                      ? 'Visit the artisan location to collect your order and enjoy your local artisan products!'
+                      : 'Pick up your order or receive delivery and enjoy your local artisan products!'
+                    }
                   </p>
                 </div>
               </div>

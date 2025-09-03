@@ -97,7 +97,7 @@ const userStatsRoutes = require('./src/routes/userStats');
 const revenueRoutes = require('./src/routes/revenue');
 const promotionalRoutes = require('./src/routes/promotional');
 const geocodingRoutes = require('./src/routes/geocoding');
-// const notificationRoutes = require('./src/routes/notifications');
+const notificationRoutes = require('./src/routes/notifications');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -113,7 +113,7 @@ app.use('/api/user', userStatsRoutes);
 app.use('/api/revenue', revenueRoutes);
 app.use('/api/promotional', promotionalRoutes);
 app.use('/api/geocoding', geocodingRoutes);
-// app.use('/api/notifications', notificationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 
 

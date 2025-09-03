@@ -845,8 +845,15 @@ const Cart = () => {
           quantity: item.quantity,
           productType: item.productType || 'ready_to_ship'
         })),
-        deliveryAddress: deliveryForm,
-        deliveryInstructions: deliveryForm.instructions || '',
+        deliveryAddress: isAddressRequired() ? deliveryForm : {
+          // For pickup orders, only include basic location info
+          pickupLocation: 'Artisan Location',
+          city: 'Local Pickup',
+          state: 'Pickup Available',
+          country: 'Canada'
+        },
+        deliveryInstructions: isAddressRequired() ? (deliveryForm.instructions || '') : 'Customer will pickup at artisan location',
+        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
         paymentMethod: guestPaymentForm.paymentMethod,
         paymentDetails: {
           cardNumber: guestPaymentForm.cardNumber,
@@ -888,15 +895,18 @@ const Cart = () => {
       await cartService.clearCart(null);
       
       // Show success message
-      toast.success(`Guest order placed successfully! ${result.totalOrders} order${result.totalOrders > 1 ? 's' : ''} created.`);
+      const isPickupOrder = !isAddressRequired();
+      const orderType = isPickupOrder ? 'pickup' : 'delivery';
+      toast.success(`Guest ${orderType} order placed successfully! ${result.totalOrders} order${result.totalOrders > 1 ? 's' : ''} created.`);
       
       // Navigate to order confirmation
       navigate('/order-confirmation', { 
         state: { 
-          message: 'Guest order placed successfully!',
+          message: `Guest ${orderType} order placed successfully!`,
           orders: result.orders,
           guestInfo: result.guestInfo,
-          orderSummary: result.orderSummary
+          orderSummary: result.orderSummary,
+          isPickupOrder: isPickupOrder
         }
       });
       
@@ -1508,12 +1518,17 @@ const Cart = () => {
                       </div>
                     )}
 
-                    {/* Guest Information Form (for guest users) */}
+                    {/* Guest Information Form (for guest users) - Always show for guests */}
                     {isGuest && (
                       <div className="border-t border-stone-200 pt-4 mb-4">
                         <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
                           <UserIcon className="w-4 h-4 text-blue-600" />
                           Your Information
+                          {!isAddressRequired() && (
+                            <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
+                              Required for pickup orders
+                            </span>
+                          )}
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
@@ -1558,7 +1573,7 @@ const Cart = () => {
                                   </span>
                                 </div>
                                 <p className="text-xs text-blue-600 mt-1">
-                                  Your delivery information will be updated with this order.
+                                  Your information will be updated with this order.
                                 </p>
                               </div>
                             )}
@@ -1574,84 +1589,142 @@ const Cart = () => {
                             />
                           </div>
                         </div>
+                        
+                        {/* Pickup Information Notice */}
+                        {!isAddressRequired() && (
+                          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <MapPinIcon className="w-4 h-4 text-emerald-600" />
+                              <div>
+                                <p className="text-emerald-800 text-sm font-medium">Pickup Order</p>
+                                <p className="text-emerald-700 text-xs">
+                                  You'll visit the artisan to collect your order. We'll use your email to identify you and send order updates.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
 
 
-                    {/* Manual Address Form */}
-                    <div className="border-t border-stone-200 pt-4">
-                      <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                        <PlusIcon className="w-4 h-4 text-green-600" />
-                        {isGuest ? 'Delivery Address' : 'Add New Address'}
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">Street Address *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.street}
-                            onChange={(e) => handleDeliveryFormChange('street', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="123 Main St"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">City *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.city}
-                            onChange={(e) => handleDeliveryFormChange('city', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="Montreal"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">State/Province *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.state}
-                            onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="Quebec"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">ZIP/Postal Code *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.zipCode}
-                            onChange={(e) => handleDeliveryFormChange('zipCode', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="H2K 3K2"
-                            required
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">Country *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.country}
-                            onChange={(e) => handleDeliveryFormChange('country', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="Canada"
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">Delivery Instructions</label>
-                          <textarea
-                            value={deliveryForm.instructions}
-                            onChange={(e) => handleDeliveryFormChange('instructions', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="Any special delivery instructions..."
-                            rows="2"
-                          />
+                    {/* Manual Address Form - Only show when address is required */}
+                    {isAddressRequired() && (
+                      <div className="border-t border-stone-200 pt-4">
+                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                          <PlusIcon className="w-4 h-4 text-green-600" />
+                          {isGuest ? 'Delivery Address' : 'Add New Address'}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Street Address *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.street}
+                              onChange={(e) => handleDeliveryFormChange('street', e.target.value)}
+                              className="input-field text-sm py-2"
+                              placeholder="123 Main St"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">City *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.city}
+                              onChange={(e) => handleDeliveryFormChange('city', e.target.value)}
+                              className="input-field text-sm py-2"
+                              placeholder="Montreal"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">State/Province *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.state}
+                              onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
+                              className="input-field text-sm py-2"
+                              placeholder="Quebec"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">ZIP/Postal Code *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.zipCode}
+                              onChange={(e) => handleDeliveryFormChange('zipCode', e.target.value)}
+                              className="input-field text-sm py-2"
+                              placeholder="H2K 3K2"
+                              required
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Country *</label>
+                            <input
+                              type="text"
+                              value={deliveryForm.country}
+                              onChange={(e) => handleDeliveryFormChange('country', e.target.value)}
+                              className="input-field text-sm py-2"
+                              placeholder="Canada"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-xs font-semibold text-stone-700 mb-1">Delivery Instructions</label>
+                            <textarea
+                              value={deliveryForm.instructions}
+                              onChange={(e) => handleDeliveryFormChange('instructions', e.target.value)}
+                              className="input-field text-sm py-2"
+                              placeholder="Any special delivery instructions..."
+                              rows="2"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* Pickup Instructions for Guest Users */}
+                    {isGuest && !isAddressRequired() && (
+                      <div className="border-t border-stone-200 pt-4">
+                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                          <MapPinIcon className="w-4 h-4 text-emerald-600" />
+                          Pickup Instructions
+                        </h3>
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center mt-0.5">
+                                <span className="text-emerald-600 text-xs font-bold">1</span>
+                              </div>
+                              <div>
+                                <p className="text-emerald-800 text-sm font-medium">Complete your order</p>
+                                <p className="text-emerald-700 text-xs">Provide your name, email, and phone number above</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center mt-0.5">
+                                <span className="text-emerald-600 text-xs font-bold">2</span>
+                              </div>
+                              <div>
+                                <p className="text-emerald-800 text-sm font-medium">Visit the artisan</p>
+                                <p className="text-emerald-700 text-xs">Go to the artisan's location to collect your order</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-3">
+                              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center mt-0.5">
+                                <span className="text-emerald-600 text-xs font-bold">3</span>
+                              </div>
+                              <div>
+                                <p className="text-emerald-800 text-sm font-medium">Show your email</p>
+                                <p className="text-emerald-700 text-xs">Present your email confirmation to the artisan</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

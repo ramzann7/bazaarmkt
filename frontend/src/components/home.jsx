@@ -197,18 +197,30 @@ export default function Home() {
     console.log(`Home component basic data loading took ${(endTime - startTime).toFixed(2)}ms`);
   }, [], { skipFirstRender: false });
 
-  // Load user location on component mount
+    // Load user location on component mount
   useEffect(() => {
     const loadUserLocation = () => {
       try {
         // For patrons and artisans, use their profile/business address
         if (user && user.coordinates) {
+          console.log('📍 User coordinates found:', {
+            user: user._id,
+            coordinates: user.coordinates,
+            latType: typeof user.coordinates.latitude,
+            lngType: typeof user.coordinates.longitude,
+            hasLat: user.coordinates.latitude !== undefined,
+            hasLng: user.coordinates.longitude !== undefined
+          });
+          
           setUserLocation({
             latitude: user.coordinates.latitude,
             longitude: user.coordinates.longitude,
             address: user.addresses?.[0]?.city || user.artisanName || 'Your location'
           });
-          console.log('📍 Using user profile location:', user.coordinates);
+          console.log('📍 Using user profile location:', {
+            latitude: user.coordinates.latitude,
+            longitude: user.coordinates.longitude
+          });
           return;
         }
         
@@ -299,7 +311,10 @@ export default function Home() {
           latitude: user.coordinates.latitude,
           longitude: user.coordinates.longitude
         };
-        console.log('✅ Using user coordinates from profile (patron/artisan):', location);
+        console.log('✅ Using user coordinates from profile (patron/artisan):', {
+          latitude: location.latitude,
+          longitude: location.longitude
+        });
       } else {
         // Try to get user coordinates from geocoding service
         try {
@@ -345,7 +360,14 @@ export default function Home() {
       
       // Ensure location has valid coordinates
       if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
-        console.error('❌ Invalid location data:', location);
+        console.error('❌ Invalid location data:', {
+          location,
+          type: typeof location,
+          hasLat: location?.latitude !== undefined,
+          hasLng: location?.longitude !== undefined,
+          latType: typeof location?.latitude,
+          lngType: typeof location?.longitude
+        });
         setIsLoadingNearby(false);
         return;
       }

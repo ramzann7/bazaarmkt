@@ -100,7 +100,8 @@ export default function Orders() {
       'ready': 'bg-green-100 text-green-800',
       'delivering': 'bg-purple-100 text-purple-800',
       'delivered': 'bg-green-100 text-green-800',
-      'cancelled': 'bg-red-100 text-red-800'
+      'cancelled': 'bg-red-100 text-red-800',
+      'declined': 'bg-red-100 text-red-800'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -224,7 +225,8 @@ export default function Orders() {
                 { key: 'ready', label: 'Ready', icon: '🎯' },
                 { key: 'delivering', label: 'Delivering', icon: '🚚' },
                 { key: 'delivered', label: 'Delivered', icon: '🎉' },
-                { key: 'cancelled', label: 'Cancelled', icon: '❌' }
+                { key: 'cancelled', label: 'Cancelled', icon: '❌' },
+                { key: 'declined', label: 'Declined', icon: '🚫' }
               ].map(({ key, label, icon }) => (
                 <button
                   key={key}
@@ -346,8 +348,11 @@ export default function Orders() {
                     </span> 
                     <span>
                       {userRole === 'artisan' 
-                        ? `${order.buyer?.firstName} ${order.buyer?.lastName}` 
-                        : `${order.artisan?.firstName} ${order.artisan?.lastName}`
+                        ? (order.patron 
+                            ? `${order.patron?.firstName} ${order.patron?.lastName}`
+                            : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`
+                          )
+                        : `${order.artisan?.artisanName || order.artisan?.firstName} ${order.artisan?.lastName}`
                       }
                     </span>
                   </div>
@@ -509,6 +514,64 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Decline Order Modal */}
+        {showDeclineModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-red-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
+                    <ExclamationTriangleIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-red-900">Decline Order</h3>
+                    <p className="text-sm text-red-700">Please provide a reason for declining this order</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDeclineModal(false)}
+                  className="text-red-400 hover:text-red-600 transition-colors p-2 hover:bg-red-100 rounded-full"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label htmlFor="declineReason" className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for declining *
+                  </label>
+                  <textarea
+                    id="declineReason"
+                    value={declineReason}
+                    onChange={(e) => setDeclineReason(e.target.value)}
+                    placeholder="Please explain why you cannot fulfill this order..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => setShowDeclineModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeclineOrder}
+                    disabled={isDeclining || !declineReason.trim()}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                  >
+                    {isDeclining ? '⏳ Declining...' : 'Decline Order'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -517,6 +580,9 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
 // Order Details Modal Component
 function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [declineReason, setDeclineReason] = useState('');
+  const [isDeclining, setIsDeclining] = useState(false);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-CA', {
@@ -536,7 +602,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'ready': 'bg-green-100 text-green-800',
       'delivering': 'bg-purple-100 text-purple-800',
       'delivered': 'bg-green-100 text-green-800',
-      'cancelled': 'bg-red-100 text-red-800'
+      'cancelled': 'bg-red-100 text-red-800',
+      'declined': 'bg-red-100 text-red-800'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -586,6 +653,27 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeclineOrder = async () => {
+    if (!declineReason.trim()) {
+      toast.error('Please provide a reason for declining the order');
+      return;
+    }
+
+    setIsDeclining(true);
+    try {
+      await orderService.declineOrder(order._id, declineReason.trim());
+      toast.success('Order declined successfully');
+      onRefresh();
+      onClose();
+    } catch (error) {
+      console.error('Error declining order:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to decline order';
+      toast.error(errorMessage);
+    } finally {
+      setIsDeclining(false);
     }
   };
 
@@ -649,28 +737,37 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               {userRole === 'artisan' ? (
                 <>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Name:</span> {order.buyer?.firstName} {order.buyer?.lastName}
+                    <span className="font-medium">Name:</span> 
+                    {order.patron 
+                      ? `${order.patron?.firstName} ${order.patron?.lastName}`
+                      : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`
+                    }
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Email:</span> {order.buyer?.email}
+                    <span className="font-medium">Email:</span> 
+                    {order.patron?.email || order.guestInfo?.email}
                   </p>
-                  {order.buyer?.phone && (
+                  {(order.patron?.phone || order.guestInfo?.phone) && (
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">Phone:</span> {order.buyer.phone}
+                      <span className="font-medium">Phone:</span> 
+                      {order.patron?.phone || order.guestInfo?.phone}
                     </p>
                   )}
                 </>
               ) : (
                 <>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Name:</span> {order.artisan?.firstName} {order.artisan?.lastName}
+                    <span className="font-medium">Name:</span> 
+                    {order.artisan?.artisanName || `${order.artisan?.firstName} ${order.artisan?.lastName}`}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">Email:</span> {order.artisan?.email}
+                    <span className="font-medium">Business Type:</span> 
+                    {order.artisan?.businessType || 'Artisan'}
                   </p>
-                  {order.artisan?.phone && (
+                  {order.artisan?.description && (
                     <p className="text-sm text-gray-600">
-                      <span className="font-medium">Phone:</span> {order.artisan.phone}
+                      <span className="font-medium">Description:</span> 
+                      {order.artisan.description}
                     </p>
                   )}
                 </>
@@ -733,6 +830,21 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             </div>
           )}
 
+          {/* Decline Reason */}
+          {order.status === 'declined' && order.declineReason && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-medium text-red-900 mb-2">❌ Order Declined</h4>
+              <p className="text-sm text-red-700 mb-2">
+                <span className="font-medium">Reason:</span> {order.declineReason}
+              </p>
+              {order.declinedAt && (
+                <p className="text-xs text-red-600">
+                  Declined on: {formatDate(order.declinedAt)}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <h4 className="font-bold text-gray-900 mb-4">Order Actions</h4>
@@ -750,22 +862,40 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               {userRole === 'artisan' && (
                 <>
                   {order.status === 'pending' && (
-                    <button
-                      onClick={() => handleUpdateStatus('confirmed')}
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                    >
-                      {isLoading ? '⏳ Confirming...' : '✅ Confirm Order'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleUpdateStatus('confirmed')}
+                        disabled={isLoading}
+                        className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      >
+                        {isLoading ? '⏳ Confirming...' : '✅ Confirm Order'}
+                      </button>
+                      <button
+                        onClick={() => setShowDeclineModal(true)}
+                        disabled={isLoading}
+                        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      >
+                        ❌ Decline Order
+                      </button>
+                    </>
                   )}
                   {order.status === 'confirmed' && (
-                    <button
-                      onClick={() => handleUpdateStatus('preparing')}
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                    >
-                      {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleUpdateStatus('preparing')}
+                        disabled={isLoading}
+                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      >
+                        {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
+                      </button>
+                      <button
+                        onClick={() => setShowDeclineModal(true)}
+                        disabled={isLoading}
+                        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      >
+                        ❌ Decline Order
+                      </button>
+                    </>
                   )}
                   {order.status === 'preparing' && (
                     <button

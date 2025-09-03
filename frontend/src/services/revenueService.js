@@ -1,6 +1,13 @@
 import { authToken } from './authservice';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Handle both cases: with and without /api suffix
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_BASE_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
+
+// Debug logging
+console.log('🔧 RevenueService - VITE_API_URL:', import.meta.env.VITE_API_URL);
+console.log('🔧 RevenueService - BASE_URL:', BASE_URL);
+console.log('🔧 RevenueService - API_BASE_URL:', API_BASE_URL);
 
 class RevenueService {
   // Get artisan revenue summary

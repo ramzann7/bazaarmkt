@@ -57,8 +57,21 @@ const orderSchema = new mongoose.Schema({
   // Order Status - varies by product type
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled'],
+    enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled', 'declined'],
     default: 'pending'
+  },
+  
+  // Decline information
+  declineReason: {
+    type: String,
+    trim: true
+  },
+  declinedAt: {
+    type: Date
+  },
+  declinedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   
   // Product Type Specific Status

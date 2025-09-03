@@ -48,6 +48,18 @@ export default function Navbar() {
     return getAllSubcategories();
   }, []);
 
+  // Deduplicate popular searches to prevent React key warnings
+  const deduplicatedPopularSearches = useMemo(() => {
+    const seen = new Set();
+    return popularSearches.filter(search => {
+      if (seen.has(search)) {
+        return false;
+      }
+      seen.add(search);
+      return true;
+    });
+  }, [popularSearches]);
+
   // Update cart count when user changes
   useOptimizedEffect(() => {
     if (user) {
@@ -99,7 +111,7 @@ export default function Navbar() {
       
       if (!cachedResults) {
         // Preload search results in background
-        enhancedSearchService.search(debouncedSearchQuery, selectedCategory)
+        enhancedSearchService.searchProducts(debouncedSearchQuery, null, { category: selectedCategory })
           .then(results => {
             cacheService.set(searchCacheKey, results, 5 * 60 * 1000); // 5 minutes
           })
@@ -458,9 +470,9 @@ export default function Navbar() {
                         Popular product searches:
                       </p>
                       <div className="flex flex-wrap gap-3">
-                        {popularSearches.map((search) => (
+                        {deduplicatedPopularSearches.map((search, index) => (
                           <button
-                            key={search}
+                            key={`${search}-${index}`}
                             onClick={() => handlePopularSearch(search)}
                             className="px-4 py-2 bg-[#F5F1EA] hover:bg-[#E6B655] text-gray-700 hover:text-white rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border border-[#E6B655]"
                           >
@@ -686,9 +698,9 @@ export default function Navbar() {
                   <div className="p-3">
                     <p className="text-sm font-medium text-gray-700 mb-2">Popular searches:</p>
                     <div className="flex flex-wrap gap-1">
-                      {popularSearches.map((search) => (
+                      {deduplicatedPopularSearches.map((search, index) => (
                         <button
-                          key={search}
+                          key={`mobile-${search}-${index}`}
                           onClick={() => handlePopularSearch(search)}
                           className="px-2 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-700 rounded text-xs transition-colors"
                         >

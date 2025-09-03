@@ -10,8 +10,8 @@ const RevenueService = require('../services/revenueService');
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
     const orders = await Order.find({ patron: req.user._id })
-      .populate('artisan', 'artisanName type')
-      .populate('items.product', 'name description image price unit')
+      .populate('artisan', 'artisanName type businessType description')
+      .populate('items.product', 'name description image price unit category subcategory')
       .sort({ createdAt: -1 });
 
     res.json(orders);
@@ -38,7 +38,8 @@ router.get('/artisan', verifyToken, async (req, res) => {
 
     const orders = await Order.find({ artisan: artisanProfile._id })
       .populate('patron', 'firstName lastName email phone')
-      .populate('items.product', 'name description image price unit')
+      .populate('guestInfo')
+      .populate('items.product', 'name description image price unit category subcategory')
       .sort({ createdAt: -1 });
 
     res.json(orders);
@@ -648,6 +649,61 @@ router.put('/:orderId/cancel', verifyToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error cancelling order:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Decline order (artisan only)
+router.put('/:orderId/decline', verifyToken, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    
+    if (!reason || reason.trim().length === 0) {
+      return res.status(400).json({ message: 'Decline reason is required' });
+    }
+
+    // Check if user is an artisan
+    if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Only artisans can decline orders' });
+    }
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Check if order can be declined
+    if (!['pending', 'confirmed'].includes(order.status)) {
+      return res.status(400).json({ message: 'Order cannot be declined in its current status' });
+    }
+
+    // Verify the artisan owns this order
+    const Artisan = require('../models/artisan');
+    const artisanProfile = await Artisan.findOne({ user: req.user._id });
+    
+    if (!artisanProfile || order.artisan.toString() !== artisanProfile._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to decline this order' });
+    }
+
+    order.status = 'declined';
+    order.declineReason = reason.trim();
+    order.declinedAt = new Date();
+    order.declinedBy = req.user._id;
+    order.updatedAt = Date.now();
+    
+    await order.save();
+
+    const updatedOrder = await Order.findById(order._id)
+      .populate('buyer', 'firstName lastName email phone')
+      .populate('artisan', 'firstName lastName email phone')
+      .populate('items.product', 'name description image price unit');
+
+    res.json({ 
+      message: 'Order declined successfully', 
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Error declining order:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

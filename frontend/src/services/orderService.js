@@ -156,6 +156,19 @@ export const orderService = {
     }
   },
 
+  // Decline order (artisan only)
+  declineOrder: async (orderId, reason) => {
+    try {
+      const response = await axios.put(`${API_URL}/${orderId}/decline`, { reason }, {
+        headers: getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error declining order:', error);
+      throw error;
+    }
+  },
+
   // Get artisan statistics
   getArtisanStats: async () => {
     try {

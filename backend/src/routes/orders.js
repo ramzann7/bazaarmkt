@@ -531,6 +531,80 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       order.actualDeliveryTime = new Date();
     }
 
+    // Update product inventory when order is confirmed
+    if (status === 'confirmed' && currentStatus === 'pending') {
+      console.log('📦 Updating inventory for confirmed order:', order._id);
+      
+      for (const item of order.items) {
+        try {
+          const product = await Product.findById(item.product);
+          if (product) {
+            // Only update inventory for ready_to_ship products
+            if (product.productType === 'ready_to_ship') {
+              const newStock = Math.max(0, product.stock - item.quantity);
+              product.stock = newStock;
+              
+              // Update product status if stock is low or out
+              if (newStock === 0) {
+                product.status = 'out_of_stock';
+              } else if (newStock <= product.lowStockThreshold) {
+                product.status = 'active'; // Keep active but low stock
+              }
+              
+              // Update sold count
+              product.soldCount = (product.soldCount || 0) + item.quantity;
+              
+              await product.save();
+              console.log(`✅ Updated inventory for product ${product.name}: stock=${newStock}, sold=${product.soldCount}`);
+            } else {
+              console.log(`ℹ️ Skipping inventory update for ${product.productType} product: ${product.name}`);
+            }
+          } else {
+            console.error(`❌ Product not found: ${item.product}`);
+          }
+        } catch (productError) {
+          console.error(`❌ Error updating inventory for product ${item.product}:`, productError);
+          // Don't fail the order update if inventory update fails
+        }
+      }
+    }
+
+    // Restore product inventory when order is cancelled or declined
+    if ((status === 'cancelled' || status === 'declined') && currentStatus === 'confirmed') {
+      console.log('🔄 Restoring inventory for cancelled/declined order:', order._id);
+      
+      for (const item of order.items) {
+        try {
+          const product = await Product.findById(item.product);
+          if (product) {
+            // Only restore inventory for ready_to_ship products
+            if (product.productType === 'ready_to_ship') {
+              const newStock = product.stock + item.quantity;
+              product.stock = newStock;
+              
+              // Update product status
+              if (newStock > 0) {
+                product.status = 'active';
+              }
+              
+              // Decrease sold count
+              product.soldCount = Math.max(0, (product.soldCount || 0) - item.quantity);
+              
+              await product.save();
+              console.log(`✅ Restored inventory for product ${product.name}: stock=${newStock}, sold=${product.soldCount}`);
+            } else {
+              console.log(`ℹ️ Skipping inventory restoration for ${product.productType} product: ${product.name}`);
+            }
+          } else {
+            console.error(`❌ Product not found: ${item.product}`);
+          }
+        } catch (productError) {
+          console.error(`❌ Error restoring inventory for product ${item.product}:`, productError);
+          // Don't fail the order update if inventory restoration fails
+        }
+      }
+    }
+
     await order.save();
 
     const updatedOrder = await Order.findById(order._id)

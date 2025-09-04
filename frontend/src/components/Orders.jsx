@@ -69,6 +69,7 @@ export default function Orders() {
         ordersData = await orderService.getPatronOrders();
       }
       console.log('🔍 Frontend Debug - Loaded Orders:', ordersData);
+      console.log('🔍 Frontend Debug - Order Statuses:', ordersData.map(order => ({ id: order._id, status: order.status })));
       setOrders(ordersData);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -893,6 +894,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                        style={{ border: '2px solid red' }} // Visual indicator for debugging
                       >
                         ❌ Decline Order
                       </button>
@@ -920,6 +922,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                        style={{ border: '2px solid red' }} // Visual indicator for debugging
                       >
                         ❌ Decline Order
                       </button>

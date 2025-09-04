@@ -489,7 +489,14 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
     }
 
     // Check if user is the artisan for this order by finding their artisan profile
-    const artisanProfile = await Artisan.findOne({ user: req.user._id });
+    let artisanProfile;
+    try {
+      artisanProfile = await Artisan.findOne({ user: req.user._id });
+      console.log('🔍 Backend Debug - Artisan profile query result:', artisanProfile);
+    } catch (error) {
+      console.error('❌ Backend Debug - Error finding artisan profile:', error);
+      return res.status(500).json({ message: 'Error finding artisan profile' });
+    }
     
     if (!artisanProfile) {
       console.log('❌ No artisan profile found for user:', req.user._id);
@@ -778,7 +785,14 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
     }
 
     // Verify the artisan owns this order
-    const artisanProfile = await Artisan.findOne({ user: req.user._id });
+    let artisanProfile;
+    try {
+      artisanProfile = await Artisan.findOne({ user: req.user._id });
+      console.log('🔍 Backend Debug - Decline: Artisan profile query result:', artisanProfile);
+    } catch (error) {
+      console.error('❌ Backend Debug - Decline: Error finding artisan profile:', error);
+      return res.status(500).json({ message: 'Error finding artisan profile' });
+    }
     
     console.log('🔍 Backend Debug - Artisan profile:', {
       found: !!artisanProfile,

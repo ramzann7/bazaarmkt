@@ -3,6 +3,7 @@ const router = express.Router();
 const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
+const Artisan = require('../models/artisan');
 const verifyToken = require('../middleware/authMiddleware');
 const RevenueService = require('../services/revenueService');
 
@@ -482,17 +483,25 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       orderStatus: order.status
     });
 
-    // Check if user is the artisan for this order (support multiple artisan roles)
-    if (order.artisan.toString() !== req.user._id.toString()) {
-      console.log('❌ Order artisan ID:', order.artisan.toString());
-      console.log('❌ User ID:', req.user._id.toString());
-      console.log('❌ User role:', req.user.role);
-      return res.status(403).json({ message: 'Only the artisan can update order status' });
-    }
-
     // Additional role check for artisan-like roles
     if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Only artisans can update order status' });
+    }
+
+    // Check if user is the artisan for this order by finding their artisan profile
+    const artisanProfile = await Artisan.findOne({ user: req.user._id });
+    
+    if (!artisanProfile) {
+      console.log('❌ No artisan profile found for user:', req.user._id);
+      return res.status(403).json({ message: 'Artisan profile not found' });
+    }
+
+    if (order.artisan.toString() !== artisanProfile._id.toString()) {
+      console.log('❌ Order artisan ID:', order.artisan.toString());
+      console.log('❌ User artisan profile ID:', artisanProfile._id.toString());
+      console.log('❌ User ID:', req.user._id.toString());
+      console.log('❌ User role:', req.user.role);
+      return res.status(403).json({ message: 'Only the artisan can update order status' });
     }
 
     // Validate status transition
@@ -732,30 +741,53 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
   try {
     const { reason } = req.body;
     
+    console.log('🔍 Backend Debug - Decline Order Request:', {
+      orderId: req.params.orderId,
+      reason,
+      userId: req.user._id,
+      userRole: req.user.role
+    });
+    
     if (!reason || reason.trim().length === 0) {
+      console.log('❌ Backend Debug - No reason provided');
       return res.status(400).json({ message: 'Decline reason is required' });
     }
 
     // Check if user is an artisan
     if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
+      console.log('❌ Backend Debug - User is not an artisan:', req.user.role);
       return res.status(403).json({ message: 'Only artisans can decline orders' });
     }
 
     const order = await Order.findById(req.params.orderId);
     if (!order) {
+      console.log('❌ Backend Debug - Order not found:', req.params.orderId);
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    console.log('🔍 Backend Debug - Order found:', {
+      orderId: order._id,
+      orderStatus: order.status,
+      orderArtisanId: order.artisan.toString()
+    });
+
     // Check if order can be declined
     if (!['pending', 'confirmed'].includes(order.status)) {
+      console.log('❌ Backend Debug - Order cannot be declined, current status:', order.status);
       return res.status(400).json({ message: 'Order cannot be declined in its current status' });
     }
 
     // Verify the artisan owns this order
-    const Artisan = require('../models/artisan');
     const artisanProfile = await Artisan.findOne({ user: req.user._id });
     
+    console.log('🔍 Backend Debug - Artisan profile:', {
+      found: !!artisanProfile,
+      artisanProfileId: artisanProfile?._id?.toString(),
+      orderArtisanId: order.artisan.toString()
+    });
+    
     if (!artisanProfile || order.artisan.toString() !== artisanProfile._id.toString()) {
+      console.log('❌ Backend Debug - Not authorized to decline this order');
       return res.status(403).json({ message: 'Not authorized to decline this order' });
     }
 
@@ -766,6 +798,7 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
     order.updatedAt = Date.now();
     
     await order.save();
+    console.log('✅ Backend Debug - Order declined successfully');
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
@@ -777,7 +810,7 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
       order: updatedOrder
     });
   } catch (error) {
-    console.error('Error declining order:', error);
+    console.error('❌ Backend Debug - Error declining order:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

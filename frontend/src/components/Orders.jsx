@@ -9,7 +9,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { orderService } from '../services/orderService';
-import { getProfile } from '../services/authservice';
+import { getProfile } from '../services/authService';
 import toast from 'react-hot-toast';
 
 export default function Orders() {
@@ -68,6 +68,7 @@ export default function Orders() {
       } else {
         ordersData = await orderService.getPatronOrders();
       }
+      console.log('🔍 Frontend Debug - Loaded Orders:', ordersData);
       setOrders(ordersData);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -662,14 +663,22 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       return;
     }
 
+    console.log('🔍 Decline Order Debug - Order ID:', order._id);
+    console.log('🔍 Decline Order Debug - Reason:', declineReason.trim());
+    console.log('🔍 Decline Order Debug - User Role:', userRole);
+
     setIsDeclining(true);
     try {
-      await orderService.declineOrder(order._id, declineReason.trim());
+      const result = await orderService.declineOrder(order._id, declineReason.trim());
+      console.log('✅ Decline Order Success:', result);
       toast.success('Order declined successfully');
+      setShowDeclineModal(false);
+      setDeclineReason('');
       onRefresh();
       onClose();
     } catch (error) {
-      console.error('Error declining order:', error);
+      console.error('❌ Error declining order:', error);
+      console.error('❌ Error response:', error.response?.data);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to decline order';
       toast.error(errorMessage);
     } finally {
@@ -861,6 +870,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               
               {userRole === 'artisan' && (
                 <>
+                  {console.log('🔍 Frontend Debug - Order Status:', order.status, 'Order ID:', order._id)}
                   {order.status === 'pending' && (
                     <>
                       <button

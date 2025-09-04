@@ -159,12 +159,22 @@ export const orderService = {
   // Decline order (artisan only)
   declineOrder: async (orderId, reason) => {
     try {
+      console.log('🔍 Order Service Debug - Decline Order:', {
+        orderId,
+        reason,
+        url: `${API_URL}/${orderId}/decline`,
+        headers: getAuthHeaders()
+      });
+      
       const response = await axios.put(`${API_URL}/${orderId}/decline`, { reason }, {
         headers: getAuthHeaders()
       });
+      
+      console.log('✅ Order Service Debug - Decline Response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error declining order:', error);
+      console.error('❌ Order Service Debug - Decline Error:', error);
+      console.error('❌ Order Service Debug - Error Response:', error.response?.data);
       throw error;
     }
   },

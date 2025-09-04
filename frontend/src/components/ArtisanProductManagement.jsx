@@ -9,7 +9,10 @@ import {
   SparklesIcon,
   PlusIcon,
   ClockIcon,
-  CubeIcon
+  CubeIcon,
+  TruckIcon,
+  CalendarIcon,
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 import { authToken, getProfile } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -888,15 +891,34 @@ export default function ArtisanProductManagement() {
 
         {/* Product Add/Edit Modal */}
         {showProductModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {selectedProduct ? 'Edit Product' : 'Add New Product'}
-                </h3>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+              {/* Enhanced Header */}
+              <div className="bg-gradient-to-r from-[#D77A61] to-[#E6B655] p-6 rounded-t-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                      <CubeIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">
+                        {selectedProduct ? 'Edit Product' : 'Add New Product'}
+                      </h3>
+                      <p className="text-white text-opacity-90">
+                        {selectedProduct ? 'Update your product information' : 'Create a new product for your customers'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowProductModal(false)}
+                    className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-10 rounded-full"
+                  >
+                    <XMarkIcon className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-8">
                 <ProductForm
                   product={selectedProduct}
                   onSave={handleSaveProduct}
@@ -918,7 +940,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     description: product?.description || '',
     price: product?.price || '',
     unit: product?.unit || 'piece',
-    productType: product?.productType || 'physical',
+    productType: product?.productType || 'ready_to_ship',
     category: product?.category || 'bakery',
     subcategory: product?.subcategory || '',
     stock: product?.stock || '',
@@ -931,12 +953,25 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     isOrganic: product?.isOrganic || false,
     isGlutenFree: product?.isGlutenFree || false,
     isVegan: product?.isVegan || false,
+    isDairyFree: product?.isDairyFree || false,
+    isNutFree: product?.isNutFree || false,
+    isKosher: product?.isKosher || false,
+    isHalal: product?.isHalal || false,
     preparationTime: product?.preparationTime || '',
     shelfLife: product?.shelfLife || '',
     storageInstructions: product?.storageInstructions || '',
     servingSize: product?.servingSize || '',
     calories: product?.calories || '',
-    nutritionalInfo: product?.nutritionalInfo || ''
+    nutritionalInfo: product?.nutritionalInfo || '',
+    // Made to Order specific fields
+    leadTime: product?.leadTime || '',
+    leadTimeUnit: product?.leadTimeUnit || 'days',
+    maxOrderQuantity: product?.maxOrderQuantity || '',
+    // Scheduled specific fields
+    scheduledDate: product?.scheduledDate || '',
+    scheduledTime: product?.scheduledTime || '',
+    scheduledQuantity: product?.scheduledQuantity || '',
+    scheduledLocation: product?.scheduledLocation || ''
   });
 
   const handleSubmit = (e) => {
@@ -955,53 +990,68 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Product Type Selection */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-3">
+      <div className="mb-8">
+        <label className="block text-lg font-semibold text-gray-900 mb-4">
           Product Type *
         </label>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div
-            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-              formData.productType === 'physical'
-                ? 'border-[#D77A61] bg-[#F5F1EA]'
-                : 'border-gray-200 hover:border-[#D77A61]/50'
+            className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
+              formData.productType === 'ready_to_ship'
+                ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
+                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
             }`}
-            onClick={() => setFormData({...formData, productType: 'physical'})}
+            onClick={() => setFormData({...formData, productType: 'ready_to_ship'})}
           >
             <div className="text-center">
-              <CubeIcon className="w-8 h-8 mx-auto mb-2 text-[#D77A61]" />
-              <h4 className="font-semibold text-gray-900">Physical Product</h4>
-              <p className="text-sm text-gray-600">Tangible items with inventory</p>
+              <TruckIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
+              <h4 className="font-semibold text-gray-900 mb-2">Ready to Ship</h4>
+              <p className="text-sm text-gray-600">Pre-made products ready for immediate delivery</p>
+              <div className="mt-3 text-xs text-gray-500">
+                • Available in stock<br/>
+                • Immediate shipping<br/>
+                • Standard inventory management
+              </div>
             </div>
           </div>
           
           <div
-            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-              formData.productType === 'service'
-                ? 'border-[#D77A61] bg-[#F5F1EA]'
-                : 'border-gray-200 hover:border-[#D77A61]/50'
+            className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
+              formData.productType === 'made_to_order'
+                ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
+                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
             }`}
-            onClick={() => setFormData({...formData, productType: 'service'})}
+            onClick={() => setFormData({...formData, productType: 'made_to_order'})}
           >
             <div className="text-center">
-              <ClockIcon className="w-8 h-8 mx-auto mb-2 text-[#D77A61]" />
-              <h4 className="font-semibold text-gray-900">Service</h4>
-              <p className="text-sm text-gray-600">Time-based services</p>
+              <WrenchScrewdriverIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
+              <h4 className="font-semibold text-gray-900 mb-2">Made to Order</h4>
+              <p className="text-sm text-gray-600">Custom products made after order placement</p>
+              <div className="mt-3 text-xs text-gray-500">
+                • Custom preparation<br/>
+                • Lead time required<br/>
+                • Made after order
+              </div>
             </div>
           </div>
           
           <div
-            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-              formData.productType === 'digital'
-                ? 'border-[#D77A61] bg-[#F5F1EA]'
-                : 'border-gray-200 hover:border-[#D77A61]/50'
+            className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
+              formData.productType === 'scheduled'
+                ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
+                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
             }`}
-            onClick={() => setFormData({...formData, productType: 'digital'})}
+            onClick={() => setFormData({...formData, productType: 'scheduled'})}
           >
             <div className="text-center">
-              <SparklesIcon className="w-8 h-8 mx-auto mb-2 text-[#D77A61]" />
-              <h4 className="font-semibold text-gray-900">Digital</h4>
-              <p className="text-sm text-gray-600">Downloadable content</p>
+              <CalendarIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
+              <h4 className="font-semibold text-gray-900 mb-2">Scheduled</h4>
+              <p className="text-sm text-gray-600">Products made at specific date and time</p>
+              <div className="mt-3 text-xs text-gray-500">
+                • Fixed production time<br/>
+                • Limited quantity<br/>
+                • Specific date/time
+              </div>
             </div>
           </div>
         </div>
@@ -1140,6 +1190,136 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         />
       </div>
 
+      {/* Product Type Specific Fields */}
+      {formData.productType === 'made_to_order' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+          <h4 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+            <WrenchScrewdriverIcon className="w-5 h-5 mr-2" />
+            Made to Order Settings
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lead Time *
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="number"
+                  name="leadTime"
+                  value={formData.leadTime}
+                  onChange={handleChange}
+                  min="1"
+                  required
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                  placeholder="e.g., 3"
+                />
+                <select
+                  name="leadTimeUnit"
+                  value={formData.leadTimeUnit}
+                  onChange={handleChange}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                >
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                  <option value="weeks">Weeks</option>
+                </select>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                How long customers need to wait for this product
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Maximum Order Quantity
+              </label>
+              <input
+                type="number"
+                name="maxOrderQuantity"
+                value={formData.maxOrderQuantity}
+                onChange={handleChange}
+                min="1"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                placeholder="e.g., 50"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Maximum quantity per order (leave empty for no limit)
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {formData.productType === 'scheduled' && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+          <h4 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
+            <CalendarIcon className="w-5 h-5 mr-2" />
+            Scheduled Production Settings
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Production Date *
+              </label>
+              <input
+                type="date"
+                name="scheduledDate"
+                value={formData.scheduledDate}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Production Time *
+              </label>
+              <input
+                type="time"
+                name="scheduledTime"
+                value={formData.scheduledTime}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Available Quantity *
+              </label>
+              <input
+                type="number"
+                name="scheduledQuantity"
+                value={formData.scheduledQuantity}
+                onChange={handleChange}
+                min="1"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                placeholder="e.g., 20"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                How many products will be available for this scheduled production
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Production Location
+              </label>
+              <input
+                type="text"
+                name="scheduledLocation"
+                value={formData.scheduledLocation}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                placeholder="e.g., Main Kitchen, Workshop"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Where the product will be made (optional)
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1199,41 +1379,108 @@ const ProductForm = ({ product, onSave, onCancel }) => {
       </div>
 
       {/* Dietary Information */}
-      <div className="border-t border-gray-200 pt-4">
-        <h4 className="text-lg font-medium text-gray-900 mb-3">Dietary Information</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              name="isOrganic"
-              checked={formData.isOrganic}
-              onChange={(e) => setFormData({...formData, isOrganic: e.target.checked})}
-              className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61]"
-            />
-            <span className="text-sm text-gray-700">Organic</span>
-          </label>
-          
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              name="isGlutenFree"
-              checked={formData.isGlutenFree}
-              onChange={(e) => setFormData({...formData, isGlutenFree: e.target.checked})}
-              className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61]"
-            />
-            <span className="text-sm text-gray-700">Gluten Free</span>
-          </label>
-          
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              name="isVegan"
-              checked={formData.isVegan}
-              onChange={(e) => setFormData({...formData, isVegan: e.target.checked})}
-              className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61]"
-            />
-            <span className="text-sm text-gray-700">Vegan</span>
-          </label>
+      <div className="border-t border-gray-200 pt-6">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">Dietary Information & Certifications</h4>
+        <div className="bg-gray-50 rounded-xl p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isOrganic"
+                checked={formData.isOrganic}
+                onChange={(e) => setFormData({...formData, isOrganic: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Organic</span>
+                <p className="text-xs text-gray-500">Certified organic ingredients</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isGlutenFree"
+                checked={formData.isGlutenFree}
+                onChange={(e) => setFormData({...formData, isGlutenFree: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Gluten Free</span>
+                <p className="text-xs text-gray-500">No gluten-containing ingredients</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isVegan"
+                checked={formData.isVegan}
+                onChange={(e) => setFormData({...formData, isVegan: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Vegan</span>
+                <p className="text-xs text-gray-500">No animal products</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isDairyFree"
+                checked={formData.isDairyFree}
+                onChange={(e) => setFormData({...formData, isDairyFree: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Dairy Free</span>
+                <p className="text-xs text-gray-500">No dairy products</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isNutFree"
+                checked={formData.isNutFree}
+                onChange={(e) => setFormData({...formData, isNutFree: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Nut Free</span>
+                <p className="text-xs text-gray-500">No tree nuts or peanuts</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isKosher"
+                checked={formData.isKosher}
+                onChange={(e) => setFormData({...formData, isKosher: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Kosher</span>
+                <p className="text-xs text-gray-500">Kosher certified</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+              <input
+                type="checkbox"
+                name="isHalal"
+                checked={formData.isHalal}
+                onChange={(e) => setFormData({...formData, isHalal: e.target.checked})}
+                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Halal</span>
+                <p className="text-xs text-gray-500">Halal certified</p>
+              </div>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1330,20 +1577,27 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         </div>
       </div>
 
-      <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-6 py-2 bg-[#D77A61] text-white rounded-lg hover:bg-[#C06A51] transition-colors"
-        >
-          {product ? 'Update Product' : 'Add Product'}
-        </button>
+      <div className="flex items-center justify-between pt-8 border-t border-gray-200">
+        <div className="text-sm text-gray-500">
+          <p>* Required fields</p>
+          <p className="mt-1">All product information will be visible to customers</p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-6 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-8 py-3 bg-[#D77A61] text-white rounded-lg hover:bg-[#C06A51] transition-colors font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
+          >
+            <CubeIcon className="w-5 h-5" />
+            <span>{product ? 'Update Product' : 'Add Product'}</span>
+          </button>
+        </div>
       </div>
     </form>
   );

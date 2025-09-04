@@ -191,14 +191,17 @@ export const cartService = {
         console.log('💾 Saved to guest cart localStorage (fallback), key:', guestCartKey, 'data:', cart);
       }
       
-      const count = cartService.getCartCount(userId);
+      // Calculate count directly from the cart array to avoid race conditions
+      const count = cart.reduce((total, item) => total + item.quantity, 0);
       console.log('🔢 Cart count after adding:', count);
       
-      // Dispatch cart update event
-      window.dispatchEvent(new CustomEvent('cartUpdated', { 
-        detail: { cart, count, userId } 
-      }));
-      console.log('📡 Dispatched cart update event');
+      // Dispatch cart update event with a small delay to ensure localStorage is updated
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('cartUpdated', { 
+          detail: { cart, count, userId } 
+        }));
+        console.log('📡 Dispatched cart update event');
+      }, 10);
       
       return cart;
     } catch (error) {
@@ -229,9 +232,12 @@ export const cartService = {
             localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
           }
           
+          // Calculate count directly from the updated cart array
+          const count = updatedCart.reduce((total, item) => total + item.quantity, 0);
+          
           // Dispatch cart update event
           window.dispatchEvent(new CustomEvent('cartUpdated', { 
-            detail: { cart: updatedCart, count: cartService.getCartCount(userId), userId } 
+            detail: { cart: updatedCart, count, userId } 
           }));
           
           return updatedCart;
@@ -251,9 +257,12 @@ export const cartService = {
             localStorage.setItem(guestCartKey, JSON.stringify(cart));
           }
           
+          // Calculate count directly from the cart array
+          const count = cart.reduce((total, item) => total + item.quantity, 0);
+          
           // Dispatch cart update event
           window.dispatchEvent(new CustomEvent('cartUpdated', { 
-            detail: { cart, count: cartService.getCartCount(userId), userId } 
+            detail: { cart, count, userId } 
           }));
           
           return cart;
@@ -286,7 +295,8 @@ export const cartService = {
         localStorage.setItem(guestCartKey, JSON.stringify(updatedCart));
       }
       
-      const count = cartService.getCartCount(userId);
+      // Calculate count directly from the updated cart array
+      const count = updatedCart.reduce((total, item) => total + item.quantity, 0);
       
       // Dispatch cart update event
       window.dispatchEvent(new CustomEvent('cartUpdated', { 
@@ -520,8 +530,10 @@ export const cartService = {
         
         console.log('✅ Cart synced successfully:', syncedCart);
         
+        // Calculate count directly from the synced cart array
+        const count = syncedCart.reduce((total, item) => total + item.quantity, 0);
+        
         // Dispatch cart update event
-        const count = cartService.getCartCount(userId);
         window.dispatchEvent(new CustomEvent('cartUpdated', { 
           detail: { cart: syncedCart, count, userId } 
         }));

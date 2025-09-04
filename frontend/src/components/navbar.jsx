@@ -125,8 +125,8 @@ export default function Navbar() {
   // Listen for cart updates
   useEffect(() => {
     const handleCartUpdate = (event) => {
-      const { userId, count } = event.detail;
-      console.log('🛒 Navbar received cart update:', { userId, count, currentUser: user?._id });
+      const { userId, count, cart } = event.detail;
+      console.log('🛒 Navbar received cart update:', { userId, count, currentUser: user?._id, cartLength: cart?.length });
       
       // Update cart count if it's for the current user or guest
       if ((user && userId === user._id) || (!user && userId === null) || (isGuest && userId === null)) {
@@ -141,12 +141,37 @@ export default function Navbar() {
       }
     };
 
-    window.addEventListener('cartUpdated', handleCartUpdate);
+    // Add event listener with capture to ensure it's not missed
+    window.addEventListener('cartUpdated', handleCartUpdate, true);
     
     return () => {
-      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('cartUpdated', handleCartUpdate, true);
     };
   }, [user, isGuest]);
+
+  // Fallback: Periodically check cart count to ensure it's up to date
+  useEffect(() => {
+    const checkCartCount = () => {
+      if (user?._id) {
+        const currentCount = cartService.getCartCount(user._id);
+        if (currentCount !== cartCount) {
+          console.log('🛒 Cart count mismatch detected, updating:', { current: cartCount, actual: currentCount });
+          setCartCount(currentCount);
+        }
+      } else if (isGuest) {
+        const currentCount = cartService.getCartCount(null);
+        if (currentCount !== cartCount) {
+          console.log('🛒 Guest cart count mismatch detected, updating:', { current: cartCount, actual: currentCount });
+          setCartCount(currentCount);
+        }
+      }
+    };
+
+    // Check every 2 seconds as a fallback
+    const interval = setInterval(checkCartCount, 2000);
+    
+    return () => clearInterval(interval);
+  }, [user, isGuest, cartCount]);
 
   // Memoized search handler
   const handleSearch = useMemo(() => {

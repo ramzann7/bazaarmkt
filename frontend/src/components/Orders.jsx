@@ -517,64 +517,6 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
           </div>
         </div>
 
-        {/* Decline Order Modal */}
-        {console.log('🔍 Modal Render Check - showDeclineModal:', showDeclineModal)}
-        {showDeclineModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-red-50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
-                    <ExclamationTriangleIcon className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-red-900">Decline Order</h3>
-                    <p className="text-sm text-red-700">Please provide a reason for declining this order</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowDeclineModal(false)}
-                  className="text-red-400 hover:text-red-600 transition-colors p-2 hover:bg-red-100 rounded-full"
-                >
-                  <XMarkIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div>
-                  <label htmlFor="declineReason" className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason for declining *
-                  </label>
-                  <textarea
-                    id="declineReason"
-                    value={declineReason}
-                    onChange={(e) => setDeclineReason(e.target.value)}
-                    placeholder="Please explain why you cannot fulfill this order..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    onClick={() => setShowDeclineModal(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeclineOrder}
-                    disabled={isDeclining || !declineReason.trim()}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
-                  >
-                    {isDeclining ? '⏳ Declining...' : 'Decline Order'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -586,6 +528,12 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
   const [isDeclining, setIsDeclining] = useState(false);
+
+  // Debug useEffect to track showDeclineModal changes
+  useEffect(() => {
+    console.log('🔍 useEffect - showDeclineModal changed to:', showDeclineModal);
+  }, [showDeclineModal]);
+
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-CA', {
@@ -969,6 +917,68 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           </div>
         </div>
       </div>
+
+      {/* Decline Order Modal */}
+      {console.log('🔍 Modal Render Check - showDeclineModal:', showDeclineModal)}
+      {console.log('🔍 Modal Render Check - typeof showDeclineModal:', typeof showDeclineModal)}
+      {console.log('🔍 Modal Render Check - showDeclineModal === true:', showDeclineModal === true)}
+      {showDeclineModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" style={{ border: '5px solid red' }}>
+          {console.log('🔍 MODAL IS RENDERING!')}
+          <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-red-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-red-900">Decline Order</h3>
+                  <p className="text-sm text-red-700">Please provide a reason for declining this order</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDeclineModal(false)}
+                className="text-red-400 hover:text-red-600 transition-colors p-2 hover:bg-red-100 rounded-full"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label htmlFor="declineReason" className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for declining *
+                </label>
+                <textarea
+                  id="declineReason"
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  placeholder="Please explain why you cannot fulfill this order..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={() => setShowDeclineModal(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeclineOrder}
+                  disabled={isDeclining || !declineReason.trim()}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+                >
+                  {isDeclining ? '⏳ Declining...' : 'Decline Order'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

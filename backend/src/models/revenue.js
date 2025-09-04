@@ -2,15 +2,31 @@ const mongoose = require('mongoose');
 
 const revenueSchema = new mongoose.Schema({
   // Transaction details
+  type: {
+    type: String,
+    enum: ['order', 'spotlight', 'promotional'],
+    default: 'order'
+  },
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order',
-    required: true
+    required: function() {
+      return this.type === 'order';
+    }
+  },
+  spotlightId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ArtisanSpotlight',
+    required: function() {
+      return this.type === 'spotlight';
+    }
   },
   artisanId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Artisan',
-    required: true
+    required: function() {
+      return this.type === 'order';
+    }
   },
   patronId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -96,6 +112,7 @@ const revenueSchema = new mongoose.Schema({
   
   // Notes and disputes
   notes: String,
+  description: String,
   disputeStatus: {
     type: String,
     enum: ['none', 'pending', 'resolved', 'escalated'],
@@ -114,13 +131,15 @@ const revenueSchema = new mongoose.Schema({
   }
 });
 
-// Validate that either patronId or guestInfo is provided
+// Validate that either patronId or guestInfo is provided (only for order type)
 revenueSchema.pre('save', function(next) {
-  if (!this.patronId && !this.guestInfo) {
-    return next(new Error('Either patronId or guestInfo must be provided'));
-  }
-  if (this.patronId && this.guestInfo) {
-    return next(new Error('Cannot have both patronId and guestInfo'));
+  if (this.type === 'order') {
+    if (!this.patronId && !this.guestInfo) {
+      return next(new Error('Either patronId or guestInfo must be provided for order revenue'));
+    }
+    if (this.patronId && this.guestInfo) {
+      return next(new Error('Cannot have both patronId and guestInfo'));
+    }
   }
   next();
 });

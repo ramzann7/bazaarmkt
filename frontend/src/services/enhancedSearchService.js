@@ -2,7 +2,7 @@ import axios from 'axios';
 import { authToken } from './authservice';
 import { geocodingService } from './geocodingService';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/products` : '/api/products';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
 
 // Enhanced search service with sophisticated ranking
 class EnhancedSearchService {

@@ -20,7 +20,7 @@ app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Serve static files for uploads with proper headers
-app.use('/uploads', (req, res, next) => {
+const staticFileHandler = (req, res, next) => {
   // Set CORS headers for static files
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -35,7 +35,9 @@ app.use('/uploads', (req, res, next) => {
   console.log(`📁 Static file request: ${req.method} ${req.url}`);
   
   next();
-}, express.static(path.join(__dirname, 'public/uploads'), {
+};
+
+const staticFileOptions = {
   // Add error handling for static files
   fallthrough: false,
   setHeaders: (res, path) => {
@@ -50,7 +52,13 @@ app.use('/uploads', (req, res, next) => {
       res.setHeader('Content-Type', 'image/webp');
     }
   }
-}));
+};
+
+// Serve static files via /uploads route
+app.use('/uploads', staticFileHandler, express.static(path.join(__dirname, 'public/uploads'), staticFileOptions));
+
+// Also serve static files via /api/uploads route for backward compatibility
+app.use('/api/uploads', staticFileHandler, express.static(path.join(__dirname, 'public/uploads'), staticFileOptions));
 
 // Add request size logging middleware
 app.use((req, res, next) => {
@@ -98,6 +106,7 @@ const revenueRoutes = require('./src/routes/revenue');
 const promotionalRoutes = require('./src/routes/promotional');
 const geocodingRoutes = require('./src/routes/geocoding');
 const notificationRoutes = require('./src/routes/notifications');
+const spotlightRoutes = require('./src/routes/spotlight');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -114,6 +123,7 @@ app.use('/api/revenue', revenueRoutes);
 app.use('/api/promotional', promotionalRoutes);
 app.use('/api/geocoding', geocodingRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/spotlight', spotlightRoutes);
 
 
 

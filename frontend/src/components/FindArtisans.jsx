@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { artisanService } from '../services/artisanService';
 import { promotionalService } from '../services/promotionalService';
 import { favoriteService } from '../services/favoriteService';
+import { spotlightService } from '../services/spotlightService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { 
   PRODUCT_CATEGORIES, 
@@ -41,6 +42,7 @@ export default function FindArtisans() {
   const [artisans, setArtisans] = useState([]);
   const [filteredArtisans, setFilteredArtisans] = useState([]);
   const [favoriteArtisans, setFavoriteArtisans] = useState([]);
+  const [spotlightArtisans, setSpotlightArtisans] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -126,6 +128,8 @@ export default function FindArtisans() {
     if (isAuthenticated && user && user.role === 'patron') {
       loadFavoriteArtisans();
     }
+    // Load spotlight artisans for all users
+    loadSpotlightArtisans();
   }, [isAuthenticated, user]);
 
   const loadAllArtisans = async () => {
@@ -145,20 +149,17 @@ export default function FindArtisans() {
       setArtisans(data);
       setFilteredArtisans(data);
       
-      // Load promotional data for artisans
-      const promotionalData = {};
-      for (const artisan of data) {
+      // Load promotional data for all artisans in one bulk call
+      if (data.length > 0) {
         try {
-          // Get artisan's promotional features (non-product specific)
-          const promotions = await promotionalService.getArtisanalPromotionalFeatures();
-          const artisanPromotions = promotions.filter(p => p.artisanId === artisan._id);
-          promotionalData[artisan._id] = artisanPromotions;
+          const artisanIds = data.map(artisan => artisan._id);
+          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
+          setArtisanPromotions(promotionalData);
         } catch (error) {
-          console.error(`Error loading promotions for artisan ${artisan._id}:`, error);
-          promotionalData[artisan._id] = [];
+          console.error('Error loading bulk promotional features:', error);
+          setArtisanPromotions({});
         }
       }
-      setArtisanPromotions(promotionalData);
     } catch (error) {
       console.error('Error loading artisans:', error);
       setError('Failed to load artisans');
@@ -188,6 +189,16 @@ export default function FindArtisans() {
     }
   };
 
+  const loadSpotlightArtisans = async () => {
+    try {
+      const response = await spotlightService.getActiveSpotlights();
+      setSpotlightArtisans(response.spotlights || []);
+    } catch (error) {
+      console.error('Error loading spotlight artisans:', error);
+      setSpotlightArtisans([]);
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchTerm.trim()) {
@@ -198,10 +209,20 @@ export default function FindArtisans() {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('Searching for:', searchTerm);
       const response = await artisanService.searchArtisans(searchTerm);
-      console.log('Search response:', response);
       setFilteredArtisans(response || []);
+      
+      // Load promotional data for search results
+      if (response && response.length > 0) {
+        try {
+          const artisanIds = response.map(artisan => artisan._id);
+          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
+          setArtisanPromotions(promotionalData);
+        } catch (error) {
+          console.error('Error loading bulk promotional features for search:', error);
+          setArtisanPromotions({});
+        }
+      }
     } catch (error) {
       console.error('Error searching artisans:', error);
       setError('Failed to search artisans');
@@ -225,28 +246,49 @@ export default function FindArtisans() {
       );
     }
 
-    // Apply sorting
-    if (sortBy === 'name') {
-      filtered = [...filtered].sort((a, b) => 
-        (a.artisanName || '').localeCompare(b.artisanName || '')
-      );
-    } else if (sortBy === 'rating') {
-      filtered = [...filtered].sort((a, b) => 
-        (b.rating?.average || 0) - (a.rating?.average || 0)
-      );
-    } else if (sortBy === 'distance') {
-      // Sort by distance if coordinates are available
-      if (user?.coordinates) {
-        filtered = [...filtered].sort((a, b) => {
-          const aDistance = a.distance || Infinity;
-          const bDistance = b.distance || Infinity;
-          return aDistance - bDistance;
-        });
-      }
-    }
+    // Separate spotlight and regular artisans
+    const spotlightIds = spotlightArtisans.map(s => s.artisan.id);
+    const spotlightArtisansList = filtered.filter(artisan => spotlightIds.includes(artisan._id));
+    const regularArtisansList = filtered.filter(artisan => !spotlightIds.includes(artisan._id));
 
-    return filtered;
-  }, [filteredArtisans, selectedCategory, sortBy, user?.coordinates]);
+    // Apply sorting to each group separately
+    const sortArtisans = (artisans) => {
+      if (sortBy === 'name') {
+        return [...artisans].sort((a, b) => 
+          (a.artisanName || '').localeCompare(b.artisanName || '')
+        );
+      } else if (sortBy === 'rating') {
+        return [...artisans].sort((a, b) => 
+          (b.rating?.average || 0) - (a.rating?.average || 0)
+        );
+      } else if (sortBy === 'distance') {
+        // Sort by distance if coordinates are available
+        if (user?.coordinates) {
+          return [...artisans].sort((a, b) => {
+            const aDistance = a.distance || Infinity;
+            const bDistance = b.distance || Infinity;
+            return aDistance - bDistance;
+          });
+        }
+      } else if (sortBy === 'default' || !sortBy) {
+        // Default sorting: spotlight artisans first, then by distance if available
+        if (user?.coordinates) {
+          return [...artisans].sort((a, b) => {
+            const aDistance = a.distance || Infinity;
+            const bDistance = b.distance || Infinity;
+            return aDistance - bDistance;
+          });
+        }
+      }
+      return artisans;
+    };
+
+    // Sort both groups and combine with spotlight artisans first
+    const sortedSpotlight = sortArtisans(spotlightArtisansList);
+    const sortedRegular = sortArtisans(regularArtisansList);
+
+    return [...sortedSpotlight, ...sortedRegular];
+  }, [filteredArtisans, selectedCategory, sortBy, user?.coordinates, spotlightArtisans]);
 
   const handleArtisanTypeSelect = async (artisanType) => {
     setSelectedType(artisanType);
@@ -267,6 +309,18 @@ export default function FindArtisans() {
       console.log('Response received:', response);
       setArtisans(response || []);
       setFilteredArtisans(response || []);
+      
+      // Load promotional data for artisans by type
+      if (response && response.length > 0) {
+        try {
+          const artisanIds = response.map(artisan => artisan._id);
+          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
+          setArtisanPromotions(promotionalData);
+        } catch (error) {
+          console.error('Error loading bulk promotional features for type:', error);
+          setArtisanPromotions({});
+        }
+      }
     } catch (error) {
       console.error('Error loading artisans by type:', error);
       setError('Failed to load artisans by type');
@@ -571,6 +625,14 @@ export default function FindArtisans() {
             <span className="badge-local">Local</span>
             {(artisan.type === 'bakery' || artisan.type === 'chocolate_maker') && (
               <span className="badge-handmade">Handmade</span>
+            )}
+            
+            {/* Spotlight Badge */}
+            {spotlightArtisans.some(s => s.artisan.id === artisan._id) && (
+              <span className="badge-spotlight" title="Spotlight Artisan - Featured">
+                <SparklesIcon className="w-3 h-3 mr-1" />
+                Spotlight
+              </span>
             )}
             
             {/* Promotional Badges */}

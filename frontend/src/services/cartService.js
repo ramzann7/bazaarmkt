@@ -692,7 +692,7 @@ export const cartService = {
       }
       
       // Use the correct backend API URL
-      const apiBaseUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
       
       // The artisanId parameter is the artisan document ID from the cart item
       // Use the standard artisan endpoint

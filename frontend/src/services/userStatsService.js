@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const userStatsService = {
   // Get user statistics

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/products` : '/api/products';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
 
 // Simple in-memory cache
 const cache = new Map();
@@ -301,7 +301,7 @@ export const uploadImage = async (file) => {
   const formData = new FormData();
   formData.append('photo', file);
   
-        const response = await axios.post(`${import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : ''}/api/upload/photo`, formData, {
+        const response = await axios.post(`${import.meta.env.VITE_API_URL || '/api'}/upload/photo`, formData, {
     headers: { 
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'

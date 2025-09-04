@@ -148,7 +148,70 @@ class PromotionalService {
     }
   }
 
-  // Get artisan's promotional features
+  // Get current user's promotional features (for artisan dashboard)
+  async getCurrentUserPromotionalFeatures() {
+    try {
+      const token = authToken.getToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const url = `${API_BASE_URL}/revenue/promotional/artisan-features`;
+      console.log('🔍 Fetching current user promotional features');
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch promotional features');
+      }
+
+      const data = await response.json();
+      console.log('✅ Current user promotional features fetched successfully');
+      return data.data || [];
+    } catch (error) {
+      console.error('❌ Error fetching current user promotional features:', error);
+      return [];
+    }
+  }
+
+  // Get promotional features for multiple artisans (public endpoint)
+  async getBulkArtisanPromotionalFeatures(artisanIds) {
+    try {
+      if (!artisanIds || artisanIds.length === 0) {
+        return {};
+      }
+
+      const url = `${API_BASE_URL}/promotional/artisans/bulk?artisanIds=${artisanIds.join(',')}`;
+      console.log('🔍 Fetching bulk promotional features for:', artisanIds.length, 'artisans');
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`❌ Bulk promotional features API error: ${response.status} ${response.statusText}`);
+        return {};
+      }
+
+      const data = await response.json();
+      console.log('✅ Bulk promotional features fetched successfully:', Object.keys(data.data || {}).length, 'artisans with features');
+      return data.data || {};
+    } catch (error) {
+      console.error('❌ Error fetching bulk promotional features:', error);
+      return {};
+    }
+  }
+
+  // Get artisan's promotional features (for admin or specific artisan lookup)
   async getArtisanPromotionalFeatures(artisanId) {
     try {
       const token = authToken.getToken();

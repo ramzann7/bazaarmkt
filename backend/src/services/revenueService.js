@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Revenue = require('../models/revenue');
 const Order = require('../models/order');
 const PromotionalFeature = require('../models/promotionalFeature');
+const ArtisanSpotlight = require('../models/artisanSpotlight');
 const User = require('../models/user');
 
 class RevenueService {
@@ -321,6 +322,96 @@ class RevenueService {
         return new Date(now.getFullYear(), 0, 1);
       default:
         return new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+  }
+
+  // Add spotlight revenue tracking
+  static async addSpotlightRevenue(amount, spotlightId) {
+    try {
+      const revenueData = {
+        type: 'spotlight',
+        spotlightId: spotlightId,
+        grossAmount: amount,
+        platformCommission: amount, // 100% platform revenue for spotlight
+        artisanEarnings: 0,
+        commissionRate: 1.0,
+        paymentProcessor: 'stripe',
+        status: 'completed',
+        description: 'Artisan Spotlight Subscription'
+      };
+
+      const revenue = new Revenue(revenueData);
+      await revenue.save();
+
+      console.log(`✅ Spotlight revenue recorded: $${amount} for spotlight ${spotlightId}`);
+      return revenue;
+    } catch (error) {
+      console.error('Error recording spotlight revenue:', error);
+      throw error;
+    }
+  }
+
+  // Get spotlight revenue stats
+  static async getSpotlightRevenueStats(period = '30') {
+    try {
+      const days = parseInt(period);
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const stats = await Revenue.aggregate([
+        {
+          $match: {
+            type: 'spotlight',
+            createdAt: { $gte: startDate },
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: { $sum: '$grossAmount' },
+            totalSubscriptions: { $sum: 1 },
+            averageAmount: { $avg: '$grossAmount' }
+          }
+        }
+      ]);
+
+      const dailyRevenue = await Revenue.aggregate([
+        {
+          $match: {
+            type: 'spotlight',
+            createdAt: { $gte: startDate },
+            status: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' },
+              day: { $dayOfMonth: '$createdAt' }
+            },
+            revenue: { $sum: '$grossAmount' },
+            subscriptions: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 }
+        }
+      ]);
+
+      return {
+        period: `${days} days`,
+        stats: stats[0] || {
+          totalRevenue: 0,
+          totalSubscriptions: 0,
+          averageAmount: 0
+        },
+        dailyRevenue
+      };
+    } catch (error) {
+      console.error('Error getting spotlight revenue stats:', error);
+      throw error;
     }
   }
 }

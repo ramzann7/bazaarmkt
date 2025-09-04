@@ -56,7 +56,7 @@ export default function ArtisanRevenueDashboard() {
 
   const loadUserFeatures = async () => {
     try {
-      const features = await promotionalService.getArtisanalPromotionalFeatures();
+      const features = await promotionalService.getCurrentUserPromotionalFeatures();
       setUserFeatures(features);
     } catch (error) {
       console.error('Error loading user features:', error);

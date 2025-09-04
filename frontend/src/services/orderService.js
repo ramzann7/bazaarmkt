@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { authToken } from './authservice';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/orders` : '/api/orders';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/orders` : '/api/orders';
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`,

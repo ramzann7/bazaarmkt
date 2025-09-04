@@ -10,17 +10,22 @@ import {
   EyeIcon,
   UsersIcon,
   ShoppingCartIcon,
-  TagIcon
+  TagIcon,
+  SparklesIcon
 } from "@heroicons/react/24/outline";
-import { getProfile, logoutUser } from "../../services/authservice";
+import { getProfile, logoutUser } from "../../services/authService";
 import { orderService } from "../../services/orderService";
 import { revenueService } from "../../services/revenueService";
+import { spotlightService } from "../../services/spotlightService";
 import toast from "react-hot-toast";
 import PendingOrdersWidget from "./PendingOrdersWidget.jsx";
 
 export default function DashboardFixed() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [artisanProfile, setArtisanProfile] = useState(null);
+  const [spotlightStatus, setSpotlightStatus] = useState(null);
+  const [showSpotlightModal, setShowSpotlightModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [artisanStats, setArtisanStats] = useState({
     totalOrders: 0,
@@ -55,6 +60,35 @@ export default function DashboardFixed() {
           toast.error("Dashboard is only available for artisans");
           navigate("/");
           return;
+        }
+
+        // Step 1.5: Load artisan profile
+        console.log('DashboardFixed: Loading artisan profile...');
+        try {
+          const response = await fetch('/api/profile/artisan', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (response.ok) {
+            const artisanData = await response.json();
+            console.log('DashboardFixed: Artisan profile loaded:', artisanData);
+            setArtisanProfile(artisanData);
+          }
+        } catch (error) {
+          console.error('DashboardFixed: Error loading artisan profile:', error);
+        }
+
+        // Step 1.6: Load spotlight status
+        console.log('DashboardFixed: Loading spotlight status...');
+        try {
+          const spotlightData = await spotlightService.getSpotlightStatus();
+          console.log('DashboardFixed: Spotlight status loaded:', spotlightData);
+          setSpotlightStatus(spotlightData);
+        } catch (error) {
+          console.error('DashboardFixed: Error loading spotlight status:', error);
+          setSpotlightStatus({ hasActiveSpotlight: false });
         }
 
         // Step 2: Load orders
@@ -150,6 +184,49 @@ export default function DashboardFixed() {
     });
   };
 
+  const handleSpotlightPurchase = async (days) => {
+    try {
+      setShowSpotlightModal(false);
+      toast.loading('Processing spotlight purchase...', { id: 'spotlight-purchase' });
+      
+      const result = await spotlightService.purchaseSpotlight(days, 'card');
+      
+      toast.success(`Spotlight activated for ${days} day${days > 1 ? 's' : ''}!`, { id: 'spotlight-purchase' });
+      
+      // Refresh spotlight status
+      const updatedStatus = await spotlightService.getSpotlightStatus();
+      setSpotlightStatus(updatedStatus);
+      
+    } catch (error) {
+      console.error('Error purchasing spotlight:', error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.message;
+        if (errorMessage?.includes('already have an active spotlight')) {
+          const existingSpotlight = error.response?.data?.existingSpotlight;
+          if (existingSpotlight?.endDate) {
+            const endDate = new Date(existingSpotlight.endDate).toLocaleDateString();
+            toast.error(`You already have an active spotlight subscription that expires on ${endDate}. Please wait for it to expire before purchasing a new one.`, { 
+              id: 'spotlight-purchase',
+              duration: 6000 
+            });
+          } else {
+            toast.error('You already have an active spotlight subscription. Please wait for it to expire before purchasing a new one.', { 
+              id: 'spotlight-purchase' 
+            });
+          }
+        } else if (errorMessage?.includes('Days must be between')) {
+          toast.error('Please select a valid number of days (1-30).', { id: 'spotlight-purchase' });
+        } else {
+          toast.error(errorMessage || 'Invalid request. Please check your input and try again.', { id: 'spotlight-purchase' });
+        }
+      } else {
+        toast.error('Failed to purchase spotlight. Please try again.', { id: 'spotlight-purchase' });
+      }
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "delivered":
@@ -228,12 +305,40 @@ export default function DashboardFixed() {
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-semibold text-gray-900">
-                {user.firstName} {user.lastName}
+                {artisanProfile?.artisanName || `${user.firstName} ${user.lastName}`}
               </h2>
               <p className="text-gray-600">{user.email}</p>
               <p className="text-sm text-gray-500 capitalize">Artisan • {user.role}</p>
+              
+              {/* Spotlight Status */}
+              {spotlightStatus?.hasActiveSpotlight && spotlightStatus?.spotlight ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <SparklesIcon className="w-4 h-4 text-amber-500" />
+                  <span className="text-sm text-amber-700">
+                    Spotlight active • {spotlightStatus.spotlight.remainingDays} day{spotlightStatus.spotlight.remainingDays !== 1 ? 's' : ''} left
+                  </span>
+                </div>
+              ) : (
+                <div className="mt-2 flex items-center gap-2">
+                  <SparklesIcon className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-500">No active spotlight</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={() => setShowSpotlightModal(true)}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                  spotlightStatus?.hasActiveSpotlight 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-amber-600 hover:to-yellow-600'
+                }`}
+                disabled={spotlightStatus?.hasActiveSpotlight}
+                title={spotlightStatus?.hasActiveSpotlight ? 'You already have an active spotlight subscription' : 'Get featured at the top of search results'}
+              >
+                <SparklesIcon className="w-4 h-4" />
+                {spotlightStatus?.hasActiveSpotlight ? 'Spotlight Active' : 'Get Spotlight'}
+              </button>
               <Link
                 to="/profile"
                 className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
@@ -415,6 +520,7 @@ export default function DashboardFixed() {
           </div>
         )}
 
+
         {/* Recent Orders */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -458,7 +564,7 @@ export default function DashboardFixed() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link
             to="/products"
             className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
@@ -503,8 +609,88 @@ export default function DashboardFixed() {
               </div>
             </div>
           </Link>
+
+          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-sm border border-amber-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-full flex items-center justify-center">
+                <SparklesIcon className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Spotlight Feature</h3>
+                <p className="text-sm text-gray-600">Get featured in search results</p>
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                <SparklesIcon className="w-3 h-3 mr-1" />
+                Premium Feature
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Spotlight Purchase Modal */}
+      {showSpotlightModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full flex items-center justify-center">
+                  <SparklesIcon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Get Spotlight</h3>
+                  <p className="text-sm text-gray-600">Get featured in search results</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSpotlightModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4">
+                <h4 className="font-semibold text-amber-800 mb-2">Spotlight Benefits</h4>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  <li>• Featured at the top of search results</li>
+                  <li>• Increased visibility to patrons</li>
+                  <li>• Higher chance of getting orders</li>
+                  <li>• Premium placement in "Find Artisans"</li>
+                </ul>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Duration
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[1, 3, 7].map((days) => (
+                    <button
+                      key={days}
+                      onClick={() => handleSpotlightPurchase(days)}
+                      className="p-3 border border-gray-200 rounded-lg hover:border-amber-300 hover:bg-amber-50 transition-colors text-center"
+                    >
+                      <div className="font-semibold text-gray-900">{days} day{days > 1 ? 's' : ''}</div>
+                      <div className="text-sm text-gray-600">${days * 10}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="text-center text-sm text-gray-500">
+                <p>Payment will be processed securely</p>
+                <p>Spotlight starts immediately after payment</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

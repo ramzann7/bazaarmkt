@@ -4,7 +4,7 @@ const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
 const Artisan = require('../models/artisan');
-const verifyToken = require('../middleware/authMiddleware');
+const verifyToken = require('../middleware/authmiddleware');
 const RevenueService = require('../services/revenueService');
 
 // Get all orders for the authenticated user (patron)
@@ -621,7 +621,18 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       }
     }
 
-    await order.save();
+    // Update order without triggering full validation
+    await Order.updateOne(
+      { _id: order._id },
+      {
+        $set: {
+          status: order.status,
+          preparationStage: order.preparationStage,
+          notes: order.notes,
+          updatedAt: new Date()
+        }
+      }
+    );
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
@@ -653,10 +664,16 @@ router.put('/:orderId/payment', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    order.paymentStatus = paymentStatus;
-    order.updatedAt = Date.now();
-
-    await order.save();
+    // Update order without triggering full validation
+    await Order.updateOne(
+      { _id: order._id },
+      {
+        $set: {
+          paymentStatus: paymentStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
@@ -725,10 +742,16 @@ router.put('/:orderId/cancel', verifyToken, async (req, res) => {
       });
     }
 
-    order.status = 'cancelled';
-    order.updatedAt = Date.now();
-
-    await order.save();
+    // Update order without triggering full validation
+    await Order.updateOne(
+      { _id: order._id },
+      {
+        $set: {
+          status: 'cancelled',
+          updatedAt: new Date()
+        }
+      }
+    );
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
@@ -805,23 +828,34 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to decline this order' });
     }
 
-    order.status = 'declined';
-    order.declineReason = reason.trim();
-    order.declinedAt = new Date();
-    order.declinedBy = req.user._id;
-    order.updatedAt = Date.now();
-    
-    await order.save();
+    // Update order without triggering full validation
+    const updatedOrder = await Order.findByIdAndUpdate(
+      order._id,
+      {
+        $set: {
+          status: 'declined',
+          declineReason: reason.trim(),
+          declinedAt: new Date(),
+          declinedBy: req.user._id,
+          updatedAt: new Date()
+        }
+      },
+      { 
+        new: true,
+        runValidators: false // Explicitly disable validation
+      }
+    );
     console.log('✅ Backend Debug - Order declined successfully');
 
-    const updatedOrder = await Order.findById(order._id)
+    // Populate the updated order with related data
+    const populatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')
       .populate('artisan', 'firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json({ 
       message: 'Order declined successfully', 
-      order: updatedOrder
+      order: populatedOrder
     });
   } catch (error) {
     console.error('❌ Backend Debug - Error declining order:', error);

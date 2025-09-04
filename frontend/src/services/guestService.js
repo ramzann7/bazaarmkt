@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {

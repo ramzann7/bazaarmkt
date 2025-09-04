@@ -180,7 +180,7 @@ router.get('/products/sponsored', async (req, res) => {
               // Search query relevance (if provided)
               {
                 $cond: {
-                  if: searchQuery,
+                  if: { $and: [searchQuery, { $type: searchQuery, $eq: 'string' }] },
                   then: {
                     $multiply: [
                       {
@@ -450,6 +450,49 @@ router.get('/artisan/:artisanId', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching artisan promotional features:', error);
+    res.status(500).json({ message: 'Error fetching promotional features' });
+  }
+});
+
+// Public route - Get promotional features for multiple artisans (for display purposes)
+router.get('/artisans/bulk', async (req, res) => {
+  try {
+    const { artisanIds } = req.query;
+    
+    if (!artisanIds) {
+      return res.json({
+        success: true,
+        data: {}
+      });
+    }
+    
+    // Parse artisan IDs from query string
+    const ids = Array.isArray(artisanIds) ? artisanIds : artisanIds.split(',');
+    
+    // Get all active promotional features for the specified artisans
+    const features = await PromotionalFeature.find({
+      artisanId: { $in: ids },
+      status: 'active',
+      isActive: true,
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() }
+    }).select('artisanId featureType status endDate specifications');
+    
+    // Group features by artisan ID
+    const featuresByArtisan = {};
+    features.forEach(feature => {
+      if (!featuresByArtisan[feature.artisanId]) {
+        featuresByArtisan[feature.artisanId] = [];
+      }
+      featuresByArtisan[feature.artisanId].push(feature);
+    });
+    
+    res.json({
+      success: true,
+      data: featuresByArtisan
+    });
+  } catch (error) {
+    console.error('Error fetching bulk promotional features:', error);
     res.status(500).json({ message: 'Error fetching promotional features' });
   }
 });

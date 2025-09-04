@@ -6,7 +6,8 @@ import {
   ChartBarIcon,
   CogIcon,
   ShieldCheckIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { authToken, getProfile } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
@@ -92,6 +93,14 @@ export default function AdminDashboard() {
       icon: ChartBarIcon,
       color: 'bg-orange-500',
       path: '/admin/analytics'
+    },
+    {
+      id: 'promotional',
+      title: 'Promotional Dashboard',
+      description: 'Manage spotlight subscriptions and promotional revenue',
+      icon: SparklesIcon,
+      color: 'bg-amber-500',
+      path: '/admin/promotional'
     },
     {
       id: 'settings',

@@ -67,10 +67,8 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
         productId: product._id
       };
 
-      // Add duration for sponsored products
-      if (selectedFeature.type === 'product_sponsored') {
-        purchaseData.durationDays = selectedDuration;
-      }
+      // Add duration for all promotional features
+      purchaseData.durationDays = selectedDuration;
 
       await revenueService.purchasePromotionalFeature(purchaseData);
       
@@ -233,8 +231,10 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-amber-600">${feature.price}</div>
-                    <div className="text-xs text-gray-500">One-time payment</div>
+                    <div className="text-2xl font-bold text-amber-600">${feature.pricePerDay}/day</div>
+                    <div className="text-xs text-gray-500">
+                      {feature.type === 'product_featured' ? '$25 for 7 days' : `$${feature.pricePerDay * 7} for 7 days`}
+                    </div>
                   </div>
                 </div>
                 
@@ -297,26 +297,39 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
               </div>
               
               {/* Duration Selection for Sponsored Products */}
-              {selectedFeature.type === 'product_sponsored' && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Duration:
-                  </label>
-                  <select
-                    value={selectedDuration}
-                    onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value={3}>3 days - $25</option>
-                    <option value={7}>7 days - $25</option>
-                    <option value={14}>14 days - $25</option>
-                    <option value={30}>30 days - $25</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Same price regardless of duration for sponsored products
-                  </p>
-                </div>
-              )}
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Duration:
+                </label>
+                <select
+                  value={selectedDuration}
+                  onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {selectedFeature.type === 'product_featured' ? (
+                    <>
+                      <option value={1}>1 day - $5</option>
+                      <option value={3}>3 days - $15</option>
+                      <option value={7}>7 days - $25</option>
+                      <option value={14}>14 days - $70</option>
+                      <option value={30}>30 days - $150</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value={1}>1 day - $10</option>
+                      <option value={3}>3 days - $30</option>
+                      <option value={7}>7 days - $70</option>
+                      <option value={14}>14 days - $140</option>
+                      <option value={30}>30 days - $300</option>
+                    </>
+                  )}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {selectedFeature.type === 'product_featured' 
+                    ? '$5 per day for featured products' 
+                    : '$10 per day for sponsored products'}
+                </p>
+              </div>
               
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-gray-600 font-medium">Duration:</span>
@@ -329,7 +342,11 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
               
               <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border-2 border-amber-200">
                 <span className="text-gray-700 font-bold">Total Price:</span>
-                <span className="text-2xl font-bold text-amber-600">${selectedFeature.price}</span>
+                <span className="text-2xl font-bold text-amber-600">
+                  ${selectedFeature.type === 'product_sponsored' 
+                    ? selectedDuration * selectedFeature.pricePerDay 
+                    : selectedDuration * selectedFeature.pricePerDay}
+                </span>
               </div>
             </div>
 

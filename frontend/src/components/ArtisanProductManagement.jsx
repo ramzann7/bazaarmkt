@@ -36,9 +36,7 @@ export default function ArtisanProductManagement() {
   const [promotionData, setPromotionData] = useState({
     featureType: '',
     durationDays: 7,
-    customText: '',
-    searchKeywords: '',
-    categoryBoost: []
+    customText: ''
   });
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
@@ -218,8 +216,7 @@ export default function ArtisanProductManagement() {
         featureType: promotionData.featureType,
         durationDays: parseInt(promotionData.durationDays),
         customText: promotionData.customText.trim() || undefined,
-        searchKeywords: promotionData.featureType === 'sponsored_product' ? promotionData.searchKeywords.split(',').map(k => k.trim()).filter(k => k) : [],
-        categoryBoost: promotionData.featureType === 'sponsored_product' ? promotionData.categoryBoost : []
+        // Keywords and categories are now automatically generated from product data
       };
 
       const result = await promotionalService.createPromotionalFeature(featureData);
@@ -235,8 +232,7 @@ export default function ArtisanProductManagement() {
         featureType: '',
         durationDays: 7,
         customText: '',
-        searchKeywords: '',
-        categoryBoost: []
+        // Keywords and categories are automatically generated
       });
     } catch (error) {
       toast.error(error.message || 'Failed to submit promotional feature request');
@@ -246,28 +242,28 @@ export default function ArtisanProductManagement() {
   const getPromotionalPricing = () => {
     return {
       featured_product: {
-        price: 40,
+        pricePerDay: 5,
         currency: 'USD',
-        duration: 'One-time payment',
+        duration: 'Daily rate',
         description: 'Featured on homepage with distance-based ranking',
         benefits: [
           'Homepage visibility',
           'Distance-based ranking',
           'Priority placement',
-          'One-time payment',
+          '$5 per day or $25 for 7 days',
           'Admin approval required'
         ]
       },
       sponsored_product: {
-        price: 25,
+        pricePerDay: 10,
         currency: 'USD',
-        duration: 'Selectable duration',
+        duration: 'Daily rate',
         description: 'Enhanced search visibility and category targeting',
         benefits: [
           'Search result boost',
           'Product-specific targeting',
           'Category and subcategory boost',
-          'Selectable duration',
+          '$10 per day',
           'Admin approval required'
         ]
       }
@@ -278,9 +274,9 @@ export default function ArtisanProductManagement() {
     const pricing = getPromotionalPricing();
     
     if (featureType === 'featured_product') {
-      return pricing.featured_product.price; // $40 one-time
+      return durationDays * pricing.featured_product.pricePerDay; // $5 per day
     } else if (featureType === 'sponsored_product') {
-      return pricing.sponsored_product.price; // $25 regardless of duration
+      return durationDays * pricing.sponsored_product.pricePerDay; // $10 per day
     }
     
     return 0;
@@ -365,14 +361,14 @@ export default function ArtisanProductManagement() {
                 <StarIcon className="w-6 h-6 text-amber-500" />
                 <div>
                   <span className="font-semibold text-amber-700">Featured Product</span>
-                  <p className="text-sm text-gray-600">$40 - Homepage visibility with distance-based ranking</p>
+                  <p className="text-sm text-gray-600">$5/day - Homepage visibility with distance-based ranking</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
                 <SparklesIcon className="w-6 h-6 text-purple-500" />
                 <div>
                   <span className="font-semibold text-purple-700">Sponsored Product</span>
-                  <p className="text-sm text-gray-600">$25 - Enhanced search visibility</p>
+                  <p className="text-sm text-gray-600">$10/day - Enhanced search visibility</p>
                 </div>
               </div>
             </div>
@@ -801,44 +797,31 @@ export default function ArtisanProductManagement() {
                       />
                     </div>
 
-                    {/* Sponsored Product Specific Fields */}
+                    {/* Sponsored Product Automatic Targeting Info */}
                     {promotionData.featureType === 'sponsored_product' && (
-                      <>
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Search Keywords (comma-separated)
-                          </label>
-                          <input
-                            type="text"
-                            value={promotionData.searchKeywords}
-                            onChange={(e) => setPromotionData({...promotionData, searchKeywords: e.target.value})}
-                            placeholder="bread, fresh, organic, local..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            Keywords that will boost your product in search results
-                          </p>
+                      <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <SparklesIcon className="w-5 h-5 text-blue-500 mt-0.5" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-blue-900 mb-2">Automatic Targeting</h4>
+                            <p className="text-sm text-blue-700 mb-2">
+                              Your product will be automatically optimized for search using:
+                            </p>
+                            <ul className="text-sm text-blue-600 space-y-1">
+                              <li>• Product name: "{selectedProduct?.name}"</li>
+                              <li>• Category: {selectedProduct?.category}</li>
+                              <li>• Subcategory: {selectedProduct?.subcategory}</li>
+                              <li>• Product tags: {selectedProduct?.tags?.join(', ') || 'None'}</li>
+                              <li>• Description keywords</li>
+                            </ul>
+                            <p className="text-xs text-blue-500 mt-2">
+                              No manual configuration needed - targeting is optimized automatically!
+                            </p>
+                          </div>
                         </div>
-
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Category Boost
-                          </label>
-                          <select
-                            value={promotionData.categoryBoost}
-                            onChange={(e) => setPromotionData({...promotionData, categoryBoost: [e.target.value]})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                          >
-                            <option value="">Select category</option>
-                            <option value="bakery">Bakery</option>
-                            <option value="dairy">Dairy</option>
-                            <option value="produce">Produce</option>
-                            <option value="meat">Meat</option>
-                            <option value="beverages">Beverages</option>
-                            <option value="snacks">Snacks</option>
-                          </select>
-                        </div>
-                      </>
+                      </div>
                     )}
 
                     {/* Cost Summary */}

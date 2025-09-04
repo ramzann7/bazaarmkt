@@ -273,29 +273,34 @@ class RevenueService {
         type: 'product_featured',
         name: 'Featured Product',
         description: 'Highlight your product on the homepage and at the top of search results',
-        price: 40,
-        duration: 'One-time payment',
+        basePrice: 5,
+        pricePerDay: 5,
+        duration: 'Daily rate',
         benefits: [
           'Featured placement on homepage',
           'Higher search ranking',
           'Featured badge on product',
           'Increased visibility to customers',
-          'Distance-based ranking for relevance'
+          'Distance-based ranking for relevance',
+          '$5 per day or $25 for 7 days'
         ]
       },
       {
         type: 'product_sponsored',
         name: 'Sponsored Product',
         description: 'Promote your product with sponsored placement in search results and category pages',
-        price: 25,
-        duration: 'Selectable duration',
+        basePrice: 10,
+        pricePerDay: 10,
+        duration: 'Daily rate',
         benefits: [
           'Sponsored placement in search results',
           'Enhanced visibility in product category',
           'Sponsored label on product',
           'Priority ranking in search',
+          'Auto-generated keywords from product name and tags',
           'Category and subcategory boost',
-          'Product-specific search enhancement'
+          'Product-specific search enhancement',
+          '$10 per day'
         ]
       }
     ];

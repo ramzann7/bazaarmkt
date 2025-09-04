@@ -246,27 +246,28 @@ export default function ArtisanProductManagement() {
   const getPromotionalPricing = () => {
     return {
       featured_product: {
-        price: 25,
+        price: 40,
         currency: 'USD',
-        duration: 'Flexible (1-365 days)',
+        duration: 'One-time payment',
         description: 'Featured on homepage with distance-based ranking',
         benefits: [
           'Homepage visibility',
           'Distance-based ranking',
           'Priority placement',
+          'One-time payment',
           'Admin approval required'
         ]
       },
       sponsored_product: {
-        price: 40,
+        price: 25,
         currency: 'USD',
-        duration: '7 days',
-        description: 'Enhanced search visibility and ranking',
+        duration: 'Selectable duration',
+        description: 'Enhanced search visibility and category targeting',
         benefits: [
           'Search result boost',
-          'Keyword targeting',
-          'Category boost',
-          'Proximity boost',
+          'Product-specific targeting',
+          'Category and subcategory boost',
+          'Selectable duration',
           'Admin approval required'
         ]
       }
@@ -277,13 +278,9 @@ export default function ArtisanProductManagement() {
     const pricing = getPromotionalPricing();
     
     if (featureType === 'featured_product') {
-      return pricing.featured_product.price;
+      return pricing.featured_product.price; // $40 one-time
     } else if (featureType === 'sponsored_product') {
-      // Sponsored products are $40 for 7 days, additional days at $5/day
-      const baseCost = pricing.sponsored_product.price;
-      const additionalDays = Math.max(0, durationDays - 7);
-      const additionalCost = additionalDays * 5;
-      return baseCost + additionalCost;
+      return pricing.sponsored_product.price; // $25 regardless of duration
     }
     
     return 0;
@@ -368,14 +365,14 @@ export default function ArtisanProductManagement() {
                 <StarIcon className="w-6 h-6 text-amber-500" />
                 <div>
                   <span className="font-semibold text-amber-700">Featured Product</span>
-                  <p className="text-sm text-gray-600">$25 - Homepage visibility with distance-based ranking</p>
+                  <p className="text-sm text-gray-600">$40 - Homepage visibility with distance-based ranking</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
                 <SparklesIcon className="w-6 h-6 text-purple-500" />
                 <div>
                   <span className="font-semibold text-purple-700">Sponsored Product</span>
-                  <p className="text-sm text-gray-600">$40/7 days - Enhanced search visibility</p>
+                  <p className="text-sm text-gray-600">$25 - Enhanced search visibility</p>
                 </div>
               </div>
             </div>

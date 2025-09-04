@@ -21,6 +21,7 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedFeature, setSelectedFeature] = useState(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState(7); // Default duration for sponsored products
 
   useEffect(() => {
     loadPromotionalData();
@@ -61,14 +62,22 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
 
   const confirmPurchase = async () => {
     try {
-      await revenueService.purchasePromotionalFeature({
+      const purchaseData = {
         ...selectedFeature,
         productId: product._id
-      });
+      };
+
+      // Add duration for sponsored products
+      if (selectedFeature.type === 'product_sponsored') {
+        purchaseData.durationDays = selectedDuration;
+      }
+
+      await revenueService.purchasePromotionalFeature(purchaseData);
       
       toast.success(`${selectedFeature.name} purchased successfully!`);
       setShowPurchaseModal(false);
       setSelectedFeature(null);
+      setSelectedDuration(7); // Reset to default
       loadPromotionalData();
       if (onPromotionUpdate) {
         onPromotionUpdate();
@@ -287,9 +296,35 @@ export default function ProductPromotions({ product, onPromotionUpdate }) {
                 <span className="font-bold">{getFeatureDisplayName(selectedFeature.type)}</span>
               </div>
               
+              {/* Duration Selection for Sponsored Products */}
+              {selectedFeature.type === 'product_sponsored' && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Duration:
+                  </label>
+                  <select
+                    value={selectedDuration}
+                    onChange={(e) => setSelectedDuration(parseInt(e.target.value))}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value={3}>3 days - $25</option>
+                    <option value={7}>7 days - $25</option>
+                    <option value={14}>14 days - $25</option>
+                    <option value={30}>30 days - $25</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Same price regardless of duration for sponsored products
+                  </p>
+                </div>
+              )}
+              
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-gray-600 font-medium">Duration:</span>
-                <span className="font-bold">{selectedFeature.duration}</span>
+                <span className="font-bold">
+                  {selectedFeature.type === 'product_sponsored' 
+                    ? `${selectedDuration} days` 
+                    : selectedFeature.duration}
+                </span>
               </div>
               
               <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border-2 border-amber-200">

@@ -17,7 +17,7 @@ router.get('/products/featured', async (req, res) => {
       startDate: { $lte: new Date() },
       endDate: { $gte: new Date() }
     };
-
+    
     const featuredProducts = await PromotionalFeature.aggregate([
       {
         $match: matchQuery
@@ -311,10 +311,10 @@ router.post('/create', verifyToken, async (req, res) => {
     // Calculate pricing based on feature type
     let price, placement;
     if (featureType === 'featured_product') {
-      price = 25; // $25 for featured products
+      price = 40; // $40 for featured products (one-time)
       placement = 'homepage';
     } else if (featureType === 'sponsored_product') {
-      price = 40; // $40 for 7 days of sponsored products
+      price = 25; // $25 for sponsored products (duration selectable)
       placement = 'search_results';
     }
     
@@ -322,6 +322,47 @@ router.post('/create', verifyToken, async (req, res) => {
     const startDate = new Date();
     const endDate = new Date(startDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
     
+    // Enhanced specifications for sponsored products
+    let specifications = {
+      placement,
+      priority: 5,
+      customText,
+      proximityBoost: true,
+      geographicTarget: 'local'
+    };
+
+    // Enhanced targeting for sponsored products
+    if (featureType === 'sponsored_product') {
+      // Get product details for enhanced targeting
+      const productDetails = await Product.findById(productId).select('name category subcategory tags');
+      
+      // Create comprehensive search keywords including product name and category
+      const enhancedSearchKeywords = [
+        productDetails.name.toLowerCase(),
+        productDetails.category,
+        productDetails.subcategory,
+        ...(searchKeywords || []),
+        ...(productDetails.tags || [])
+      ].filter(Boolean);
+
+      // Create category boost array
+      const enhancedCategoryBoost = [
+        productDetails.category,
+        productDetails.subcategory,
+        ...(categoryBoost || [])
+      ].filter(Boolean);
+
+      specifications = {
+        ...specifications,
+        searchKeywords: enhancedSearchKeywords,
+        categoryBoost: enhancedCategoryBoost,
+        productSpecificTargeting: true,
+        targetProductName: productDetails.name,
+        targetCategory: productDetails.category,
+        targetSubcategory: productDetails.subcategory
+      };
+    }
+
     // Create promotional feature
     const promotionalFeature = new PromotionalFeature({
       artisanId: req.user._id,
@@ -332,15 +373,7 @@ router.post('/create', verifyToken, async (req, res) => {
       durationDays,
       price,
       currency: 'USD',
-      specifications: {
-        placement,
-        priority: 5,
-        customText,
-        searchKeywords: featureType === 'sponsored_product' ? searchKeywords : [],
-        categoryBoost: featureType === 'sponsored_product' ? categoryBoost : [],
-        proximityBoost: true,
-        geographicTarget: 'local'
-      },
+      specifications,
       status: 'pending_approval',
       isActive: false
     });

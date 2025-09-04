@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { promotionalService } from '../services/promotionalService';
 import { productService } from '../services/productService';
+import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 
 export default function ArtisanProductManagement() {
   const [products, setProducts] = useState([]);
@@ -941,8 +942,8 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     price: product?.price || '',
     unit: product?.unit || 'piece',
     productType: product?.productType || 'ready_to_ship',
-    category: product?.category || 'bakery',
-    subcategory: product?.subcategory || '',
+    category: product?.category || 'food_beverages',
+    subcategory: product?.subcategory || 'baked_goods',
     stock: product?.stock || '',
     weight: product?.weight || '',
     dimensions: product?.dimensions || '',
@@ -958,11 +959,6 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     isKosher: product?.isKosher || false,
     isHalal: product?.isHalal || false,
     preparationTime: product?.preparationTime || '',
-    shelfLife: product?.shelfLife || '',
-    storageInstructions: product?.storageInstructions || '',
-    servingSize: product?.servingSize || '',
-    calories: product?.calories || '',
-    nutritionalInfo: product?.nutritionalInfo || '',
     // Made to Order specific fields
     leadTime: product?.leadTime || '',
     leadTimeUnit: product?.leadTimeUnit || 'days',
@@ -974,6 +970,11 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     scheduledLocation: product?.scheduledLocation || ''
   });
 
+  // Image upload state
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(product?.image || null);
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave(formData);
@@ -984,6 +985,63 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  // Image upload handlers
+  const handleImageUpload = (file) => {
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+        setFormData(prev => ({ ...prev, image: e.target.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleImageUpload(files[0]);
+    }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handleImageUpload(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setFormData(prev => ({ ...prev, image: null }));
+  };
+
+  // Get available subcategories based on selected category
+  const getAvailableSubcategories = () => {
+    if (!formData.category || !PRODUCT_CATEGORIES[formData.category]) {
+      return [];
+    }
+    return Object.keys(PRODUCT_CATEGORIES[formData.category].subcategories).map(key => ({
+      key,
+      name: PRODUCT_CATEGORIES[formData.category].subcategories[key].name,
+      icon: PRODUCT_CATEGORIES[formData.category].subcategories[key].icon
     }));
   };
 
@@ -1055,6 +1113,81 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Image Upload Section */}
+      <div className="mb-8">
+        <label className="block text-lg font-semibold text-gray-900 mb-4">
+          Product Image
+        </label>
+        <div
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+            isDragOver
+              ? 'border-[#D77A61] bg-[#F5F1EA]'
+              : 'border-gray-300 hover:border-[#D77A61]/50'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          {imagePreview ? (
+            <div className="space-y-4">
+              <div className="relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="Product preview"
+                  className="w-32 h-32 object-cover rounded-lg shadow-lg"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-600">Image uploaded successfully</p>
+              <button
+                type="button"
+                onClick={() => document.getElementById('image-upload').click()}
+                className="text-[#D77A61] hover:text-[#C06A51] text-sm font-medium"
+              >
+                Change Image
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-lg font-medium text-gray-900 mb-2">Upload Product Image</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  Drag and drop an image here, or click to select
+                </p>
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('image-upload').click()}
+                  className="bg-[#D77A61] text-white px-6 py-2 rounded-lg hover:bg-[#C06A51] transition-colors"
+                >
+                  Choose Image
+                </button>
+              </div>
+            </div>
+          )}
+          <input
+            id="image-upload"
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Recommended: Square image, at least 400x400 pixels. Max file size: 5MB
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1131,31 +1264,43 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           <select
             name="category"
             value={formData.category}
-            onChange={handleChange}
+            onChange={(e) => {
+              handleChange(e);
+              // Reset subcategory when category changes
+              setFormData(prev => ({
+                ...prev,
+                category: e.target.value,
+                subcategory: Object.keys(PRODUCT_CATEGORIES[e.target.value]?.subcategories || {})[0] || ''
+              }));
+            }}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
           >
-            <option value="bakery">Bakery</option>
-            <option value="dairy">Dairy</option>
-            <option value="produce">Produce</option>
-            <option value="meat">Meat</option>
-            <option value="beverages">Beverages</option>
-            <option value="snacks">Snacks</option>
+            {getAllCategories().map(category => (
+              <option key={category.key} value={category.key}>
+                {category.icon} {category.name}
+              </option>
+            ))}
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Subcategory
+            Subcategory *
           </label>
-          <input
-            type="text"
+          <select
             name="subcategory"
             value={formData.subcategory}
             onChange={handleChange}
-            placeholder="e.g., Sourdough, Whole Grain"
+            required
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          />
+          >
+            {getAvailableSubcategories().map(subcategory => (
+              <option key={subcategory.key} value={subcategory.key}>
+                {subcategory.icon} {subcategory.name}
+              </option>
+            ))}
+          </select>
         </div>
         
         <div>
@@ -1320,34 +1465,18 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Weight
-          </label>
-          <input
-            type="text"
-            name="weight"
-            value={formData.weight}
-            onChange={handleChange}
-            placeholder="e.g., 500g, 1kg"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dimensions
-          </label>
-          <input
-            type="text"
-            name="dimensions"
-            value={formData.dimensions}
-            onChange={handleChange}
-            placeholder="e.g., 10x5x3 cm"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Weight
+        </label>
+        <input
+          type="text"
+          name="weight"
+          value={formData.weight}
+          onChange={handleChange}
+          placeholder="e.g., 500g, 1kg"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+        />
       </div>
 
       <div>
@@ -1502,78 +1631,16 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Shelf Life
+            Weight
           </label>
           <input
             type="text"
-            name="shelfLife"
-            value={formData.shelfLife}
+            name="weight"
+            value={formData.weight}
             onChange={handleChange}
-            placeholder="e.g., 7 days, 3 months"
+            placeholder="e.g., 500g, 1kg"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
           />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Storage Instructions
-        </label>
-        <textarea
-          name="storageInstructions"
-          value={formData.storageInstructions}
-          onChange={handleChange}
-          rows="2"
-          placeholder="e.g., Keep refrigerated, Store in a cool dry place..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-        />
-      </div>
-
-      {/* Nutritional Information */}
-      <div className="border-t border-gray-200 pt-4">
-        <h4 className="text-lg font-medium text-gray-900 mb-3">Nutritional Information</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Serving Size
-            </label>
-            <input
-              type="text"
-              name="servingSize"
-              value={formData.servingSize}
-              onChange={handleChange}
-              placeholder="e.g., 100g, 1 cup"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Calories per Serving
-            </label>
-            <input
-              type="number"
-              name="calories"
-              value={formData.calories}
-              onChange={handleChange}
-              placeholder="e.g., 150"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nutritional Info
-            </label>
-            <textarea
-              name="nutritionalInfo"
-              value={formData.nutritionalInfo}
-              onChange={handleChange}
-              rows="2"
-              placeholder="e.g., Protein: 5g, Carbs: 20g, Fat: 2g..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-            />
-          </div>
         </div>
       </div>
 

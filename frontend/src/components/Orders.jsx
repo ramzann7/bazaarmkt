@@ -517,6 +517,7 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
         </div>
 
         {/* Decline Order Modal */}
+        {console.log('🔍 Modal Render Check - showDeclineModal:', showDeclineModal)}
         {showDeclineModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
             <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
@@ -871,40 +872,58 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               {userRole === 'artisan' && (
                 <>
                   {console.log('🔍 Frontend Debug - Order Status:', order.status, 'Order ID:', order._id)}
+                  {console.log('🔍 Checking pending status for order:', order._id, 'status:', order.status)}
                   {order.status === 'pending' && (
                     <>
                       <button
                         onClick={() => handleUpdateStatus('confirmed')}
                         disabled={isLoading}
+                        title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                       >
                         {isLoading ? '⏳ Confirming...' : '✅ Confirm Order'}
                       </button>
                       <button
-                        onClick={() => setShowDeclineModal(true)}
+                        onClick={() => {
+                          console.log('🔍 Decline Button Clicked!');
+                          console.log('🔍 Current showDeclineModal state:', showDeclineModal);
+                          setShowDeclineModal(true);
+                          console.log('🔍 After setShowDeclineModal(true)');
+                        }}
                         disabled={isLoading}
+                        title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                       >
                         ❌ Decline Order
                       </button>
+                      {console.log('🔍 Decline Button Rendered for order:', order._id, 'status:', order.status)}
                     </>
                   )}
+                  {console.log('🔍 Checking confirmed status for order:', order._id, 'status:', order.status)}
                   {order.status === 'confirmed' && (
                     <>
                       <button
                         onClick={() => handleUpdateStatus('preparing')}
                         disabled={isLoading}
+                        title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                       >
                         {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
                       </button>
                       <button
-                        onClick={() => setShowDeclineModal(true)}
+                        onClick={() => {
+                          console.log('🔍 Decline Button Clicked!');
+                          console.log('🔍 Current showDeclineModal state:', showDeclineModal);
+                          setShowDeclineModal(true);
+                          console.log('🔍 After setShowDeclineModal(true)');
+                        }}
                         disabled={isLoading}
+                        title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                       >
                         ❌ Decline Order
                       </button>
+                      {console.log('🔍 Decline Button Rendered for order:', order._id, 'status:', order.status)}
                     </>
                   )}
                   {order.status === 'preparing' && (

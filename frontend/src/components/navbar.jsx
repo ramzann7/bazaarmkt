@@ -60,7 +60,7 @@ export default function Navbar() {
     });
   }, [popularSearches]);
 
-  // Update cart count when user changes
+  // Update cart count when user changes - optimized to prevent excessive calls
   useOptimizedEffect(() => {
     if (user) {
       setIsGuest(cartService.isGuestUser());
@@ -81,26 +81,7 @@ export default function Navbar() {
       console.log('🛒 Navbar: Setting cart count for guest:', { count: guestCartCount });
       setCartCount(guestCartCount);
     }
-  }, [user]);
-
-  // Optimized cart count update
-  useOptimizedEffect(() => {
-    if (user?._id) {
-      const cartCountKey = `cart_count_${user._id}`;
-      const cachedCartCount = cacheService.get(cartCountKey);
-      if (cachedCartCount !== null) {
-        setCartCount(cachedCartCount);
-      } else {
-        const newCartCount = cartService.getCartCount(user._id);
-        cacheService.set(cartCountKey, newCartCount, CACHE_TTL.CART_COUNT);
-        setCartCount(newCartCount);
-      }
-    } else {
-      // For guest users, always get fresh cart count
-      const guestCartCount = cartService.getCartCount(null);
-      setCartCount(guestCartCount);
-    }
-  }, [user?._id], { debounceMs: 200 });
+  }, [user], { debounceMs: 300 });
 
   // Optimized search with debouncing
   useOptimizedEffect(() => {
@@ -149,7 +130,7 @@ export default function Navbar() {
     };
   }, [user, isGuest]);
 
-  // Fallback: Periodically check cart count to ensure it's up to date
+  // Fallback: Periodically check cart count to ensure it's up to date (reduced frequency)
   useEffect(() => {
     const checkCartCount = () => {
       if (user?._id) {
@@ -167,8 +148,8 @@ export default function Navbar() {
       }
     };
 
-    // Check every 2 seconds as a fallback
-    const interval = setInterval(checkCartCount, 2000);
+    // Check every 10 seconds as a fallback (reduced from 2 seconds)
+    const interval = setInterval(checkCartCount, 10000);
     
     return () => clearInterval(interval);
   }, [user, isGuest, cartCount]);

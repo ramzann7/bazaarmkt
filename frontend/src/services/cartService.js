@@ -58,6 +58,26 @@ const isGuestUser = () => {
   }
 };
 
+// Simple in-memory cache for cart data to reduce localStorage reads
+const cartCache = new Map();
+const CART_CACHE_TTL = 5000; // 5 seconds
+
+// Helper function to clear cart cache
+const clearCartCache = (userId) => {
+  if (userId === null) {
+    // Clear guest cart cache
+    const guestCartKey = getGuestCartKey();
+    cartCache.delete(`guest_${guestCartKey}`);
+  } else if (userId) {
+    // Clear user cart cache
+    const cartKey = getCartKey(userId);
+    cartCache.delete(`user_${cartKey}`);
+  } else {
+    // Clear all cache
+    cartCache.clear();
+  }
+};
+
 export const cartService = {
   getCart: (userId) => {
     try {
@@ -66,9 +86,23 @@ export const cartService = {
       // If userId is explicitly null, treat as guest user
       if (userId === null) {
         const guestCartKey = getGuestCartKey();
+        
+        // Check cache first
+        const cacheKey = `guest_${guestCartKey}`;
+        const cached = cartCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
+          console.log('🔍 Using cached guest cart data');
+          return cached.data;
+        }
+        
         const guestCart = localStorage.getItem(guestCartKey);
+        const cartData = guestCart ? JSON.parse(guestCart) : [];
+        
+        // Cache the result
+        cartCache.set(cacheKey, { data: cartData, timestamp: Date.now() });
+        
         console.log('🔍 Guest cart key:', guestCartKey, 'Guest cart data:', guestCart);
-        return guestCart ? JSON.parse(guestCart) : [];
+        return cartData;
       }
       
       // If no userId provided, try to get it from token
@@ -80,16 +114,44 @@ export const cartService = {
       // If no userId or if it's a guest user, use guest cart
       if (!userId || isGuestUser()) {
         const guestCartKey = getGuestCartKey();
+        
+        // Check cache first
+        const cacheKey = `guest_${guestCartKey}`;
+        const cached = cartCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
+          console.log('🔍 Using cached guest cart data');
+          return cached.data;
+        }
+        
         const guestCart = localStorage.getItem(guestCartKey);
+        const cartData = guestCart ? JSON.parse(guestCart) : [];
+        
+        // Cache the result
+        cartCache.set(cacheKey, { data: cartData, timestamp: Date.now() });
+        
         console.log('🔍 Using guest cart, key:', guestCartKey, 'data:', guestCart);
-        return guestCart ? JSON.parse(guestCart) : [];
+        return cartData;
       }
       
       // For authenticated non-guest users, use user-specific cart
       const cartKey = getCartKey(userId);
+      
+      // Check cache first
+      const cacheKey = `user_${cartKey}`;
+      const cached = cartCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
+        console.log('🔍 Using cached user cart data');
+        return cached.data;
+      }
+      
       const cart = localStorage.getItem(cartKey);
+      const cartData = cart ? JSON.parse(cart) : [];
+      
+      // Cache the result
+      cartCache.set(cacheKey, { data: cartData, timestamp: Date.now() });
+      
       console.log('🔍 Using user cart, key:', cartKey, 'data:', cart);
-      return cart ? JSON.parse(cart) : [];
+      return cartData;
     } catch (error) {
       console.error('Error getting cart:', error);
       return [];
@@ -195,6 +257,9 @@ export const cartService = {
       const count = cart.reduce((total, item) => total + item.quantity, 0);
       console.log('🔢 Cart count after adding:', count);
       
+      // Clear cache since cart data has changed
+      clearCartCache(userId);
+      
       // Dispatch cart update event with a small delay to ensure localStorage is updated
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('cartUpdated', { 
@@ -235,6 +300,9 @@ export const cartService = {
           // Calculate count directly from the updated cart array
           const count = updatedCart.reduce((total, item) => total + item.quantity, 0);
           
+          // Clear cache since cart data has changed
+          clearCartCache(userId);
+          
           // Dispatch cart update event
           window.dispatchEvent(new CustomEvent('cartUpdated', { 
             detail: { cart: updatedCart, count, userId } 
@@ -259,6 +327,9 @@ export const cartService = {
           
           // Calculate count directly from the cart array
           const count = cart.reduce((total, item) => total + item.quantity, 0);
+          
+          // Clear cache since cart data has changed
+          clearCartCache(userId);
           
           // Dispatch cart update event
           window.dispatchEvent(new CustomEvent('cartUpdated', { 
@@ -298,6 +369,9 @@ export const cartService = {
       // Calculate count directly from the updated cart array
       const count = updatedCart.reduce((total, item) => total + item.quantity, 0);
       
+      // Clear cache since cart data has changed
+      clearCartCache(userId);
+      
       // Dispatch cart update event
       window.dispatchEvent(new CustomEvent('cartUpdated', { 
         detail: { cart: updatedCart, count, userId } 
@@ -322,6 +396,9 @@ export const cartService = {
         const guestCartKey = getGuestCartKey();
         localStorage.removeItem(guestCartKey);
       }
+      
+      // Clear cache since cart data has changed
+      clearCartCache(userId);
       
       // Dispatch cart update event
       window.dispatchEvent(new CustomEvent('cartUpdated', { 

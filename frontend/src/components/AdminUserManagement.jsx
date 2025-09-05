@@ -79,6 +79,7 @@ export default function AdminUserManagement() {
   };
 
   const applyFiltersAndSort = () => {
+    console.log('🔍 applyFiltersAndSort called with users:', users.length);
     let filtered = [...users];
 
     // Apply search filter
@@ -116,6 +117,7 @@ export default function AdminUserManagement() {
       }
     });
 
+    console.log('🔍 Setting filtered users:', filtered.length);
     setFilteredUsers(filtered);
   };
 
@@ -137,6 +139,48 @@ export default function AdminUserManagement() {
           return user;
         });
         console.log('🔍 After state update:', updated.map(u => ({ id: u._id, isActive: u.isActive })));
+        
+        // Update filtered users immediately with the new data
+        const filtered = updated.filter(user => {
+          // Apply current filters
+          if (searchQuery) {
+            const matchesSearch = user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              user.email.toLowerCase().includes(searchQuery.toLowerCase());
+            if (!matchesSearch) return false;
+          }
+          
+          if (selectedRole !== 'all') {
+            if (selectedRole === 'guest') {
+              if (user.isGuest !== true) return false;
+            } else {
+              if (user.role !== selectedRole || user.isGuest) return false;
+            }
+          }
+          
+          return true;
+        });
+        
+        // Apply sorting
+        filtered.sort((a, b) => {
+          let aValue = a[sortBy];
+          let bValue = b[sortBy];
+
+          if (sortBy === 'createdAt' || sortBy === 'lastLogin') {
+            aValue = new Date(aValue);
+            bValue = new Date(bValue);
+          }
+
+          if (sortOrder === 'asc') {
+            return aValue > bValue ? 1 : -1;
+          } else {
+            return aValue < bValue ? 1 : -1;
+          }
+        });
+        
+        console.log('🔍 Updating filtered users immediately:', filtered.length);
+        setFilteredUsers(filtered);
+        
         return updated;
       });
       

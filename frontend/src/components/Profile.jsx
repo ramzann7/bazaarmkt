@@ -222,6 +222,8 @@ export default function Profile() {
       } else if (isArtisanUser) {
         setTabs(artisanTabs);
         setIsArtisan(true);
+        // Set overview as default tab for artisans
+        setActiveTab('overview');
       } else {
         setTabs(patronTabs);
         setIsArtisan(false);

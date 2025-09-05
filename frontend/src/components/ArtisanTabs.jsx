@@ -65,11 +65,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
     ).join(' ');
   };
 
-  // Handle artisan name change with auto-capitalization
-  const handleArtisanNameChange = (e) => {
-    const capitalizedName = capitalizeWords(e.target.value);
-    setOverview({ ...overview, artisanName: capitalizedName });
-  };
+  // Artisan name is now read-only and cannot be changed
 
   // Format phone number as user types
   const formatPhoneNumber = (value) => {
@@ -286,13 +282,14 @@ export function OverviewTab({ profile, onSave, isSaving }) {
           <input
             type="text"
             value={overview.artisanName}
-            onChange={handleArtisanNameChange}
-            className="block w-full rounded-lg border-2 border-amber-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 text-lg font-medium py-3 px-4"
+            readOnly
+            disabled
+            className="block w-full rounded-lg border-2 border-gray-300 shadow-sm bg-gray-50 text-lg font-medium py-3 px-4 cursor-not-allowed"
             placeholder="e.g., Sarah's Sweet Creations, Artisan Bread Co."
             required
           />
           <p className="text-xs text-gray-500 mt-2">
-            ✨ Each word auto-capitalized for consistency
+            🔒 Artisan name cannot be changed once created
           </p>
         </div>
       </div>

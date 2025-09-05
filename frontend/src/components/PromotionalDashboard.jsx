@@ -5,7 +5,7 @@ import {
   ChartBarIcon,
   CalendarDaysIcon,
   UsersIcon,
-  ArrowArrowTrendingUpIcon,
+  ArrowTrendingUpIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { spotlightService } from '../services/spotlightService';

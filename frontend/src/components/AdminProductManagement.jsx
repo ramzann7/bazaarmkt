@@ -140,7 +140,7 @@ export default function AdminProductManagement() {
       const newFeaturedStatus = !currentFeatured;
       
       // Call the API to update the database
-      await adminService.updateProductFeatured(productId, newFeaturedStatus);
+      await adminService.setFeaturedProduct(productId, newFeaturedStatus);
       
       // Update local state
       setProducts(prev => prev.map(product => 
@@ -382,7 +382,7 @@ export default function AdminProductManagement() {
                         {product.artisan?.artisanName || 'Unknown Artisan'}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {product.artisan?.email || 'No email'}
+                        {product.artisan?.email || product.artisan?.user?.email || 'No email'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -479,7 +479,10 @@ export default function AdminProductManagement() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Artisan</label>
                   <p className="text-sm text-gray-900">
-                    {selectedProduct.artisan?.artisanName || `${selectedProduct.seller.firstName} ${selectedProduct.seller.lastName}`}
+                    {selectedProduct.artisan?.artisanName || 'Unknown Artisan'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {selectedProduct.artisan?.email || selectedProduct.artisan?.user?.email || 'No email'}
                   </p>
                 </div>
                 <div>

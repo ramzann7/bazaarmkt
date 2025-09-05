@@ -129,7 +129,14 @@ router.patch('/users/:userId/role', requireAdmin, async (req, res) => {
 router.get('/products', requireAdmin, async (req, res) => {
   try {
     const products = await Product.find({})
-      .populate('artisan', 'artisanName email')
+      .populate({
+        path: 'artisan',
+        select: 'artisanName email',
+        populate: {
+          path: 'user',
+          select: 'email firstName lastName'
+        }
+      })
       .sort({ createdAt: -1 });
     
     res.json(products);

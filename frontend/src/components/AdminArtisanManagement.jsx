@@ -67,6 +67,11 @@ export default function AdminArtisanManagement() {
     try {
       setIsLoading(true);
       const artisansData = await adminService.getArtisans();
+      console.log('🔍 Loaded artisans data:', artisansData);
+      // Log rating data for debugging
+      artisansData.forEach(artisan => {
+        console.log(`🔍 Artisan ${artisan.artisanName} rating:`, artisan.rating);
+      });
       setArtisans(artisansData);
     } catch (error) {
       console.error('Error loading artisans:', error);
@@ -354,8 +359,22 @@ export default function AdminArtisanManagement() {
                           )}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {artisan.artisanName}
+                          <div className="flex items-center space-x-2">
+                            <div className="text-sm font-medium text-gray-900">
+                              {artisan.artisanName}
+                            </div>
+                            {artisan.isVerified && (
+                              <div className="flex items-center bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                <CheckIcon className="w-3 h-3 mr-1" />
+                                Verified
+                              </div>
+                            )}
+                            {!artisan.isActive && (
+                              <div className="flex items-center bg-red-100 text-red-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                                <XMarkIcon className="w-3 h-3 mr-1" />
+                                Inactive
+                              </div>
+                            )}
                           </div>
                           <div className="text-sm text-gray-500 truncate max-w-xs">
                             {artisan.description || 'No description'}
@@ -396,7 +415,7 @@ export default function AdminArtisanManagement() {
                       <div className="flex items-center">
                         <span className="text-yellow-500 mr-1">★</span>
                         <span className="text-sm font-medium text-gray-900">
-                          {artisan.rating?.average?.toFixed(1) || '0.0'}
+                          {artisan.rating?.average ? artisan.rating.average.toFixed(1) : '0.0'}
                         </span>
                         <span className="text-xs text-gray-500 ml-1">
                           ({artisan.rating?.count || 0})
@@ -406,21 +425,31 @@ export default function AdminArtisanManagement() {
 
                     {/* Status */}
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={artisan.isActive ? 'active' : 'inactive'}
-                        onChange={(e) => handleStatusChange(artisan._id, e.target.value)}
-                        className={`text-xs font-medium px-2 py-1 rounded-full border-0 focus:ring-2 focus:ring-purple-500 ${getStatusBadge(artisan.isActive ? 'active' : 'inactive')}`}
+                      <button
+                        onClick={() => handleStatusChange(artisan._id, artisan.isActive ? 'inactive' : 'active')}
+                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full hover:opacity-80 transition-all duration-200 cursor-pointer ${getStatusBadge(artisan.isActive ? 'active' : 'inactive')}`}
+                        title={`Click to ${artisan.isActive ? 'deactivate' : 'activate'} this artisan`}
                       >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
+                        {artisan.isActive ? (
+                          <>
+                            <CheckIcon className="w-3 h-3 mr-1" />
+                            Active
+                          </>
+                        ) : (
+                          <>
+                            <XMarkIcon className="w-3 h-3 mr-1" />
+                            Inactive
+                          </>
+                        )}
+                      </button>
                     </td>
 
                     {/* Verification */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
                         onClick={() => handleVerificationToggle(artisan._id, artisan.isVerified)}
-                        className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full hover:opacity-80 ${getVerificationBadge(artisan.isVerified)}`}
+                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full hover:opacity-80 transition-all duration-200 cursor-pointer ${getVerificationBadge(artisan.isVerified)}`}
+                        title={`Click to ${artisan.isVerified ? 'unverify' : 'verify'} this artisan`}
                       >
                         {artisan.isVerified ? (
                           <>
@@ -565,7 +594,7 @@ export default function AdminArtisanManagement() {
                     <div className="flex items-center">
                       <span className="text-yellow-500 mr-1">★</span>
                       <span className="text-sm font-medium text-gray-900">
-                        {selectedArtisan.rating?.average?.toFixed(1) || '0.0'}
+                        {selectedArtisan.rating?.average ? selectedArtisan.rating.average.toFixed(1) : '0.0'}
                       </span>
                       <span className="text-xs text-gray-500 ml-1">
                         ({selectedArtisan.rating?.count || 0} reviews)

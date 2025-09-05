@@ -74,6 +74,7 @@ const RevenueTransparency = lazy(() => import("./components/RevenueTransparency.
 const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
+const AdminSettings = lazy(() => import("./components/AdminSettings.jsx"));
 const PromotionalDashboard = lazy(() => import("./components/PromotionalDashboard.jsx"));
 const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
 const ArtisanProductManagement = lazy(() => import("./components/ArtisanProductManagement.jsx"));
@@ -222,6 +223,10 @@ function AppRoutes() {
         <Route
           path="/admin/promotional"
           element={isAuthenticated ? <PromotionalDashboard /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin/settings"
+          element={isAuthenticated ? <AdminSettings /> : <Navigate to="/login" />}
         />
         
 

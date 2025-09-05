@@ -329,25 +329,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         </div>
       </div>
 
-      {/* Business Description Display */}
-      <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200">
-        <div className="max-w-2xl">
-          <label className="block text-lg font-bold text-gray-900 mb-2">
-            📝 Business Description
-          </label>
-          <p className="text-sm text-gray-600 mb-4">
-            Tell customers about your business and what makes you unique
-          </p>
-          <div className="bg-white rounded-lg border-2 border-purple-300 p-4">
-            <p className="text-gray-900">
-              {profile.description || 'No business description provided yet. Add one to help customers understand your business better.'}
-            </p>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            ℹ️ Business description is set during registration and can be updated in the Operations tab
-          </p>
-        </div>
-      </div>
 
       {/* Business Image Upload */}
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
@@ -453,7 +434,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       </div>
 
       {/* Business Description */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">📖 About Your Business</h4>
         
         <div>

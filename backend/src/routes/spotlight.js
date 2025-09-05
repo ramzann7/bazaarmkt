@@ -266,7 +266,10 @@ router.get('/active', async (req, res) => {
         id: spotlight._id,
         artisan: {
           id: spotlight.artisan._id,
-          name: spotlight.artisan.businessName || `${spotlight.artisan.firstName} ${spotlight.artisan.lastName}`,
+          name: spotlight.artisan.businessName || 
+                (spotlight.artisan.firstName && spotlight.artisan.lastName ? 
+                  `${spotlight.artisan.firstName} ${spotlight.artisan.lastName}` : 
+                  spotlight.artisan.email || 'Unknown Artisan'),
           location: spotlight.artisan.location
         },
         startDate: spotlight.startDate,

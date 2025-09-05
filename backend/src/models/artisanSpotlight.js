@@ -80,7 +80,7 @@ artisanSpotlightSchema.statics.getActiveSpotlights = function() {
   return this.find({
     status: 'active',
     endDate: { $gt: now }
-  }).populate('artisan', 'firstName lastName businessName profilePicture location')
+  }).populate('artisan', 'firstName lastName businessName profilePicture location email')
     .populate('user', 'firstName lastName email');
 };
 

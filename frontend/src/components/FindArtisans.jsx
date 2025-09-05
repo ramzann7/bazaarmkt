@@ -192,6 +192,8 @@ export default function FindArtisans() {
   const loadSpotlightArtisans = async () => {
     try {
       const response = await spotlightService.getActiveSpotlights();
+      console.log('🔍 Spotlight response:', response);
+      console.log('🔍 Spotlight artisans:', response.spotlights || []);
       setSpotlightArtisans(response.spotlights || []);
     } catch (error) {
       console.error('Error loading spotlight artisans:', error);
@@ -628,7 +630,17 @@ export default function FindArtisans() {
             )}
             
             {/* Spotlight Badge */}
-            {spotlightArtisans.some(s => s.artisan.id === artisan._id) && (
+            {(() => {
+              const isSpotlight = spotlightArtisans.some(s => s.artisan.id === artisan._id);
+              if (artisan._id === '68ae17410d14153824c613f6') {
+                console.log('🔍 Checking spotlight for ramzan.7@hotmail.com:', {
+                  artisanId: artisan._id,
+                  spotlightArtisans: spotlightArtisans,
+                  isSpotlight: isSpotlight
+                });
+              }
+              return isSpotlight;
+            })() && (
               <span className="badge-spotlight" title="Spotlight Artisan - Featured">
                 <SparklesIcon className="w-3 h-3 mr-1" />
                 Spotlight

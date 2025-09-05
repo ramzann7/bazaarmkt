@@ -558,7 +558,6 @@ router.get('/financial-dashboard', verifyToken, async (req, res) => {
     }
 
     // Get orders in date range
-    const Order = require('../models/order');
     const orders = await Order.find({
       createdAt: { $gte: startDate, $lte: now },
       status: { $in: ['completed', 'delivered'] }
@@ -598,7 +597,6 @@ router.get('/financial-dashboard', verifyToken, async (req, res) => {
     });
 
     // Get top categories
-    const Product = require('../models/product');
     const products = await Product.find({
       createdAt: { $gte: startDate, $lte: now }
     });
@@ -691,7 +689,6 @@ router.get('/transactions', verifyToken, async (req, res) => {
     const { page = 1, limit = 20, type, status } = req.query;
     const skip = (page - 1) * limit;
 
-    const Order = require('../models/order');
     let query = {};
     
     if (type) query.type = type;
@@ -746,8 +743,6 @@ router.get('/payouts', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Admin access required' });
     }
 
-    const Order = require('../models/order');
-    
     // Get orders eligible for payout (completed orders not yet paid out)
     const eligibleOrders = await Order.find({
       status: 'completed',

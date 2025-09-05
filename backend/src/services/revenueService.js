@@ -269,42 +269,80 @@ class RevenueService {
 
   // Get available promotional features (product-level only)
   static async getAvailablePromotionalFeatures() {
-    return [
-      {
-        type: 'product_featured',
-        name: 'Featured Product',
-        description: 'Highlight your product on the homepage and at the top of search results',
-        basePrice: 5,
-        pricePerDay: 5,
-        duration: 'Daily rate',
-        benefits: [
-          'Featured placement on homepage',
-          'Higher search ranking',
-          'Featured badge on product',
-          'Increased visibility to customers',
-          'Distance-based ranking for relevance',
-          '$5 per day or $25 for 7 days'
-        ]
-      },
-      {
-        type: 'product_sponsored',
-        name: 'Sponsored Product',
-        description: 'Promote your product with sponsored placement in search results and category pages',
-        basePrice: 10,
-        pricePerDay: 10,
-        duration: 'Daily rate',
-        benefits: [
-          'Sponsored placement in search results',
-          'Enhanced visibility in product category',
-          'Sponsored label on product',
-          'Priority ranking in search',
-          'Auto-generated keywords from product name and tags',
-          'Category and subcategory boost',
-          'Product-specific search enhancement',
-          '$10 per day'
-        ]
+    try {
+      const PromotionalPricing = require('../models/promotionalPricing');
+      const pricing = await PromotionalPricing.find({ isActive: true });
+      
+      // If no pricing exists, return default values
+      if (pricing.length === 0) {
+        return [
+          {
+            type: 'product_featured',
+            name: 'Featured Product',
+            description: 'Highlight your product on the homepage and at the top of search results',
+            basePrice: 5,
+            pricePerDay: 5,
+            duration: 'Daily rate',
+            benefits: [
+              'Featured placement on homepage',
+              'Higher search ranking',
+              'Featured badge on product',
+              'Increased visibility to customers',
+              'Distance-based ranking for relevance',
+              '$5 per day or $25 for 7 days'
+            ]
+          },
+          {
+            type: 'product_sponsored',
+            name: 'Sponsored Product',
+            description: 'Promote your product with sponsored placement in search results and category pages',
+            basePrice: 10,
+            pricePerDay: 10,
+            duration: 'Daily rate',
+            benefits: [
+              'Sponsored placement in search results',
+              'Enhanced visibility in product category',
+              'Sponsored label on product',
+              'Priority ranking in search',
+              'Auto-generated keywords from product name and tags',
+              'Category and subcategory boost',
+              'Product-specific search enhancement',
+              '$10 per day'
+            ]
+          }
+        ];
       }
-    ];
+      
+      // Convert database pricing to frontend format
+      return pricing.map(p => ({
+        type: p.featureType,
+        name: p.name,
+        description: p.description,
+        basePrice: p.basePrice,
+        pricePerDay: p.pricePerDay,
+        duration: 'Daily rate',
+        benefits: p.benefits
+      }));
+    } catch (error) {
+      console.error('Error fetching promotional pricing:', error);
+      // Return default values on error
+      return [
+        {
+          type: 'product_featured',
+          name: 'Featured Product',
+          description: 'Highlight your product on the homepage and at the top of search results',
+          basePrice: 5,
+          pricePerDay: 5,
+          duration: 'Daily rate',
+          benefits: [
+            'Featured placement on homepage',
+            'Higher search ranking',
+            'Featured badge on product',
+            'Increased visibility to customers'
+          ]
+        }
+      ];
+    }
   }
 
   // Helper method to get period start date

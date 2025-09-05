@@ -206,6 +206,66 @@ export const getAnalytics = async (period = 30) => {
   }
 };
 
+// Get promotional statistics
+export const getPromotionalStats = async (period = 30) => {
+  try {
+    const response = await axios.get(`${API_URL}/admin/promotional/stats?period=${period}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching promotional stats:', error);
+    throw error;
+  }
+};
+
+// Get active promotions
+export const getActivePromotions = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/admin/promotional/active`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching active promotions:', error);
+    throw error;
+  }
+};
+
+// Get promotional pricing configuration
+export const getPromotionalPricing = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/admin/promotional/pricing`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching promotional pricing:', error);
+    throw error;
+  }
+};
+
+// Update promotional pricing
+export const updatePromotionalPricing = async (pricingData) => {
+  try {
+    const response = await axios.put(`${API_URL}/admin/promotional/pricing`, pricingData, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating promotional pricing:', error);
+    throw error;
+  }
+};
+
 export default {
   getStats,
   getUsers,
@@ -218,5 +278,9 @@ export default {
   deleteProduct,
   updateArtisanStatus,
   updateArtisanVerification,
-  getAnalytics
+  getAnalytics,
+  getPromotionalStats,
+  getActivePromotions,
+  getPromotionalPricing,
+  updatePromotionalPricing
 };

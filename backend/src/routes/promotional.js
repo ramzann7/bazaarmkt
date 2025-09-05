@@ -3,7 +3,7 @@ const router = express.Router();
 const PromotionalFeature = require('../models/promotionalFeature');
 const Product = require('../models/product');
 const Artisan = require('../models/artisan');
-const verifyToken = require('../middleware/authmiddleware');
+const verifyToken = require('../middleware/authMiddleware');
 
 // Get featured products for homepage with distance-based ranking
 router.get('/products/featured', async (req, res) => {
@@ -318,12 +318,23 @@ router.post('/create', verifyToken, async (req, res) => {
     
     // Calculate pricing based on feature type and duration
     let price, placement;
-    if (featureType === 'featured_product') {
-      price = durationDays * 5; // $5 per day for featured products
-      placement = 'homepage';
-    } else if (featureType === 'sponsored_product') {
-      price = durationDays * 10; // $10 per day for sponsored products
-      placement = 'search_results';
+    
+    // Get pricing from database
+    const PromotionalPricing = require('../models/promotionalPricing');
+    const pricing = await PromotionalPricing.findOne({ featureType, isActive: true });
+    
+    if (pricing) {
+      price = durationDays * pricing.pricePerDay;
+      placement = pricing.featureType === 'featured_product' ? 'homepage' : 'search_results';
+    } else {
+      // Fallback to hardcoded pricing
+      if (featureType === 'featured_product') {
+        price = durationDays * 5; // $5 per day for featured products
+        placement = 'homepage';
+      } else if (featureType === 'sponsored_product') {
+        price = durationDays * 10; // $10 per day for sponsored products
+        placement = 'search_results';
+      }
     }
     
     // Calculate dates

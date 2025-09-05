@@ -9,6 +9,9 @@ const adminAuth = require('../middleware/adminAuth');
 const verifyToken = require('../middleware/authMiddleware');
 const { logAdminAction, getAdminAuditLogs } = require('../utils/adminAuditLogger');
 
+// Import promotional routes
+const promotionalRoutes = require('./adminPromotional');
+
 // Admin middleware to check if user is admin
 const requireAdmin = [auth, adminAuth];
 
@@ -977,5 +980,8 @@ router.get('/audit-logs', requireAdmin, async (req, res) => {
     });
   }
 });
+
+// Use promotional routes
+router.use('/promotional', promotionalRoutes);
 
 module.exports = router;

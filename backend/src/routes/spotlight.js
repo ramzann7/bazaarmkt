@@ -76,7 +76,11 @@ router.post('/purchase', authMiddleware, async (req, res) => {
       });
     }
 
-    const amount = days * 10; // $10 per day
+    // Get pricing from database
+    const PromotionalPricing = require('../models/promotionalPricing');
+    const pricing = await PromotionalPricing.findOne({ featureType: 'artisan_spotlight', isActive: true });
+    
+    const amount = pricing ? days * pricing.pricePerDay : days * 10; // Fallback to $10 per day
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + days);
@@ -153,7 +157,11 @@ router.post('/extend', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'No active spotlight subscription found' });
     }
 
-    const additionalAmount = days * 10;
+    // Get pricing from database
+    const PromotionalPricing = require('../models/promotionalPricing');
+    const pricing = await PromotionalPricing.findOne({ featureType: 'artisan_spotlight', isActive: true });
+    
+    const additionalAmount = pricing ? days * pricing.pricePerDay : days * 10; // Fallback to $10 per day
     const newEndDate = new Date(existingSpotlight.endDate);
     newEndDate.setDate(newEndDate.getDate() + days);
 

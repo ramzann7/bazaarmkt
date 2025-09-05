@@ -84,11 +84,87 @@ export default function AdminPromotionalDashboard() {
       
       setPromotionalStats(stats);
       setActivePromotions(promotions);
-      setPricingConfig(pricing);
+      
+      // If no pricing config exists, show default values
+      if (pricing.length === 0) {
+        setPricingConfig([
+          {
+            featureType: 'featured_product',
+            name: 'Featured Product',
+            description: 'Highlight your product on the homepage and at the top of search results',
+            basePrice: 5,
+            pricePerDay: 5,
+            benefits: ['Featured placement on homepage', 'Higher search ranking', 'Featured badge on product']
+          },
+          {
+            featureType: 'sponsored_product',
+            name: 'Sponsored Product',
+            description: 'Promote your product with sponsored placement in search results and category pages',
+            basePrice: 10,
+            pricePerDay: 10,
+            benefits: ['Sponsored placement in search results', 'Enhanced visibility in product category']
+          },
+          {
+            featureType: 'artisan_spotlight',
+            name: 'Artisan Spotlight',
+            description: 'Feature your artisan profile prominently on the platform',
+            basePrice: 25,
+            pricePerDay: 25,
+            benefits: ['Featured artisan profile', 'Priority placement in artisan listings']
+          }
+        ]);
+      } else {
+        setPricingConfig(pricing);
+      }
     } catch (error) {
       console.error('Error loading promotional data:', error);
+      
+      // Check if it's an authentication error
+      if (error.response?.status === 401) {
+        setError('Authentication required. Please log in as an admin.');
+        toast.error('Please log in as an admin to access promotional dashboard');
+        navigate('/login');
+        return;
+      }
+      
       setError('Failed to load promotional data');
       toast.error('Failed to load promotional data');
+      
+      // Set default data for offline/error state
+      setPromotionalStats({
+        totalRevenue: 0,
+        totalPromotions: 0,
+        activePromotions: 0,
+        activeArtisans: 0,
+        averageRevenuePerDay: 0
+      });
+      setActivePromotions([]);
+      setPricingConfig([
+        {
+          featureType: 'featured_product',
+          name: 'Featured Product',
+          description: 'Highlight your product on the homepage and at the top of search results',
+          basePrice: 5,
+          pricePerDay: 5,
+          benefits: ['Featured placement on homepage', 'Higher search ranking', 'Featured badge on product']
+        },
+        {
+          featureType: 'sponsored_product',
+          name: 'Sponsored Product',
+          description: 'Promote your product with sponsored placement in search results and category pages',
+          basePrice: 10,
+          pricePerDay: 10,
+          benefits: ['Sponsored placement in search results', 'Enhanced visibility in product category']
+        },
+        {
+          featureType: 'artisan_spotlight',
+          name: 'Artisan Spotlight',
+          description: 'Feature your artisan profile prominently on the platform',
+          basePrice: 25,
+          pricePerDay: 25,
+          benefits: ['Featured artisan profile', 'Priority placement in artisan listings']
+        }
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -105,6 +181,20 @@ export default function AdminPromotionalDashboard() {
     } catch (error) {
       console.error('Error updating pricing:', error);
       toast.error('Failed to update pricing');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const initializeDefaultPricing = async () => {
+    try {
+      setIsSaving(true);
+      await adminService.initializeDefaultPricing();
+      toast.success('Default pricing initialized successfully');
+      loadPromotionalData(); // Reload data
+    } catch (error) {
+      console.error('Error initializing default pricing:', error);
+      toast.error('Failed to initialize default pricing');
     } finally {
       setIsSaving(false);
     }
@@ -273,13 +363,24 @@ export default function AdminPromotionalDashboard() {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Pricing Configuration</h2>
-                <button
-                  onClick={() => setShowPricingModal(true)}
-                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  <PlusIcon className="h-4 w-4 mr-1" />
-                  Add Feature
-                </button>
+                <div className="flex space-x-2">
+                  {pricingConfig.length === 0 && (
+                    <button
+                      onClick={initializeDefaultPricing}
+                      disabled={isSaving}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {isSaving ? 'Initializing...' : 'Initialize Default Pricing'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowPricingModal(true)}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-1" />
+                    Add Feature
+                  </button>
+                </div>
               </div>
             </div>
             <div className="p-6">

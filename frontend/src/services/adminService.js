@@ -266,6 +266,21 @@ export const updatePromotionalPricing = async (pricingData) => {
   }
 };
 
+// Initialize default promotional pricing
+export const initializeDefaultPricing = async () => {
+  try {
+    const response = await axios.post(`${API_URL}/admin/promotional/pricing/initialize`, {}, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error initializing default pricing:', error);
+    throw error;
+  }
+};
+
 export default {
   getStats,
   getUsers,
@@ -282,5 +297,6 @@ export default {
   getPromotionalStats,
   getActivePromotions,
   getPromotionalPricing,
-  updatePromotionalPricing
+  updatePromotionalPricing,
+  initializeDefaultPricing
 };

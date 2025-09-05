@@ -247,6 +247,11 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         businessImage: businessImageData
       };
 
+      // Remove artisanName if it's empty to prevent backend validation errors
+      if (!overviewData.artisanName || overviewData.artisanName.trim() === '') {
+        delete overviewData.artisanName;
+      }
+
       // Remove businessImage if it's null or empty to avoid validation errors
       if (!businessImageData) {
         delete overviewData.businessImage;

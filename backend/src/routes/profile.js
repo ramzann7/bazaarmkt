@@ -684,7 +684,14 @@ router.put('/artisan', verifyToken, async (req, res) => {
     console.log('🔄 Business image type:', typeof req.body.businessImage);
     console.log('🔄 Business image value:', req.body.businessImage ? 'present' : 'not present');
     
-    Object.assign(artisan, req.body);
+    // Filter out empty artisanName to prevent validation errors
+    const updateData = { ...req.body };
+    if (updateData.artisanName === '' || updateData.artisanName === null || updateData.artisanName === undefined) {
+      delete updateData.artisanName;
+      console.log('🔄 Removed empty artisanName from update data');
+    }
+    
+    Object.assign(artisan, updateData);
     await artisan.save();
     console.log('✅ Artisan profile updated successfully');
 

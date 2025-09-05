@@ -7,6 +7,7 @@ const Order = require('../models/order');
 const auth = require('../middleware/authMiddleware');
 const adminAuth = require('../middleware/adminAuth');
 const verifyToken = require('../middleware/authMiddleware');
+const { logAdminAction, getAdminAuditLogs } = require('../utils/adminAuditLogger');
 
 // Admin middleware to check if user is admin
 const requireAdmin = [auth, adminAuth];
@@ -42,12 +43,28 @@ router.patch('/users/:userId/status', requireAdmin, async (req, res) => {
       return res.status(400).json({ message: 'Cannot modify your own status' });
     }
 
+    // Store old value for audit
+    const oldStatus = user.isActive;
+    
     // Set isActive field, creating it if it doesn't exist
     user.set('isActive', isActive);
     await user.save();
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) ${isActive ? 'activated' : 'deactivated'} user ${user.email} (${user._id}) at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'user_status_changed',
+      targetType: 'user',
+      targetId: user._id,
+      targetName: `${user.firstName} ${user.lastName} (${user.email})`,
+      changes: {
+        field: 'isActive',
+        oldValue: oldStatus,
+        newValue: isActive
+      },
+      description: `User ${isActive ? 'activated' : 'deactivated'}`,
+      req
+    });
 
     res.json({ message: `User ${isActive ? 'activated' : 'deactivated'} successfully`, user });
   } catch (error) {
@@ -79,11 +96,27 @@ router.patch('/users/:userId/role', requireAdmin, async (req, res) => {
       return res.status(400).json({ message: 'Invalid role' });
     }
 
+    // Store old value for audit
+    const oldRole = user.role;
+    
     user.role = role;
     await user.save();
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) changed role of user ${user.email} (${user._id}) from ${user.role} to ${role} at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'user_role_changed',
+      targetType: 'user',
+      targetId: user._id,
+      targetName: `${user.firstName} ${user.lastName} (${user.email})`,
+      changes: {
+        field: 'role',
+        oldValue: oldRole,
+        newValue: role
+      },
+      description: `User role changed from ${oldRole} to ${role}`,
+      req
+    });
 
     res.json({ message: 'User role updated successfully', user });
   } catch (error) {
@@ -118,12 +151,28 @@ router.patch('/products/:productId/status', requireAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
+    // Store old value for audit
+    const oldStatus = product.isActive;
+    
     // Set isActive field, creating it if it doesn't exist
     product.set('isActive', isActive);
     await product.save();
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) ${isActive ? 'activated' : 'deactivated'} product ${product.name} (${product._id}) at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'product_status_changed',
+      targetType: 'product',
+      targetId: product._id,
+      targetName: product.name,
+      changes: {
+        field: 'isActive',
+        oldValue: oldStatus,
+        newValue: isActive
+      },
+      description: `Product ${isActive ? 'activated' : 'deactivated'}`,
+      req
+    });
 
     res.json({ message: `Product ${isActive ? 'activated' : 'deactivated'} successfully`, product });
   } catch (error) {
@@ -144,12 +193,28 @@ router.patch('/products/:productId/featured', requireAdmin, async (req, res) => 
       return res.status(404).json({ message: 'Product not found' });
     }
 
+    // Store old value for audit
+    const oldFeatured = product.isFeatured;
+    
     // Set isFeatured field, creating it if it doesn't exist
     product.set('isFeatured', isFeatured);
     await product.save();
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) ${isFeatured ? 'featured' : 'unfeatured'} product ${product.name} (${product._id}) at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'product_featured_changed',
+      targetType: 'product',
+      targetId: product._id,
+      targetName: product.name,
+      changes: {
+        field: 'isFeatured',
+        oldValue: oldFeatured,
+        newValue: isFeatured
+      },
+      description: `Product ${isFeatured ? 'featured' : 'unfeatured'}`,
+      req
+    });
 
     res.json({ message: `Product ${isFeatured ? 'featured' : 'unfeatured'} successfully`, product });
   } catch (error) {
@@ -169,10 +234,32 @@ router.delete('/products/:productId', requireAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
+    // Store product details for audit before deletion
+    const productDetails = {
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      artisan: product.artisan,
+      isActive: product.isActive,
+      isFeatured: product.isFeatured
+    };
+
     await Product.findByIdAndDelete(productId);
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) deleted product ${product.name} (${product._id}) at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'product_deleted',
+      targetType: 'product',
+      targetId: product._id,
+      targetName: product.name,
+      changes: {
+        action: 'deleted',
+        deletedProduct: productDetails
+      },
+      description: `Product deleted: ${product.name}`,
+      req
+    });
 
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
@@ -207,12 +294,28 @@ router.patch('/artisans/:artisanId/status', requireAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Artisan not found' });
     }
 
+    // Store old value for audit
+    const oldStatus = artisan.isActive;
+    
     // Set isActive field, creating it if it doesn't exist
     artisan.set('isActive', isActive);
     await artisan.save();
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) ${isActive ? 'activated' : 'deactivated'} artisan ${artisan.artisanName} (${artisan._id}) at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'artisan_status_changed',
+      targetType: 'artisan',
+      targetId: artisan._id,
+      targetName: artisan.artisanName,
+      changes: {
+        field: 'isActive',
+        oldValue: oldStatus,
+        newValue: isActive
+      },
+      description: `Artisan ${isActive ? 'activated' : 'deactivated'}`,
+      req
+    });
 
     res.json({ message: `Artisan ${isActive ? 'activated' : 'deactivated'} successfully`, artisan });
   } catch (error) {
@@ -233,12 +336,28 @@ router.patch('/artisans/:artisanId/verification', requireAdmin, async (req, res)
       return res.status(404).json({ message: 'Artisan not found' });
     }
 
+    // Store old value for audit
+    const oldVerified = artisan.isVerified;
+    
     // Set isVerified field, creating it if it doesn't exist
     artisan.set('isVerified', isVerified);
     await artisan.save();
 
-    // Log the admin action
-    console.log(`[ADMIN ACTION] User ${adminUser.email} (${adminUser._id}) ${isVerified ? 'verified' : 'unverified'} artisan ${artisan.artisanName} (${artisan._id}) at ${new Date().toISOString()}`);
+    // Log the admin action to database
+    await logAdminAction({
+      adminUser,
+      action: 'artisan_verification_changed',
+      targetType: 'artisan',
+      targetId: artisan._id,
+      targetName: artisan.artisanName,
+      changes: {
+        field: 'isVerified',
+        oldValue: oldVerified,
+        newValue: isVerified
+      },
+      description: `Artisan ${isVerified ? 'verified' : 'unverified'}`,
+      req
+    });
 
     res.json({ message: `Artisan ${isVerified ? 'verified' : 'unverified'} successfully`, artisan });
   } catch (error) {
@@ -795,6 +914,59 @@ router.get('/payouts', verifyToken, async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Error fetching payouts' 
+    });
+  }
+});
+
+// Get admin audit logs (admin only)
+router.get('/audit-logs', requireAdmin, async (req, res) => {
+  try {
+    const {
+      adminUser,
+      action,
+      targetType,
+      targetId,
+      startDate,
+      endDate,
+      limit = 50,
+      skip = 0
+    } = req.query;
+
+    const filters = {
+      adminUser,
+      action,
+      targetType,
+      targetId,
+      startDate,
+      endDate
+    };
+
+    const pagination = {
+      limit: parseInt(limit),
+      skip: parseInt(skip)
+    };
+
+    const result = await getAdminAuditLogs(filters, pagination);
+
+    res.json({
+      success: true,
+      data: {
+        logs: result.logs,
+        total: result.total,
+        hasMore: result.hasMore,
+        pagination: {
+          limit: pagination.limit,
+          skip: pagination.skip,
+          total: result.total
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching admin audit logs:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching admin audit logs' 
     });
   }
 });

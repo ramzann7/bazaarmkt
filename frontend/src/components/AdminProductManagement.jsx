@@ -314,41 +314,133 @@ export default function AdminProductManagement() {
           </div>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProducts.map((product) => (
-            <div key={product._id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              {/* Product Image */}
-              <div className="relative h-48 bg-gray-100">
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-4xl">📦</span>
-                  </div>
-                )}
-                
-                {/* Featured Badge */}
-                {product.isFeatured && (
-                  <div className="absolute top-2 left-2">
-                    <StarIcon className="w-5 h-5 text-yellow-500 fill-current" />
-                  </div>
-                )}
-
-                {/* Status Badge */}
-                <div className="absolute top-2 right-2">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(product.status)}`}>
-                    {product.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Product Info */}
-              <div className="p-4">
+        {/* Products Table */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Artisan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Featured
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredProducts.map((product) => (
+                  <tr key={product._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-12 w-12">
+                          {product.image ? (
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="h-12 w-12 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                              <span className="text-lg">📦</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {product.name}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {product._id.slice(-8)}
+                          </div>
+                          <div className="text-xs text-gray-400 truncate max-w-xs">
+                            {product.description}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {product.artisan?.artisanName || 'Unknown Artisan'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {product.artisan?.email || 'No email'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-gray-900">
+                        {product.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatPrice(product.price)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={product.status}
+                        onChange={(e) => handleStatusChange(product._id, e.target.value)}
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(product.status)} border-0 focus:ring-2 focus:ring-green-500`}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="out_of_stock">Out of Stock</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleFeaturedToggle(product._id, product.isFeatured)}
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${getFeaturedBadge(product.isFeatured)} hover:opacity-80`}
+                      >
+                        {product.isFeatured ? 'Featured' : 'Not Featured'}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(product.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => handleViewProduct(product)}
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          title="View product details"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product._id)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="Delete product"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-1">
                   {product.name}
                 </h3>

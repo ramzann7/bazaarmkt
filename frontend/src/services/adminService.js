@@ -69,10 +69,10 @@ export const getArtisans = async () => {
 };
 
 // Update user status
-export const updateUserStatus = async (userId, status) => {
+export const updateUserStatus = async (userId, isActive) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/users/${userId}/status`, 
-      { status },
+    const response = await axios.patch(`${API_URL}/admin/users/${userId}/status`, 
+      { isActive },
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -86,11 +86,29 @@ export const updateUserStatus = async (userId, status) => {
   }
 };
 
-// Update product status
-export const updateProductStatus = async (productId, status) => {
+// Update user role
+export const updateUserRole = async (userId, role) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/products/${productId}/status`, 
-      { status },
+    const response = await axios.patch(`${API_URL}/admin/users/${userId}/role`, 
+      { role },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    throw error;
+  }
+};
+
+// Update product status
+export const updateProductStatus = async (productId, isActive) => {
+  try {
+    const response = await axios.patch(`${API_URL}/admin/products/${productId}/status`, 
+      { isActive },
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -105,10 +123,10 @@ export const updateProductStatus = async (productId, status) => {
 };
 
 // Set featured product
-export const setFeaturedProduct = async (productId, featured) => {
+export const setFeaturedProduct = async (productId, isFeatured) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/products/${productId}/featured`, 
-      { featured },
+    const response = await axios.patch(`${API_URL}/admin/products/${productId}/featured`, 
+      { isFeatured },
       {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -122,12 +140,67 @@ export const setFeaturedProduct = async (productId, featured) => {
   }
 };
 
+// Delete product
+export const deleteProduct = async (productId) => {
+  try {
+    const response = await axios.delete(`${API_URL}/admin/products/${productId}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw error;
+  }
+};
+
+// Update artisan status
+export const updateArtisanStatus = async (artisanId, isActive) => {
+  try {
+    const response = await axios.patch(`${API_URL}/admin/artisans/${artisanId}/status`, 
+      { isActive },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating artisan status:', error);
+    throw error;
+  }
+};
+
+// Update artisan verification
+export const updateArtisanVerification = async (artisanId, isVerified) => {
+  try {
+    const response = await axios.patch(`${API_URL}/admin/artisans/${artisanId}/verification`, 
+      { isVerified },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating artisan verification:', error);
+    throw error;
+  }
+};
+
 export default {
   getStats,
   getUsers,
   getProducts,
   getArtisans,
   updateUserStatus,
+  updateUserRole,
   updateProductStatus,
-  setFeaturedProduct
+  setFeaturedProduct,
+  deleteProduct,
+  updateArtisanStatus,
+  updateArtisanVerification
 };

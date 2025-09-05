@@ -191,6 +191,21 @@ export const updateArtisanVerification = async (artisanId, isVerified) => {
   }
 };
 
+// Get analytics data
+export const getAnalytics = async (period = 30) => {
+  try {
+    const response = await axios.get(`${API_URL}/admin/analytics?period=${period}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    throw error;
+  }
+};
+
 export default {
   getStats,
   getUsers,
@@ -202,5 +217,6 @@ export default {
   setFeaturedProduct,
   deleteProduct,
   updateArtisanStatus,
-  updateArtisanVerification
+  updateArtisanVerification,
+  getAnalytics
 };

@@ -19,8 +19,6 @@ import toast from 'react-hot-toast';
 import adminService from '../services/adminService';
 
 export default function AdminAnalytics() {
-  console.log('🔍 AdminAnalytics component is being rendered');
-  
   const [currentUser, setCurrentUser] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,32 +28,26 @@ export default function AdminAnalytics() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('🔍 AdminAnalytics useEffect - checkAdminAccess');
     checkAdminAccess();
   }, []);
 
   useEffect(() => {
     if (currentUser && authChecked) {
-      console.log('🔍 AdminAnalytics useEffect - loadAnalytics, currentUser:', currentUser.email);
       loadAnalytics();
     }
   }, [currentUser, selectedPeriod, authChecked]);
 
   const checkAdminAccess = async () => {
     try {
-      console.log('🔍 Checking admin access...');
       const token = authToken.getToken();
       if (!token) {
-        console.log('🔍 No token found, redirecting to login');
         setAuthChecked(true);
         navigate('/login');
         return;
       }
 
       const profile = await getProfile();
-      console.log('🔍 Profile loaded:', profile.role);
       if (profile.role !== 'admin') {
-        console.log('🔍 Not admin, redirecting');
         setAuthChecked(true);
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
@@ -64,9 +56,8 @@ export default function AdminAnalytics() {
 
       setCurrentUser(profile);
       setAuthChecked(true);
-      console.log('🔍 Admin access confirmed');
     } catch (error) {
-      console.error('🔍 Error checking admin access:', error);
+      console.error('Error checking admin access:', error);
       setError('Authentication error');
       setAuthChecked(true);
       toast.error('Authentication error');
@@ -76,19 +67,16 @@ export default function AdminAnalytics() {
 
   const loadAnalytics = async () => {
     try {
-      console.log('🔍 Loading analytics for period:', selectedPeriod);
       setIsLoading(true);
       setError(null);
       const data = await adminService.getAnalytics(selectedPeriod);
-      console.log('🔍 Analytics data received:', data);
       setAnalytics(data);
     } catch (error) {
-      console.error('🔍 Error loading analytics:', error);
+      console.error('Error loading analytics:', error);
       setError('Failed to load analytics data');
       toast.error('Failed to load analytics data');
     } finally {
       setIsLoading(false);
-      console.log('🔍 Analytics loading completed');
     }
   };
 
@@ -126,11 +114,8 @@ export default function AdminAnalytics() {
     return labels[method] || method;
   };
 
-  console.log('🔍 Render state:', { isLoading, currentUser: !!currentUser, analytics: !!analytics, error, authChecked });
-
   // Show loading while checking authentication
   if (!authChecked) {
-    console.log('🔍 Rendering auth check loading state');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -162,7 +147,6 @@ export default function AdminAnalytics() {
   }
 
   if (isLoading) {
-    console.log('🔍 Rendering loading state');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -173,7 +157,6 @@ export default function AdminAnalytics() {
     );
   }
 
-  console.log('🔍 Rendering main component');
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

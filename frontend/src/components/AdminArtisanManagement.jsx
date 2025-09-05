@@ -67,11 +67,6 @@ export default function AdminArtisanManagement() {
     try {
       setIsLoading(true);
       const artisansData = await adminService.getArtisans();
-      console.log('🔍 Loaded artisans data:', artisansData);
-      // Log rating data for debugging
-      artisansData.forEach(artisan => {
-        console.log(`🔍 Artisan ${artisan.artisanName} rating:`, artisan.rating);
-      });
       setArtisans(artisansData);
     } catch (error) {
       console.error('Error loading artisans:', error);

@@ -64,11 +64,6 @@ export default function AdminUserManagement() {
     try {
       setIsLoading(true);
       const usersData = await adminService.getUsers();
-      console.log('🔍 Loaded users data:', usersData);
-      // Log isActive status for each user
-      usersData.forEach(user => {
-        console.log(`🔍 User ${user.firstName} ${user.lastName} (${user._id}): isActive = ${user.isActive}`);
-      });
       setUsers(usersData);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -79,7 +74,6 @@ export default function AdminUserManagement() {
   };
 
   const applyFiltersAndSort = () => {
-    console.log('🔍 applyFiltersAndSort called with users:', users.length);
     let filtered = [...users];
 
     // Apply search filter
@@ -117,28 +111,22 @@ export default function AdminUserManagement() {
       }
     });
 
-    console.log('🔍 Setting filtered users:', filtered.length);
     setFilteredUsers(filtered);
   };
 
   const handleUserStatusToggle = async (userId, currentStatus) => {
     try {
       const newStatus = !currentStatus;
-      console.log('🔍 Updating user status:', { userId, currentStatus, newStatus });
       
       await adminService.updateUserStatus(userId, newStatus);
-      
-      console.log('🔍 Before state update, current users:', users.map(u => ({ id: u._id, isActive: u.isActive })));
       
       setUsers(prev => {
         const updated = prev.map(user => {
           if (user._id === userId) {
-            console.log('🔍 Found user to update:', user._id, 'new status:', newStatus);
             return { ...user, isActive: newStatus };
           }
           return user;
         });
-        console.log('🔍 After state update:', updated.map(u => ({ id: u._id, isActive: u.isActive })));
         
         // Update filtered users immediately with the new data
         const filtered = updated.filter(user => {
@@ -178,7 +166,6 @@ export default function AdminUserManagement() {
           }
         });
         
-        console.log('🔍 Updating filtered users immediately:', filtered.length);
         setFilteredUsers(filtered);
         
         return updated;

@@ -15,7 +15,6 @@ import toast from 'react-hot-toast';
 export default function PromotionalDashboard() {
   const [spotlightStats, setSpotlightStats] = useState(null);
   const [activeSpotlights, setActiveSpotlights] = useState([]);
-  const [promotionalStats, setPromotionalStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('30');
 
@@ -26,15 +25,13 @@ export default function PromotionalDashboard() {
   const loadPromotionalData = async () => {
     try {
       setIsLoading(true);
-      const [spotlightRevenue, activeSpotlightsData, promotionalData] = await Promise.all([
+      const [spotlightRevenue, activeSpotlightsData] = await Promise.all([
         spotlightService.getSpotlightRevenue(selectedPeriod),
-        spotlightService.getActiveSpotlights(),
-        promotionalService.getPromotionalStats()
+        spotlightService.getActiveSpotlights()
       ]);
       
       setSpotlightStats(spotlightRevenue);
       setActiveSpotlights(activeSpotlightsData.spotlights || []);
-      setPromotionalStats(promotionalData);
     } catch (error) {
       console.error('Error loading promotional data:', error);
       toast.error('Failed to load promotional dashboard data');
@@ -204,35 +201,35 @@ export default function PromotionalDashboard() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {spotlight.artisan.name}
+                          {spotlight.artisan?.name || 'Unknown Artisan'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {spotlight.user.email}
+                          {spotlight.user?.email || 'N/A'}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {spotlight.artisan.location || 'N/A'}
+                      {spotlight.artisan?.location || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(spotlight.startDate)}
+                      {spotlight.startDate ? formatDate(spotlight.startDate) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(spotlight.endDate)}
+                      {spotlight.endDate ? formatDate(spotlight.endDate) : 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        spotlight.remainingDays <= 3 
+                        (spotlight.remainingDays || 0) <= 3 
                           ? 'bg-red-100 text-red-800' 
-                          : spotlight.remainingDays <= 7 
+                          : (spotlight.remainingDays || 0) <= 7 
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-green-100 text-green-800'
                       }`}>
-                        {spotlight.remainingDays} days
+                        {spotlight.remainingDays || 0} days
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(spotlight.amount)}
+                      {spotlight.amount ? formatCurrency(spotlight.amount) : '$0.00'}
                     </td>
                   </tr>
                 ))}

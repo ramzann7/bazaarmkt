@@ -83,9 +83,11 @@ export default function AdminArtisanManagement() {
     if (searchQuery) {
       filtered = filtered.filter(artisan =>
         artisan.artisanName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        artisan.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        artisan.user?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        artisan.user?.lastName.toLowerCase().includes(searchQuery.toLowerCase())
+        (artisan.description && artisan.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        artisan.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        artisan.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        artisan.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        artisan.email?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -96,9 +98,15 @@ export default function AdminArtisanManagement() {
 
     // Apply status filter
     if (selectedStatus !== 'all') {
-      filtered = filtered.filter(artisan => 
-        (artisan.isActive ? 'active' : 'inactive') === selectedStatus
-      );
+      if (selectedStatus === 'verified') {
+        filtered = filtered.filter(artisan => artisan.isVerified === true);
+      } else if (selectedStatus === 'unverified') {
+        filtered = filtered.filter(artisan => artisan.isVerified === false);
+      } else {
+        filtered = filtered.filter(artisan => 
+          (artisan.isActive ? 'active' : 'inactive') === selectedStatus
+        );
+      }
     }
 
     // Apply sorting
@@ -260,6 +268,8 @@ export default function AdminArtisanManagement() {
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
+              <option value="verified">Verified</option>
+              <option value="unverified">Unverified</option>
             </select>
 
             {/* Sort By */}
@@ -289,110 +299,165 @@ export default function AdminArtisanManagement() {
           </div>
         </div>
 
-        {/* Artisans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredArtisans.map((artisan) => (
-            <div key={artisan._id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              {/* Artisan Image */}
-              <div className="relative h-48 bg-gray-100">
-                {artisan.photos && artisan.photos.length > 0 ? (
-                  <img
-                    src={artisan.photos[0]}
-                    alt={artisan.artisanName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-4xl">🏪</span>
-                  </div>
-                )}
-                
-                {/* Verification Badge */}
-                {artisan.isVerified && (
-                  <div className="absolute top-2 left-2">
-                    <CheckIcon className="w-5 h-5 text-blue-500" />
-                  </div>
-                )}
+        {/* Artisans Table */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Artisan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Owner
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Rating
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Verified
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredArtisans.map((artisan) => (
+                  <tr key={artisan._id} className="hover:bg-gray-50">
+                    {/* Artisan Info */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          {artisan.photos && artisan.photos.length > 0 ? (
+                            <img
+                              className="h-10 w-10 rounded-full object-cover"
+                              src={artisan.photos[0]}
+                              alt={artisan.artisanName}
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <span className="text-lg">🏪</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {artisan.artisanName}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                            {artisan.description || 'No description'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
 
-                {/* Status Badge */}
-                <div className="absolute top-2 right-2">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(artisan.isActive ? 'active' : 'inactive')}`}>
-                    {artisan.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
+                    {/* Owner Info */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {artisan.user?.firstName} {artisan.user?.lastName}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {artisan.user?.email || artisan.email || 'No email'}
+                      </div>
+                    </td>
 
-              {/* Artisan Info */}
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  {artisan.artisanName}
-                </h3>
-                
-                <p className="text-sm text-gray-600 mb-2">
-                  by {artisan.user?.firstName} {artisan.user?.lastName}
-                </p>
-                
-                <p className="text-gray-700 text-sm mb-3 line-clamp-2">
-                  {artisan.description}
-                </p>
-                
-                <div className="flex items-center justify-between mb-3">
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTypeBadge(artisan.type)}`}>
-                    {artisan.type}
-                  </span>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-yellow-500">★</span>
-                    <span className="text-sm font-medium">{artisan.rating?.average || 0}</span>
-                    <span className="text-xs text-gray-500">({artisan.rating?.count || 0})</span>
-                  </div>
-                </div>
+                    {/* Type */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadge(artisan.type)}`}>
+                        {artisan.type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </span>
+                    </td>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-gray-500">
-                    Products: N/A
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {formatDate(artisan.createdAt)}
-                  </span>
-                </div>
+                    {/* Location */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {artisan.address?.city || 'N/A'}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {artisan.address?.state || 'N/A'}
+                      </div>
+                    </td>
 
-                <div className="flex items-center space-x-2 mb-3">
-                  <MapPinIcon className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">
-                    {artisan.address?.city}, {artisan.address?.state}
-                  </span>
-                </div>
+                    {/* Rating */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <span className="text-yellow-500 mr-1">★</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {artisan.rating?.average?.toFixed(1) || '0.0'}
+                        </span>
+                        <span className="text-xs text-gray-500 ml-1">
+                          ({artisan.rating?.count || 0})
+                        </span>
+                      </div>
+                    </td>
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => handleViewArtisan(artisan)}
-                    className="text-blue-600 hover:text-blue-900 text-sm font-medium"
-                  >
-                    View Details
-                  </button>
-                  
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleVerificationToggle(artisan._id, artisan.isVerified)}
-                      className={`text-xs font-medium px-2 py-1 rounded-full ${getVerificationBadge(artisan.isVerified)} hover:opacity-80`}
-                    >
-                      {artisan.isVerified ? 'Verified' : 'Unverified'}
-                    </button>
-                    
-                    <select
-                      value={artisan.isActive ? 'active' : 'inactive'}
-                      onChange={(e) => handleStatusChange(artisan._id, e.target.value)}
-                      className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(artisan.isActive ? 'active' : 'inactive')} border-0 focus:ring-2 focus:ring-purple-500`}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+                    {/* Status */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={artisan.isActive ? 'active' : 'inactive'}
+                        onChange={(e) => handleStatusChange(artisan._id, e.target.value)}
+                        className={`text-xs font-medium px-2 py-1 rounded-full border-0 focus:ring-2 focus:ring-purple-500 ${getStatusBadge(artisan.isActive ? 'active' : 'inactive')}`}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </td>
+
+                    {/* Verification */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleVerificationToggle(artisan._id, artisan.isVerified)}
+                        className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full hover:opacity-80 ${getVerificationBadge(artisan.isVerified)}`}
+                      >
+                        {artisan.isVerified ? (
+                          <>
+                            <CheckIcon className="w-3 h-3 mr-1" />
+                            Verified
+                          </>
+                        ) : (
+                          <>
+                            <XMarkIcon className="w-3 h-3 mr-1" />
+                            Unverified
+                          </>
+                        )}
+                      </button>
+                    </td>
+
+                    {/* Created Date */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(artisan.createdAt)}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleViewArtisan(artisan)}
+                          className="text-blue-600 hover:text-blue-900 flex items-center"
+                        >
+                          <EyeIcon className="w-4 h-4 mr-1" />
+                          View
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Results Summary */}
@@ -404,83 +469,127 @@ export default function AdminArtisanManagement() {
       {/* Artisan Modal */}
       {showArtisanModal && selectedArtisan && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Artisan Details</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Artisan Details</h3>
+                <button
+                  onClick={() => {
+                    setShowArtisanModal(false);
+                    setSelectedArtisan(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
               
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Business Name</label>
-                  <p className="text-sm text-gray-900">{selectedArtisan.artisanName}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                  <p className="text-sm text-gray-900">{selectedArtisan.description}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Owner</label>
-                  <p className="text-sm text-gray-900">
-                    {selectedArtisan.user?.firstName} {selectedArtisan.user?.lastName}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Type</label>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getTypeBadge(selectedArtisan.type)}`}>
-                    {selectedArtisan.type}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Address</label>
-                  <p className="text-sm text-gray-900">
-                    {selectedArtisan.address?.street}<br />
-                    {selectedArtisan.address?.city}, {selectedArtisan.address?.state} {selectedArtisan.address?.zipCode}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Contact</label>
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-900 flex items-center">
-                      <PhoneIcon className="w-4 h-4 mr-2" />
-                      {selectedArtisan.contactInfo?.phone || selectedArtisan.phone}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Business Name</label>
+                    <p className="text-sm text-gray-900">{selectedArtisan.artisanName}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                    <p className="text-sm text-gray-900">{selectedArtisan.description || 'No description provided'}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Owner</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedArtisan.user?.firstName} {selectedArtisan.user?.lastName}
                     </p>
-                    <p className="text-sm text-gray-900 flex items-center">
-                      <EnvelopeIcon className="w-4 h-4 mr-2" />
-                      {selectedArtisan.contactInfo?.email || selectedArtisan.email}
+                    <p className="text-xs text-gray-500">
+                      {selectedArtisan.user?.email || selectedArtisan.email || 'No email'}
                     </p>
-                    {selectedArtisan.contactInfo?.website && (
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Type</label>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeBadge(selectedArtisan.type)}`}>
+                      {selectedArtisan.type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Address</label>
+                    <p className="text-sm text-gray-900">
+                      {selectedArtisan.address?.street && `${selectedArtisan.address.street}, `}
+                      {selectedArtisan.address?.city && `${selectedArtisan.address.city}, `}
+                      {selectedArtisan.address?.state} {selectedArtisan.address?.zipCode}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Contact Information</label>
+                    <div className="space-y-2">
                       <p className="text-sm text-gray-900 flex items-center">
-                        <GlobeAltIcon className="w-4 h-4 mr-2" />
-                        {selectedArtisan.contactInfo.website}
+                        <PhoneIcon className="w-4 h-4 mr-2" />
+                        {selectedArtisan.contactInfo?.phone || selectedArtisan.phone || 'No phone'}
                       </p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(selectedArtisan.isActive ? 'active' : 'inactive')}`}>
-                    {selectedArtisan.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Verification</label>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getVerificationBadge(selectedArtisan.isVerified)}`}>
-                    {selectedArtisan.isVerified ? 'Verified' : 'Unverified'}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Stats</label>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-600">Products:</span> N/A
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Rating:</span> {selectedArtisan.rating?.average || 0} ({selectedArtisan.rating?.count || 0} reviews)
+                      <p className="text-sm text-gray-900 flex items-center">
+                        <EnvelopeIcon className="w-4 h-4 mr-2" />
+                        {selectedArtisan.contactInfo?.email || selectedArtisan.email || 'No email'}
+                      </p>
+                      {selectedArtisan.contactInfo?.website && (
+                        <p className="text-sm text-gray-900 flex items-center">
+                          <GlobeAltIcon className="w-4 h-4 mr-2" />
+                          <a href={selectedArtisan.contactInfo.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                            {selectedArtisan.contactInfo.website}
+                          </a>
+                        </p>
+                      )}
                     </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Created</label>
-                  <p className="text-sm text-gray-900">{formatDate(selectedArtisan.createdAt)}</p>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Status & Verification</label>
+                    <div className="flex space-x-2">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(selectedArtisan.isActive ? 'active' : 'inactive')}`}>
+                        {selectedArtisan.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getVerificationBadge(selectedArtisan.isVerified)}`}>
+                        {selectedArtisan.isVerified ? 'Verified' : 'Unverified'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Rating & Reviews</label>
+                    <div className="flex items-center">
+                      <span className="text-yellow-500 mr-1">★</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {selectedArtisan.rating?.average?.toFixed(1) || '0.0'}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-1">
+                        ({selectedArtisan.rating?.count || 0} reviews)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Created Date</label>
+                    <p className="text-sm text-gray-900">{formatDate(selectedArtisan.createdAt)}</p>
+                  </div>
+                  
+                  {selectedArtisan.specialties && selectedArtisan.specialties.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Specialties</label>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedArtisan.specialties.map((specialty, index) => (
+                          <span key={index} className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
+                            {specialty}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

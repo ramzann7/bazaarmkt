@@ -480,9 +480,17 @@ export default function ArtisanShop() {
             {/* Business Info - Left Side */}
             <div className="w-full lg:w-1/3">
               <div className="space-y-4">
-                <h1 className="text-3xl font-bold text-gray-900 font-serif">
-                  {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
-                </h1>
+                <div className="flex items-center space-x-3">
+                  <h1 className="text-3xl font-bold text-gray-900 font-serif">
+                    {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
+                  </h1>
+                  {artisan.isVerified && (
+                    <div className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
+                      <CheckCircleIcon className="w-4 h-4 mr-1" />
+                      Verified
+                    </div>
+                  )}
+                </div>
                 
                 {(artisan.tagline || artisan.bio || artisan.description) && (
                   <p className="text-lg text-gray-600 leading-relaxed">

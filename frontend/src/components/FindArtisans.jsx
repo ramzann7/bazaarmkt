@@ -707,13 +707,21 @@ export default function FindArtisans() {
         <div className="p-4">
           {/* Artisan Name and Rating */}
           <div className="flex items-start justify-between mb-3">
-            <h3 className={`text-lg font-semibold transition-colors duration-300 ${
-              isOpen === false 
-                ? 'text-gray-600 group-hover:text-gray-800' 
-                : 'text-gray-900 group-hover:text-amber-600'
-            }`}>
-              {artisan.artisanName || 'Unnamed Artisan'}
-            </h3>
+            <div className="flex items-center space-x-2">
+              <h3 className={`text-lg font-semibold transition-colors duration-300 ${
+                isOpen === false 
+                  ? 'text-gray-600 group-hover:text-gray-800' 
+                  : 'text-gray-900 group-hover:text-amber-600'
+              }`}>
+                {artisan.artisanName || 'Unnamed Artisan'}
+              </h3>
+              {artisan.isVerified && (
+                <div className="flex items-center bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                  Verified
+                </div>
+              )}
+            </div>
             <div className="flex items-center space-x-1">
               <StarIconSolid className="w-4 h-4 text-amber-500" />
               <span className={`text-sm font-medium ${
@@ -962,9 +970,17 @@ export default function FindArtisans() {
 
                       {/* Artisan Info */}
                       <div className="space-y-2">
-                        <h3 className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
-                          {artisan.artisanName || artisan.businessName}
-                        </h3>
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
+                            {artisan.artisanName || artisan.businessName}
+                          </h3>
+                          {artisan.isVerified && (
+                            <div className="flex items-center bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                              <CheckCircleIcon className="w-3 h-3 mr-1" />
+                              Verified
+                            </div>
+                          )}
+                        </div>
                         <p className="text-sm text-gray-600">
                           {artisan.type ? artisanTypes.find(t => t.value === artisan.type)?.label : 'Local Artisan'}
                         </p>

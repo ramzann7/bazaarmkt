@@ -87,7 +87,11 @@ export default function AdminUserManagement() {
 
     // Apply role filter
     if (selectedRole !== 'all') {
-      filtered = filtered.filter(user => user.role === selectedRole);
+      if (selectedRole === 'guest') {
+        filtered = filtered.filter(user => user.isGuest === true);
+      } else {
+        filtered = filtered.filter(user => user.role === selectedRole && !user.isGuest);
+      }
     }
 
     // Apply sorting
@@ -163,13 +167,24 @@ export default function AdminUserManagement() {
     });
   };
 
-  const getRoleBadge = (role) => {
+  const getRoleBadge = (user) => {
+    if (user.isGuest) {
+      return 'bg-yellow-100 text-yellow-800';
+    }
+    
     const badges = {
       admin: 'bg-red-100 text-red-800',
       artisan: 'bg-purple-100 text-purple-800',
       patron: 'bg-blue-100 text-blue-800'
     };
-    return badges[role] || 'bg-gray-100 text-gray-800';
+    return badges[user.role] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getRoleDisplay = (user) => {
+    if (user.isGuest) {
+      return 'Guest';
+    }
+    return user.role.charAt(0).toUpperCase() + user.role.slice(1);
   };
 
   const getStatusBadge = (isActive) => {
@@ -233,10 +248,11 @@ export default function AdminUserManagement() {
               onChange={(e) => setSelectedRole(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">All Roles</option>
+              <option value="all">All Users</option>
               <option value="admin">Admin</option>
               <option value="artisan">Artisan</option>
               <option value="patron">Patron</option>
+              <option value="guest">Guest Users</option>
             </select>
 
             {/* Sort By */}
@@ -307,31 +323,44 @@ export default function AdminUserManagement() {
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
                             {user.firstName} {user.lastName}
+                            {user.isGuest && <span className="ml-2 text-xs text-yellow-600">(Guest)</span>}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {user.email}
+                            {user.email || 'No email (Guest User)'}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${getRoleBadge(user.role)} border-0 focus:ring-2 focus:ring-blue-500`}
-                      >
-                        <option value="patron">Patron</option>
-                        <option value="artisan">Artisan</option>
-                        <option value="admin">Admin</option>
-                      </select>
+                      {user.isGuest ? (
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${getRoleBadge(user)}`}>
+                          {getRoleDisplay(user)}
+                        </span>
+                      ) : (
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                          className={`text-xs font-medium px-2 py-1 rounded-full ${getRoleBadge(user)} border-0 focus:ring-2 focus:ring-blue-500`}
+                        >
+                          <option value="patron">Patron</option>
+                          <option value="artisan">Artisan</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleUserStatusToggle(user._id, user.isActive)}
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(user.isActive)} hover:opacity-80`}
-                      >
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </button>
+                      {user.isGuest ? (
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(user.isActive)}`}>
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleUserStatusToggle(user._id, user.isActive)}
+                          className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusBadge(user.isActive)} hover:opacity-80`}
+                        >
+                          {user.isActive ? 'Active' : 'Inactive'}
+                        </button>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(user.createdAt)}
@@ -344,15 +373,19 @@ export default function AdminUserManagement() {
                         <button
                           onClick={() => handleViewUser(user)}
                           className="text-blue-600 hover:text-blue-900 p-1"
+                          title="View user details"
                         >
                           <EyeIcon className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="text-green-600 hover:text-green-900 p-1"
-                        >
-                          <PencilIcon className="w-4 h-4" />
-                        </button>
+                        {!user.isGuest && (
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="text-green-600 hover:text-green-900 p-1"
+                            title="Edit user"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

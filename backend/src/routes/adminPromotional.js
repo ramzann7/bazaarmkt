@@ -4,13 +4,17 @@ const PromotionalFeature = require('../models/promotionalFeature');
 const PromotionalPricing = require('../models/promotionalPricing');
 const Artisan = require('../models/artisan');
 const User = require('../models/user');
+const auth = require('../middleware/authMiddleware');
 const adminAuth = require('../middleware/adminAuth');
 const { logAdminAction } = require('../utils/adminAuditLogger');
 const { paginationMiddleware, paginatedResponse } = require('../middleware/pagination');
 const { validate, promotionalPricingSchema } = require('../middleware/validation');
 
+// Admin middleware to check if user is admin
+const requireAdmin = [auth, adminAuth];
+
 // Get promotional statistics
-router.get('/stats', adminAuth, async (req, res) => {
+router.get('/stats', requireAdmin, async (req, res) => {
   try {
     const { period = 30 } = req.query;
     const days = parseInt(period);
@@ -65,7 +69,7 @@ router.get('/stats', adminAuth, async (req, res) => {
 });
 
 // Get active promotions with details (paginated)
-router.get('/active', adminAuth, paginationMiddleware, async (req, res) => {
+router.get('/active', requireAdmin, paginationMiddleware, async (req, res) => {
   try {
     const { page, limit, skip } = req.pagination;
     
@@ -95,7 +99,7 @@ router.get('/active', adminAuth, paginationMiddleware, async (req, res) => {
 });
 
 // Get promotional pricing configuration
-router.get('/pricing', adminAuth, async (req, res) => {
+router.get('/pricing', requireAdmin, async (req, res) => {
   try {
     const pricing = await PromotionalPricing.find({ isActive: true }).sort({ featureType: 1 });
     res.json(pricing);
@@ -106,7 +110,7 @@ router.get('/pricing', adminAuth, async (req, res) => {
 });
 
 // Update promotional pricing
-router.put('/pricing', adminAuth, validate(promotionalPricingSchema), async (req, res) => {
+router.put('/pricing', requireAdmin, validate(promotionalPricingSchema), async (req, res) => {
   try {
     const { featureType, name, description, basePrice, pricePerDay, benefits } = req.body;
     const adminUser = req.user;
@@ -187,7 +191,7 @@ router.put('/pricing', adminAuth, validate(promotionalPricingSchema), async (req
 });
 
 // Get promotional feature analytics (paginated)
-router.get('/analytics', adminAuth, paginationMiddleware, async (req, res) => {
+router.get('/analytics', requireAdmin, paginationMiddleware, async (req, res) => {
   try {
     const { period = 30 } = req.query;
     const days = parseInt(period);
@@ -303,7 +307,7 @@ router.get('/analytics', adminAuth, paginationMiddleware, async (req, res) => {
 });
 
 // Initialize default promotional pricing if none exists
-router.post('/pricing/initialize', adminAuth, async (req, res) => {
+router.post('/pricing/initialize', requireAdmin, async (req, res) => {
   try {
     const adminUser = req.user;
     

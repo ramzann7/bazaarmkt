@@ -1367,7 +1367,16 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       price,
       category,
       subcategory,
+      productType,
       stock,
+      lowStockThreshold,
+      leadTime,
+      leadTimeUnit,
+      maxOrderQuantity,
+      scheduleType,
+      scheduleDetails,
+      nextAvailableDate,
+      availableQuantity,
       unit,
       weight,
       expiryDate,
@@ -1376,12 +1385,31 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       isGlutenFree,
       isVegan,
       isHalal,
-      leadTimeHours
+      isKosher,
+      isDairyFree,
+      isNutFree,
+      isSoyFree,
+      isSugarFree,
+      isLowCarb,
+      isKetoFriendly,
+      isPaleo,
+      isRaw
     } = req.body;
     
     // Validate required fields
-    if (!name || !description || !price || !category || !stock) {
+    if (!name || !description || !price || !category || !productType) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Validate product type specific fields
+    if (productType === 'ready_to_ship' && !stock) {
+      return res.status(400).json({ message: 'Stock is required for ready-to-ship products' });
+    }
+    if (productType === 'made_to_order' && (!leadTime || !leadTimeUnit)) {
+      return res.status(400).json({ message: 'Lead time and unit are required for made-to-order products' });
+    }
+    if (productType === 'scheduled_order' && (!availableQuantity || !nextAvailableDate || !scheduleType)) {
+      return res.status(400).json({ message: 'Available quantity, next available date, and schedule type are required for scheduled order products' });
     }
     
     // Handle image upload
@@ -1414,7 +1442,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       price: parseFloat(price),
       category,
       subcategory,
-      stock: parseInt(stock),
+      productType: productType || 'ready_to_ship',
       unit: unit || 'piece',
       weight: weight ? parseFloat(weight) : null,
       expiryDate: expiryDate || null,
@@ -1424,8 +1452,32 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       isGlutenFree: isGlutenFree === 'true' || isGlutenFree === true,
       isVegan: isVegan === 'true' || isVegan === true,
       isHalal: isHalal === 'true' || isHalal === true,
-      leadTimeHours: leadTimeHours ? parseInt(leadTimeHours) : 24,
-      artisan: artisanProfile._id
+      isKosher: isKosher === 'true' || isKosher === true,
+      isDairyFree: isDairyFree === 'true' || isDairyFree === true,
+      isNutFree: isNutFree === 'true' || isNutFree === true,
+      isSoyFree: isSoyFree === 'true' || isSoyFree === true,
+      isSugarFree: isSugarFree === 'true' || isSugarFree === true,
+      isLowCarb: isLowCarb === 'true' || isLowCarb === true,
+      isKetoFriendly: isKetoFriendly === 'true' || isKetoFriendly === true,
+      isPaleo: isPaleo === 'true' || isPaleo === true,
+      isRaw: isRaw === 'true' || isRaw === true,
+      artisan: artisanProfile._id,
+      // Product type specific fields
+      ...(productType === 'ready_to_ship' && {
+        stock: parseInt(stock),
+        lowStockThreshold: parseInt(lowStockThreshold) || 5
+      }),
+      ...(productType === 'made_to_order' && {
+        leadTime: parseInt(leadTime),
+        leadTimeUnit: leadTimeUnit || 'days',
+        maxOrderQuantity: parseInt(maxOrderQuantity) || 10
+      }),
+      ...(productType === 'scheduled_order' && {
+        scheduleType: scheduleType,
+        scheduleDetails: scheduleDetails ? JSON.parse(scheduleDetails) : { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+        nextAvailableDate: nextAvailableDate,
+        availableQuantity: parseInt(availableQuantity)
+      })
     });
     
     await product.save();
@@ -1478,6 +1530,15 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       isGlutenFree,
       isVegan,
       isHalal,
+      isKosher,
+      isDairyFree,
+      isNutFree,
+      isSoyFree,
+      isSugarFree,
+      isLowCarb,
+      isKetoFriendly,
+      isPaleo,
+      isRaw,
       status,
       leadTimeHours,
       // New product type fields
@@ -1485,11 +1546,11 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       lowStockThreshold,
       leadTime,
       leadTimeUnit,
-
       maxOrderQuantity,
       scheduleType,
       scheduleDetails,
-      nextAvailableDate
+      nextAvailableDate,
+      availableQuantity
     } = req.body;
     
     // Update fields
@@ -1507,6 +1568,15 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     if (isGlutenFree !== undefined) product.isGlutenFree = isGlutenFree === 'true' || isGlutenFree === true;
     if (isVegan !== undefined) product.isVegan = isVegan === 'true' || isVegan === true;
     if (isHalal !== undefined) product.isHalal = isHalal === 'true' || isHalal === true;
+    if (isKosher !== undefined) product.isKosher = isKosher === 'true' || isKosher === true;
+    if (isDairyFree !== undefined) product.isDairyFree = isDairyFree === 'true' || isDairyFree === true;
+    if (isNutFree !== undefined) product.isNutFree = isNutFree === 'true' || isNutFree === true;
+    if (isSoyFree !== undefined) product.isSoyFree = isSoyFree === 'true' || isSoyFree === true;
+    if (isSugarFree !== undefined) product.isSugarFree = isSugarFree === 'true' || isSugarFree === true;
+    if (isLowCarb !== undefined) product.isLowCarb = isLowCarb === 'true' || isLowCarb === true;
+    if (isKetoFriendly !== undefined) product.isKetoFriendly = isKetoFriendly === 'true' || isKetoFriendly === true;
+    if (isPaleo !== undefined) product.isPaleo = isPaleo === 'true' || isPaleo === true;
+    if (isRaw !== undefined) product.isRaw = isRaw === 'true' || isRaw === true;
     if (status !== undefined) product.status = status;
     if (leadTimeHours !== undefined) product.leadTimeHours = parseInt(leadTimeHours);
     
@@ -1526,6 +1596,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       }
     }
     if (nextAvailableDate !== undefined) product.nextAvailableDate = nextAvailableDate;
+    if (availableQuantity !== undefined) product.availableQuantity = parseInt(availableQuantity);
     
     // Clear old fields when switching product types
     if (productType === 'ready_to_ship') {
@@ -1535,12 +1606,14 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       product.scheduleType = undefined;
       product.scheduleDetails = undefined;
       product.nextAvailableDate = undefined;
+      product.availableQuantity = undefined;
     } else if (productType === 'made_to_order') {
       product.stock = undefined;
       product.lowStockThreshold = undefined;
       product.scheduleType = undefined;
       product.scheduleDetails = undefined;
       product.nextAvailableDate = undefined;
+      product.availableQuantity = undefined;
     } else if (productType === 'scheduled_order') {
       product.stock = undefined;
       product.lowStockThreshold = undefined;

@@ -107,18 +107,45 @@ export default function Products() {
       if (allCategories && Array.isArray(allCategories)) {
         allCategories.forEach(category => {
           const subcategories = getAllSubcategories().filter(sub => sub.categoryKey === category.key);
-          categoryData[category.name] = subcategories.map(sub => sub.subcategoryName);
+          categoryData[category.key] = {
+            name: category.name,
+            subcategories: subcategories.map(sub => ({ key: sub.subcategoryKey, name: sub.subcategoryName }))
+          };
         });
       }
       
       return categoryData;
     } catch (error) {
       console.error('Error initializing categories:', error);
-      // Return a fallback structure
+      // Return a fallback structure with keys
       return {
-        "Food & Beverages": ["Baked Goods", "Dairy Products", "Preserves & Jams", "Beverages"],
-        "Handmade Crafts": ["Jewelry", "Pottery & Ceramics", "Textiles & Fiber Arts", "Woodworking"],
-        "Clothing & Accessories": ["Clothing", "Accessories", "Shoes & Footwear", "Baby & Kids"]
+        "food_beverages": {
+          name: "Food & Beverages",
+          subcategories: [
+            { key: "baked_goods", name: "Baked Goods" },
+            { key: "dairy_products", name: "Dairy Products" },
+            { key: "preserves_jams", name: "Preserves & Jams" },
+            { key: "beverages", name: "Beverages" }
+          ]
+        },
+        "handmade_crafts": {
+          name: "Handmade Crafts",
+          subcategories: [
+            { key: "jewelry", name: "Jewelry" },
+            { key: "pottery_ceramics", name: "Pottery & Ceramics" },
+            { key: "textiles_fiber_arts", name: "Textiles & Fiber Arts" },
+            { key: "woodworking", name: "Woodworking" }
+          ]
+        },
+        "clothing_accessories": {
+          name: "Clothing & Accessories",
+          subcategories: [
+            { key: "clothing", name: "Clothing" },
+            { key: "accessories", name: "Accessories" },
+            { key: "shoes_footwear", name: "Shoes & Footwear" },
+            { key: "baby_kids", name: "Baby & Kids" }
+          ]
+        }
       };
     }
   })();
@@ -1280,8 +1307,8 @@ export default function Products() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                         >
                           <option value="">Select a category</option>
-                          {Object.keys(categories).map(category => (
-                            <option key={category} value={category}>{category}</option>
+                          {Object.entries(categories).map(([key, category]) => (
+                            <option key={key} value={key}>{category.name}</option>
                           ))}
                         </select>
                       </div>
@@ -1294,8 +1321,8 @@ export default function Products() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                         >
                           <option value="">Select a subcategory</option>
-                          {editingProduct.category && categories[editingProduct.category]?.map(subcategory => (
-                            <option key={subcategory} value={subcategory}>{subcategory}</option>
+                          {editingProduct.category && categories[editingProduct.category]?.subcategories?.map(subcategory => (
+                            <option key={subcategory.key} value={subcategory.key}>{subcategory.name}</option>
                           ))}
                         </select>
                       </div>
@@ -2051,8 +2078,8 @@ export default function Products() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                     >
                       <option value="">Select a category</option>
-                      {Object.keys(categories).map(category => (
-                        <option key={category} value={category}>{category}</option>
+                      {Object.entries(categories).map(([key, category]) => (
+                        <option key={key} value={key}>{category.name}</option>
                       ))}
                     </select>
                   </div>
@@ -2065,8 +2092,8 @@ export default function Products() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                     >
                       <option value="">Select a subcategory</option>
-                      {newProduct.category && categories[newProduct.category]?.map(subcategory => (
-                        <option key={subcategory} value={subcategory}>{subcategory}</option>
+                      {newProduct.category && categories[newProduct.category]?.subcategories?.map(subcategory => (
+                        <option key={subcategory.key} value={subcategory.key}>{subcategory.name}</option>
                       ))}
                     </select>
                   </div>

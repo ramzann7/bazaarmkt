@@ -436,7 +436,7 @@ export default function AdminPromotionalDashboard() {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {activePromotions.slice(0, 5).map((promotion) => (
+                {(activePromotions || []).slice(0, 5).map((promotion) => (
                   <div key={promotion._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
@@ -457,7 +457,7 @@ export default function AdminPromotionalDashboard() {
                     </div>
                   </div>
                 ))}
-                {activePromotions.length === 0 && (
+                {(activePromotions || []).length === 0 && (
                   <p className="text-center text-gray-500 py-4">No active promotions</p>
                 )}
               </div>

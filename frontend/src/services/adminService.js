@@ -233,7 +233,7 @@ export const getActivePromotions = async () => {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    return response.data.data || []; // Extract data array from paginated response
   } catch (error) {
     console.error('Error fetching active promotions:', error);
     throw error;

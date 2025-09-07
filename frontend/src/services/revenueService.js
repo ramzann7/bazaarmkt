@@ -216,6 +216,54 @@ class RevenueService {
   getArtisanEarningsPercentage(commissionRate = 0.10) {
     return `${((1 - commissionRate) * 100).toFixed(1)}%`;
   }
+
+  // Get platform revenue summary (admin only)
+  async getPlatformRevenueSummary(period = '30') {
+    try {
+      const token = authToken.getToken();
+      const response = await fetch(`${API_BASE_URL}/revenue/admin/platform-summary?period=${period}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch platform revenue summary');
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching platform revenue summary:', error);
+      throw error;
+    }
+  }
+
+  // Get spotlight revenue stats
+  async getSpotlightRevenueStats(period = '30') {
+    try {
+      const token = authToken.getToken();
+      const response = await fetch(`${API_BASE_URL}/revenue/spotlight/stats?period=${period}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch spotlight revenue stats');
+      }
+
+      const data = await response.json();
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching spotlight revenue stats:', error);
+      throw error;
+    }
+  }
 }
 
 export const revenueService = new RevenueService();

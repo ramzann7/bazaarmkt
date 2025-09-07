@@ -1,111 +1,139 @@
 import React, { useState, useEffect } from 'react';
-import { getFinancialDashboardData } from '../services/adminDashboardService';
+import { 
+  ArrowLeftIcon, 
+  CurrencyDollarIcon, 
+  ArrowTrendingUpIcon, 
+  ChartBarIcon, 
+  ShoppingCartIcon,
+  UsersIcon,
+  StarIcon,
+  CalendarIcon,
+  EyeIcon,
+  BanknotesIcon,
+  SparklesIcon,
+  BuildingStorefrontIcon
+} from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { adminService } from '../services/adminService';
 import { revenueService } from '../services/revenueService';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeftIcon, CurrencyDollarIcon, ArrowTrendingUpIcon, ChartBarIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 
 export default function AdminRevenueManagement() {
-  const [financialData, setFinancialData] = useState({
-    gmv: 0,
-    platformRevenue: 0,
-    netPayouts: 0,
-    pendingBalance: 0,
-    commissionRate: 0.05,
-    buyerFee: 0.02,
+  const [revenueData, setRevenueData] = useState({
+    totalRevenue: 0,
+    commissionRevenue: 0,
+    promotionalRevenue: 0,
+    spotlightRevenue: 0,
     totalOrders: 0,
-    activeArtisans: 0,
+    totalArtisans: 0,
     averageOrderValue: 0,
-    monthlyGrowth: 0,
-    topCategories: [],
-    recentTransactions: []
+    commissionRate: 0.10,
+    growthRate: 0
   });
   
-  const [timeRange, setTimeRange] = useState('30d');
+  const [analytics, setAnalytics] = useState({
+    dailyRevenue: [],
+    topArtisans: [],
+    topCategories: [],
+    revenueBySource: [],
+    monthlyTrends: []
+  });
+  
+  const [timeRange, setTimeRange] = useState('30');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Load dashboard data from API
   useEffect(() => {
-    const loadDashboardData = async () => {
+    loadRevenueData();
+  }, [timeRange]);
+
+  const loadRevenueData = async () => {
+    try {
       setIsLoading(true);
-      try {
-        const response = await getFinancialDashboardData(timeRange);
-        
-        if (response.success) {
-          setFinancialData(response.data);
-        } else {
-          toast.error('Failed to load dashboard data');
-        }
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        toast.error('Error loading dashboard data');
-        
-        // Fallback to mock data for development
-        const mockData = {
-          gmv: 125000,
-          platformRevenue: 8750,
-          netPayouts: 116250,
-          pendingBalance: 15000,
-          commissionRate: 0.05,
-          buyerFee: 0.02,
-          totalOrders: 1250,
-          activeArtisans: 45,
-          averageOrderValue: 100,
-          monthlyGrowth: 12.5,
-          topCategories: [
-            { name: 'Bakery', revenue: 35000, orders: 350 },
-            { name: 'Fresh Produce', revenue: 28000, orders: 280 },
-            { name: 'Dairy & Eggs', revenue: 22000, orders: 220 },
-            { name: 'Artisan Cakes', revenue: 18000, orders: 180 },
-            { name: 'Honey & Jams', revenue: 12000, orders: 120 }
-          ],
-          recentTransactions: [
-            { id: 'TXN001', artisan: 'Ramzan\'s Bakery', amount: 150.00, type: 'payout', status: 'completed', date: '2025-08-29' },
-            { id: 'TXN002', artisan: 'Fresh Farm Co.', amount: 89.50, type: 'commission', status: 'pending', date: '2025-08-29' },
-            { id: 'TXN003', artisan: 'Artisan Bread Co.', amount: 234.75, type: 'payout', status: 'completed', date: '2025-08-28' },
-            { id: 'TXN004', artisan: 'Local Honey', amount: 67.25, type: 'commission', status: 'completed', date: '2025-08-28' },
-            { id: 'TXN005', artisan: 'Organic Dairy', amount: 189.00, type: 'payout', status: 'pending', date: '2025-08-27' }
-          ]
-        };
-        
-        setFinancialData(mockData);
+      setError(null);
+
+      // Load platform revenue summary
+      const platformData = await revenueService.getPlatformRevenueSummary(timeRange);
+      
+      // Load spotlight revenue stats
+      const spotlightData = await revenueService.getSpotlightRevenueStats(timeRange);
+      
+      // Load promotional revenue from admin service
+      const promotionalData = await adminService.getPromotionalStats(timeRange);
+      
+      // Load general analytics
+      const analyticsData = await adminService.getAnalytics(timeRange);
+
+      // Combine all revenue data
+      const combinedData = {
+        totalRevenue: (platformData.commissionRevenue?.totalCommission || 0) + 
+                     (promotionalData?.totalPromotionalRevenue || 0) + 
+                     (spotlightData?.stats?.totalRevenue || 0),
+        commissionRevenue: platformData.commissionRevenue?.totalCommission || 0,
+        promotionalRevenue: promotionalData?.totalPromotionalRevenue || 0,
+        spotlightRevenue: spotlightData?.stats?.totalRevenue || 0,
+        totalOrders: platformData.commissionRevenue?.orderCount || 0,
+        totalArtisans: analyticsData?.totalArtisans || 0,
+        averageOrderValue: platformData.commissionRevenue?.averageOrderValue || 0,
+        commissionRate: 0.10,
+        growthRate: analyticsData?.growthRate || 0
+      };
+
+      setRevenueData(combinedData);
+
+      // Set analytics data
+      setAnalytics({
+        dailyRevenue: spotlightData?.dailyRevenue || [],
+        topArtisans: analyticsData?.topArtisans || [],
+        topCategories: analyticsData?.topCategories || [],
+        revenueBySource: [
+          { name: 'Commission (10%)', value: combinedData.commissionRevenue, color: 'bg-blue-500' },
+          { name: 'Promotional Features', value: combinedData.promotionalRevenue, color: 'bg-green-500' },
+          { name: 'Artisan Spotlight', value: combinedData.spotlightRevenue, color: 'bg-purple-500' }
+        ],
+        monthlyTrends: analyticsData?.monthlyTrends || []
+      });
+
+    } catch (error) {
+      console.error('Error loading revenue data:', error);
+      setError('Failed to load revenue data');
+      toast.error('Failed to load revenue data');
+      
+      // Set fallback data
+      setRevenueData({
+        totalRevenue: 0,
+        commissionRevenue: 0,
+        promotionalRevenue: 0,
+        spotlightRevenue: 0,
+        totalOrders: 0,
+        totalArtisans: 0,
+        averageOrderValue: 0,
+        commissionRate: 0.10,
+        growthRate: 0
+      });
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadDashboardData();
-  }, [timeRange]);
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      currency: 'USD'
     }).format(amount);
   };
 
-  const formatNumber = (number) => {
-    return new Intl.NumberFormat('en-US').format(number);
+  const formatPercentage = (value) => {
+    return `${value.toFixed(1)}%`;
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white rounded-lg p-6 shadow-sm">
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                  <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading revenue data...</p>
         </div>
       </div>
     );
@@ -132,219 +160,268 @@ export default function AdminRevenueManagement() {
                 onChange={(e) => setTimeRange(e.target.value)}
                 className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="1y">Last year</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last year</option>
               </select>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                ⚙️
-              </button>
             </div>
           </div>
           <div className="mt-4">
-            <h1 className="text-3xl font-bold text-gray-900">Revenue Management Dashboard</h1>
-            <p className="text-gray-600 mt-1">Track your marketplace performance and financial metrics</p>
+            <h1 className="text-3xl font-bold text-gray-900">Revenue Management</h1>
+            <p className="text-gray-600 mt-1">Track platform revenue performance and financial metrics</p>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading data</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{error}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg border border-blue-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Gross Marketplace Volume (GMV)</p>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(financialData.gmv)}</p>
-                <p className="text-sm text-gray-500 mt-1">{formatNumber(financialData.totalOrders)} orders</p>
+          {/* Total Revenue */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <CurrencyDollarIcon className="h-8 w-8 text-green-600" />
               </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                💰
-              </div>
-            </div>
-            <div className="flex items-center mt-4">
-              <span className="text-sm font-medium text-green-600">↗️ {financialData.monthlyGrowth}% from last period</span>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg border border-green-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Platform Revenue</p>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(financialData.platformRevenue)}</p>
-                <p className="text-sm text-gray-500 mt-1">{(financialData.commissionRate * 100)}% commission + {(financialData.buyerFee * 100)}% buyer fee</p>
-              </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                📊
-              </div>
-            </div>
-            <div className="flex items-center mt-4">
-              <span className="text-sm font-medium text-green-600">↗️ 8.2% from last period</span>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg border border-amber-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Net Payouts</p>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(financialData.netPayouts)}</p>
-                <p className="text-sm text-gray-500 mt-1">Transferred to sellers</p>
-              </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                💳
-              </div>
-            </div>
-            <div className="flex items-center mt-4">
-              <span className="text-sm font-medium text-green-600">↗️ 15.3% from last period</span>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg border border-purple-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Balance</p>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(financialData.pendingBalance)}</p>
-                <p className="text-sm text-gray-500 mt-1">Held by Stripe until payout</p>
-              </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                ⏰
-              </div>
-            </div>
-            <div className="flex items-center mt-4">
-              <span className="text-sm font-medium text-red-600">↘️ 5.1% from last period</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg border border-blue-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold mt-1">{formatNumber(financialData.totalOrders)}</p>
-                <p className="text-sm text-gray-500 mt-1">Avg. {formatCurrency(financialData.averageOrderValue)} per order</p>
-              </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                🛍️
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Revenue</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {formatCurrency(revenueData.totalRevenue)}
+                </p>
+                <p className="text-sm text-green-600">
+                  {revenueData.growthRate > 0 ? '+' : ''}{formatPercentage(revenueData.growthRate)} vs last period
+                </p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg border border-green-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Artisans</p>
-                <p className="text-2xl font-bold mt-1">{formatNumber(financialData.activeArtisans)}</p>
-                <p className="text-sm text-gray-500 mt-1">Selling this period</p>
+          {/* Commission Revenue */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <BanknotesIcon className="h-8 w-8 text-blue-600" />
               </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                👥
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Commission Revenue</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {formatCurrency(revenueData.commissionRevenue)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {formatPercentage(revenueData.commissionRate * 100)} of {revenueData.totalOrders} orders
+                </p>
               </div>
             </div>
           </div>
           
-          <div className="bg-white rounded-lg border border-amber-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Average Order Value</p>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(financialData.averageOrderValue)}</p>
-                <p className="text-sm text-gray-500 mt-1">Per transaction</p>
+          {/* Promotional Revenue */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <SparklesIcon className="h-8 w-8 text-purple-600" />
               </div>
-              <div className="p-3 bg-white rounded-full shadow-sm">
-                📈
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Promotional Revenue</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {formatCurrency(revenueData.promotionalRevenue)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Featured products & sponsored listings
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Spotlight Revenue */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <StarIcon className="h-8 w-8 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Spotlight Revenue</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {formatCurrency(revenueData.spotlightRevenue)}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Artisan spotlight subscriptions
+                </p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Revenue Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Top Categories */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Revenue Categories</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Revenue by Source */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Revenue by Source</h3>
             <div className="space-y-4">
-              {financialData.topCategories.map((category, index) => (
-                <div key={category.name} className="flex items-center justify-between">
+              {analytics.revenueBySource.map((source, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 rounded-full ${source.color} mr-3`}></div>
+                    <span className="text-sm font-medium text-gray-700">{source.name}</span>
+              </div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {formatCurrency(source.value)}
+                  </span>
+              </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Platform Metrics */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Platform Metrics</h3>
+            <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ShoppingCartIcon className="h-5 w-5 text-gray-400 mr-3" />
+                  <span className="text-sm font-medium text-gray-700">Total Orders</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">{revenueData.totalOrders}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <UsersIcon className="h-5 w-5 text-gray-400 mr-3" />
+                  <span className="text-sm font-medium text-gray-700">Active Artisans</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">{revenueData.totalArtisans}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <CurrencyDollarIcon className="h-5 w-5 text-gray-400 mr-3" />
+                  <span className="text-sm font-medium text-gray-700">Average Order Value</span>
+            </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {formatCurrency(revenueData.averageOrderValue)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <ChartBarIcon className="h-5 w-5 text-gray-400 mr-3" />
+                  <span className="text-sm font-medium text-gray-700">Commission Rate</span>
+                </div>
+                <span className="text-sm font-semibold text-gray-900">
+                  {formatPercentage(revenueData.commissionRate * 100)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Top Performing Artisans */}
+        {analytics.topArtisans.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6 mb-8">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Top Performing Artisans</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Artisan
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Revenue Generated
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Orders
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Commission Earned
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {analytics.topArtisans.slice(0, 10).map((artisan, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <BuildingStorefrontIcon className="h-8 w-8 text-gray-400 mr-3" />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {artisan.artisanName || `${artisan.firstName} ${artisan.lastName}`}
+                            </div>
+                            <div className="text-sm text-gray-500">{artisan.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(artisan.totalRevenue || 0)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {artisan.orderCount || 0}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency((artisan.totalRevenue || 0) * revenueData.commissionRate)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+          {/* Top Categories */}
+        {analytics.topCategories.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Top Revenue Categories</h3>
+            <div className="space-y-4">
+              {analytics.topCategories.slice(0, 5).map((category, index) => (
+                <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center">
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                       <span className="text-sm font-medium text-blue-600">{index + 1}</span>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{category.name}</p>
-                      <p className="text-sm text-gray-500">{formatNumber(category.orders)} orders</p>
-                    </div>
+                    <span className="text-sm font-medium text-gray-700 capitalize">
+                      {category.name?.replace(/_/g, ' ') || 'Unknown'}
+                    </span>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatCurrency(category.revenue)}</p>
-                    <p className="text-sm text-gray-500">
-                      {((category.revenue / financialData.gmv) * 100).toFixed(1)}% of GMV
-                    </p>
+                    <div className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(category.revenue || 0)}
+                  </div>
+                    <div className="text-xs text-gray-500">
+                      {category.orders || 0} orders
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+        )}
 
-          {/* Recent Transactions */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Transactions</h3>
-            <div className="space-y-3">
-              {financialData.recentTransactions.map((transaction) => (
-                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
-                    <div className={`w-2 h-2 rounded-full mr-3 ${
-                      transaction.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
-                    }`}></div>
-                    <div>
-                      <p className="font-medium text-gray-900">{transaction.artisan}</p>
-                      <p className="text-sm text-gray-500">{transaction.id} • {transaction.date}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold ${
-                      transaction.type === 'payout' ? 'text-red-600' : 'text-green-600'
-                    }`}>
-                      {transaction.type === 'payout' ? '-' : '+'}{formatCurrency(transaction.amount)}
-                    </p>
-                    <p className="text-sm text-gray-500 capitalize">{transaction.type}</p>
-                  </div>
-                </div>
-              ))}
+        {/* Revenue Transparency Note */}
+        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <EyeIcon className="h-5 w-5 text-blue-400" />
             </div>
-          </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">Revenue Transparency</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p>
+                  This platform operates on a transparent revenue model where 10% of each sale goes to platform maintenance and development, 
+                  while 90% goes directly to artisans. Additional revenue comes from promotional features and spotlight subscriptions.
+                </p>
         </div>
-
-        {/* Financial Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Commission Rate</p>
-              <p className="text-2xl font-bold text-blue-600">{(financialData.commissionRate * 100).toFixed(1)}%</p>
-              <p className="text-xs text-gray-500">Platform fee on orders</p>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600">Buyer Fee</p>
-              <p className="text-2xl font-bold text-green-600">{(financialData.buyerFee * 100).toFixed(1)}%</p>
-              <p className="text-xs text-gray-500">Additional buyer charge</p>
-            </div>
-            <div className="text-center p-4 bg-amber-50 rounded-lg">
-              <p className="text-sm text-gray-600">Payout Schedule</p>
-              <p className="text-2xl font-bold text-amber-600">7 days</p>
-              <p className="text-xs text-gray-500">Standard payout cycle</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Alerts */}
-        <div className="mt-8">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <span className="text-yellow-600 mr-2">⚠️</span>
-              <p className="text-sm text-yellow-800">
-                <strong>Pending Balance Alert:</strong> {formatCurrency(financialData.pendingBalance)} is currently held by Stripe. 
-                Next payout scheduled for September 5th, 2025.
-              </p>
             </div>
           </div>
         </div>

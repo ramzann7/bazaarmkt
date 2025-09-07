@@ -1,19 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const RevenueService = require('../services/revenueService');
+const Revenue = require('../models/revenue');
+const Order = require('../models/order');
 const PromotionalFeature = require('../models/promotionalFeature');
-const verifyToken = require('../middleware/authMiddleware');
+const ArtisanSpotlight = require('../models/artisanSpotlight');
+const Artisan = require('../models/artisan');
+const auth = require('../middleware/authMiddleware');
 const adminAuth = require('../middleware/adminAuth');
+const RevenueService = require('../services/revenueService');
 
-// Get artisan revenue summary (for artisans)
-router.get('/artisan/summary', verifyToken, async (req, res) => {
+// Middleware to check if user is admin
+const requireAdmin = [auth, adminAuth];
+
+// Get artisan revenue summary
+router.get('/artisan/summary', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({ message: 'Access denied. Artisan role required.' });
-    }
-
     const { period = 'month' } = req.query;
-    const summary = await RevenueService.getArtisanRevenueSummary(req.user._id, period);
+    const artisanId = req.user._id;
+
+    const summary = await RevenueService.getArtisanRevenueSummary(artisanId, period);
     
     res.json({
       success: true,
@@ -21,24 +26,18 @@ router.get('/artisan/summary', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting artisan revenue summary:', error);
-    res.status(500).json({ message: 'Error retrieving revenue summary' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching revenue summary'
+    });
   }
 });
 
-// Get detailed revenue breakdown for an order (transparency)
-router.get('/breakdown/:orderId', verifyToken, async (req, res) => {
+// Get revenue breakdown for a specific order
+router.get('/breakdown/:orderId', auth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    
-    // Check if user is the artisan or patron for this order
     const breakdown = await RevenueService.getRevenueBreakdown(orderId);
-    
-    // Verify user has access to this order
-    if (req.user.role !== 'admin' && 
-        breakdown.artisan.id !== req.user._id.toString() && 
-        breakdown.patron.id !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
     
     res.json({
       success: true,
@@ -46,17 +45,16 @@ router.get('/breakdown/:orderId', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting revenue breakdown:', error);
-    res.status(500).json({ message: 'Error retrieving revenue breakdown' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching revenue breakdown'
+    });
   }
 });
 
 // Get available promotional features
-router.get('/promotional/features', verifyToken, async (req, res) => {
+router.get('/promotional/features', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({ message: 'Access denied. Artisan role required.' });
-    }
-
     const features = await RevenueService.getAvailablePromotionalFeatures();
     
     res.json({
@@ -65,61 +63,43 @@ router.get('/promotional/features', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting promotional features:', error);
-    res.status(500).json({ message: 'Error retrieving promotional features' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching promotional features'
+    });
   }
 });
 
 // Purchase promotional feature
-router.post('/promotional/purchase', verifyToken, async (req, res) => {
+router.post('/promotional/purchase', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({ message: 'Access denied. Artisan role required.' });
-    }
-
-    const {
-      featureType,
-      productId,
-      startDate,
-      endDate,
-      price,
-      paymentMethod,
-      specifications
-    } = req.body;
-
     const featureData = {
-      artisanId: req.user._id,
-      productId,
-      featureType,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      price,
-      paymentMethod,
-      specifications,
-      status: 'pending_approval'
+      ...req.body,
+      artisanId: req.user._id
     };
 
     const feature = await RevenueService.createPromotionalFeature(featureData);
     
-    res.status(201).json({
+    res.json({
       success: true,
-      message: 'Promotional feature purchase request submitted',
-      data: feature
+      data: feature,
+      message: 'Promotional feature purchased successfully'
     });
   } catch (error) {
     console.error('Error purchasing promotional feature:', error);
-    res.status(500).json({ message: 'Error processing promotional feature purchase' });
+    res.status(500).json({
+      success: false,
+      message: 'Error purchasing promotional feature'
+    });
   }
 });
 
 // Get artisan's promotional features
-router.get('/promotional/artisan-features', verifyToken, async (req, res) => {
+router.get('/promotional/artisan-features', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'artisan') {
-      return res.status(403).json({ message: 'Access denied. Artisan role required.' });
-    }
-
-    const features = await PromotionalFeature.find({ artisanId: req.user._id })
-      .populate('productId', 'name price')
+    const artisanId = req.user._id;
+    const features = await PromotionalFeature.find({ artisanId })
+      .populate('productId', 'name price image')
       .sort({ createdAt: -1 });
     
     res.json({
@@ -128,12 +108,41 @@ router.get('/promotional/artisan-features', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting artisan promotional features:', error);
-    res.status(500).json({ message: 'Error retrieving promotional features' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching promotional features'
+    });
   }
 });
 
-// Admin routes for revenue management
-router.get('/admin/platform-summary', adminAuth, async (req, res) => {
+// Get transparency information
+router.get('/transparency', async (req, res) => {
+  try {
+    const transparencyInfo = {
+      commissionRate: '10%',
+      platformCommission: '10% of each sale goes to platform maintenance and development',
+      artisanEarnings: '90% of each sale goes directly to the artisan',
+      promotionalFeatures: 'Additional revenue from marketing features like featured products and spotlight',
+      transparency: 'Full breakdown available for every transaction'
+    };
+    
+    res.json({
+      success: true,
+      data: transparencyInfo
+    });
+  } catch (error) {
+    console.error('Error getting transparency info:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching transparency information'
+    });
+  }
+});
+
+// Admin routes
+
+// Get platform revenue summary (admin only)
+router.get('/admin/platform-summary', requireAdmin, async (req, res) => {
   try {
     const { period = 'month' } = req.query;
     const summary = await RevenueService.getPlatformRevenueSummary(period);
@@ -144,49 +153,172 @@ router.get('/admin/platform-summary', adminAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting platform revenue summary:', error);
-    res.status(500).json({ message: 'Error retrieving platform revenue summary' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching platform revenue summary'
+    });
   }
 });
 
-// Admin: Approve/reject promotional features
-router.patch('/admin/promotional/:featureId', adminAuth, async (req, res) => {
+// Get spotlight revenue stats (admin only)
+router.get('/spotlight/stats', requireAdmin, async (req, res) => {
   try {
-    const { featureId } = req.params;
-    const { status, rejectionReason } = req.body;
-
-    const feature = await PromotionalFeature.findById(featureId);
-    if (!feature) {
-      return res.status(404).json({ message: 'Promotional feature not found' });
-    }
-
-    feature.status = status;
-    if (status === 'approved') {
-      feature.approvedBy = req.user._id;
-      feature.approvedAt = new Date();
-    } else if (status === 'rejected') {
-      feature.rejectionReason = rejectionReason;
-    }
-
-    await feature.save();
+    const { period = '30' } = req.query;
+    const stats = await RevenueService.getSpotlightRevenueStats(period);
     
     res.json({
       success: true,
-      message: `Promotional feature ${status}`,
-      data: feature
+      data: stats
     });
   } catch (error) {
-    console.error('Error updating promotional feature:', error);
-    res.status(500).json({ message: 'Error updating promotional feature' });
+    console.error('Error getting spotlight revenue stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching spotlight revenue stats'
+    });
   }
 });
 
-// Admin: Get all promotional features
-router.get('/admin/promotional/all', adminAuth, async (req, res) => {
+// Get detailed revenue analytics (admin only)
+router.get('/admin/analytics', requireAdmin, async (req, res) => {
   try {
-    const features = await PromotionalFeature.find()
-      .populate('artisanId', 'firstName lastName artisanName')
-      .populate('productId', 'name price')
-      .populate('approvedBy', 'firstName lastName')
+    const { period = '30' } = req.query;
+    const days = parseInt(period);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get top performing artisans
+    const topArtisans = await Revenue.aggregate([
+      {
+        $match: {
+          type: 'order',
+          createdAt: { $gte: startDate },
+          status: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: '$artisanId',
+          totalRevenue: { $sum: '$grossAmount' },
+          orderCount: { $sum: 1 },
+          averageOrderValue: { $avg: '$grossAmount' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'artisan'
+        }
+      },
+      {
+        $unwind: '$artisan'
+      },
+      {
+        $project: {
+          _id: 1,
+          artisanName: '$artisan.artisanName',
+          firstName: '$artisan.firstName',
+          lastName: '$artisan.lastName',
+          email: '$artisan.email',
+          totalRevenue: 1,
+          orderCount: 1,
+          averageOrderValue: 1
+        }
+      },
+      {
+        $sort: { totalRevenue: -1 }
+      },
+      {
+        $limit: 10
+      }
+    ]);
+
+    // Get top categories by revenue
+    const topCategories = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate },
+          status: { $in: ['completed', 'delivered'] }
+        }
+      },
+      {
+        $unwind: '$items'
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.product',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $unwind: '$product'
+      },
+      {
+        $group: {
+          _id: '$product.category',
+          revenue: { $sum: '$items.price' },
+          orders: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { revenue: -1 }
+      },
+      {
+        $limit: 5
+      }
+    ]);
+
+    // Get monthly trends
+    const monthlyTrends = await Revenue.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate },
+          status: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          revenue: { $sum: '$platformCommission' },
+          orders: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        topArtisans,
+        topCategories,
+        monthlyTrends,
+        period: `${days} days`
+      }
+    });
+  } catch (error) {
+    console.error('Error getting revenue analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching revenue analytics'
+    });
+  }
+});
+
+// Get all promotional features (admin only)
+router.get('/admin/promotional/all', requireAdmin, async (req, res) => {
+  try {
+    const features = await PromotionalFeature.find({})
+      .populate('artisanId', 'artisanName firstName lastName email')
+      .populate('productId', 'name price image')
       .sort({ createdAt: -1 });
     
     res.json({
@@ -195,46 +327,44 @@ router.get('/admin/promotional/all', adminAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting all promotional features:', error);
-    res.status(500).json({ message: 'Error retrieving promotional features' });
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching promotional features'
+    });
   }
 });
 
-// Revenue transparency information
-router.get('/transparency', async (req, res) => {
+// Approve/reject promotional feature (admin only)
+router.patch('/admin/promotional/:featureId', requireAdmin, async (req, res) => {
   try {
-    const transparencyInfo = {
-      commissionStructure: {
-        platformCommission: '10%',
-        artisanEarnings: '90%',
-        description: 'For every sale, artisans receive 90% of the total amount while 10% goes to platform maintenance and development.'
-      },
-      promotionalFeatures: {
-        description: 'Artisans can purchase additional promotional features to increase visibility and sales.',
-        availableFeatures: [
-          'Featured Product ($25/7 days)',
-          'Sponsored Product ($50/14 days)',
-          'Artisan Spotlight ($100/30 days)',
-          'Search Boost ($35/21 days)'
-        ]
-      },
-      paymentProcessing: {
-        description: 'All payments are processed securely through Stripe with transparent fee structure.',
-        processingFees: 'Standard Stripe processing fees apply (2.9% + 30¢ per transaction)'
-      },
-      settlement: {
-        description: 'Artisan earnings are settled weekly via direct deposit or PayPal.',
-        minimumPayout: '$25',
-        processingTime: '3-5 business days'
-      }
-    };
-    
+    const { featureId } = req.params;
+    const { status } = req.body;
+    const adminUser = req.user;
+
+    const feature = await PromotionalFeature.findById(featureId);
+    if (!feature) {
+      return res.status(404).json({
+        success: false,
+        message: 'Promotional feature not found'
+      });
+    }
+
+    feature.status = status;
+    feature.approvedBy = adminUser._id;
+    feature.approvedAt = new Date();
+    await feature.save();
+
     res.json({
       success: true,
-      data: transparencyInfo
+      data: feature,
+      message: `Promotional feature ${status} successfully`
     });
   } catch (error) {
-    console.error('Error getting transparency information:', error);
-    res.status(500).json({ message: 'Error retrieving transparency information' });
+    console.error('Error updating promotional feature:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating promotional feature'
+    });
   }
 });
 

@@ -1492,8 +1492,10 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
 // Update product (requires authentication and ownership)
 router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
   try {
-    console.log('Updating product with data:', req.body);
-    console.log('File:', req.file);
+    console.log('🔍 Updating product with data:', req.body);
+    console.log('🔍 File:', req.file);
+    console.log('🔍 Product ID:', req.params.id);
+    console.log('🔍 User ID:', req.user?._id);
     
     const product = await Product.findById(req.params.id);
     
@@ -1631,8 +1633,16 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     
     res.json(product);
   } catch (error) {
-    console.error('Error updating product:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error updating product:', error);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Product data being updated:', req.body);
+    console.error('❌ Product ID:', req.params.id);
+    res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 

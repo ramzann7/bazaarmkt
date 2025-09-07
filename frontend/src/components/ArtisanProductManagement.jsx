@@ -64,13 +64,18 @@ export default function ArtisanProductManagement() {
 
   const handleSaveProduct = async (productData) => {
     try {
+      console.log('🔍 Saving product with data:', productData);
+      console.log('🔍 Selected product ID:', selectedProduct?._id);
+      
       if (selectedProduct) {
         // Update existing product
+        console.log('🔍 Updating existing product...');
         const updatedProduct = await productService.updateProduct(selectedProduct._id, productData);
         setProducts(products.map(p => p._id === selectedProduct._id ? updatedProduct : p));
         toast.success('Product updated successfully!');
       } else {
         // Add new product
+        console.log('🔍 Creating new product...');
         const newProduct = await productService.createProduct(productData);
         setProducts([...products, newProduct]);
         toast.success('Product added successfully!');
@@ -78,8 +83,10 @@ export default function ArtisanProductManagement() {
       setShowProductModal(false);
       setSelectedProduct(null);
     } catch (error) {
-      console.error('Error saving product:', error);
-      toast.error('Failed to save product');
+      console.error('❌ Error saving product:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      toast.error(`Failed to save product: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -987,11 +994,18 @@ const ProductForm = ({ product, onSave, onCancel }) => {
       }),
       ...(formData.productType === 'scheduled_order' && {
         scheduleType: formData.scheduleType || 'daily',
-        scheduleDetails: formData.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
-        nextAvailableDate: formData.nextAvailableDate || '',
+        scheduleDetails: {
+          frequency: formData.scheduleDetails?.frequency || 'every_day',
+          customSchedule: formData.scheduleDetails?.customSchedule || [],
+          orderCutoffHours: formData.scheduleDetails?.orderCutoffHours || 24
+        },
+        nextAvailableDate: formData.nextAvailableDate || new Date().toISOString().split('T')[0],
         availableQuantity: parseInt(formData.availableQuantity) || 1
       })
     };
+    
+    console.log('🔍 Form data before filtering:', formData);
+    console.log('🔍 Filtered data being sent:', filteredData);
     
     onSave(filteredData);
   };

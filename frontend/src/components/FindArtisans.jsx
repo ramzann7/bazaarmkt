@@ -9,7 +9,8 @@ import {
   SparklesIcon,
   FunnelIcon,
   EyeIcon,
-  HeartIcon
+  HeartIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useNavigate } from 'react-router-dom';

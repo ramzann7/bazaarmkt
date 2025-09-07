@@ -187,7 +187,7 @@ router.get('/products/sponsored', async (req, res) => {
                         $size: {
                           $setIntersection: [
                             '$specifications.searchKeywords',
-                            searchQuery.toLowerCase().split(' ')
+                            (searchQuery || '').toLowerCase().split(' ')
                           ]
                         }
                       },

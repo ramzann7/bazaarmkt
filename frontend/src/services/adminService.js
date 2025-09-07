@@ -209,9 +209,13 @@ export const getAnalytics = async (period = 30) => {
 // Get promotional statistics
 export const getPromotionalStats = async (period = 30) => {
   try {
+    const token = localStorage.getItem('token');
+    console.log('🔍 getPromotionalStats - Token:', { hasToken: !!token, tokenLength: token?.length });
+    console.log('🔍 getPromotionalStats - URL:', `${API_URL}/admin/promotional/stats?period=${period}`);
+    
     const response = await axios.get(`${API_URL}/admin/promotional/stats?period=${period}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       }
     });
     return response.data;

@@ -50,22 +50,29 @@ export default function AdminPromotionalDashboard() {
   const checkAdminAccess = async () => {
     try {
       const token = authToken.getToken();
+      console.log('🔍 Admin token check:', { hasToken: !!token, tokenLength: token?.length });
+      
       if (!token) {
+        console.log('🔍 No token found, redirecting to login');
         navigate('/login');
         return;
       }
 
       const profile = await getProfile();
+      console.log('🔍 Profile loaded:', { email: profile?.email, role: profile?.role });
+      
       if (profile.role !== 'admin') {
+        console.log('🔍 User is not admin, redirecting');
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
         return;
       }
 
+      console.log('🔍 Admin access confirmed');
       setCurrentUser(profile);
       setAuthChecked(true);
     } catch (error) {
-      console.error('Error checking admin access:', error);
+      console.error('🔍 Error checking admin access:', error);
       toast.error('Authentication error');
       navigate('/login');
     }
@@ -75,6 +82,10 @@ export default function AdminPromotionalDashboard() {
     try {
       setIsLoading(true);
       setError(null);
+      
+      console.log('🔍 Loading promotional data...');
+      const token = authToken.getToken();
+      console.log('🔍 Token for API calls:', { hasToken: !!token, tokenLength: token?.length });
       
       const [stats, promotions, pricing] = await Promise.all([
         adminService.getPromotionalStats(selectedPeriod),
@@ -121,9 +132,9 @@ export default function AdminPromotionalDashboard() {
       
       // Check if it's an authentication error
       if (error.response?.status === 401) {
-        setError('Authentication required. Please log in as an admin.');
+        setError('Authentication required. Please log in as an admin user to access the promotional dashboard.');
         toast.error('Please log in as an admin to access promotional dashboard');
-        navigate('/login');
+        // Don't redirect immediately, let user see the error message
         return;
       }
       

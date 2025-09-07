@@ -6,6 +6,8 @@ const Artisan = require('../models/artisan');
 const User = require('../models/user');
 const adminAuth = require('../middleware/adminAuth');
 const { logAdminAction } = require('../utils/adminAuditLogger');
+const { paginationMiddleware, paginatedResponse } = require('../middleware/pagination');
+const { validate, promotionalPricingSchema } = require('../middleware/validation');
 
 // Get promotional statistics
 router.get('/stats', adminAuth, async (req, res) => {
@@ -62,9 +64,11 @@ router.get('/stats', adminAuth, async (req, res) => {
   }
 });
 
-// Get active promotions with details
-router.get('/active', adminAuth, async (req, res) => {
+// Get active promotions with details (paginated)
+router.get('/active', adminAuth, paginationMiddleware, async (req, res) => {
   try {
+    const { page, limit, skip } = req.pagination;
+    
     const promotions = await PromotionalFeature.find({
       isActive: true,
       startDate: { $lte: new Date() },
@@ -72,9 +76,18 @@ router.get('/active', adminAuth, async (req, res) => {
     })
     .populate('artisanId', 'firstName lastName email')
     .populate('productId', 'name price')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean(); // Use lean() for better performance
 
-    res.json(promotions);
+    const total = await PromotionalFeature.countDocuments({
+      isActive: true,
+      startDate: { $lte: new Date() },
+      endDate: { $gte: new Date() }
+    });
+
+    res.json(paginatedResponse(promotions, total, req.pagination));
   } catch (error) {
     console.error('Error fetching active promotions:', error);
     res.status(500).json({ message: 'Error fetching active promotions' });
@@ -93,7 +106,7 @@ router.get('/pricing', adminAuth, async (req, res) => {
 });
 
 // Update promotional pricing
-router.put('/pricing', adminAuth, async (req, res) => {
+router.put('/pricing', adminAuth, validate(promotionalPricingSchema), async (req, res) => {
   try {
     const { featureType, name, description, basePrice, pricePerDay, benefits } = req.body;
     const adminUser = req.user;
@@ -173,8 +186,8 @@ router.put('/pricing', adminAuth, async (req, res) => {
   }
 });
 
-// Get promotional feature analytics
-router.get('/analytics', adminAuth, async (req, res) => {
+// Get promotional feature analytics (paginated)
+router.get('/analytics', adminAuth, paginationMiddleware, async (req, res) => {
   try {
     const { period = 30 } = req.query;
     const days = parseInt(period);
@@ -222,7 +235,8 @@ router.get('/analytics', adminAuth, async (req, res) => {
       }
     ]);
 
-    // Top performing artisans
+    // Top performing artisans (paginated)
+    const { page, limit, skip } = req.pagination;
     const topArtisans = await PromotionalFeature.aggregate([
       {
         $match: {
@@ -252,14 +266,35 @@ router.get('/analytics', adminAuth, async (req, res) => {
         $sort: { totalSpent: -1 }
       },
       {
-        $limit: 10
+        $skip: skip
+      },
+      {
+        $limit: limit
+      }
+    ]);
+
+    // Get total count for pagination
+    const totalArtisans = await PromotionalFeature.aggregate([
+      {
+        $match: {
+          paymentStatus: 'paid',
+          paymentDate: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: '$artisanId'
+        }
+      },
+      {
+        $count: 'total'
       }
     ]);
 
     res.json({
       featureTypeStats,
       dailyRevenue,
-      topArtisans
+      topArtisans: paginatedResponse(topArtisans, totalArtisans[0]?.total || 0, req.pagination)
     });
   } catch (error) {
     console.error('Error fetching promotional analytics:', error);

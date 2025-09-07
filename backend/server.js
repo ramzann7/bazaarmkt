@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const compression = require('compression');
 const dotenv = require('dotenv');
 const path = require('path');
 
@@ -10,6 +11,7 @@ dotenv.config();
 const app = express();
 
 // Middleware
+app.use(compression()); // Enable gzip compression
 app.use(cors({
   origin: ['http://localhost:5180', 'http://localhost:3000', 'http://localhost:5173'],
   credentials: true,

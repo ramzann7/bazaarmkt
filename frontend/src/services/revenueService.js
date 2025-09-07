@@ -62,11 +62,12 @@ class RevenueService {
   async getAvailablePromotionalFeatures() {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/features`, {
+      const response = await fetch(`${API_BASE_URL}/revenue/promotional/features?t=${Date.now()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
 

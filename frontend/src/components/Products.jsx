@@ -123,7 +123,118 @@ export default function Products() {
     }
   })();
 
-  const units = ['piece', 'kg', 'lb', 'g', 'oz', 'dozen', 'bunch', 'pack', 'bottle', 'jar'];
+  // Comprehensive unit options organized by category
+  const unitCategories = {
+    'Count/Quantity': [
+      { value: 'piece', label: 'Piece' },
+      { value: 'item', label: 'Item' },
+      { value: 'unit', label: 'Unit' },
+      { value: 'each', label: 'Each' },
+      { value: 'dozen', label: 'Dozen' },
+      { value: 'half_dozen', label: 'Half Dozen' },
+      { value: 'gross', label: 'Gross (144)' }
+    ],
+    'Weight (Metric)': [
+      { value: 'kg', label: 'Kilogram (kg)' },
+      { value: 'g', label: 'Gram (g)' },
+      { value: 'mg', label: 'Milligram (mg)' },
+      { value: 'tonne', label: 'Tonne' }
+    ],
+    'Weight (Imperial)': [
+      { value: 'lb', label: 'Pound (lb)' },
+      { value: 'oz', label: 'Ounce (oz)' },
+      { value: 'ton', label: 'Ton' }
+    ],
+    'Volume (Metric)': [
+      { value: 'liter', label: 'Liter (L)' },
+      { value: 'ml', label: 'Milliliter (ml)' },
+      { value: 'cl', label: 'Centiliter (cl)' },
+      { value: 'dl', label: 'Deciliter (dl)' }
+    ],
+    'Volume (Imperial)': [
+      { value: 'gallon', label: 'Gallon' },
+      { value: 'quart', label: 'Quart' },
+      { value: 'pint', label: 'Pint' },
+      { value: 'cup', label: 'Cup' },
+      { value: 'fl_oz', label: 'Fluid Ounce (fl oz)' },
+      { value: 'tbsp', label: 'Tablespoon (tbsp)' },
+      { value: 'tsp', label: 'Teaspoon (tsp)' }
+    ],
+    'Length': [
+      { value: 'meter', label: 'Meter (m)' },
+      { value: 'cm', label: 'Centimeter (cm)' },
+      { value: 'mm', label: 'Millimeter (mm)' },
+      { value: 'inch', label: 'Inch' },
+      { value: 'foot', label: 'Foot' },
+      { value: 'yard', label: 'Yard' }
+    ],
+    'Area': [
+      { value: 'sq_meter', label: 'Square Meter (m²)' },
+      { value: 'sq_cm', label: 'Square Centimeter (cm²)' },
+      { value: 'sq_inch', label: 'Square Inch' },
+      { value: 'sq_foot', label: 'Square Foot' }
+    ],
+    'Food & Beverage': [
+      { value: 'bottle', label: 'Bottle' },
+      { value: 'can', label: 'Can' },
+      { value: 'jar', label: 'Jar' },
+      { value: 'bag', label: 'Bag' },
+      { value: 'box', label: 'Box' },
+      { value: 'pack', label: 'Pack' },
+      { value: 'case', label: 'Case' },
+      { value: 'carton', label: 'Carton' },
+      { value: 'bunch', label: 'Bunch' },
+      { value: 'head', label: 'Head' },
+      { value: 'clove', label: 'Clove' },
+      { value: 'slice', label: 'Slice' },
+      { value: 'serving', label: 'Serving' },
+      { value: 'portion', label: 'Portion' },
+      { value: 'loaf', label: 'Loaf' },
+      { value: 'roll', label: 'Roll' },
+      { value: 'bun', label: 'Bun' },
+      { value: 'muffin', label: 'Muffin' },
+      { value: 'cookie', label: 'Cookie' },
+      { value: 'cake', label: 'Cake' }
+    ],
+    'Liquid Containers': [
+      { value: 'bottle_ml', label: 'Bottle (ml)' },
+      { value: 'bottle_l', label: 'Bottle (L)' },
+      { value: 'can_ml', label: 'Can (ml)' },
+      { value: 'can_l', label: 'Can (L)' }
+    ],
+    'Bulk/Wholesale': [
+      { value: 'pallet', label: 'Pallet' },
+      { value: 'crate', label: 'Crate' },
+      { value: 'barrel', label: 'Barrel' },
+      { value: 'drum', label: 'Drum' }
+    ],
+    'Time-based': [
+      { value: 'hour', label: 'Hour' },
+      { value: 'day', label: 'Day' },
+      { value: 'week', label: 'Week' },
+      { value: 'month', label: 'Month' },
+      { value: 'session', label: 'Session' }
+    ],
+    'Custom/Artisan': [
+      { value: 'set', label: 'Set' },
+      { value: 'pair', label: 'Pair' },
+      { value: 'collection', label: 'Collection' },
+      { value: 'batch', label: 'Batch' },
+      { value: 'lot', label: 'Lot' }
+    ]
+  };
+
+  // Flatten all units for backward compatibility
+  const units = Object.values(unitCategories).flat().map(unit => unit.value);
+
+  // Helper function to get unit label
+  const getUnitLabel = (unitValue) => {
+    for (const category of Object.values(unitCategories)) {
+      const unit = category.find(u => u.value === unitValue);
+      if (unit) return unit.label;
+    }
+    return unitValue; // Fallback to the value itself
+  };
 
   // Helper function to get image URL
   const getImageUrl = (imagePath) => {
@@ -949,7 +1060,7 @@ export default function Products() {
                         <div className="text-right">
                           {product.productType === 'ready_to_ship' && (
                             <span className="text-sm text-gray-500">
-                              Stock: {product.stock} {product.unit}
+                              Stock: {product.stock} {getUnitLabel(product.unit)}
                             </span>
                           )}
                           {product.productType === 'made_to_order' && (
@@ -959,14 +1070,14 @@ export default function Products() {
                           )}
                           {product.productType === 'scheduled_order' && (
                             <span className="text-sm text-gray-500">
-                              Available: {product.availableQuantity} {product.unit}
+                              Available: {product.availableQuantity} {getUnitLabel(product.unit)}
                             </span>
                           )}
                         </div>
                       </div>
                       {product.soldCount > 0 && (
                         <div className="text-sm text-gray-500">
-                          Sold: {product.soldCount} {product.unit}
+                          Sold: {product.soldCount} {getUnitLabel(product.unit)}
                         </div>
                       )}
                     </div>
@@ -1044,7 +1155,7 @@ export default function Products() {
                               onChange={(e) => handleUpdateStock(product._id, e.target.value)}
                               className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 focus:border-transparent"
                             />
-                            <span className="text-sm text-gray-600">{product.unit}</span>
+                            <span className="text-sm text-gray-600">{getUnitLabel(product.unit)}</span>
                           </div>
                         )}
                         {product.productType === 'made_to_order' && (
@@ -1283,16 +1394,15 @@ export default function Products() {
                             onChange={(e) => setEditingProduct({...editingProduct, unit: e.target.value})}
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                           >
-                            <option value="piece">Piece</option>
-                            <option value="kg">Kilogram</option>
-                            <option value="lb">Pound</option>
-                            <option value="g">Gram</option>
-                            <option value="oz">Ounce</option>
-                            <option value="l">Liter</option>
-                            <option value="ml">Milliliter</option>
-                            <option value="dozen">Dozen</option>
-                            <option value="pack">Pack</option>
-                            <option value="bundle">Bundle</option>
+                            {Object.entries(unitCategories).map(([category, units]) => (
+                              <optgroup key={category} label={category}>
+                                {units.map(unit => (
+                                  <option key={unit.value} value={unit.value}>
+                                    {unit.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
                           </select>
                         </div>
                         
@@ -2070,16 +2180,15 @@ export default function Products() {
                         onChange={(e) => setNewProduct({...newProduct, unit: e.target.value})}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                       >
-                        <option value="piece">Piece</option>
-                        <option value="kg">Kilogram</option>
-                        <option value="lb">Pound</option>
-                        <option value="g">Gram</option>
-                        <option value="oz">Ounce</option>
-                        <option value="l">Liter</option>
-                        <option value="ml">Milliliter</option>
-                        <option value="dozen">Dozen</option>
-                        <option value="pack">Pack</option>
-                        <option value="bundle">Bundle</option>
+                        {Object.entries(unitCategories).map(([category, units]) => (
+                          <optgroup key={category} label={category}>
+                            {units.map(unit => (
+                              <option key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
                       </select>
                     </div>
                     

@@ -111,7 +111,45 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: true,
     default: 'piece',
-    enum: ['piece', 'kg', 'lb', 'g', 'oz', 'dozen', 'bunch', 'pack', 'bottle', 'jar']
+    enum: [
+      // Count/Quantity Units
+      'piece', 'item', 'unit', 'each', 'dozen', 'half_dozen', 'gross',
+      
+      // Weight Units (Metric)
+      'kg', 'g', 'mg', 'tonne',
+      
+      // Weight Units (Imperial)
+      'lb', 'oz', 'ton',
+      
+      // Volume Units (Metric)
+      'liter', 'ml', 'cl', 'dl',
+      
+      // Volume Units (Imperial)
+      'gallon', 'quart', 'pint', 'cup', 'fl_oz', 'tbsp', 'tsp',
+      
+      // Length Units
+      'meter', 'cm', 'mm', 'inch', 'foot', 'yard',
+      
+      // Area Units
+      'sq_meter', 'sq_cm', 'sq_inch', 'sq_foot',
+      
+      // Food & Beverage Specific
+      'bottle', 'can', 'jar', 'bag', 'box', 'pack', 'case', 'carton',
+      'bunch', 'head', 'clove', 'slice', 'serving', 'portion',
+      'loaf', 'roll', 'bun', 'muffin', 'cookie', 'cake',
+      
+      // Liquid Containers
+      'bottle_ml', 'bottle_l', 'can_ml', 'can_l',
+      
+      // Bulk/Wholesale
+      'pallet', 'crate', 'barrel', 'drum',
+      
+      // Time-based (for services)
+      'hour', 'day', 'week', 'month', 'session',
+      
+      // Custom/Artisan
+      'set', 'pair', 'collection', 'batch', 'lot'
+    ]
   },
   soldCount: {
     type: Number,

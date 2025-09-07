@@ -64,6 +64,7 @@ export default function Products() {
       orderCutoffHours: 24
     },
     nextAvailableDate: '',
+    availableQuantity: 1,
     
     // Common Fields
     tags: [],
@@ -372,7 +373,8 @@ export default function Products() {
         ...(newProduct.productType === 'scheduled_order' && {
           scheduleType: newProduct.scheduleType,
           scheduleDetails: newProduct.scheduleDetails,
-          nextAvailableDate: newProduct.nextAvailableDate
+          nextAvailableDate: newProduct.nextAvailableDate,
+          availableQuantity: parseInt(newProduct.availableQuantity)
         })
         // Keep image as File object if it exists, let createProduct handle the upload
       };
@@ -410,6 +412,7 @@ export default function Products() {
           orderCutoffHours: 24
         },
         nextAvailableDate: '',
+        availableQuantity: 1,
         
         // Common Fields
         tags: [],
@@ -529,6 +532,7 @@ export default function Products() {
         orderCutoffHours: product.scheduleDetails?.orderCutoffHours || 24
       },
       nextAvailableDate: product.nextAvailableDate ? new Date(product.nextAvailableDate).toISOString().split('T')[0] : '',
+      availableQuantity: product.availableQuantity || 1,
       
       // Ensure all dietary preferences are initialized
       isOrganic: product.isOrganic || false,
@@ -579,7 +583,8 @@ export default function Products() {
         ...(editingProduct.productType === 'scheduled_order' && {
           scheduleType: editingProduct.scheduleType,
           scheduleDetails: editingProduct.scheduleDetails,
-          nextAvailableDate: editingProduct.nextAvailableDate
+          nextAvailableDate: editingProduct.nextAvailableDate,
+          availableQuantity: parseInt(editingProduct.availableQuantity)
         }),
         
         // Include all dietary preferences
@@ -638,12 +643,14 @@ export default function Products() {
         updated.scheduleType = 'daily';
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
+        updated.availableQuantity = 1;
       } else if (value === 'made_to_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
         updated.scheduleType = 'daily';
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
+        updated.availableQuantity = 1;
       } else if (value === 'scheduled_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
@@ -671,12 +678,14 @@ export default function Products() {
         updated.scheduleType = 'daily';
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
+        updated.availableQuantity = 1;
       } else if (value === 'made_to_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
         updated.scheduleType = 'daily';
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
+        updated.availableQuantity = 1;
       } else if (value === 'scheduled_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
@@ -950,7 +959,7 @@ export default function Products() {
                           )}
                           {product.productType === 'scheduled_order' && (
                             <span className="text-sm text-gray-500">
-                              Next: {new Date(product.nextAvailableDate).toLocaleDateString()}
+                              Available: {product.availableQuantity} {product.unit}
                             </span>
                           )}
                         </div>
@@ -1428,6 +1437,21 @@ export default function Products() {
                               placeholder="24"
                             />
                             <p className="text-xs text-gray-500 mt-1">How many hours before production to stop taking orders</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Available Quantity <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              required
+                              value={editingProduct.availableQuantity || 1}
+                              onChange={(e) => setEditingProduct({...editingProduct, availableQuantity: e.target.value})}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                              placeholder="1"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">How many items you will make for this scheduled production</p>
                           </div>
                         </div>
                       )}
@@ -2201,6 +2225,21 @@ export default function Products() {
                           placeholder="24"
                         />
                         <p className="text-xs text-gray-500 mt-1">How many hours before production to stop taking orders</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Available Quantity <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={newProduct.availableQuantity}
+                          onChange={(e) => setNewProduct({...newProduct, availableQuantity: e.target.value})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="1"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">How many items you will make for this scheduled production</p>
                       </div>
                     </div>
                   )}

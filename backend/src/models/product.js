@@ -68,6 +68,14 @@ const productSchema = new mongoose.Schema({
     default: 10
   },
   
+  // Available quantity for scheduled orders (inventory to be made)
+  availableQuantity: {
+    type: Number,
+    required: function() { return this.productType === 'scheduled_order'; },
+    min: 1,
+    default: 1
+  },
+  
   // Scheduled Order Product Fields
   scheduleType: {
     type: String,
@@ -247,6 +255,9 @@ productSchema.pre('save', function(next) {
     }
     if (!this.scheduleType) {
       return next(new Error('Scheduled order products must have schedule type'));
+    }
+    if (!this.availableQuantity || this.availableQuantity < 1) {
+      return next(new Error('Scheduled order products must have available quantity'));
     }
   }
   

@@ -690,7 +690,7 @@ router.get('/financial-dashboard', verifyToken, async (req, res) => {
     const orders = await Order.find({
       createdAt: { $gte: startDate, $lte: now },
       status: { $in: ['completed', 'delivered'] }
-    }).populate('buyer seller');
+    }).populate('patron artisan');
 
     // Calculate financial metrics
     let gmv = 0;

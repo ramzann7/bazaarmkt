@@ -924,7 +924,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     productType: product?.productType || 'ready_to_ship',
     category: product?.category || 'food_beverages',
     subcategory: product?.subcategory || 'baked_goods',
-    stock: product?.stock || '',
+    stock: product?.stock || 0,
     weight: product?.weight || '',
     dimensions: product?.dimensions || '',
     allergens: product?.allergens || '',
@@ -940,9 +940,9 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     isHalal: product?.isHalal || false,
     preparationTime: product?.preparationTime || '',
     // Made to Order specific fields
-    leadTime: product?.leadTime || '',
+    leadTime: product?.leadTime || 1,
     leadTimeUnit: product?.leadTimeUnit || 'days',
-    maxOrderQuantity: product?.maxOrderQuantity || '',
+    maxOrderQuantity: product?.maxOrderQuantity || 10,
     // Scheduled specific fields
     scheduleType: product?.scheduleType || 'daily',
     scheduleDetails: product?.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
@@ -957,7 +957,43 @@ const ProductForm = ({ product, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // Filter formData to only include fields that the backend expects
+    const filteredData = {
+      name: formData.name,
+      description: formData.description,
+      price: formData.price,
+      category: formData.category,
+      subcategory: formData.subcategory,
+      productType: formData.productType,
+      unit: formData.unit,
+      weight: formData.weight,
+      status: formData.status,
+      isOrganic: formData.isOrganic,
+      isGlutenFree: formData.isGlutenFree,
+      isVegan: formData.isVegan,
+      isDairyFree: formData.isDairyFree,
+      isNutFree: formData.isNutFree,
+      isKosher: formData.isKosher,
+      isHalal: formData.isHalal,
+      // Product type specific fields
+      ...(formData.productType === 'ready_to_ship' && {
+        stock: parseInt(formData.stock) || 0
+      }),
+      ...(formData.productType === 'made_to_order' && {
+        leadTime: parseInt(formData.leadTime) || 1,
+        leadTimeUnit: formData.leadTimeUnit || 'days',
+        maxOrderQuantity: parseInt(formData.maxOrderQuantity) || 10
+      }),
+      ...(formData.productType === 'scheduled_order' && {
+        scheduleType: formData.scheduleType || 'daily',
+        scheduleDetails: formData.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+        nextAvailableDate: formData.nextAvailableDate || '',
+        availableQuantity: parseInt(formData.availableQuantity) || 1
+      })
+    };
+    
+    onSave(filteredData);
   };
 
   const handleChange = (e) => {

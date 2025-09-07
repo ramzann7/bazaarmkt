@@ -1125,11 +1125,11 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           
           <div
             className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
-              formData.productType === 'scheduled'
+              formData.productType === 'scheduled_order'
                 ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
                 : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
             }`}
-            onClick={() => setFormData({...formData, productType: 'scheduled'})}
+            onClick={() => setFormData({...formData, productType: 'scheduled_order'})}
           >
             <div className="text-center">
               <CalendarIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
@@ -1424,7 +1424,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         </div>
       )}
 
-      {formData.productType === 'scheduled' && (
+      {formData.productType === 'scheduled_order' && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-6">
           <h4 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
             <CalendarIcon className="w-5 h-5 mr-2" />

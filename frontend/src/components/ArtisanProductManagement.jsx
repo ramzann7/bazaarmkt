@@ -14,7 +14,7 @@ import {
   CalendarIcon,
   WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
-import { authToken, getProfile } from '../services/authService';
+import { authToken, getProfile } from '../services/authservice';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { promotionalService } from '../services/promotionalService';
@@ -944,10 +944,10 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     leadTimeUnit: product?.leadTimeUnit || 'days',
     maxOrderQuantity: product?.maxOrderQuantity || '',
     // Scheduled specific fields
-    scheduledDate: product?.scheduledDate || '',
-    scheduledTime: product?.scheduledTime || '',
-    scheduledQuantity: product?.scheduledQuantity || '',
-    scheduledLocation: product?.scheduledLocation || ''
+    scheduleType: product?.scheduleType || 'daily',
+    scheduleDetails: product?.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+    nextAvailableDate: product?.nextAvailableDate || '',
+    availableQuantity: product?.availableQuantity || 1
   });
 
   // Image upload state
@@ -1383,12 +1383,12 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Production Date *
+                Next Available Date *
               </label>
               <input
                 type="date"
-                name="scheduledDate"
-                value={formData.scheduledDate}
+                name="nextAvailableDate"
+                value={formData.nextAvailableDate}
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
@@ -1396,16 +1396,20 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Production Time *
+                Schedule Type *
               </label>
-              <input
-                type="time"
-                name="scheduledTime"
-                value={formData.scheduledTime}
+              <select
+                name="scheduleType"
+                value={formData.scheduleType}
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-              />
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="custom">Custom Schedule</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1413,8 +1417,8 @@ const ProductForm = ({ product, onSave, onCancel }) => {
               </label>
               <input
                 type="number"
-                name="scheduledQuantity"
-                value={formData.scheduledQuantity}
+                name="availableQuantity"
+                value={formData.availableQuantity}
                 onChange={handleChange}
                 min="1"
                 required
@@ -1427,18 +1431,28 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Production Location
+                Order Cut-off (Hours)
               </label>
               <input
-                type="text"
-                name="scheduledLocation"
-                value={formData.scheduledLocation}
-                onChange={handleChange}
+                type="number"
+                name="orderCutoffHours"
+                value={formData.scheduleDetails?.orderCutoffHours || 24}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setFormData(prev => ({
+                    ...prev,
+                    scheduleDetails: {
+                      ...prev.scheduleDetails,
+                      orderCutoffHours: value
+                    }
+                  }));
+                }}
+                min="1"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                placeholder="e.g., Main Kitchen, Workshop"
+                placeholder="24"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Where the product will be made (optional)
+                How many hours before production to stop taking orders
               </p>
             </div>
           </div>

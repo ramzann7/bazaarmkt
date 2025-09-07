@@ -426,16 +426,48 @@ export const cartService = {
     try {
       // If userId is explicitly null, treat as guest user
       if (userId === null) {
-        const cart = cartService.getCart(null);
-        return cart.reduce((count, item) => count + item.quantity, 0);
+        const guestCartKey = getGuestCartKey();
+        
+        // Check cache first
+        const cacheKey = `guest_${guestCartKey}`;
+        const cached = cartCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
+          return cached.data.reduce((count, item) => count + item.quantity, 0);
+        }
+        
+        // Get from localStorage directly without full cart processing
+        const guestCart = localStorage.getItem(guestCartKey);
+        if (!guestCart) return 0;
+        
+        const cartData = JSON.parse(guestCart);
+        return cartData.reduce((count, item) => count + item.quantity, 0);
       }
       
       // If no userId provided, try to get it from token
       if (!userId) {
         userId = getCurrentUserId();
       }
-      const cart = cartService.getCart(userId);
-      return cart.reduce((count, item) => count + item.quantity, 0);
+      
+      if (!userId) {
+        // No user ID available, return 0
+        return 0;
+      }
+      
+      const cartKey = getCartKey(userId);
+      
+      // Check cache first
+      const cacheKey = `user_${cartKey}`;
+      const cached = cartCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
+        return cached.data.reduce((count, item) => count + item.quantity, 0);
+      }
+      
+      // Get from localStorage directly without full cart processing
+      const userCart = localStorage.getItem(cartKey);
+      if (!userCart) return 0;
+      
+      const cartData = JSON.parse(userCart);
+      return cartData.reduce((count, item) => count + item.quantity, 0);
     } catch (error) {
       console.error('Error calculating cart count:', error);
       return 0;

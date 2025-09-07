@@ -1474,7 +1474,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       }),
       ...(productType === 'scheduled_order' && {
         scheduleType: scheduleType,
-        scheduleDetails: scheduleDetails ? JSON.parse(scheduleDetails) : { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+        scheduleDetails: scheduleDetails ? (typeof scheduleDetails === 'string' ? JSON.parse(scheduleDetails) : scheduleDetails) : { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
         nextAvailableDate: nextAvailableDate,
         availableQuantity: parseInt(availableQuantity)
       })

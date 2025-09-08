@@ -114,9 +114,13 @@ export const registerUser = async (userData) => {
     
     // For artisan registration, include artisan-specific data
     if (userData.role === 'artisan') {
-      userData.artisanName = `${userData.firstName} ${userData.lastName}`;
-      userData.type = 'food_beverages'; // Default type
-      userData.description = `Artisan profile for ${userData.firstName} ${userData.lastName}`;
+      // Extract artisan data from the artisanData object if it exists
+      const artisanData = userData.artisanData || {};
+      
+      // Use the artisanName from the form, or fallback to firstName + lastName
+      userData.artisanName = artisanData.artisanName || userData.artisanName || `${userData.firstName} ${userData.lastName}`;
+      userData.type = artisanData.type || userData.businessType || 'food_beverages';
+      userData.description = artisanData.description || userData.businessDescription || `Artisan profile for ${userData.firstName} ${userData.lastName}`;
     }
     
     const response = await api.post(endpoint, userData);

@@ -179,10 +179,14 @@ router.post('/register/artisan', async (req, res) => {
 
     // Create artisan profile
     const Artisan = require('../models/artisan');
+    const finalArtisanName = artisanName || `${firstName} ${lastName}`;
+    console.log('🔄 Creating artisan profile with name:', finalArtisanName);
+    console.log('🔄 Registration data:', { artisanName, firstName, lastName, type, description });
+    
     const artisan = new Artisan({
       user: user._id,
       type,
-      artisanName: artisanName || `${firstName} ${lastName}`,
+      artisanName: finalArtisanName,
       description: description || `Artisan profile for ${firstName} ${lastName}`,
       address: address || {
         street: '',
@@ -206,6 +210,7 @@ router.post('/register/artisan', async (req, res) => {
       pickupUseBusinessAddress: true
     });
     await artisan.save();
+    console.log('✅ Artisan profile created with ID:', artisan._id, 'and name:', artisan.artisanName);
 
     const token = jwt.sign(
       { userId: user._id, role: user.role },

@@ -611,6 +611,13 @@ router.get('/artisan', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Artisan profile not found' });
     }
 
+    console.log('✅ Artisan profile data:', {
+      id: artisan._id,
+      artisanName: artisan.artisanName,
+      type: artisan.type,
+      description: artisan.description,
+      user: artisan.user
+    });
     console.log('✅ Returning artisan profile for user:', req.user._id);
     res.json(artisan);
   } catch (error) {

@@ -30,6 +30,7 @@ const getGroupedSubcategories = () => {
 // Artisan-specific tab components
 export function OverviewTab({ profile, onSave, isSaving }) {
   console.log('🔄 OverviewTab profile data:', profile);
+  console.log('🔄 Profile artisanName:', profile.artisanName);
   console.log('🔄 Profile businessImage:', profile.businessImage);
   
   const [overview, setOverview] = useState({

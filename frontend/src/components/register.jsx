@@ -101,11 +101,11 @@ export default function Register() {
       
       if (formData.role === 'artisan') {
         toast.success("Artisan account created successfully! Complete your business profile to start selling.");
+        navigate("/profile"); // Redirect artisans to profile to complete business setup
       } else {
         toast.success("Account created successfully!");
+        navigate("/dashboard"); // Regular users go to dashboard
       }
-      
-      navigate("/dashboard"); // Use SmartRedirect for better user experience
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
     } finally {

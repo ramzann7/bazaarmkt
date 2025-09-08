@@ -545,6 +545,9 @@ export default function Profile() {
   const renderTabContent = () => {
     // Combine user profile and artisan profile data
     const combinedProfile = artisanProfile ? { ...profile, ...artisanProfile } : profile;
+    console.log('🔄 Profile component - profile:', profile);
+    console.log('🔄 Profile component - artisanProfile:', artisanProfile);
+    console.log('🔄 Profile component - combinedProfile:', combinedProfile);
     
     switch (activeTab) {
       // Artisan-specific tabs

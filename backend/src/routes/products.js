@@ -7,6 +7,9 @@ const mongoose = require('mongoose');
 const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
 
+// Import category validation utilities
+const { normalizeCategoryKey, normalizeSubcategoryKey } = require('../scripts/migrateCategoryData');
+
 // Food synonyms and common terms for better search matching
 const FOOD_SYNONYMS = {
   'eggs': ['egg', 'fresh eggs', 'farm eggs', 'organic eggs', 'chicken eggs'],
@@ -1401,6 +1404,25 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    // Validate and normalize category
+    const normalizedCategory = normalizeCategoryKey(category);
+    if (!normalizedCategory) {
+      return res.status(400).json({ 
+        message: `Invalid category: ${category}. Please use a valid category key.` 
+      });
+    }
+
+    // Validate and normalize subcategory if provided
+    let normalizedSubcategory = null;
+    if (subcategory) {
+      normalizedSubcategory = normalizeSubcategoryKey(normalizedCategory, subcategory);
+      if (!normalizedSubcategory) {
+        return res.status(400).json({ 
+          message: `Invalid subcategory: ${subcategory} for category: ${normalizedCategory}. Please use a valid subcategory key.` 
+        });
+      }
+    }
+
     // Validate product type specific fields
     if (productType === 'ready_to_ship' && !stock) {
       return res.status(400).json({ message: 'Stock is required for ready-to-ship products' });
@@ -1440,8 +1462,8 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       name,
       description,
       price: parseFloat(price),
-      category,
-      subcategory,
+      category: normalizedCategory,
+      subcategory: normalizedSubcategory,
       productType: productType || 'ready_to_ship',
       unit: unit || 'piece',
       weight: weight ? parseFloat(weight) : null,
@@ -1555,12 +1577,33 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       availableQuantity
     } = req.body;
     
-    // Update fields
+    // Validate and normalize category if provided
+    if (category !== undefined) {
+      const normalizedCategory = normalizeCategoryKey(category);
+      if (!normalizedCategory) {
+        return res.status(400).json({ 
+          message: `Invalid category: ${category}. Please use a valid category key.` 
+        });
+      }
+      product.category = normalizedCategory;
+    }
+
+    // Validate and normalize subcategory if provided
+    if (subcategory !== undefined) {
+      const currentCategory = product.category; // Use current category if not being updated
+      const normalizedSubcategory = normalizeSubcategoryKey(currentCategory, subcategory);
+      if (!normalizedSubcategory) {
+        return res.status(400).json({ 
+          message: `Invalid subcategory: ${subcategory} for category: ${currentCategory}. Please use a valid subcategory key.` 
+        });
+      }
+      product.subcategory = normalizedSubcategory;
+    }
+
+    // Update other fields
     if (name !== undefined) product.name = name;
     if (description !== undefined) product.description = description;
     if (price !== undefined) product.price = parseFloat(price);
-    if (category !== undefined) product.category = category;
-    if (subcategory !== undefined) product.subcategory = subcategory;
     if (stock !== undefined) product.stock = parseInt(stock);
     if (unit !== undefined) product.unit = unit;
     if (weight !== undefined) product.weight = weight ? parseFloat(weight) : null;

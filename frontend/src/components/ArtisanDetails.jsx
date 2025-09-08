@@ -32,9 +32,10 @@ import { StarIcon as StarIconSolid, HeartIcon as HeartIconSolid } from '@heroico
 import { artisanService } from '../services/artisanService';
 import { guestService } from '../services/guestService';
 import reviewService from '../services/reviewService';
-import { getProfile } from '../services/authService';
+import { getProfile } from '../services/authservice';
 import { favoriteService } from '../services/favoriteService';
 import { clearProductCache } from '../services/productService';
+import { getCategoryName, getSubcategoryName } from '../data/productReference';
 import toast from 'react-hot-toast';
 
 // Helper function to format business type for display
@@ -761,7 +762,7 @@ export default function BusinessDetails() {
                   {category !== 'all' && (
                     <span className="text-lg">{getCategoryIcon(category)}</span>
                   )}
-                  <span>{category === 'all' ? 'All Products' : category.replace('_', ' ')}</span>
+                  <span>{category === 'all' ? 'All Products' : getCategoryName(category)}</span>
                 </button>
               ))}
               {categories.length > 6 && (
@@ -812,7 +813,7 @@ export default function BusinessDetails() {
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm'
                     }`}
                   >
-                    {subcategory.replace('_', ' ')}
+                    {getSubcategoryName(selectedCategory, subcategory)}
                   </button>
                 ))}
               </div>
@@ -859,7 +860,7 @@ export default function BusinessDetails() {
                 <div className="bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">{subcategory}</h3>
+                      <h3 className="text-xl font-bold text-gray-900">{getSubcategoryName(selectedCategory, subcategory)}</h3>
                       <p className="text-sm text-gray-600 mt-1">
                         {productsBySubcategory[subcategory].length} product{productsBySubcategory[subcategory].length !== 1 ? 's' : ''} available
                       </p>

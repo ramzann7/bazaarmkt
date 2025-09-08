@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { authToken } from './authservice';
 import { geocodingService } from './geocodingService';
+import { normalizeSearchFilters, logCategoryUsage } from '../utils/categoryUtils';
 
 const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
 
@@ -13,6 +14,10 @@ class EnhancedSearchService {
   // Main enhanced search function with distance calculations and sponsored products
   async searchProducts(searchQuery, userLocation = null, filters = {}) {
     try {
+      // Normalize and validate search filters
+      const normalizedFilters = normalizeSearchFilters(filters);
+      logCategoryUsage('EnhancedSearchService', 'searchProducts', normalizedFilters);
+      
       const params = new URLSearchParams();
       
       // Add search query
@@ -36,13 +41,13 @@ class EnhancedSearchService {
       if (userLocation) {
         params.append('userLat', userLocation.latitude);
         params.append('userLng', userLocation.longitude);
-        params.append('proximityRadius', filters.maxDistance || '50'); // Default 50km radius
+        params.append('proximityRadius', normalizedFilters.maxDistance || '50'); // Default 50km radius
       }
       
-      // Add filters
-      Object.keys(filters).forEach(key => {
-        if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-          params.append(key, filters[key]);
+      // Add normalized filters
+      Object.keys(normalizedFilters).forEach(key => {
+        if (normalizedFilters[key] !== undefined && normalizedFilters[key] !== null && normalizedFilters[key] !== '') {
+          params.append(key, normalizedFilters[key]);
         }
       });
       
@@ -59,7 +64,7 @@ class EnhancedSearchService {
       // Get sponsored products for this search
       let sponsoredProducts = [];
       try {
-        sponsoredProducts = await this.getSponsoredProductsForSearch(searchQuery, filters.category, userLocation);
+        sponsoredProducts = await this.getSponsoredProductsForSearch(searchQuery, normalizedFilters.category, userLocation);
         console.log('✨ Found sponsored products for search:', sponsoredProducts.length);
       } catch (error) {
         console.log('Could not fetch sponsored products:', error);

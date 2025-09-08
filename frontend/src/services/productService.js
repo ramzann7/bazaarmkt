@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { normalizeProductData, logCategoryUsage } from '../utils/categoryUtils';
 
 const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
 
@@ -182,30 +183,34 @@ export const getProductById = async (productId) => {
 export const createProduct = async (productData) => {
   const token = localStorage.getItem('token');
   
+  // Normalize and validate product data
+  const normalizedData = normalizeProductData(productData);
+  logCategoryUsage('ProductService', 'createProduct', normalizedData);
+  
   let requestData;
   let headers = { 
     Authorization: `Bearer ${token}`
   };
   
   // Check if there's an image file to upload
-  if (productData.image instanceof File) {
+  if (normalizedData.image instanceof File) {
     // Use FormData for file upload
     requestData = new FormData();
     
-    Object.keys(productData).forEach(key => {
+    Object.keys(normalizedData).forEach(key => {
       if (key === 'image') {
-        requestData.append('image', productData.image);
-      } else if (key === 'tags' && Array.isArray(productData[key])) {
-        requestData.append('tags', JSON.stringify(productData[key]));
-      } else if (productData[key] !== undefined && productData[key] !== null) {
-        requestData.append(key, productData[key]);
+        requestData.append('image', normalizedData.image);
+      } else if (key === 'tags' && Array.isArray(normalizedData[key])) {
+        requestData.append('tags', JSON.stringify(normalizedData[key]));
+      } else if (normalizedData[key] !== undefined && normalizedData[key] !== null) {
+        requestData.append(key, normalizedData[key]);
       }
     });
     
     // Don't set Content-Type for FormData, let browser set it with boundary
   } else {
     // Use JSON for data without files
-    requestData = productData;
+    requestData = normalizedData;
     headers['Content-Type'] = 'application/json';
   }
   
@@ -217,23 +222,27 @@ export const createProduct = async (productData) => {
 export const updateProduct = async (productId, productData) => {
   const token = localStorage.getItem('token');
   
+  // Normalize and validate product data
+  const normalizedData = normalizeProductData(productData);
+  logCategoryUsage('ProductService', 'updateProduct', normalizedData);
+  
   let requestData;
   let headers = { Authorization: `Bearer ${token}` };
   
   // Check if there's an image file to upload
-  const hasImageFile = productData.image instanceof File;
+  const hasImageFile = normalizedData.image instanceof File;
   
   if (hasImageFile) {
     // Use FormData for image upload
     const formData = new FormData();
     
-    Object.keys(productData).forEach(key => {
-      if (key === 'image' && productData[key] instanceof File) {
-        formData.append('image', productData[key]);
-      } else if (key === 'tags' && Array.isArray(productData[key])) {
-        formData.append('tags', JSON.stringify(productData[key]));
-      } else if (productData[key] !== undefined && productData[key] !== null) {
-        formData.append(key, productData[key]);
+    Object.keys(normalizedData).forEach(key => {
+      if (key === 'image' && normalizedData[key] instanceof File) {
+        formData.append('image', normalizedData[key]);
+      } else if (key === 'tags' && Array.isArray(normalizedData[key])) {
+        formData.append('tags', JSON.stringify(normalizedData[key]));
+      } else if (normalizedData[key] !== undefined && normalizedData[key] !== null) {
+        formData.append(key, normalizedData[key]);
       }
     });
     
@@ -241,7 +250,7 @@ export const updateProduct = async (productId, productData) => {
     // Don't set Content-Type for FormData, let browser set it with boundary
   } else {
     // Use JSON for data without files
-    requestData = productData;
+    requestData = normalizedData;
     headers['Content-Type'] = 'application/json';
   }
   

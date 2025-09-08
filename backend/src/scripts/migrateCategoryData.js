@@ -3,7 +3,7 @@
 
 const mongoose = require('mongoose');
 const Product = require('../models/product');
-const { PRODUCT_CATEGORIES } = require('../../frontend/src/data/productReference');
+const { PRODUCT_CATEGORIES } = require('../data/productReference');
 
 // Category mapping from names to keys
 const categoryNameToKeyMap = {};

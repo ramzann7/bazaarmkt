@@ -170,7 +170,9 @@ export default function Products() {
     'Weight (Imperial)': [
       { value: 'lb', label: 'Pound (lb)' },
       { value: 'oz', label: 'Ounce (oz)' },
-      { value: 'ton', label: 'Ton' }
+      { value: 'ton', label: 'Ton' },
+      { value: 'stone', label: 'Stone' },
+      { value: 'grain', label: 'Grain' }
     ],
     'Volume (Metric)': [
       { value: 'liter', label: 'Liter (L)' },
@@ -185,7 +187,10 @@ export default function Products() {
       { value: 'cup', label: 'Cup' },
       { value: 'fl_oz', label: 'Fluid Ounce (fl oz)' },
       { value: 'tbsp', label: 'Tablespoon (tbsp)' },
-      { value: 'tsp', label: 'Teaspoon (tsp)' }
+      { value: 'tsp', label: 'Teaspoon (tsp)' },
+      { value: 'dash', label: 'Dash' },
+      { value: 'drop', label: 'Drop' },
+      { value: 'shot', label: 'Shot' }
     ],
     'Length': [
       { value: 'meter', label: 'Meter (m)' },
@@ -221,7 +226,21 @@ export default function Products() {
       { value: 'bun', label: 'Bun' },
       { value: 'muffin', label: 'Muffin' },
       { value: 'cookie', label: 'Cookie' },
-      { value: 'cake', label: 'Cake' }
+      { value: 'cake', label: 'Cake' },
+      { value: 'bar', label: 'Bar' },
+      { value: 'square', label: 'Square' },
+      { value: 'wedge', label: 'Wedge' },
+      { value: 'strip', label: 'Strip' },
+      { value: 'chunk', label: 'Chunk' },
+      { value: 'dash', label: 'Dash' },
+      { value: 'pinch', label: 'Pinch' },
+      { value: 'sprig', label: 'Sprig' },
+      { value: 'stalk', label: 'Stalk' },
+      { value: 'ear', label: 'Ear' },
+      { value: 'pod', label: 'Pod' },
+      { value: 'bulb', label: 'Bulb' },
+      { value: 'root', label: 'Root' },
+      { value: 'tuber', label: 'Tuber' }
     ],
     'Liquid Containers': [
       { value: 'bottle_ml', label: 'Bottle (ml)' },
@@ -267,28 +286,38 @@ export default function Products() {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
+    console.log('🖼️ Getting image URL for:', imagePath);
+    
     // Handle base64 data URLs
     if (imagePath.startsWith('data:')) {
+      console.log('🖼️ Using base64 data URL');
       return imagePath;
     }
     
     // Handle HTTP URLs
     if (imagePath.startsWith('http')) {
+      console.log('🖼️ Using HTTP URL');
       return imagePath;
     }
     
     // Handle relative paths (already have /uploads prefix)
     if (imagePath.startsWith('/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      console.log('🖼️ Using relative path with /uploads:', fullUrl);
+      return fullUrl;
     }
     
     // Handle paths that need /uploads prefix
     if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      console.log('🖼️ Using path with leading slash:', fullUrl);
+      return fullUrl;
     }
     
     // Handle paths without leading slash
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+    const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+    console.log('🖼️ Using path without leading slash:', fullUrl);
+    return fullUrl;
   };
 
   useEffect(() => {
@@ -372,7 +401,10 @@ export default function Products() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      console.log('Selected image file:', file);
+      console.log('📸 Selected image file for new product:', file);
+      console.log('📸 File name:', file.name);
+      console.log('📸 File size:', file.size);
+      console.log('📸 File type:', file.type);
       setNewProduct({
         ...newProduct,
         image: file,
@@ -419,12 +451,15 @@ export default function Products() {
   // Auto-formatting functions
   const formatProductName = (name) => {
     if (!name) return name;
-    // Capitalize first letter of each word, strip all caps
-    return name
+    // Capitalize first letter of each word, strip all caps, and limit to 15 characters
+    const formatted = name
       .toLowerCase()
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+    
+    // Limit to 15 characters
+    return formatted.length > 15 ? formatted.substring(0, 15) : formatted;
   };
 
   const formatDescription = (description) => {
@@ -454,6 +489,13 @@ export default function Products() {
       setShowSuggestions(false);
       setProductSuggestions([]);
     }
+  };
+
+  // Edit form name change handler
+  const handleEditNameChange = (e) => {
+    const value = e.target.value;
+    const formattedValue = formatProductName(value);
+    setEditingProduct({...editingProduct, name: formattedValue});
   };
 
   const handleSuggestionClick = (suggestion) => {
@@ -500,8 +542,8 @@ export default function Products() {
         tags: newProduct.tags,
         // Handle product type specific fields
         ...(newProduct.productType === 'ready_to_ship' && {
-          stock: parseInt(newProduct.stock),
-          lowStockThreshold: parseInt(newProduct.lowStockThreshold)
+          stock: parseInt(newProduct.stock) || 0,
+          lowStockThreshold: parseInt(newProduct.lowStockThreshold) || 5
         }),
         ...(newProduct.productType === 'made_to_order' && {
           leadTime: parseInt(newProduct.leadTime),
@@ -519,6 +561,8 @@ export default function Products() {
       
       console.log('Sending product data:', productData);
       const savedProduct = await createProduct(productData);
+      console.log('✅ Product created successfully:', savedProduct);
+      console.log('🖼️ Product image URL:', savedProduct.image);
       setProducts([savedProduct, ...products]);
       
       setNewProduct({
@@ -602,9 +646,12 @@ export default function Products() {
     loadUserAndProducts();
   };
 
-  const handleUpdateStock = async (productId, newStock) => {
+  const handleUpdateStock = async (productId, newStock, fieldType = 'stock') => {
     try {
-      const updatedProduct = await updateInventory(productId, { stock: parseInt(newStock) });
+      const updateData = {};
+      updateData[fieldType] = parseInt(newStock);
+      
+      const updatedProduct = await updateInventory(productId, updateData);
       setProducts(products.map(p => 
         p._id === productId ? updatedProduct : p
       ));
@@ -710,8 +757,8 @@ export default function Products() {
         
         // Handle product type specific fields
         ...(editingProduct.productType === 'ready_to_ship' && {
-          stock: parseInt(editingProduct.stock),
-          lowStockThreshold: parseInt(editingProduct.lowStockThreshold)
+          stock: parseInt(editingProduct.stock) || 0,
+          lowStockThreshold: parseInt(editingProduct.lowStockThreshold) || 5
         }),
         ...(editingProduct.productType === 'made_to_order' && {
           leadTime: parseInt(editingProduct.leadTime),
@@ -746,6 +793,8 @@ export default function Products() {
       };
       
       const updatedProduct = await updateProduct(editingProduct._id, productData);
+      console.log('✅ Product updated successfully:', updatedProduct);
+      console.log('🖼️ Updated product image URL:', updatedProduct.image);
       setProducts(products.map(p => 
         p._id === editingProduct._id ? updatedProduct : p
       ));
@@ -761,6 +810,10 @@ export default function Products() {
   const handleEditImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      console.log('📸 Selected image file for edit product:', file);
+      console.log('📸 File name:', file.name);
+      console.log('📸 File size:', file.size);
+      console.log('📸 File type:', file.type);
       setEditingProduct({
         ...editingProduct,
         image: file,
@@ -1002,8 +1055,13 @@ export default function Products() {
                           src={getImageUrl(product.image)} 
                           alt={product.name}
                           className="w-full h-full object-cover"
+                          onLoad={() => {
+                            console.log('✅ Image loaded successfully for product:', product.name, 'URL:', getImageUrl(product.image));
+                          }}
                           onError={(e) => {
-                            console.error('Image failed to load:', product.image);
+                            console.error('❌ Image failed to load for product:', product.name);
+                            console.error('❌ Image path:', product.image);
+                            console.error('❌ Full URL:', getImageUrl(product.image));
                             e.target.style.display = 'none';
                             e.target.nextSibling.style.display = 'flex';
                           }}
@@ -1092,12 +1150,12 @@ export default function Products() {
                           )}
                           {product.productType === 'made_to_order' && (
                             <span className="text-sm text-gray-500">
-                              Lead Time: {product.leadTime} {product.leadTimeUnit}
+                              Stock: {product.totalCapacity} {getUnitLabel(product.unit)} • Max: {product.maxOrderQuantity}/order
                             </span>
                           )}
                           {product.productType === 'scheduled_order' && (
                             <span className="text-sm text-gray-500">
-                              Available: {product.availableQuantity} {getUnitLabel(product.unit)}
+                              Stock: {product.availableQuantity} {getUnitLabel(product.unit)}
                             </span>
                           )}
                         </div>
@@ -1186,13 +1244,25 @@ export default function Products() {
                           </div>
                         )}
                         {product.productType === 'made_to_order' && (
-                          <div className="text-sm text-gray-600">
-                            Lead Time: {product.leadTime} {product.leadTimeUnit}
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              value={product.totalCapacity}
+                              onChange={(e) => handleUpdateStock(product._id, e.target.value, 'totalCapacity')}
+                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 focus:border-transparent"
+                            />
+                            <span className="text-sm text-gray-600">{getUnitLabel(product.unit)}</span>
                           </div>
                         )}
                         {product.productType === 'scheduled_order' && (
-                          <div className="text-sm text-gray-600">
-                            Next: {new Date(product.nextAvailableDate).toLocaleDateString()}
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              value={product.availableQuantity}
+                              onChange={(e) => handleUpdateStock(product._id, e.target.value, 'availableQuantity')}
+                              className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-orange-500 focus:border-transparent"
+                            />
+                            <span className="text-sm text-gray-600">{getUnitLabel(product.unit)}</span>
                           </div>
                         )}
                         <button
@@ -1267,9 +1337,10 @@ export default function Products() {
                           required
                           type="text"
                           value={editingProduct.name}
-                          onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
+                          onChange={handleEditNameChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                           placeholder="e.g., Organic Honeycrisp Apples – 2 lb bag"
+                          maxLength="15"
                         />
                         <div className="flex items-center mt-2 text-xs text-gray-500">
                           <LightBulbIcon className="w-3 h-3 mr-1 text-orange-500" />
@@ -2038,6 +2109,7 @@ export default function Products() {
                       onChange={handleNameChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                       placeholder="e.g., Organic Honeycrisp Apples – 2 lb bag"
+                      maxLength="15"
                     />
                     <div className="flex items-center mt-2 text-xs text-gray-500">
                       <LightBulbIcon className="w-3 h-3 mr-1 text-orange-500" />

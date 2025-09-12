@@ -41,19 +41,13 @@ export default function SmartRedirect() {
       const isNewUser = onboardingService.isNewUser(userId);
       
       if (isNewUser) {
-        // For existing artisan users, mark onboarding as completed automatically
-        if (userRole === 'artisan' || userRole === 'producer' || userRole === 'food_maker') {
-          onboardingService.markOnboardingCompleted(userId);
-          console.log('Auto-marked onboarding as completed for existing artisan user');
-        } else {
-          // New user - redirect to profile setup for non-artisan users
-          setRedirectPath('/profile');
-          return;
-        }
+        // All new users should go to profile setup first
+        setRedirectPath('/profile?tab=setup');
+        return;
       }
 
       // Returning users - route based on role
-      if (userRole === 'artisan' || userRole === 'producer' || userRole === 'food_maker') {
+      if (userRole === 'artisan') {
         // For artisans, always go to dashboard first
         // Orders will be checked and displayed on the dashboard
         setRedirectPath('/dashboard');

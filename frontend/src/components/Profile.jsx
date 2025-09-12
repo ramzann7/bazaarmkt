@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   UserIcon, 
   MapPinIcon, 
@@ -29,10 +29,12 @@ import { PRODUCT_CATEGORIES } from '../data/productReference';
 export default function Profile() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isProviderReady, refreshUser, updateUser } = useAuth();
   
   // Different tabs for different user types
   const patronTabs = [
+    { id: 'setup', name: 'Setup Profile', icon: UserIcon },
     { id: 'personal', name: 'Personal Info', icon: UserIcon },
     { id: 'addresses', name: 'Delivery Addresses', icon: MapPinIcon },
     { id: 'favorites', name: 'Favorite Artisans', icon: HeartIcon },
@@ -43,6 +45,7 @@ export default function Profile() {
   ];
 
   const artisanTabs = [
+    { id: 'setup', name: 'Setup Profile', icon: UserIcon },
     { id: 'overview', name: 'Overview', icon: UserIcon },
     { id: 'operations', name: 'Operations', icon: CogIcon },
     { id: 'hours', name: 'Artisan Hours', icon: MapPinIcon },
@@ -61,7 +64,7 @@ export default function Profile() {
     { id: 'security', name: 'Security', icon: ShieldCheckIcon }
   ];
 
-  const [activeTab, setActiveTab] = useState('personal');
+  const [activeTab, setActiveTab] = useState('setup');
   const [artisanProfile, setArtisanProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -89,6 +92,14 @@ export default function Profile() {
     });
   }, [user]);
 
+  // Handle URL tab parameter
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
+
   // Memoize tab determination to prevent unnecessary re-renders
   const determineTabs = useMemo(() => {
     if (!profile) return patronTabs;
@@ -96,8 +107,6 @@ export default function Profile() {
     // Map all possible roles to appropriate tabs
     switch (profile.role) {
       case 'artisan':
-      case 'producer':
-      case 'food_maker':
         return artisanTabs;
       case 'admin':
         return patronTabs; // Admins get patron tabs for now
@@ -214,7 +223,7 @@ export default function Profile() {
   useEffect(() => {
     if (profile) {
       const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
-      const isArtisanUser = profile.role === 'artisan' || profile.role === 'producer' || profile.role === 'food_maker';
+      const isArtisanUser = profile.role === 'artisan';
       
       if (isPatron) {
         setTabs(patronTabs);
@@ -235,7 +244,7 @@ export default function Profile() {
 
   // Load artisan profile when user is an artisan
   useEffect(() => {
-    if (profile && (profile.role === 'artisan' || profile.role === 'producer' || profile.role === 'food_maker')) {
+    if (profile && profile.role === 'artisan') {
       console.log('🔄 Loading artisan profile for user:', profile._id);
       loadArtisanProfile();
     }
@@ -448,6 +457,31 @@ export default function Profile() {
     }
   };
 
+  // Handle artisan operations updates
+  const handleArtisanOperationsUpdate = async (operationsData) => {
+    try {
+      console.log('🔄 Updating artisan operations:', operationsData);
+      console.log('🔄 Operations data type:', typeof operationsData);
+      console.log('🔄 Operations data keys:', Object.keys(operationsData || {}));
+      setIsSaving(true);
+      const updatedArtisanProfile = await profileService.updateArtisanOperations(operationsData);
+      console.log('✅ Artisan operations updated:', updatedArtisanProfile);
+      setArtisanProfile(updatedArtisanProfile);
+      
+      // Clear any cached artisan profile data to ensure fresh data on next load
+      clearProfileCache();
+      
+      toast.success('Operations details updated successfully!');
+    } catch (error) {
+      console.error('❌ Error updating artisan operations:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      toast.error(`Failed to update operations: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Handle artisan delivery updates
   const handleArtisanDeliveryUpdate = async (deliveryData) => {
     try {
@@ -554,7 +588,7 @@ export default function Profile() {
       case 'overview':
         return <OverviewTab profile={combinedProfile} onSave={handleArtisanSave} isSaving={isSaving} />;
       case 'operations':
-        return <OperationsTab profile={combinedProfile} onSave={handleArtisanSave} isSaving={isSaving} />;
+        return <OperationsTab profile={combinedProfile} onSave={handleArtisanOperationsUpdate} isSaving={isSaving} />;
       case 'hours':
         return <HoursTab profile={combinedProfile} onSave={handleArtisanHoursUpdate} isSaving={isSaving} />;
       case 'delivery':

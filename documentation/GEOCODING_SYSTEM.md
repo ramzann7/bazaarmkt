@@ -245,7 +245,7 @@ Visual component for displaying distance information.
 ### Rate Limiting
 - **Nominatim**: 1 request per second
 - **Cache Duration**: 24 hours for geocoding results
-- **User Agent**: `TheBazaar/1.0 (https://github.com/ramzann7/bazaarmkt)`
+- **User Agent**: `bazaarMKT/1.0 (https://github.com/ramzann7/bazaarmkt)`
 
 ### Distance Calculations
 - **Formula**: Haversine formula

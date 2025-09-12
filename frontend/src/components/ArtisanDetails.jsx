@@ -477,6 +477,11 @@ export default function BusinessDetails() {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
     // If it's already a full URL, return as is
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
@@ -1116,6 +1121,21 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
   const [quantity, setQuantity] = useState(1);
   const [showPopup, setShowPopup] = useState(false);
 
+  // Calculate max quantity based on product type
+  const getMaxQuantity = () => {
+    switch (product.productType) {
+      case 'ready_to_ship':
+        return product.stock || 0;
+      case 'made_to_order':
+        // For made-to-order, use maxOrderQuantity (per order limit)
+        return product.maxOrderQuantity || 10;
+      case 'scheduled_order':
+        return product.availableQuantity || 0;
+      default:
+        return product.stock || 10;
+    }
+  };
+
   const handleAddToCart = async () => {
     await onAddToCart(product, quantity);
     setQuantity(1);
@@ -1204,7 +1224,14 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
           </div>
 
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>Stock: {product.stock}</span>
+            <span>
+              {product.productType === 'scheduled_order' 
+                ? `Available: ${product.availableQuantity || 0}` 
+                : product.productType === 'made_to_order'
+                ? `Max: ${product.maxOrderQuantity || 10}/order • Total: ${product.totalCapacity || 10}`
+                : `Stock: ${product.stock}`
+              }
+            </span>
             {product.leadTimeHours && (
               <span className="flex items-center">
                 <ClockIcon className="h-3 w-3 mr-1" />
@@ -1302,23 +1329,23 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
                   </button>
                   <span className="px-4 py-2 border-x border-gray-300 font-medium">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                    onClick={() => setQuantity(Math.min(getMaxQuantity(), quantity + 1))}
                     className="px-3 py-2 text-gray-600 hover:text-gray-800"
                   >
                     <PlusIcon className="h-4 w-4" />
                   </button>
                 </div>
-                <span className="text-sm text-gray-500">Max: {product.stock}</span>
+                <span className="text-sm text-gray-500">Max: {getMaxQuantity()}</span>
               </div>
             </div>
 
             {/* Add to Cart Button */}
             <button
               onClick={handleAddToCart}
-              disabled={product.status !== 'active' || product.stock === 0}
+              disabled={product.status !== 'active' || getMaxQuantity() === 0}
               className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
             >
-              {product.status === 'active' && product.stock > 0 
+              {product.status === 'active' && getMaxQuantity() > 0 
                 ? `Add ${quantity} to Cart - $${(product.price * quantity).toFixed(2)}`
                 : 'Currently Unavailable'
               }

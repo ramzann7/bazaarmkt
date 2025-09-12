@@ -100,6 +100,9 @@ export default function FindArtisans() {
   useEffect(() => {
     const startTime = performance.now();
     
+    // Load spotlight artisans first (they don't depend on cache)
+    loadSpotlightArtisans();
+    
     // Check cache first for instant loading
     const cacheKey = `${CACHE_KEYS.ARTISAN_DETAILS}_all`;
     const cachedArtisans = cacheService.getFast(cacheKey);
@@ -129,8 +132,6 @@ export default function FindArtisans() {
     if (isAuthenticated && user && user.role === 'patron') {
       loadFavoriteArtisans();
     }
-    // Load spotlight artisans for all users
-    loadSpotlightArtisans();
   }, [isAuthenticated, user]);
 
   const loadAllArtisans = async () => {
@@ -466,7 +467,9 @@ export default function FindArtisans() {
 
   // Check if artisan is currently open
   const isArtisanOpen = (artisan) => {
-    if (!artisan.artisanHours) return null;
+    if (!artisan.artisanHours) {
+      return null;
+    }
     
     const now = new Date();
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -633,13 +636,6 @@ export default function FindArtisans() {
             {/* Spotlight Badge */}
             {(() => {
               const isSpotlight = spotlightArtisans.some(s => s.artisan.id === artisan._id);
-              if (artisan._id === '68ae17410d14153824c613f6') {
-                console.log('🔍 Checking spotlight for ramzan.7@hotmail.com:', {
-                  artisanId: artisan._id,
-                  spotlightArtisans: spotlightArtisans,
-                  isSpotlight: isSpotlight
-                });
-              }
               return isSpotlight;
             })() && (
               <span className="badge-spotlight" title="Spotlight Artisan - Featured">

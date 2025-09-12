@@ -32,6 +32,7 @@ import reviewService from '../services/reviewService';
 import { getProfile } from '../services/authservice';
 import { cartService } from '../services/cartService';
 import ProductTypeBadge from './ProductTypeBadge';
+import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
 import toast from 'react-hot-toast';
 
@@ -325,6 +326,10 @@ export default function ArtisanShop() {
   const getImageUrl = (image) => {
     if (!image) return null;
     if (typeof image === 'string') {
+      // Handle base64 data URLs
+      if (image.startsWith('data:')) return image;
+      
+      // Handle HTTP URLs
       if (image.startsWith('http')) return image;
       
       // Check if the image path already contains /uploads/products/
@@ -529,7 +534,7 @@ export default function ArtisanShop() {
               <div className="h-64 md:h-80 bg-gradient-to-r from-orange-400 to-amber-500 rounded-2xl relative overflow-hidden">
                 {artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? (
                   <img 
-                    src={artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner} 
+                    src={getImageUrl(artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner)} 
                     alt={`${artisan.artisanName} business`}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -640,72 +645,13 @@ export default function ArtisanShop() {
               {filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {filteredProducts.map((product) => (
-                    <div
+                    <ProductCard
                       key={product._id}
-                      className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden group"
-                      onClick={() => handleProductClick(product)}
-                    >
-                      <div className="aspect-square bg-gray-100 overflow-hidden">
-                        {product.images && product.images.length > 0 ? (
-                          <img
-                            src={getImageUrl(product.images[0])}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              console.log('❌ ArtisanShop product grid image failed to load:', e.target.src);
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                            onLoad={(e) => {
-                              console.log('✅ ArtisanShop product grid image loaded successfully:', e.target.src);
-                            }}
-                          />
-                        ) : product.image ? (
-                          <img
-                            src={getImageUrl(product.image)}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              console.log('❌ ArtisanShop product grid image failed to load:', e.target.src);
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                            onLoad={(e) => {
-                              console.log('✅ ArtisanShop product grid image loaded successfully:', e.target.src);
-                            }}
-                          />
-                        ) : null}
-                        <div className={`w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center ${(product.images && product.images.length > 0) || product.image ? 'hidden' : ''}`}>
-                          <CameraIcon className="w-8 h-8 text-orange-400" />
-                        </div>
-                        
-                        {product.isFeatured && (
-                          <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                            Featured
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="p-3">
-                        <h3 className="font-semibold text-gray-900 mb-1 text-sm line-clamp-1">{product.name}</h3>
-                        {product.description && (
-                          <p className="text-xs text-gray-600 mb-2 line-clamp-1">
-                            {product.description}
-                          </p>
-                        )}
-                        
-                        {/* Product Type Information */}
-                        <div className="mb-2">
-                          <ProductTypeBadge product={product} variant="compact" />
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-bold text-orange-600">
-                            {formatPrice(product.price)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                      product={product}
+                      showDistance={false}
+                      showImagePreview={true}
+                      onProductClick={handleProductClick}
+                    />
                   ))}
                 </div>
               ) : (

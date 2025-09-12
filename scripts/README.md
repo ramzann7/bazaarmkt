@@ -1,6 +1,6 @@
 # Scripts Directory
 
-This directory contains all utility scripts organized by category for The Bazaar application.
+This directory contains all utility scripts organized by category for the bazaarMKT application.
 
 ## Directory Structure
 

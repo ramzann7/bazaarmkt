@@ -24,6 +24,7 @@ import { getProfile, logoutUser } from "../../services/authservice";
 import { orderService } from "../../services/orderService";
 import { revenueService } from "../../services/revenueService";
 import { cacheService, CACHE_KEYS, CACHE_TTL } from "../../services/cacheService";
+import walletService from "../../services/walletService";
 import { useOptimizedEffect, useAsyncOperation } from "../../hooks/useOptimizedEffect";
 import toast from "react-hot-toast";
 
@@ -45,9 +46,11 @@ export default function Dashboard() {
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [revenueData, setRevenueData] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(true);
 
   // Optimized user profile loading
   const { execute: loadUser, isLoading: isUserLoading } = useAsyncOperation(
@@ -158,6 +161,25 @@ export default function Dashboard() {
     []
   );
 
+  // Optimized wallet balance loading
+  const { execute: loadWalletBalance, isLoading: isWalletLoading } = useAsyncOperation(
+    async () => {
+      try {
+        const response = await walletService.getWalletBalance();
+        if (response.success) {
+          setWalletBalance(response.balance);
+          return response;
+        }
+        return null;
+      } catch (error) {
+        console.error('Error loading wallet balance:', error);
+        // Don't show error toast for wallet as it might not be available for all artisans
+        return null;
+      }
+    },
+    []
+  );
+
   // Load all data on component mount
   useOptimizedEffect(() => {
     const loadAllData = async () => {
@@ -169,7 +191,8 @@ export default function Dashboard() {
           await Promise.allSettled([
             loadArtisanStats(),
             loadRecentOrders(),
-            loadRevenueData()
+            loadRevenueData(),
+            loadWalletBalance()
           ]);
         }
       } catch (error) {
@@ -255,6 +278,13 @@ export default function Dashboard() {
               <p className="text-gray-600 mt-2">Welcome back, {user.firstName}! Here's your business overview.</p>
             </div>
             <div className="flex gap-3">
+              <Link
+                to="/my-wallet"
+                className="px-4 py-2 bg-[#D77A61] text-white rounded-lg hover:bg-[#C06A51] transition-colors flex items-center space-x-2"
+              >
+                <CurrencyDollarIcon className="w-4 h-4" />
+                <span>My Wallet</span>
+              </Link>
               <button
                 onClick={refreshData}
                 disabled={isStatsLoading || isOrdersLoading || isRevenueLoading}
@@ -303,7 +333,7 @@ export default function Dashboard() {
         </div>
 
         {/* Artisan Statistics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -355,6 +385,20 @@ export default function Dashboard() {
                 <p className="text-sm font-medium text-gray-600">Total Patrons</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {isStatsLoading ? '...' : artisanStats.totalPatrons}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Wallet Balance</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {isWalletLoading ? '...' : formatCurrency(walletBalance)}
                 </p>
               </div>
             </div>

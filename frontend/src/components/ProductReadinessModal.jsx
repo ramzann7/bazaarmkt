@@ -50,7 +50,8 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
           details: [
             `Production Time: ${leadTime} ${leadTimeUnit}`,
             'Production can begin immediately',
-            product.maxOrderQuantity ? `Maximum Order: ${product.maxOrderQuantity} units` : null,
+            product.maxOrderQuantity ? `Maximum Order: ${product.maxOrderQuantity} units per order` : null,
+            product.totalCapacity ? `Total Production Capacity: ${product.totalCapacity} units` : null,
             'Custom-made to your specifications'
           ].filter(Boolean),
           color: 'blue',
@@ -63,6 +64,7 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
           const nextDate = new Date(product.nextAvailableDate);
           const today = new Date();
           const daysUntil = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+          const availableQty = product.availableQuantity || 0;
           
           return {
             icon: '📅',
@@ -72,6 +74,7 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
             details: [
               `Next Available: ${nextDate.toLocaleDateString()}`,
               daysUntil > 0 ? `Ready in ${daysUntil} days` : 'Ready today',
+              `Available Quantity: ${availableQty} ${product.unit || 'units'}`,
               product.scheduleType === 'daily' ? 'Daily production schedule' : 'Custom production schedule',
               daysUntil <= 3 ? '🚀 Coming soon!' : null
             ].filter(Boolean),

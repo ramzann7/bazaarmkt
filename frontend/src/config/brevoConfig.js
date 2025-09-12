@@ -3,11 +3,11 @@ export const BREVO_CONFIG = {
   API_URL: 'https://api.brevo.com/v3',
   EMAIL_SETTINGS: {
     sender: {
-      name: 'Bazaar Market',
+      name: 'bazaarMKT',
       email: 'noreply@bazaarmkt.com'
     },
     replyTo: 'support@bazaarmkt.com',
-    defaultSubject: 'Bazaar Market Notification'
+    defaultSubject: 'bazaarMKT Notification'
   },
   CONTACT_ATTRIBUTES: {
     firstName: 'FIRSTNAME',

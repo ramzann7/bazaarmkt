@@ -86,7 +86,8 @@ router.get('/:id', async (req, res) => {
     const { includeProducts } = req.query;
     
     let artisan = await Artisan.findById(req.params.id)
-      .populate('user', 'firstName lastName email phone');
+      .populate('user', 'firstName lastName email phone')
+      .select('artisanName type description businessImage address phone email rating artisanHours deliveryOptions pickupLocation pickupInstructions pickupHours pickupUseBusinessAddress pickupAddress pickupSchedule deliveryInstructions professionalDelivery photos isActive isVerified createdAt');
     
     if (!artisan) {
       return res.status(404).json({ message: 'Artisan not found' });

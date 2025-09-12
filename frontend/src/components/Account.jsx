@@ -94,7 +94,7 @@ export default function Account() {
 
   // Tabs based on user role
   const getTabs = () => {
-    const isArtisan = user?.role === 'artisan' || user?.role === 'producer' || user?.role === 'food_maker';
+    const isArtisan = user?.role === 'artisan';
     
     if (isArtisan) {
       return [
@@ -130,7 +130,7 @@ export default function Account() {
         setUser(userData);
         
         // If user is an artisan and trying to access dashboard, redirect to main dashboard
-        if (userData.role === 'artisan' || userData.role === 'producer' || userData.role === 'food_maker') {
+        if (userData.role === 'artisan') {
           const urlParams = new URLSearchParams(location.search);
           const tabParam = urlParams.get('tab');
           if (tabParam === 'dashboard') {
@@ -239,7 +239,7 @@ export default function Account() {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'dashboard' && user && (user.role === 'artisan' || user.role === 'producer' || user.role === 'food_maker') && (
+            {activeTab === 'dashboard' && user && user.role === 'artisan' && (
               <div className="text-center py-8">
                 <h3 className="text-lg font-semibold text-stone-900 mb-2">Artisan Dashboard</h3>
                 <p className="text-stone-600 mb-4">Artisans have access to a dedicated dashboard with business analytics.</p>
@@ -251,7 +251,7 @@ export default function Account() {
                 </button>
               </div>
             )}
-            {activeTab === 'dashboard' && user && !(user.role === 'artisan' || user.role === 'producer' || user.role === 'food_maker') && (
+            {activeTab === 'dashboard' && user && user.role !== 'artisan' && (
               <DashboardTab user={user} stats={stats} recentOrders={recentOrders} favoriteArtisans={favoriteArtisans} getStatusColor={getStatusColor} />
             )}
             {activeTab === 'personal' && (

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { authToken } from './authservice';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/orders` : '/api/orders';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`,
@@ -12,7 +12,7 @@ export const orderService = {
   // Get all orders for the current user (patron)
   getPatronOrders: async () => {
     try {
-      const response = await axios.get(`${API_URL}/buyer`, {
+      const response = await axios.get(`${API_URL}/orders/buyer`, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -25,7 +25,7 @@ export const orderService = {
   // Get all orders for the current artisan
   getArtisanOrders: async () => {
     try {
-      const response = await axios.get(`${API_URL}/artisan`, {
+      const response = await axios.get(`${API_URL}/orders/artisan`, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -38,7 +38,7 @@ export const orderService = {
   // Get a specific order by ID
   getOrderById: async (orderId) => {
     try {
-      const response = await axios.get(`${API_URL}/${orderId}`, {
+      const response = await axios.get(`${API_URL}/orders/${orderId}`, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -51,7 +51,7 @@ export const orderService = {
   // Create a guest order (no authentication required)
   createGuestOrder: async (orderData) => {
     try {
-      const response = await axios.post(`${API_URL}/guest`, orderData);
+      const response = await axios.post(`${API_URL}/orders/guest`, orderData);
       return response.data;
     } catch (error) {
       console.error('Error creating guest order:', error);
@@ -99,7 +99,7 @@ export const orderService = {
       console.log('🔍 Order Service Debug - Order Data:', orderData);
       console.log('🔍 Order Service Debug - Auth Headers:', getAuthHeaders());
       
-      const response = await axios.post(API_URL, orderData, {
+      const response = await axios.post(`${API_URL}/orders`, orderData, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -114,10 +114,10 @@ export const orderService = {
     try {
       console.log('🔍 Order Status Update Debug - Order ID:', orderId);
       console.log('🔍 Order Status Update Debug - Status Data:', statusData);
-      console.log('🔍 Order Status Update Debug - API URL:', `${API_URL}/${orderId}/status`);
+      console.log('🔍 Order Status Update Debug - API URL:', `${API_URL}/orders/${orderId}/status`);
       console.log('🔍 Order Status Update Debug - Auth Headers:', getAuthHeaders());
       
-      const response = await axios.put(`${API_URL}/${orderId}/status`, statusData, {
+      const response = await axios.put(`${API_URL}/orders/${orderId}/status`, statusData, {
         headers: getAuthHeaders()
       });
       
@@ -133,7 +133,7 @@ export const orderService = {
   // Update payment status
   updatePaymentStatus: async (orderId, paymentStatus) => {
     try {
-      const response = await axios.put(`${API_URL}/${orderId}/payment`, { paymentStatus }, {
+      const response = await axios.put(`${API_URL}/orders/${orderId}/payment`, { paymentStatus }, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -146,7 +146,7 @@ export const orderService = {
   // Cancel order (patron only)
   cancelOrder: async (orderId) => {
     try {
-      const response = await axios.put(`${API_URL}/${orderId}/cancel`, {}, {
+      const response = await axios.put(`${API_URL}/orders/${orderId}/cancel`, {}, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -162,11 +162,11 @@ export const orderService = {
       console.log('🔍 Order Service Debug - Decline Order:', {
         orderId,
         reason,
-        url: `${API_URL}/${orderId}/decline`,
+        url: `${API_URL}/orders/${orderId}/decline`,
         headers: getAuthHeaders()
       });
       
-      const response = await axios.put(`${API_URL}/${orderId}/decline`, { reason }, {
+      const response = await axios.put(`${API_URL}/orders/${orderId}/decline`, { reason }, {
         headers: getAuthHeaders()
       });
       
@@ -182,7 +182,7 @@ export const orderService = {
   // Get artisan statistics
   getArtisanStats: async () => {
     try {
-      const response = await axios.get(`${API_URL}/artisan/stats`, {
+      const response = await axios.get(`${API_URL}/orders/artisan/stats`, {
         headers: getAuthHeaders()
       });
       return response.data;

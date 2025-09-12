@@ -129,3 +129,9 @@ mark-*.js
 
 # Documentation build
 docs/build/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development

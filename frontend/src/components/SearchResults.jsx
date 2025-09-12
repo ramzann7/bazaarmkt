@@ -21,8 +21,10 @@ import { cartService } from '../services/cartService';
 import { authToken, getProfile } from '../services/authservice';
 import { geocodingService } from '../services/geocodingService';
 import searchTrackingService from '../services/searchTrackingService';
+import { promotionalService } from '../services/promotionalService';
 
 import ProductTypeBadge from './ProductTypeBadge';
+import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
 import toast from 'react-hot-toast';
 
@@ -171,14 +173,63 @@ export default function SearchResults() {
       let searchResults;
       
       if (query) {
-        // Search by query
-        searchResults = await getAllProducts({ search: query });
+        // Search by query - try promotional service first, then fallback to regular service
+        try {
+          const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
+          if (promotionalResults && promotionalResults.length > 0) {
+            // Filter promotional results by search query
+            const filteredPromotional = promotionalResults.filter(product => 
+              product.name.toLowerCase().includes(query.toLowerCase()) ||
+              product.description.toLowerCase().includes(query.toLowerCase()) ||
+              product.category.toLowerCase().includes(query.toLowerCase())
+            );
+            if (filteredPromotional.length > 0) {
+              searchResults = filteredPromotional;
+            } else {
+              searchResults = await getAllProducts({ search: query });
+            }
+          } else {
+            searchResults = await getAllProducts({ search: query });
+          }
+        } catch (error) {
+          console.log('⚠️ Promotional search failed, falling back to regular search');
+          searchResults = await getAllProducts({ search: query });
+        }
       } else if (categoryParam) {
-        // Search by category
-        searchResults = await getAllProducts({ category: categoryParam });
+        // Search by category - try promotional service first, then fallback to regular service
+        try {
+          const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
+          if (promotionalResults && promotionalResults.length > 0) {
+            // Filter promotional results by category
+            const filteredPromotional = promotionalResults.filter(product => 
+              product.category.toLowerCase().includes(categoryParam.toLowerCase()) ||
+              product.subcategory.toLowerCase().includes(categoryParam.toLowerCase())
+            );
+            if (filteredPromotional.length > 0) {
+              searchResults = filteredPromotional;
+            } else {
+              searchResults = await getAllProducts({ category: categoryParam });
+            }
+          } else {
+            searchResults = await getAllProducts({ category: categoryParam });
+          }
+        } catch (error) {
+          console.log('⚠️ Promotional category search failed, falling back to regular search');
+          searchResults = await getAllProducts({ category: categoryParam });
+        }
       } else {
-        // Get all products
-        searchResults = await getAllProducts();
+        // Get all products - try promotional service first, then fallback to regular service
+        try {
+          const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
+          if (promotionalResults && promotionalResults.length > 0) {
+            searchResults = promotionalResults;
+          } else {
+            searchResults = await getAllProducts();
+          }
+        } catch (error) {
+          console.log('⚠️ Promotional all products search failed, falling back to regular search');
+          searchResults = await getAllProducts();
+        }
       }
 
       console.log('📦 Search results:', searchResults?.length || 0, 'products');
@@ -295,6 +346,10 @@ export default function SearchResults() {
 
   const getImageUrl = (image) => {
     if (!image) return '';
+    
+    // Handle base64 data URLs
+    if (image.startsWith('data:')) return image;
+    
     if (image.startsWith('http')) return image;
     
     let finalUrl;
@@ -461,67 +516,14 @@ export default function SearchResults() {
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredProducts.map((product) => (
-              <div
+              <ProductCard
                 key={product._id}
-                className="group cursor-pointer relative hover:shadow-lg transition-shadow duration-300" 
-                onClick={() => handleProductClick(product)}
-                title="Select this artisan product"
-              >
-                <div className="relative overflow-hidden rounded-lg bg-gray-100">
-                  {product.image ? (
-                    <img
-                      src={getImageUrl(product.image)}
-                      alt={product.name}
-                      className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                                onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'flex';
-          }}
-                    />
-                  ) : null}
-                  <div className={`w-full h-64 flex items-center justify-center bg-gray-200 ${product.image ? 'hidden' : 'flex'}`}>
-                    <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
-                  </div>
-                  
-                  {product.isFeatured && (
-                    <div className="absolute top-2 left-2 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10">
-                      Featured
-                    </div>
-                  )}
-                </div>
-                
-                <div className="mt-3">
-                  <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
-                    {product.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {product.artisan?.artisanName || `${product.seller?.firstName} ${product.seller?.lastName}`}
-                  </p>
-                  
-                  {/* Distance Badge */}
-                  {product.formattedDistance && (
-                    <div className="mt-2">
-                      <span className="text-xs text-gray-500">
-                        {product.formattedDistance}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Product Type Information */}
-                  <div className="mt-2 mb-2">
-                    <ProductTypeBadge product={product} variant="compact" />
-                  </div>
-                  
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
-                    <div className="flex items-center space-x-1">
-                      {renderStars(product.artisan?.rating?.average || 0)}
-                      <span className="text-sm text-gray-500">({(product.artisan?.rating?.average || 0).toFixed(1)})</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                product={product}
+                showDistance={!!product.formattedDistance}
+                showRating={true}
+                showImagePreview={true}
+                onProductClick={handleProductClick}
+              />
             ))}
           </div>
         ) : (

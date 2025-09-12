@@ -67,7 +67,8 @@ const ProductTypeBadge = ({ product, showDetails = true, variant = 'default' }) 
           description: `Lead time: ${leadTime} ${leadTimeUnit}`,
           timeFrame: `Ready in ${leadTime} ${leadTimeUnit}`,
           urgency: null,
-          maxOrder: product.maxOrderQuantity ? `Max: ${product.maxOrderQuantity} units` : null
+          maxOrder: product.maxOrderQuantity ? `Max: ${product.maxOrderQuantity} units per order` : null,
+          totalCapacity: product.totalCapacity ? `Total capacity: ${product.totalCapacity} units` : null
         };
       
       case 'scheduled_order':
@@ -75,13 +76,15 @@ const ProductTypeBadge = ({ product, showDetails = true, variant = 'default' }) 
           const nextDate = new Date(product.nextAvailableDate);
           const today = new Date();
           const daysUntil = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+          const availableQty = product.availableQuantity || 0;
           
           return {
             status: 'Scheduled Production',
             description: `Next available: ${nextDate.toLocaleDateString()}`,
             timeFrame: daysUntil > 0 ? `Ready in ${daysUntil} days` : 'Ready today',
             urgency: daysUntil <= 3 ? 'Coming soon' : null,
-            schedule: product.scheduleType === 'daily' ? 'Daily production' : 'Custom schedule'
+            schedule: product.scheduleType === 'daily' ? 'Daily production' : 'Custom schedule',
+            availableQuantity: `${availableQty} ${product.unit || 'units'} available`
           };
         } else {
           return {

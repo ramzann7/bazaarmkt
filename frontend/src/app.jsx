@@ -22,7 +22,7 @@ const ArtisanOnlyRoute = ({ children }) => {
   }
   
   // Check if user is an artisan
-  if (user.role !== 'artisan' && user.role !== 'producer' && user.role !== 'food_maker') {
+  if (user.role !== 'artisan') {
     // Redirect patrons to home page
     return <Navigate to="/" replace />;
   }
@@ -46,6 +46,7 @@ const Products = lazy(() => import("./components/Products.jsx"));
 const Orders = lazy(() => import("./components/Orders.jsx"));
 const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const Search = lazy(() => import("./components/Search.jsx"));
+const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 const SimpleTest = lazy(() => import("./components/SimpleTest.jsx"));
 const SearchTrackingTest = lazy(() => import("./components/SearchTrackingTest.jsx"));
@@ -182,6 +183,14 @@ function AppRoutes() {
           element={
             <ArtisanOnlyRoute>
               <ArtisanProductManagement />
+            </ArtisanOnlyRoute>
+          }
+        />
+        <Route
+          path="/my-wallet"
+          element={
+            <ArtisanOnlyRoute>
+              <MyWallet />
             </ArtisanOnlyRoute>
           }
         />

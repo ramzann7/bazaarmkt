@@ -1,12 +1,10 @@
 import { authToken } from './authservice';
 
-// Handle both cases: with and without /api suffix
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const API_BASE_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
+// Use Vite proxy for API calls
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Debug logging
 console.log('🔧 PromotionalService - VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('🔧 PromotionalService - BASE_URL:', BASE_URL);
 console.log('🔧 PromotionalService - API_BASE_URL:', API_BASE_URL);
 
 class PromotionalService {
@@ -114,7 +112,7 @@ class PromotionalService {
     }
   }
 
-  // Create new promotional feature (artisan request)
+  // Create new promotional feature (automatic activation)
   async createPromotionalFeature(featureData) {
     try {
       const token = authToken.getToken();
@@ -123,7 +121,7 @@ class PromotionalService {
       }
 
       const url = `${API_BASE_URL}/promotional/create`;
-      console.log('🔍 Creating promotional feature:', featureData);
+      console.log('🔍 Activating promotional feature:', featureData);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -136,14 +134,14 @@ class PromotionalService {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create promotional feature');
+        throw new Error(errorData.message || 'Failed to activate promotional feature');
       }
 
       const data = await response.json();
-      console.log('✅ Promotional feature created successfully');
+      console.log('✅ Promotional feature activated successfully');
       return data.data;
     } catch (error) {
-      console.error('❌ Error creating promotional feature:', error);
+      console.error('❌ Error activating promotional feature:', error);
       throw error;
     }
   }
@@ -445,25 +443,69 @@ class PromotionalService {
     }
   }
 
-  // Get pricing information for promotional features
-  getPromotionalPricing() {
+  // Get pricing information for promotional features (dynamic from backend)
+  async getPromotionalPricing() {
+    try {
+      const url = `${API_BASE_URL}/promotional/pricing`;
+      console.log('🔍 Fetching promotional pricing from:', url);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        console.error(`❌ Promotional pricing API error: ${response.status} ${response.statusText}`);
+        // Fallback to hardcoded pricing
+        return this.getFallbackPricing();
+      }
+
+      const data = await response.json();
+      console.log('✅ Promotional pricing fetched successfully:', data.data);
+      
+      // Format the pricing data for the frontend
+      const formattedPricing = {};
+      if (data.data) {
+        Object.keys(data.data).forEach(featureType => {
+          const pricing = data.data[featureType];
+          formattedPricing[featureType] = {
+            pricePerDay: pricing.pricePerDay,
+            currency: pricing.currency || 'USD',
+            description: pricing.description || this.getDefaultDescription(featureType),
+            benefits: pricing.benefits || this.getDefaultBenefits(featureType),
+            isActive: pricing.isActive
+          };
+        });
+      }
+      
+      return formattedPricing;
+    } catch (error) {
+      console.error('❌ Error fetching promotional pricing:', error);
+      // Fallback to hardcoded pricing
+      return this.getFallbackPricing();
+    }
+  }
+
+  // Fallback pricing when API is not available
+  getFallbackPricing() {
     return {
       featured_product: {
-        price: 25,
+        pricePerDay: 5,
         currency: 'USD',
-        duration: 'Flexible (1-365 days)',
         description: 'Featured on homepage with distance-based ranking',
         benefits: [
           'Homepage visibility',
           'Distance-based ranking',
           'Priority placement',
           'Admin approval required'
-        ]
+        ],
+        isActive: true
       },
       sponsored_product: {
-        price: 40,
+        pricePerDay: 10,
         currency: 'USD',
-        duration: '7 days',
         description: 'Enhanced search visibility and ranking',
         benefits: [
           'Search result boost',
@@ -471,23 +513,64 @@ class PromotionalService {
           'Category boost',
           'Proximity boost',
           'Admin approval required'
-        ]
+        ],
+        isActive: true
       }
     };
   }
 
-  // Calculate promotion cost
-  calculatePromotionCost(featureType, durationDays) {
-    const pricing = this.getPromotionalPricing();
+  // Get default description for feature type
+  getDefaultDescription(featureType) {
+    switch (featureType) {
+      case 'featured_product':
+        return 'Featured on homepage with distance-based ranking';
+      case 'sponsored_product':
+        return 'Enhanced search visibility and ranking';
+      default:
+        return 'Promotional feature';
+    }
+  }
+
+  // Get default benefits for feature type
+  getDefaultBenefits(featureType) {
+    switch (featureType) {
+      case 'featured_product':
+        return [
+          'Homepage visibility',
+          'Distance-based ranking',
+          'Priority placement',
+          'Admin approval required'
+        ];
+      case 'sponsored_product':
+        return [
+          'Search result boost',
+          'Keyword targeting',
+          'Category boost',
+          'Proximity boost',
+          'Admin approval required'
+        ];
+      default:
+        return ['Admin approval required'];
+    }
+  }
+
+  // Calculate promotion cost (async version)
+  async calculatePromotionCost(featureType, durationDays) {
+    const pricing = await this.getPromotionalPricing();
     
-    if (featureType === 'featured_product') {
-      return pricing.featured_product.price;
-    } else if (featureType === 'sponsored_product') {
-      // Sponsored products are $40 for 7 days, additional days at $5/day
-      const baseCost = pricing.sponsored_product.price;
-      const additionalDays = Math.max(0, durationDays - 7);
-      const additionalCost = additionalDays * 5;
-      return baseCost + additionalCost;
+    if (pricing[featureType]) {
+      return durationDays * pricing[featureType].pricePerDay;
+    }
+    
+    return 0;
+  }
+
+  // Calculate promotion cost (sync version with fallback)
+  calculatePromotionCostSync(featureType, durationDays) {
+    const pricing = this.getFallbackPricing();
+    
+    if (pricing[featureType]) {
+      return durationDays * pricing[featureType].pricePerDay;
     }
     
     return 0;

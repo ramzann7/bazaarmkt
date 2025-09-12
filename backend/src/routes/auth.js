@@ -4,22 +4,41 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const verifyToken = require('../middleware/authMiddleware');
+const { validateUserRegistration, validateEmail } = require('../utils/validation');
 
 // Register user
 router.post('/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone, role = 'patron', artisanData } = req.body;
 
-    let user = await User.findOne({ email });
+    // Validate and format user data
+    const validation = validateUserRegistration({
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      artisanName: artisanData?.artisanName
+    });
+
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        message: 'Validation failed', 
+        errors: validation.errors 
+      });
+    }
+
+    // Check if user already exists with the formatted email
+    let user = await User.findOne({ email: validation.formattedData.email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    // Create user
+    // Create user with validated and formatted data
     user = new User({ 
-      email, 
+      email: validation.formattedData.email, 
       password, 
-      firstName, 
-      lastName, 
-      phone, 
+      firstName: validation.formattedData.firstName, 
+      lastName: validation.formattedData.lastName, 
+      phone: validation.formattedData.phone, 
       role 
     });
     await user.save();
@@ -31,8 +50,8 @@ router.post('/register', async (req, res) => {
       artisan = new Artisan({
         user: user._id,
         type: artisanData.type || 'food_beverages',
-        artisanName: artisanData.artisanName || `${firstName} ${lastName}`,
-        description: artisanData.description || `Artisan profile for ${firstName} ${lastName}`,
+        artisanName: validation.formattedData.artisanName || `${validation.formattedData.firstName} ${validation.formattedData.lastName}`,
+        description: artisanData.description || `Artisan profile for ${validation.formattedData.firstName} ${validation.formattedData.lastName}`,
         category: artisanData.category || [artisanData.type || 'food_beverages'],
         specialties: artisanData.specialties || [],
         address: artisanData.address || {
@@ -41,8 +60,8 @@ router.post('/register', async (req, res) => {
           state: '',
           zipCode: ''
         },
-        phone: phone || '',
-        email: email || '',
+        phone: validation.formattedData.phone || '',
+        email: validation.formattedData.email || '',
         isActive: true,
         deliveryOptions: {
           pickup: true,
@@ -162,40 +181,57 @@ router.post('/register/artisan', async (req, res) => {
       deliveryOptions
     } = req.body;
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
+    // Validate and format user data
+    const validation = validateUserRegistration({
+      email,
+      password,
+      firstName,
+      lastName,
+      phone,
+      artisanName
+    });
+
+    if (!validation.isValid) {
+      return res.status(400).json({ 
+        message: 'Validation failed', 
+        errors: validation.errors 
+      });
+    }
+
+    // Check if user already exists with the formatted email
+    let user = await User.findOne({ email: validation.formattedData.email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    // Create user with artisan role
+    // Create user with artisan role and validated data
     user = new User({ 
-      email, 
+      email: validation.formattedData.email, 
       password, 
-      firstName, 
-      lastName, 
-      phone, 
+      firstName: validation.formattedData.firstName, 
+      lastName: validation.formattedData.lastName, 
+      phone: validation.formattedData.phone, 
       role: 'artisan'
     });
     await user.save();
 
     // Create artisan profile
     const Artisan = require('../models/artisan');
-    const finalArtisanName = artisanName || `${firstName} ${lastName}`;
+    const finalArtisanName = validation.formattedData.artisanName || `${validation.formattedData.firstName} ${validation.formattedData.lastName}`;
     console.log('🔄 Creating artisan profile with name:', finalArtisanName);
-    console.log('🔄 Registration data:', { artisanName, firstName, lastName, type, description });
+    console.log('🔄 Registration data:', { artisanName: validation.formattedData.artisanName, firstName: validation.formattedData.firstName, lastName: validation.formattedData.lastName, type, description });
     
     const artisan = new Artisan({
       user: user._id,
       type,
       artisanName: finalArtisanName,
-      description: description || `Artisan profile for ${firstName} ${lastName}`,
+      description: description || `Artisan profile for ${validation.formattedData.firstName} ${validation.formattedData.lastName}`,
       address: address || {
         street: '',
         city: '',
         state: '',
         zipCode: ''
       },
-      phone: phone || '',
-      email: email || '',
+      phone: validation.formattedData.phone || '',
+      email: validation.formattedData.email || '',
       isActive: true,
       deliveryOptions: deliveryOptions || {
         pickup: true,
@@ -248,7 +284,13 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    // Validate email format and convert to lowercase for consistency
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
+    const user = await User.findOne({ email: emailValidation.formatted });
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -467,8 +509,14 @@ router.post('/guest/convert', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'User is not a guest' });
     }
     
+    // Validate email format
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+
     // Check if email already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: emailValidation.formatted });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already exists' });
     }
@@ -481,7 +529,7 @@ router.post('/guest/convert', verifyToken, async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       {
-        email,
+        email: emailValidation.formatted,
         password: hashedPassword,
         firstName: firstName || req.user.firstName,
         lastName: lastName || req.user.lastName,

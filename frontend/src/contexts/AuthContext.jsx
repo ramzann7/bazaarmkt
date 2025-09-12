@@ -248,6 +248,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Listen for auth state changes from other components
+  useEffect(() => {
+    const handleAuthStateChange = async (event) => {
+      console.log('🔄 AuthContext: Received authStateChanged event:', event.detail);
+      if (event.detail.isAuthenticated) {
+        // User was authenticated elsewhere (e.g., registration), refresh auth state
+        await refreshUser();
+      }
+    };
+
+    window.addEventListener('authStateChanged', handleAuthStateChange);
+    
+    return () => {
+      window.removeEventListener('authStateChanged', handleAuthStateChange);
+    };
+  }, [refreshUser]);
+
   const value = {
     user,
     isAuthenticated,

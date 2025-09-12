@@ -728,7 +728,7 @@ router.put('/artisan/hours', verifyToken, async (req, res) => {
 
     res.json(artisan);
   } catch (error) {
-    console.error('Error updating artisan hours:', error);
+    console.error('❌ Error updating artisan hours:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -746,8 +746,6 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
     }
 
     const { deliveryOptions } = req.body;
-    
-    console.log('🔄 Received delivery options:', deliveryOptions);
     
     // Update delivery options
     if (deliveryOptions) {
@@ -814,7 +812,7 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
 
     res.json(artisan);
   } catch (error) {
-    console.error('Error updating delivery options:', error);
+    console.error('❌ Error updating delivery options:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -836,11 +834,12 @@ router.put('/artisan/operations', verifyToken, async (req, res) => {
       ...artisan.operationDetails,
       ...req.body
     };
+    
     await artisan.save();
 
     res.json(artisan);
   } catch (error) {
-    console.error('Error updating artisan operations:', error);
+    console.error('❌ Error updating artisan operations:', error);
     res.status(500).json({ message: 'Server error: ' + error.message });
   }
 });

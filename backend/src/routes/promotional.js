@@ -180,14 +180,14 @@ router.get('/products/sponsored', async (req, res) => {
               // Search query relevance (if provided)
               {
                 $cond: {
-                  if: { $and: [searchQuery, { $type: searchQuery, $eq: 'string' }] },
+                  if: { $and: [searchQuery, { $ne: [searchQuery, null] }] },
                   then: {
                     $multiply: [
                       {
                         $size: {
                           $setIntersection: [
                             '$specifications.searchKeywords',
-                            (searchQuery || '').toLowerCase().split(' ')
+                            { $split: [{ $toLower: searchQuery }, ' '] }
                           ]
                         }
                       },
@@ -220,8 +220,8 @@ router.get('/products/sponsored', async (req, res) => {
                 $divide: [
                   {
                     $add: [
-                      { $pow: [{ $subtract: ['$artisan.coordinates.latitude', parseFloat(userLat)] }, 2] },
-                      { $pow: [{ $subtract: ['$artisan.coordinates.longitude', parseFloat(userLng)] }, 2] }
+                      { $pow: [{ $subtract: ['$artisan.coordinates.latitude', { $toDouble: userLat }] }, 2] },
+                      { $pow: [{ $subtract: ['$artisan.coordinates.longitude', { $toDouble: userLng }] }, 2] }
                     ]
                   },
                   1000
@@ -288,8 +288,12 @@ router.post('/create', verifyToken, async (req, res) => {
   try {
     const { productId, featureType, durationDays, customText, searchKeywords, categoryBoost } = req.body;
     
+    console.log('🔍 Promotional feature creation request:', req.body);
+    console.log('🔍 Feature type received:', featureType);
+    
     // Validate feature type
     if (!['featured_product', 'sponsored_product'].includes(featureType)) {
+      console.log('❌ Invalid feature type:', featureType);
       return res.status(400).json({ message: 'Invalid feature type' });
     }
     
@@ -424,20 +428,86 @@ router.post('/create', verifyToken, async (req, res) => {
       price,
       currency: 'USD',
       specifications,
-      status: 'pending_approval',
-      isActive: false
+      status: 'active',
+      isActive: true
     });
+    
+    // Check wallet balance and deduct payment
+    const Wallet = require('../models/wallet');
+    const WalletTransaction = require('../models/walletTransaction');
+    
+    let wallet = await Wallet.findOne({ artisanId: artisanProfile._id });
+    
+    if (!wallet) {
+      wallet = new Wallet({
+        artisanId: artisanProfile._id,
+        balance: 0
+      });
+      await wallet.save();
+    }
+    
+    // Check if wallet has sufficient balance
+    if (!wallet.hasSufficientBalance(price)) {
+      return res.status(400).json({ 
+        message: 'Insufficient wallet balance',
+        required: price,
+        available: wallet.balance
+      });
+    }
+    
+    // Create purchase transaction
+    const transaction = await WalletTransaction.createPurchaseTransaction(
+      wallet._id,
+      req.user.userId,
+      promotionalFeature._id,
+      price,
+      `Promotional feature: ${featureType} for ${durationDays} days`
+    );
+    
+    // Deduct funds from wallet
+    const balanceBefore = wallet.balance;
+    await wallet.deductFunds(price, 'purchase');
+    
+    // Update transaction with actual balances
+    transaction.balanceBefore = balanceBefore;
+    transaction.balanceAfter = wallet.balance;
+    await transaction.save();
     
     await promotionalFeature.save();
     
+    // Update the product with promotional feature information
+    const updateData = {};
+    
+    if (featureType === 'featured_product') {
+      updateData.isFeatured = true;
+    }
+    
+    // Add promotional feature reference to product
+    await Product.findByIdAndUpdate(
+      productId,
+      {
+        ...updateData,
+        $push: {
+          promotionalFeatures: {
+            featureType,
+            promotionalFeatureId: promotionalFeature._id,
+            status: 'active',
+            startDate,
+            endDate,
+            price
+          }
+        }
+      }
+    );
+    
     res.json({
       success: true,
-      message: 'Promotional feature request submitted successfully',
+      message: 'Promotional feature activated successfully',
       data: promotionalFeature
     });
   } catch (error) {
     console.error('Error creating promotional feature:', error);
-    res.status(500).json({ message: 'Error creating promotional feature' });
+    res.status(500).json({ message: 'Error activating promotional feature' });
   }
 });
 
@@ -670,5 +740,36 @@ function getPeriodStartDate(period) {
       return new Date(now.getFullYear(), now.getMonth(), 1);
   }
 }
+
+// Get current promotional pricing (public endpoint for artisans)
+router.get('/pricing', async (req, res) => {
+  try {
+    const PromotionalPricing = require('../models/promotionalPricing');
+    const pricing = await PromotionalPricing.find({ isActive: true }).sort({ featureType: 1 });
+    
+    // Format pricing for frontend
+    const formattedPricing = {};
+    pricing.forEach(item => {
+      formattedPricing[item.featureType] = {
+        pricePerDay: item.pricePerDay,
+        currency: item.currency || 'USD',
+        description: item.description,
+        benefits: item.benefits || [],
+        isActive: item.isActive
+      };
+    });
+    
+    res.json({
+      success: true,
+      data: formattedPricing
+    });
+  } catch (error) {
+    console.error('Error fetching promotional pricing:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching promotional pricing' 
+    });
+  }
+});
 
 module.exports = router;

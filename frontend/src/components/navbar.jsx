@@ -27,6 +27,7 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const [isGuest, setIsGuest] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -337,7 +338,7 @@ export default function Navbar() {
             <div className="w-8 h-8 bg-[#E6B655] rounded-lg flex items-center justify-center shadow-lg">
               <BuildingStorefrontIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-white font-serif tracking-wide">The Bazaar</span>
+            <span className="text-xl font-bold text-white font-serif tracking-wide">bazaarMKT</span>
           </OptimizedLink>
 
           {/* Desktop Navigation */}
@@ -790,6 +791,13 @@ export default function Navbar() {
                             onClick={toggleMobileMenu}
                           >
                             My Orders
+                          </Link>
+                          <Link
+                            to="/my-wallet"
+                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            onClick={toggleMobileMenu}
+                          >
+                            My Wallet
                           </Link>
                         </>
                       )}

@@ -4,7 +4,7 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 class GeocodingService {
   constructor() {
     this.baseUrl = 'https://nominatim.openstreetmap.org';
-    this.userAgent = 'TheBazaar/1.0 (https://github.com/ramzann7/bazaarmkt)';
+    this.userAgent = 'bazaarMKT/1.0 (https://github.com/ramzann7/bazaarmkt)';
     this.rateLimitDelay = 1000; // 1 second delay between requests
     this.lastRequestTime = 0;
   }

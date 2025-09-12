@@ -13,7 +13,7 @@ export default function Footer() {
               <div className="w-10 h-10 bg-[#E6B655] rounded-xl flex items-center justify-center">
                 <BuildingStorefrontIcon className="w-6 h-6 text-white" />
               </div>
-              <span className="text-2xl font-bold font-serif tracking-wide">The Bazaar</span>
+              <span className="text-2xl font-bold font-serif tracking-wide">bazaarMKT</span>
             </div>
             <p className="text-gray-300 mb-4 max-w-md">
               Supporting local artisans with love. Empowering neighbours, artisans, and farmers to share their craft with the community.
@@ -78,7 +78,7 @@ export default function Footer() {
         <div className="border-t border-gray-700 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-sm text-gray-400 text-center md:text-left">
-              © 2025 The Bazaar. Supporting local artisans with love.
+              © 2025 bazaarMKT. Supporting local artisans with love.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <Link to="/privacy" className="text-sm text-gray-400 hover:text-[#E6B655] transition-colors">

@@ -18,6 +18,7 @@ import { authToken, getProfile } from '../services/authservice';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { promotionalService } from '../services/promotionalService';
+import walletService from '../services/walletService';
 import { productService } from '../services/productService';
 import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 
@@ -35,11 +36,32 @@ export default function ArtisanProductManagement() {
   const [showPromotionModal, setShowPromotionModal] = useState(false);
   const [promotionData, setPromotionData] = useState({
     featureType: '',
-    durationDays: 7,
-    customText: ''
+    durationDays: 7
   });
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  // Helper function to get the correct image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // If it's already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // If it's a local path, prefix with backend URL
+    if (imagePath.startsWith('/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+  };
 
   useEffect(() => {
     checkArtisanAccess();
@@ -221,14 +243,13 @@ export default function ArtisanProductManagement() {
       const featureData = {
         productId: selectedProduct._id,
         featureType: promotionData.featureType,
-        durationDays: parseInt(promotionData.durationDays),
-        customText: promotionData.customText.trim() || undefined,
+        durationDays: parseInt(promotionData.durationDays)
         // Keywords and categories are now automatically generated from product data
       };
 
       const result = await promotionalService.createPromotionalFeature(featureData);
       
-      toast.success('Promotional feature request submitted successfully! Awaiting admin approval.');
+      toast.success('Promotional feature activated successfully! Your product is now being promoted.');
       
       // Refresh products to show updated promotional status
       loadProducts();
@@ -237,53 +258,50 @@ export default function ArtisanProductManagement() {
       setSelectedProduct(null);
       setPromotionData({
         featureType: '',
-        durationDays: 7,
-        customText: '',
+        durationDays: 7
         // Keywords and categories are automatically generated
       });
     } catch (error) {
-      toast.error(error.message || 'Failed to submit promotional feature request');
+      toast.error(error.message || 'Failed to activate promotional feature');
     }
   };
 
-  const getPromotionalPricing = () => {
-    return {
-      featured_product: {
-        pricePerDay: 5,
-        currency: 'USD',
-        duration: 'Daily rate',
-        description: 'Featured on homepage with distance-based ranking',
-        benefits: [
-          'Homepage visibility',
-          'Distance-based ranking',
-          'Priority placement',
-          '$5 per day or $25 for 7 days',
-          'Admin approval required'
-        ]
-      },
-      sponsored_product: {
-        pricePerDay: 10,
-        currency: 'USD',
-        duration: 'Daily rate',
-        description: 'Enhanced search visibility and category targeting',
-        benefits: [
-          'Search result boost',
-          'Product-specific targeting',
-          'Category and subcategory boost',
-          '$10 per day',
-          'Admin approval required'
-        ]
+  const [promotionalPricing, setPromotionalPricing] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+
+  // Fetch promotional pricing and wallet balance on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [pricing, walletResponse] = await Promise.all([
+          promotionalService.getPromotionalPricing(),
+          walletService.getWalletBalance()
+        ]);
+        
+        setPromotionalPricing(pricing);
+        
+        if (walletResponse.success) {
+          setWalletBalance(walletResponse.data.balance);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // Set fallback pricing
+        setPromotionalPricing(promotionalService.getFallbackPricing());
       }
     };
+    
+    fetchData();
+  }, []);
+
+  const getPromotionalPricing = () => {
+    return promotionalPricing || promotionalService.getFallbackPricing();
   };
 
   const calculatePromotionCost = (featureType, durationDays) => {
     const pricing = getPromotionalPricing();
     
-    if (featureType === 'featured_product') {
-      return durationDays * pricing.featured_product.pricePerDay; // $5 per day
-    } else if (featureType === 'sponsored_product') {
-      return durationDays * pricing.sponsored_product.pricePerDay; // $10 per day
+    if (pricing[featureType]) {
+      return durationDays * pricing[featureType].pricePerDay;
     }
     
     return 0;
@@ -511,16 +529,22 @@ export default function ArtisanProductManagement() {
                       <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm">
                         {product.image ? (
                           <img
-                            src={product.image}
+                            src={getImageUrl(product.image)}
                             alt={product.name}
                             className="w-full h-full object-cover rounded-lg"
+                            onError={(e) => {
+                              console.error('Image failed to load:', getImageUrl(product.image));
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
                           />
-                        ) : (
+                        ) : null}
+                        <div className={`w-full h-full flex items-center justify-center ${product.image ? 'hidden' : 'flex'}`}>
                           <div className="text-center">
                             <CubeIcon className="w-8 h-8 text-gray-400 mx-auto mb-1" />
                             <span className="text-xs text-gray-400">No Image</span>
                           </div>
-                        )}
+                        </div>
                       </div>
                       
                       <div className="flex-1 min-w-0">
@@ -695,6 +719,14 @@ export default function ArtisanProductManagement() {
                 <p className="text-gray-600 mt-2">
                   Choose a promotional feature to increase your product's visibility
                 </p>
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Wallet Balance:</span>
+                    <span className="text-lg font-bold text-[#D77A61]">
+                      {walletService.formatCurrency(walletBalance)}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Product Info */}
@@ -702,9 +734,13 @@ export default function ArtisanProductManagement() {
                 <div className="flex items-center space-x-4">
                   {selectedProduct.image && (
                     <img
-                      src={selectedProduct.image}
+                      src={getImageUrl(selectedProduct.image)}
                       alt={selectedProduct.name}
                       className="w-16 h-16 object-cover rounded-lg"
+                      onError={(e) => {
+                        console.error('Image failed to load in promotion modal:', getImageUrl(selectedProduct.image));
+                        e.target.style.display = 'none';
+                      }}
                     />
                   )}
                   <div>
@@ -737,8 +773,11 @@ export default function ArtisanProductManagement() {
                       Showcase your product on the homepage with distance-based ranking
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-amber-600">$25</span>
-                      <span className="text-sm text-gray-500">One-time</span>
+                      <span className="text-2xl font-bold text-amber-600">
+                        ${promotionalPricing?.featured_product?.pricePerDay ? 
+                          (promotionalPricing.featured_product.pricePerDay * 7) : 25}
+                      </span>
+                      <span className="text-sm text-gray-500">7 days</span>
                     </div>
                   </div>
 
@@ -759,7 +798,10 @@ export default function ArtisanProductManagement() {
                       Boost search visibility with enhanced ranking and targeting
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-purple-600">$40</span>
+                      <span className="text-2xl font-bold text-purple-600">
+                        ${promotionalPricing?.sponsored_product?.pricePerDay ? 
+                          (promotionalPricing.sponsored_product.pricePerDay * 7) : 40}
+                      </span>
                       <span className="text-sm text-gray-500">7 days</span>
                     </div>
                   </div>
@@ -790,19 +832,6 @@ export default function ArtisanProductManagement() {
                       )}
                     </div>
 
-                    {/* Custom Text */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Custom Text (optional)
-                      </label>
-                      <textarea
-                        value={promotionData.customText}
-                        onChange={(e) => setPromotionData({...promotionData, customText: e.target.value})}
-                        placeholder="Add custom text for your promotion..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                        rows="2"
-                      />
-                    </div>
 
                     {/* Sponsored Product Automatic Targeting Info */}
                     {promotionData.featureType === 'sponsored_product' && (
@@ -869,7 +898,7 @@ export default function ArtisanProductManagement() {
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    Submit Request
+                    Promote Product
                   </button>
                 </div>
               </div>
@@ -931,7 +960,9 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     productType: product?.productType || 'ready_to_ship',
     category: product?.category || 'food_beverages',
     subcategory: product?.subcategory || 'baked_goods',
-    stock: product?.stock || 0,
+    stock: product?.productType === 'made_to_order' ? (product?.totalCapacity || 0) :
+           product?.productType === 'scheduled_order' ? (product?.availableQuantity || 0) :
+           (product?.stock || 0),
     weight: product?.weight || '',
     dimensions: product?.dimensions || '',
     allergens: product?.allergens || '',
@@ -954,6 +985,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     scheduleType: product?.scheduleType || 'daily',
     scheduleDetails: product?.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
     nextAvailableDate: product?.nextAvailableDate || '',
+    nextAvailableTime: product?.nextAvailableTime || '09:00',
     availableQuantity: product?.availableQuantity || 1
   });
 
@@ -961,6 +993,52 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(product?.image || null);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Update form data when product changes
+  useEffect(() => {
+    if (product) {
+      setFormData(prev => ({
+        ...prev,
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price || '',
+        unit: product.unit || 'piece',
+        productType: product.productType || 'ready_to_ship',
+        category: product.category || 'food_beverages',
+        subcategory: product.subcategory || 'baked_goods',
+        stock: product.productType === 'made_to_order' ? (product.totalCapacity || 0) :
+               product.productType === 'scheduled_order' ? (product.availableQuantity || 0) :
+               (product.stock || 0),
+        weight: product.weight || '',
+        dimensions: product.dimensions || '',
+        allergens: product.allergens || '',
+        ingredients: product.ingredients || '',
+        image: product.image || null,
+        status: product.status || 'active',
+        isOrganic: product.isOrganic || false,
+        isGlutenFree: product.isGlutenFree || false,
+        isVegan: product.isVegan || false,
+        isDairyFree: product.isDairyFree || false,
+        isNutFree: product.isNutFree || false,
+        isKosher: product.isKosher || false,
+        isHalal: product.isHalal || false,
+        preparationTime: product.preparationTime || '',
+        leadTime: product.leadTime || 1,
+        leadTimeUnit: product.leadTimeUnit || 'days',
+        maxOrderQuantity: product.maxOrderQuantity || 10,
+        scheduleType: product.scheduleType || 'daily',
+        scheduleDetails: product.scheduleDetails || {
+          frequency: 'every_day',
+          customSchedule: [],
+          orderCutoffHours: 24
+        },
+        nextAvailableDate: product.nextAvailableDate ? new Date(product.nextAvailableDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        nextAvailableTime: product.nextAvailableTime || '09:00',
+        lowStockThreshold: product.lowStockThreshold || 5
+      }));
+      setImagePreview(product.image || null);
+    }
+  }, [product]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -983,16 +1061,23 @@ const ProductForm = ({ product, onSave, onCancel }) => {
       isNutFree: formData.isNutFree,
       isKosher: formData.isKosher,
       isHalal: formData.isHalal,
+      // Include image if present (will be handled by FormData in productService)
+      ...(formData.image && { image: formData.image }),
       // Product type specific fields
       ...(formData.productType === 'ready_to_ship' && {
-        stock: parseInt(formData.stock) || 0
+        stock: parseInt(formData.stock) || 0,
+        lowStockThreshold: parseInt(formData.lowStockThreshold) || 5
       }),
       ...(formData.productType === 'made_to_order' && {
+        stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
+        totalCapacity: Math.max(parseInt(formData.stock) || 0, 1), // Map stock to totalCapacity, minimum 1
         leadTime: parseInt(formData.leadTime) || 1,
         leadTimeUnit: formData.leadTimeUnit || 'days',
         maxOrderQuantity: parseInt(formData.maxOrderQuantity) || 10
       }),
       ...(formData.productType === 'scheduled_order' && {
+        stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
+        availableQuantity: Math.max(parseInt(formData.stock) || 0, 1), // Map stock to availableQuantity, minimum 1
         scheduleType: formData.scheduleType || 'daily',
         scheduleDetails: {
           frequency: formData.scheduleDetails?.frequency || 'every_day',
@@ -1000,34 +1085,82 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           orderCutoffHours: formData.scheduleDetails?.orderCutoffHours || 24
         },
         nextAvailableDate: formData.nextAvailableDate || new Date().toISOString().split('T')[0],
-        availableQuantity: parseInt(formData.availableQuantity) || 1
+        nextAvailableTime: formData.nextAvailableTime || '09:00'
       })
     };
     
     console.log('🔍 Form data before filtering:', formData);
     console.log('🔍 Filtered data being sent:', filteredData);
+    console.log('🔍 Stock value in formData:', formData.stock);
+    console.log('🔍 Stock value in filteredData:', filteredData.stock);
+    console.log('🔍 Image value in formData:', formData.image ? 'Present' : 'Not present');
+    console.log('🔍 Image value in filteredData:', filteredData.image ? 'Present' : 'Not present');
     
     onSave(filteredData);
   };
 
+  // Helper function to format product name
+  const formatProductName = (name) => {
+    if (!name) return name;
+    // Capitalize first letter of each word, strip all caps, and limit to 30 characters
+    const formatted = name
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    // Limit to 30 characters
+    return formatted.length > 30 ? formatted.substring(0, 30) : formatted;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // Special handling for product name
+    if (name === 'name') {
+      const formattedValue = formatProductName(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: formattedValue
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // Helper function to handle product type changes with stock validation
+  const handleProductTypeChange = (newProductType) => {
+    setFormData(prev => {
+      const newFormData = { ...prev, productType: newProductType };
+      
+      // Ensure stock is at least 1 for made-to-order and scheduled order products
+      if ((newProductType === 'made_to_order' || newProductType === 'scheduled_order') && 
+          (parseInt(prev.stock) || 0) < 1) {
+        newFormData.stock = 1;
+      }
+      
+      return newFormData;
+    });
   };
 
   // Image upload handlers
   const handleImageUpload = (file) => {
     if (file && file.type.startsWith('image/')) {
+      console.log('📸 Image file selected:', file.name, file.size, file.type);
       setImageFile(file);
       const reader = new FileReader();
       reader.onload = (e) => {
+        console.log('📸 Image converted to base64, length:', e.target.result.length);
         setImagePreview(e.target.result);
-        setFormData(prev => ({ ...prev, image: e.target.result }));
+        // Store the actual file for upload, not base64
+        setFormData(prev => ({ ...prev, image: file }));
       };
       reader.readAsDataURL(file);
+    } else {
+      console.log('❌ Invalid file type:', file?.type);
     }
   };
 
@@ -1076,85 +1209,140 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Product Type Selection */}
-      <div className="mb-8">
-        <label className="block text-lg font-semibold text-gray-900 mb-4">
-          Product Type *
-        </label>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div
-            className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
-              formData.productType === 'ready_to_ship'
-                ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
-                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
-            }`}
-            onClick={() => setFormData({...formData, productType: 'ready_to_ship'})}
-          >
-            <div className="text-center">
-              <TruckIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
-              <h4 className="font-semibold text-gray-900 mb-2">Ready to Ship</h4>
-              <p className="text-sm text-gray-600">Pre-made products ready for immediate delivery</p>
-              <div className="mt-3 text-xs text-gray-500">
-                • Available in stock<br/>
-                • Immediate shipping<br/>
-                • Standard inventory management
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Basic Product Information */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+        <div className="flex items-center mb-6">
+          <div className="w-10 h-10 bg-[#D77A61] rounded-lg flex items-center justify-center mr-3">
+            <CubeIcon className="w-6 h-6 text-white" />
               </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Basic Information</h3>
+            <p className="text-sm text-gray-600">Essential details about your product</p>
             </div>
           </div>
           
-          <div
-            className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
-              formData.productType === 'made_to_order'
-                ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
-                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
-            }`}
-            onClick={() => setFormData({...formData, productType: 'made_to_order'})}
-          >
-            <div className="text-center">
-              <WrenchScrewdriverIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
-              <h4 className="font-semibold text-gray-900 mb-2">Made to Order</h4>
-              <p className="text-sm text-gray-600">Custom products made after order placement</p>
-              <div className="mt-3 text-xs text-gray-500">
-                • Custom preparation<br/>
-                • Lead time required<br/>
-                • Made after order
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-800">
+              Product Name *
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              maxLength="30"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+              placeholder="e.g., Organic Honey"
+            />
+            <p className="text-xs text-gray-500 flex items-center">
+              <span className="w-2 h-2 bg-gray-300 rounded-full mr-2"></span>
+              Max 30 characters
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-800">
+              Category *
+            </label>
+            <select
+              name="category"
+              value={formData.category}
+              onChange={(e) => {
+                handleChange(e);
+                // Reset subcategory when category changes
+                setFormData(prev => ({
+                  ...prev,
+                  category: e.target.value,
+                  subcategory: Object.keys(PRODUCT_CATEGORIES[e.target.value]?.subcategories || {})[0] || ''
+                }));
+              }}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+            >
+              {getAllCategories().map(category => (
+                <option key={category.key} value={category.key}>
+                  {category.icon} {category.name}
+                </option>
+              ))}
+            </select>
               </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-800">
+              Subcategory *
+            </label>
+            <select
+              name="subcategory"
+              value={formData.subcategory}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+            >
+              {getAvailableSubcategories().map(subcategory => (
+                <option key={subcategory.key} value={subcategory.key}>
+                  {subcategory.icon} {subcategory.name}
+                </option>
+              ))}
+            </select>
             </div>
           </div>
           
-          <div
-            className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
-              formData.productType === 'scheduled_order'
-                ? 'border-[#D77A61] bg-[#F5F1EA] shadow-lg'
-                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md'
-            }`}
-            onClick={() => setFormData({...formData, productType: 'scheduled_order'})}
-          >
-            <div className="text-center">
-              <CalendarIcon className="w-10 h-10 mx-auto mb-3 text-[#D77A61]" />
-              <h4 className="font-semibold text-gray-900 mb-2">Scheduled</h4>
-              <p className="text-sm text-gray-600">Products made at specific date and time</p>
-              <div className="mt-3 text-xs text-gray-500">
-                • Fixed production time<br/>
-                • Limited quantity<br/>
-                • Specific date/time
+        <div className="mt-6">
+          <label className="block text-sm font-semibold text-gray-800 mb-3">
+            Product Status
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {[
+              { value: 'active', label: 'Active', color: 'bg-green-100 text-green-800 border-green-200' },
+              { value: 'inactive', label: 'Inactive', color: 'bg-gray-100 text-gray-800 border-gray-200' },
+              { value: 'out_of_stock', label: 'Out of Stock', color: 'bg-red-100 text-red-800 border-red-200' },
+              { value: 'draft', label: 'Draft', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+            ].map((status) => (
+              <label
+                key={status.value}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                  formData.status === status.value
+                    ? `${status.color} border-current`
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#D77A61]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="status"
+                  value={status.value}
+                  checked={formData.status === status.value}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <span className="text-sm font-medium">{status.label}</span>
+              </label>
+            ))}
               </div>
             </div>
           </div>
+
+      {/* Product Image Upload */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+        <div className="flex items-center mb-6">
+          <div className="w-10 h-10 bg-[#E6B655] rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Product Image</h3>
+            <p className="text-sm text-gray-600">Upload a high-quality image of your product</p>
         </div>
       </div>
 
-      {/* Image Upload Section */}
-      <div className="mb-8">
-        <label className="block text-lg font-semibold text-gray-900 mb-4">
-          Product Image
-        </label>
         <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+          className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 ${
             isDragOver
-              ? 'border-[#D77A61] bg-[#F5F1EA]'
-              : 'border-gray-300 hover:border-[#D77A61]/50'
+              ? 'border-[#D77A61] bg-[#F5F1EA] scale-[1.02]'
+              : 'border-gray-300 hover:border-[#D77A61]/50 hover:bg-gray-50'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -1166,41 +1354,43 @@ const ProductForm = ({ product, onSave, onCancel }) => {
                 <img
                   src={imagePreview}
                   alt="Product preview"
-                  className="w-32 h-32 object-cover rounded-lg shadow-lg"
+                  className="w-32 h-32 object-cover rounded-2xl shadow-lg"
                 />
                 <button
                   type="button"
                   onClick={removeImage}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+                  className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-all duration-200 shadow-lg hover:scale-110"
                 >
                   <XMarkIcon className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-sm text-gray-600">Image uploaded successfully</p>
+              <div>
+                <p className="text-sm font-semibold text-gray-700 mb-2">✓ Image uploaded successfully</p>
               <button
                 type="button"
                 onClick={() => document.getElementById('image-upload').click()}
-                className="text-[#D77A61] hover:text-[#C06A51] text-sm font-medium"
+                  className="text-[#D77A61] hover:text-[#C06A51] text-sm font-medium underline hover:no-underline transition-all duration-200"
               >
                 Change Image
               </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#D77A61] to-[#E6B655] rounded-2xl flex items-center justify-center shadow-lg">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
               <div>
-                <p className="text-lg font-medium text-gray-900 mb-2">Upload Product Image</p>
+                <p className="text-lg font-semibold text-gray-900 mb-2">Upload Product Image</p>
                 <p className="text-sm text-gray-600 mb-4">
-                  Drag and drop an image here, or click to select
+                  Drag and drop your image here, or click to browse
                 </p>
                 <button
                   type="button"
                   onClick={() => document.getElementById('image-upload').click()}
-                  className="bg-[#D77A61] text-white px-6 py-2 rounded-lg hover:bg-[#C06A51] transition-colors"
+                  className="bg-gradient-to-r from-[#D77A61] to-[#E6B655] text-white px-6 py-3 rounded-xl hover:from-[#C06A51] hover:to-[#D4A545] transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   Choose Image
                 </button>
@@ -1215,30 +1405,146 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             className="hidden"
           />
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Recommended: Square image, at least 400x400 pixels. Max file size: 5MB
-        </p>
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+          <div className="flex items-start space-x-3">
+            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-blue-900">Image Requirements</p>
+              <p className="text-xs text-blue-700 mt-1">
+                Recommended: Square image, at least 400x400 pixels. Max file size: 5MB. Supported formats: JPG, PNG, WebP
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Product Type Selection */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+        <div className="flex items-center mb-6">
+          <div className="w-10 h-10 bg-[#8B5CF6] rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Product Name *
-          </label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          />
+            <h3 className="text-xl font-bold text-gray-900">Product Type *</h3>
+            <p className="text-sm text-gray-600">Choose how your product will be fulfilled</p>
+          </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div
+            className={`border-2 rounded-2xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+              formData.productType === 'ready_to_ship'
+                ? 'border-[#D77A61] bg-gradient-to-br from-[#F5F1EA] to-[#FEF7F0] shadow-lg'
+                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md bg-white'
+            }`}
+            onClick={() => handleProductTypeChange('ready_to_ship')}
+          >
+            <div className="text-center">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                formData.productType === 'ready_to_ship' 
+                  ? 'bg-[#D77A61]' 
+                  : 'bg-gray-100'
+              }`}>
+                <TruckIcon className={`w-8 h-8 ${
+                  formData.productType === 'ready_to_ship' ? 'text-white' : 'text-gray-600'
+                }`} />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Ready to Ship</h4>
+              <p className="text-sm text-gray-600 mb-3">Pre-made products ready for immediate delivery</p>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>• Available in stock</p>
+                <p>• Immediate shipping</p>
+                <p>• Standard inventory</p>
+              </div>
+            </div>
+          </div>
+          
+          <div
+            className={`border-2 rounded-2xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+              formData.productType === 'made_to_order'
+                ? 'border-[#D77A61] bg-gradient-to-br from-[#F5F1EA] to-[#FEF7F0] shadow-lg'
+                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md bg-white'
+            }`}
+            onClick={() => handleProductTypeChange('made_to_order')}
+          >
+            <div className="text-center">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                formData.productType === 'made_to_order' 
+                  ? 'bg-[#D77A61]' 
+                  : 'bg-gray-100'
+              }`}>
+                <WrenchScrewdriverIcon className={`w-8 h-8 ${
+                  formData.productType === 'made_to_order' ? 'text-white' : 'text-gray-600'
+                }`} />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Made to Order</h4>
+              <p className="text-sm text-gray-600 mb-3">Custom products made after order placement</p>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>• Custom preparation</p>
+                <p>• Lead time required</p>
+                <p>• Made after order</p>
+              </div>
+            </div>
+          </div>
+          
+          <div
+            className={`border-2 rounded-2xl p-6 cursor-pointer transition-all duration-300 transform hover:scale-[1.02] ${
+              formData.productType === 'scheduled_order'
+                ? 'border-[#D77A61] bg-gradient-to-br from-[#F5F1EA] to-[#FEF7F0] shadow-lg'
+                : 'border-gray-200 hover:border-[#D77A61]/50 hover:shadow-md bg-white'
+            }`}
+            onClick={() => handleProductTypeChange('scheduled_order')}
+          >
+            <div className="text-center">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                formData.productType === 'scheduled_order' 
+                  ? 'bg-[#D77A61]' 
+                  : 'bg-gray-100'
+              }`}>
+                <CalendarIcon className={`w-8 h-8 ${
+                  formData.productType === 'scheduled_order' ? 'text-white' : 'text-gray-600'
+                }`} />
+              </div>
+              <h4 className="font-bold text-gray-900 mb-2">Scheduled Order</h4>
+              <p className="text-sm text-gray-600 mb-3">Products made at specific date and time</p>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p>• Fixed production time</p>
+                <p>• Limited quantity</p>
+                <p>• Specific date/time</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Type Specific Fields */}
+      {formData.productType === 'ready_to_ship' && (
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+          <div className="flex items-center mb-6">
+            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center mr-3">
+              <TruckIcon className="w-6 h-6 text-white" />
+            </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+              <h3 className="text-xl font-bold text-gray-900">Ready to Ship Product Details</h3>
+              <p className="text-sm text-gray-600">Configure your inventory and pricing</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">
             Price *
           </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 sm:text-sm">$</span>
+                </div>
           <input
             type="number"
             name="price"
@@ -1247,12 +1553,14 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             step="0.01"
             min="0"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                  className="w-full pl-7 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+                  placeholder="0.00"
           />
+              </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">
             Unit *
           </label>
           <select
@@ -1260,20 +1568,42 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             value={formData.unit}
             onChange={handleChange}
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
           >
-            <option value="piece">Piece</option>
-            <option value="kg">Kilogram</option>
-            <option value="g">Gram</option>
-            <option value="l">Liter</option>
-            <option value="ml">Milliliter</option>
-            <option value="dozen">Dozen</option>
-            <option value="pack">Pack</option>
+            <optgroup label="Count/Quantity">
+              <option value="piece">Piece</option>
+              <option value="item">Item</option>
+              <option value="each">Each</option>
+              <option value="dozen">Dozen</option>
+              <option value="half_dozen">Half Dozen</option>
+            </optgroup>
+                <optgroup label="Weight">
+              <option value="kg">Kilogram (kg)</option>
+              <option value="g">Gram (g)</option>
+              <option value="lb">Pound (lb)</option>
+              <option value="oz">Ounce (oz)</option>
+            </optgroup>
+                <optgroup label="Volume">
+              <option value="liter">Liter (L)</option>
+              <option value="ml">Milliliter (ml)</option>
+              <option value="cup">Cup</option>
+                  <option value="tbsp">Tablespoon</option>
+                  <option value="tsp">Teaspoon</option>
+            </optgroup>
+                <optgroup label="Food Items">
+              <option value="bottle">Bottle</option>
+              <option value="jar">Jar</option>
+              <option value="bag">Bag</option>
+              <option value="box">Box</option>
+                  <option value="loaf">Loaf</option>
+              <option value="slice">Slice</option>
+              <option value="serving">Serving</option>
+            </optgroup>
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">
             Stock *
           </label>
           <input
@@ -1281,77 +1611,165 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             name="stock"
             value={formData.stock}
             onChange={handleChange}
+            min={formData.productType === 'ready_to_ship' ? "0" : "1"}
+            required
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+                placeholder={formData.productType === 'ready_to_ship' ? "0" : "1"}
+              />
+              <p className="text-xs text-gray-500">
+                {formData.productType === 'ready_to_ship' 
+                  ? 'Current inventory available' 
+                  : formData.productType === 'made_to_order'
+                    ? 'Total production capacity (minimum 1)'
+                    : 'Available quantity for this date (minimum 1)'
+                }
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">
+                Preparation Time
+              </label>
+              <input
+                type="text"
+                name="preparationTime"
+                value={formData.preparationTime}
+                onChange={handleChange}
+                placeholder="e.g., 30 minutes, 2 hours"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+              />
+              <p className="text-xs text-gray-500">Time to prepare this product</p>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <label className="block text-sm font-semibold text-gray-800 mb-3">
+              Description *
+            </label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              required
+              rows="4"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white resize-none"
+              placeholder="Describe your product in detail..."
+            />
+            <p className="text-xs text-gray-500 mt-2">Help customers understand what makes your product special</p>
+          </div>
+        </div>
+      )}
+
+      {formData.productType === 'made_to_order' && (
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+          <div className="flex items-center mb-6">
+            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
+              <WrenchScrewdriverIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Made to Order Product Details</h3>
+              <p className="text-sm text-gray-600">Configure custom production settings</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">
+                Price *
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                  onChange={handleChange}
+                  step="0.01"
             min="0"
             required
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                  className="w-full pl-7 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+                  placeholder="0.00"
           />
+              </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Category *
+                Unit *
           </label>
           <select
-            name="category"
-            value={formData.category}
-            onChange={(e) => {
-              handleChange(e);
-              // Reset subcategory when category changes
-              setFormData(prev => ({
-                ...prev,
-                category: e.target.value,
-                subcategory: Object.keys(PRODUCT_CATEGORIES[e.target.value]?.subcategories || {})[0] || ''
-              }));
-            }}
+                name="unit"
+                value={formData.unit}
+                onChange={handleChange}
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
           >
-            {getAllCategories().map(category => (
-              <option key={category.key} value={category.key}>
-                {category.icon} {category.name}
-              </option>
-            ))}
+                <optgroup label="Count/Quantity">
+                  <option value="piece">Piece</option>
+                  <option value="item">Item</option>
+                  <option value="each">Each</option>
+                  <option value="dozen">Dozen</option>
+                  <option value="half_dozen">Half Dozen</option>
+                </optgroup>
+                <optgroup label="Weight">
+                  <option value="kg">Kilogram (kg)</option>
+                  <option value="g">Gram (g)</option>
+                  <option value="lb">Pound (lb)</option>
+                  <option value="oz">Ounce (oz)</option>
+                </optgroup>
+                <optgroup label="Volume">
+                  <option value="liter">Liter (L)</option>
+                  <option value="ml">Milliliter (ml)</option>
+                  <option value="cup">Cup</option>
+                  <option value="tbsp">Tablespoon</option>
+                  <option value="tsp">Teaspoon</option>
+                </optgroup>
+                <optgroup label="Food Items">
+                  <option value="bottle">Bottle</option>
+                  <option value="jar">Jar</option>
+                  <option value="bag">Bag</option>
+                  <option value="box">Box</option>
+                  <option value="loaf">Loaf</option>
+                  <option value="slice">Slice</option>
+                  <option value="serving">Serving</option>
+                </optgroup>
           </select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Subcategory *
+                Total Capacity *
           </label>
-          <select
-            name="subcategory"
-            value={formData.subcategory}
+              <input
+                type="number"
+                name="maxOrderQuantity"
+                value={formData.maxOrderQuantity}
             onChange={handleChange}
+                min="1"
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          >
-            {getAvailableSubcategories().map(subcategory => (
-              <option key={subcategory.key} value={subcategory.key}>
-                {subcategory.icon} {subcategory.name}
-              </option>
-            ))}
-          </select>
+                placeholder="Maximum inventory you can produce"
+              />
+              <p className="text-xs text-gray-500 mt-1">Total number of items you can produce</p>
         </div>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Status
+                Preparation Time
           </label>
-          <select
-            name="status"
-            value={formData.status}
+              <input
+                type="text"
+                name="preparationTime"
+                value={formData.preparationTime}
             onChange={handleChange}
+                placeholder="e.g., 30 minutes, 2 hours"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="out_of_stock">Out of Stock</option>
-            <option value="draft">Draft</option>
-          </select>
+              />
         </div>
       </div>
 
-      <div>
+          <div className="mt-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Description *
         </label>
@@ -1362,16 +1780,13 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           required
           rows="3"
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+              placeholder="Describe your product..."
         />
       </div>
 
-      {/* Product Type Specific Fields */}
-      {formData.productType === 'made_to_order' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h4 className="text-lg font-semibold text-blue-900 mb-4 flex items-center">
-            <WrenchScrewdriverIcon className="w-5 h-5 mr-2" />
-            Made to Order Settings
-          </h4>
+          {/* Made to Order Settings */}
+          <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="text-md font-semibold text-blue-900 mb-3">Made to Order Settings</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1419,48 +1834,89 @@ const ProductForm = ({ product, onSave, onCancel }) => {
               <p className="text-xs text-gray-500 mt-1">
                 Maximum quantity per order (leave empty for no limit)
               </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {formData.productType === 'scheduled_order' && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-          <h4 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
-            <CalendarIcon className="w-5 h-5 mr-2" />
-            Scheduled Production Settings
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Next Available Date *
-              </label>
-              <input
-                type="date"
-                name="nextAvailableDate"
-                value={formData.nextAvailableDate}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-              />
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+          <div className="flex items-center mb-6">
+            <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+              <CalendarIcon className="w-6 h-6 text-white" />
             </div>
             <div>
+              <h3 className="text-xl font-bold text-gray-900">Scheduled Order Product Details</h3>
+              <p className="text-sm text-gray-600">Configure scheduled production settings</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-gray-800">
+                Price *
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 sm:text-sm">$</span>
+                </div>
+              <input
+                  type="number"
+                  name="price"
+                  value={formData.price}
+                onChange={handleChange}
+                  step="0.01"
+                  min="0"
+                required
+                  className="w-full pl-7 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
+                  placeholder="0.00"
+              />
+            </div>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Schedule Type *
+                Unit *
               </label>
               <select
-                name="scheduleType"
-                value={formData.scheduleType}
+                name="unit"
+                value={formData.unit}
                 onChange={handleChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
               >
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="custom">Custom Schedule</option>
+                <optgroup label="Count/Quantity">
+                  <option value="piece">Piece</option>
+                  <option value="item">Item</option>
+                  <option value="each">Each</option>
+                  <option value="dozen">Dozen</option>
+                  <option value="half_dozen">Half Dozen</option>
+                </optgroup>
+                <optgroup label="Weight">
+                  <option value="kg">Kilogram (kg)</option>
+                  <option value="g">Gram (g)</option>
+                  <option value="lb">Pound (lb)</option>
+                  <option value="oz">Ounce (oz)</option>
+                </optgroup>
+                <optgroup label="Volume">
+                  <option value="liter">Liter (L)</option>
+                  <option value="ml">Milliliter (ml)</option>
+                  <option value="cup">Cup</option>
+                  <option value="tbsp">Tablespoon</option>
+                  <option value="tsp">Teaspoon</option>
+                </optgroup>
+                <optgroup label="Food Items">
+                  <option value="bottle">Bottle</option>
+                  <option value="jar">Jar</option>
+                  <option value="bag">Bag</option>
+                  <option value="box">Box</option>
+                  <option value="loaf">Loaf</option>
+                  <option value="slice">Slice</option>
+                  <option value="serving">Serving</option>
+                </optgroup>
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Available Quantity *
@@ -1473,241 +1929,209 @@ const ProductForm = ({ product, onSave, onCancel }) => {
                 min="1"
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                placeholder="e.g., 20"
+                placeholder="Total capacity for this scheduled production"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                How many products will be available for this scheduled production
-              </p>
+              <p className="text-xs text-gray-500 mt-1">Total number of items you can produce for this schedule</p>
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Order Cut-off (Hours)
+                Preparation Time
               </label>
               <input
-                type="number"
-                name="orderCutoffHours"
-                value={formData.scheduleDetails?.orderCutoffHours || 24}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  setFormData(prev => ({
-                    ...prev,
-                    scheduleDetails: {
-                      ...prev.scheduleDetails,
-                      orderCutoffHours: value
-                    }
-                  }));
-                }}
-                min="1"
+                type="text"
+                name="preparationTime"
+                value={formData.preparationTime}
+                onChange={handleChange}
+                placeholder="e.g., 30 minutes, 2 hours"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                placeholder="24"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                How many hours before production to stop taking orders
-              </p>
             </div>
           </div>
+
+          <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description *
+        </label>
+            <textarea
+              name="description"
+              value={formData.description}
+          onChange={handleChange}
+              required
+              rows="3"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+              placeholder="Describe your product..."
+        />
+      </div>
+
+          {/* Scheduled Order Settings */}
+          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 className="text-md font-semibold text-green-900 mb-3">Scheduled Production Settings</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Next Available Date *
+        </label>
+        <input
+                  type="date"
+                  name="nextAvailableDate"
+                  value={formData.nextAvailableDate}
+          onChange={handleChange}
+                  required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Next Available Time *
+        </label>
+        <input
+                  type="time"
+                  name="nextAvailableTime"
+                  value={formData.nextAvailableTime}
+          onChange={handleChange}
+                  required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+        />
+        <p className="text-xs text-gray-500 mt-1">When the product will be ready for pickup/delivery</p>
+      </div>
+              <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Schedule Type *
+            </label>
+                <select
+                  name="scheduleType"
+                  value={formData.scheduleType}
+          onChange={handleChange}
+                  required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="custom">Custom Schedule</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Order Cut-off (Hours)
+            </label>
+              <input
+                  type="number"
+                  name="orderCutoffHours"
+                  value={formData.scheduleDetails?.orderCutoffHours || 24}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    setFormData(prev => ({
+                      ...prev,
+                      scheduleDetails: {
+                        ...prev.scheduleDetails,
+                        orderCutoffHours: value
+                      }
+                    }));
+                  }}
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                  placeholder="24"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  How many hours before production to stop taking orders
+                </p>
+              </div>
+            </div>
+              </div>
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Weight
-        </label>
-        <input
-          type="text"
-          name="weight"
-          value={formData.weight}
-          onChange={handleChange}
-          placeholder="e.g., 500g, 1kg"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Allergens
-        </label>
-        <input
-          type="text"
-          name="allergens"
-          value={formData.allergens}
-          onChange={handleChange}
-          placeholder="e.g., Gluten, Dairy, Nuts"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Ingredients
-        </label>
-        <textarea
-          name="ingredients"
-          value={formData.ingredients}
-          onChange={handleChange}
-          rows="2"
-          placeholder="List main ingredients..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-        />
-      </div>
-
       {/* Dietary Information */}
-      <div className="border-t border-gray-200 pt-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Dietary Information & Certifications</h4>
-        <div className="bg-gray-50 rounded-xl p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+        <div className="flex items-center mb-6">
+          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+              <div>
+            <h3 className="text-xl font-bold text-gray-900">Dietary Information & Certifications</h3>
+            <p className="text-sm text-gray-600">Help customers find products that meet their dietary needs</p>
+              </div>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {[
+            { key: 'isOrganic', label: 'Organic', icon: '🌱', color: 'bg-green-50 border-green-200 text-green-800' },
+            { key: 'isGlutenFree', label: 'Gluten Free', icon: '🌾', color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
+            { key: 'isVegan', label: 'Vegan', icon: '🥬', color: 'bg-green-50 border-green-200 text-green-800' },
+            { key: 'isDairyFree', label: 'Dairy Free', icon: '🥛', color: 'bg-blue-50 border-blue-200 text-blue-800' },
+            { key: 'isNutFree', label: 'Nut Free', icon: '🥜', color: 'bg-orange-50 border-orange-200 text-orange-800' },
+            { key: 'isKosher', label: 'Kosher', icon: '✡️', color: 'bg-purple-50 border-purple-200 text-purple-800' },
+            { key: 'isHalal', label: 'Halal', icon: '☪️', color: 'bg-indigo-50 border-indigo-200 text-indigo-800' }
+          ].map((item) => (
+            <label
+              key={item.key}
+              className={`flex items-center space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-105 ${
+                formData[item.key]
+                  ? `${item.color} border-current shadow-md`
+                  : 'bg-white border-gray-200 hover:border-[#D77A61] hover:shadow-sm'
+              }`}
+            >
               <input
                 type="checkbox"
-                name="isOrganic"
-                checked={formData.isOrganic}
-                onChange={(e) => setFormData({...formData, isOrganic: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
+                name={item.key}
+                checked={formData[item.key]}
+                onChange={(e) => setFormData({...formData, [item.key]: e.target.checked})}
+                className="sr-only"
               />
-              <div>
-                <span className="text-sm font-medium text-gray-700">Organic</span>
-                <p className="text-xs text-gray-500">Certified organic ingredients</p>
-              </div>
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-sm font-semibold">{item.label}</span>
             </label>
-            
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
-              <input
-                type="checkbox"
-                name="isGlutenFree"
-                checked={formData.isGlutenFree}
-                onChange={(e) => setFormData({...formData, isGlutenFree: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
-              />
+          ))}
+        </div>
+        
+        <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="flex items-start space-x-3">
+            <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
               <div>
-                <span className="text-sm font-medium text-gray-700">Gluten Free</span>
-                <p className="text-xs text-gray-500">No gluten-containing ingredients</p>
+              <p className="text-sm font-medium text-amber-900">Important Note</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Only select certifications that you can verify. Customers rely on this information for their dietary needs and safety.
+              </p>
               </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
-              <input
-                type="checkbox"
-                name="isVegan"
-                checked={formData.isVegan}
-                onChange={(e) => setFormData({...formData, isVegan: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700">Vegan</span>
-                <p className="text-xs text-gray-500">No animal products</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
-              <input
-                type="checkbox"
-                name="isDairyFree"
-                checked={formData.isDairyFree}
-                onChange={(e) => setFormData({...formData, isDairyFree: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700">Dairy Free</span>
-                <p className="text-xs text-gray-500">No dairy products</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
-              <input
-                type="checkbox"
-                name="isNutFree"
-                checked={formData.isNutFree}
-                onChange={(e) => setFormData({...formData, isNutFree: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700">Nut Free</span>
-                <p className="text-xs text-gray-500">No tree nuts or peanuts</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
-              <input
-                type="checkbox"
-                name="isKosher"
-                checked={formData.isKosher}
-                onChange={(e) => setFormData({...formData, isKosher: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700">Kosher</span>
-                <p className="text-xs text-gray-500">Kosher certified</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-[#D77A61] transition-colors">
-              <input
-                type="checkbox"
-                name="isHalal"
-                checked={formData.isHalal}
-                onChange={(e) => setFormData({...formData, isHalal: e.target.checked})}
-                className="rounded border-gray-300 text-[#D77A61] focus:ring-[#D77A61] w-4 h-4"
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700">Halal</span>
-                <p className="text-xs text-gray-500">Halal certified</p>
-              </div>
-            </label>
           </div>
         </div>
       </div>
 
-      {/* Additional Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Preparation Time
-          </label>
-          <input
-            type="text"
-            name="preparationTime"
-            value={formData.preparationTime}
-            onChange={handleChange}
-            placeholder="e.g., 30 minutes, 2 hours"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Weight
-          </label>
-          <input
-            type="text"
-            name="weight"
-            value={formData.weight}
-            onChange={handleChange}
-            placeholder="e.g., 500g, 1kg"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-          />
-        </div>
-      </div>
 
-      <div className="flex items-center justify-between pt-8 border-t border-gray-200">
-        <div className="text-sm text-gray-500">
-          <p>* Required fields</p>
-          <p className="mt-1">All product information will be visible to customers</p>
+      {/* Form Actions */}
+      <div className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-8 border border-gray-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+          <div className="text-center sm:text-left">
+            <p className="text-sm font-medium text-gray-700">Ready to {product ? 'update' : 'add'} your product?</p>
+            <p className="text-xs text-gray-500 mt-1">* Required fields • All information will be visible to customers</p>
         </div>
         <div className="flex items-center space-x-4">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+              className="px-6 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-all duration-200 font-medium border border-gray-200 hover:border-gray-300"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="px-8 py-3 bg-[#D77A61] text-white rounded-lg hover:bg-[#C06A51] transition-colors font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
+              className="px-8 py-3 bg-gradient-to-r from-[#D77A61] to-[#E6B655] text-white rounded-xl hover:from-[#C06A51] hover:to-[#D4A545] transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
           >
             <CubeIcon className="w-5 h-5" />
             <span>{product ? 'Update Product' : 'Add Product'}</span>
           </button>
+          </div>
         </div>
       </div>
     </form>

@@ -67,6 +67,12 @@ const productSchema = new mongoose.Schema({
     min: 1,
     default: 10
   },
+  totalCapacity: {
+    type: Number,
+    required: function() { return this.productType === 'made_to_order'; },
+    min: 1,
+    default: 10
+  },
   
   // Available quantity for scheduled orders (inventory to be made)
   availableQuantity: {
@@ -104,6 +110,11 @@ const productSchema = new mongoose.Schema({
   nextAvailableDate: {
     type: Date,
     required: function() { return this.productType === 'scheduled_order'; }
+  },
+  nextAvailableTime: {
+    type: String,
+    required: function() { return this.productType === 'scheduled_order'; },
+    default: '09:00'
   },
   
   // Common Inventory Fields
@@ -253,6 +264,42 @@ const productSchema = new mongoose.Schema({
     required: true
   },
   
+  // Promotional Features
+  promotionalFeatures: [{
+    featureType: {
+      type: String,
+      enum: ['featured_product', 'sponsored_product'],
+      required: true
+    },
+    promotionalFeatureId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PromotionalFeature',
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['active', 'expired', 'cancelled'],
+      default: 'active'
+    },
+    startDate: {
+      type: Date,
+      required: true
+    },
+    endDate: {
+      type: Date,
+      required: true
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   // Timestamps
   createdAt: {
     type: Date,
@@ -284,6 +331,9 @@ productSchema.pre('save', function(next) {
     }
     if (!this.leadTimeUnit) {
       return next(new Error('Made to order products must have lead time unit'));
+    }
+    if (!this.totalCapacity || this.totalCapacity < 1) {
+      return next(new Error('Made to order products must have total capacity'));
     }
   }
   

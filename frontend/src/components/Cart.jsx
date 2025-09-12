@@ -2333,7 +2333,7 @@ const Cart = () => {
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6 mb-8">
                 <div className="text-center">
                   <h3 className="text-2xl font-bold text-amber-900 mb-3">
-                    🌟 Ready to unlock the full Bazaar experience?
+                    🌟 Ready to unlock the full bazaarMKT experience?
                   </h3>
                   <p className="text-amber-800 mb-4">
                     Create your free account and start earning rewards, tracking orders in real-time, and getting exclusive artisan offers!

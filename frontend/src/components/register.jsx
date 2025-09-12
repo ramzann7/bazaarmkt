@@ -6,6 +6,7 @@ import { registerUser, getProfile } from "../services/authservice";
 import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
 import { PRODUCT_CATEGORIES } from "../data/productReference";
+import { validateUserRegistration, formatPhoneInput, validateEmail, validatePhone, validatePassword, validateName } from "../utils/validation";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -27,12 +28,20 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [fieldTouched, setFieldTouched] = useState({});
 
   const handleChange = (e) => {
     let value = e.target.value;
+    const fieldName = e.target.name;
+    
+    // Special handling for phone number formatting
+    if (fieldName === 'phone') {
+      value = formatPhoneInput(value);
+    }
     
     // Special handling for artisan name to ensure first letter of each word is capitalized
-    if (e.target.name === 'artisanName') {
+    if (fieldName === 'artisanName') {
       value = value.split(' ').map(word => 
         word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
       ).join(' ');
@@ -40,34 +49,95 @@ export default function Register() {
     
     setFormData({
       ...formData,
-      [e.target.name]: value,
+      [fieldName]: value,
     });
+
+    // Real-time validation
+    validateField(fieldName, value);
+  };
+
+  const validateField = (fieldName, value) => {
+    let error = '';
+    
+    switch (fieldName) {
+      case 'email':
+        const emailValidation = validateEmail(value);
+        error = emailValidation.error || '';
+        break;
+      case 'phone':
+        const phoneValidation = validatePhone(value);
+        error = phoneValidation.error || '';
+        break;
+      case 'password':
+        const passwordValidation = validatePassword(value);
+        error = passwordValidation.error || '';
+        break;
+      case 'firstName':
+        const firstNameValidation = validateName(value, 'First name');
+        error = firstNameValidation.error || '';
+        break;
+      case 'lastName':
+        const lastNameValidation = validateName(value, 'Last name');
+        error = lastNameValidation.error || '';
+        break;
+      case 'artisanName':
+        if (value) {
+          const artisanNameValidation = validateName(value, 'Business name');
+          error = artisanNameValidation.error || '';
+        }
+        break;
+      default:
+        break;
+    }
+
+    setValidationErrors(prev => ({
+      ...prev,
+      [fieldName]: error
+    }));
+  };
+
+  const handleBlur = (e) => {
+    const fieldName = e.target.name;
+    setFieldTouched(prev => ({
+      ...prev,
+      [fieldName]: true
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Mark all fields as touched for validation display
+    const allFields = ['firstName', 'lastName', 'email', 'phone', 'password', 'artisanName'];
+    const touchedFields = {};
+    allFields.forEach(field => {
+      touchedFields[field] = true;
+    });
+    setFieldTouched(touchedFields);
+
+    // Validate all fields
+    const validation = validateUserRegistration({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password,
+      artisanName: formData.artisanName
+    });
+
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      toast.error("Please fix the validation errors");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters long");
-      return;
-    }
-
-    if (!formData.firstName || !formData.lastName) {
-      toast.error("First name and last name are required");
-      return;
-    }
-
     // Validate artisan-specific fields
     if (formData.role === 'artisan') {
-      if (!formData.artisanName || formData.artisanName.trim() === '') {
-        toast.error("Business name is required for artisan accounts");
-        return;
-      }
       if (!formData.businessType || formData.businessType === '') {
         toast.error("Business type is required for artisan accounts");
         return;
@@ -92,20 +162,24 @@ export default function Register() {
       
       const result = await registerUser(registerData);
       
-      // Get user profile to get userId
-      const profile = await getProfile();
-      const userId = profile._id;
+      // The registerUser function already handles authentication and caching
+      // We can use the result directly instead of calling getProfile()
       
-      // Mark user as new (they haven't completed onboarding yet)
-      // Note: We don't mark onboarding as completed here, so they'll be redirected to profile
+      // Dispatch auth change event to update the auth context
+      window.dispatchEvent(new CustomEvent('authStateChanged', { 
+        detail: { isAuthenticated: true } 
+      }));
       
-      if (formData.role === 'artisan') {
-        toast.success("Artisan account created successfully! Complete your business profile to start selling.");
-        navigate("/profile"); // Redirect artisans to profile to complete business setup
-      } else {
-        toast.success("Account created successfully!");
-        navigate("/dashboard"); // Regular users go to dashboard
-      }
+      // Small delay to ensure AuthContext updates before navigation
+      setTimeout(() => {
+        if (formData.role === 'artisan') {
+          toast.success("Artisan account created successfully! Complete your business profile to start selling.");
+          navigate("/profile?tab=setup"); // Redirect artisans to profile setup tab
+        } else {
+          toast.success("Account created successfully! Complete your profile setup.");
+          navigate("/profile?tab=setup"); // Redirect all users to profile setup
+        }
+      }, 100);
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
     } finally {
@@ -121,7 +195,7 @@ export default function Register() {
           <div className="mx-auto w-20 h-20 bg-[#D77A61] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <BuildingStorefrontIcon className="w-10 h-10 text-white" />
           </div>
-                      <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join The Bazaar</h2>
+                      <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join bazaarMKT</h2>
           <p className="text-gray-600 text-lg">Create your account and start your journey</p>
         </div>
 
@@ -175,9 +249,13 @@ export default function Register() {
                   required
                   value={formData.firstName}
                   onChange={handleChange}
-                  className="form-input focus-luxury"
+                  onBlur={handleBlur}
+                  className={`form-input focus-luxury ${validationErrors.firstName && fieldTouched.firstName ? 'border-red-500' : ''}`}
                   placeholder="First name"
                 />
+                {validationErrors.firstName && fieldTouched.firstName && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.firstName}</p>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="lastName" className="form-label">
@@ -191,9 +269,13 @@ export default function Register() {
                   required
                   value={formData.lastName}
                   onChange={handleChange}
-                  className="form-input focus-luxury"
+                  onBlur={handleBlur}
+                  className={`form-input focus-luxury ${validationErrors.lastName && fieldTouched.lastName ? 'border-red-500' : ''}`}
                   placeholder="Last name"
                 />
+                {validationErrors.lastName && fieldTouched.lastName && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.lastName}</p>
+                )}
               </div>
             </div>
 
@@ -210,9 +292,13 @@ export default function Register() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="form-input focus-luxury"
+                onBlur={handleBlur}
+                className={`form-input focus-luxury ${validationErrors.email && fieldTouched.email ? 'border-red-500' : ''}`}
                 placeholder="Enter your email address"
               />
+              {validationErrors.email && fieldTouched.email && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.email}</p>
+              )}
             </div>
 
             {/* Phone Field */}
@@ -227,9 +313,13 @@ export default function Register() {
                 autoComplete="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                className="form-input focus-luxury"
+                onBlur={handleBlur}
+                className={`form-input focus-luxury ${validationErrors.phone && fieldTouched.phone ? 'border-red-500' : ''}`}
                 placeholder="Enter your phone number"
               />
+              {validationErrors.phone && fieldTouched.phone && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.phone}</p>
+              )}
             </div>
 
             {/* Artisan-specific fields */}
@@ -247,10 +337,14 @@ export default function Register() {
                     autoComplete="organization"
                     value={formData.artisanName}
                     onChange={handleChange}
-                    className="form-input focus-luxury"
+                    onBlur={handleBlur}
+                    className={`form-input focus-luxury ${validationErrors.artisanName && fieldTouched.artisanName ? 'border-red-500' : ''}`}
                     placeholder="Enter your artisan name"
                     required
                   />
+                  {validationErrors.artisanName && fieldTouched.artisanName && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.artisanName}</p>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">
                     ✨ Each word will be automatically capitalized for consistency
                   </p>
@@ -311,7 +405,8 @@ export default function Register() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="form-input pr-12 focus-luxury"
+                  onBlur={handleBlur}
+                  className={`form-input pr-12 focus-luxury ${validationErrors.password && fieldTouched.password ? 'border-red-500' : ''}`}
                   placeholder="Create a password"
                 />
                 <button
@@ -326,6 +421,9 @@ export default function Register() {
                   )}
                 </button>
               </div>
+              {validationErrors.password && fieldTouched.password && (
+                <p className="text-red-500 text-sm mt-1">{validationErrors.password}</p>
+              )}
             </div>
 
             {/* Confirm Password Field */}
@@ -372,7 +470,7 @@ export default function Register() {
           {/* Business Benefits */}
           {formData.role === 'artisan' && (
             <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-amber-200">
-              <h4 className="font-semibold text-stone-800 mb-2">Why sell on The Bazaar?</h4>
+              <h4 className="font-semibold text-stone-800 mb-2">Why sell on bazaarMKT?</h4>
               <ul className="text-sm text-stone-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>

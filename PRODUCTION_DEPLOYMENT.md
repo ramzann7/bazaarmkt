@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This guide covers the production-ready improvements implemented for Bazaar Market, including security enhancements, performance optimizations, monitoring, and deployment best practices.
+This guide covers the production-ready improvements implemented for bazaarMKT, including security enhancements, performance optimizations, monitoring, and deployment best practices.
 
 ## 🔒 Security Improvements
 
@@ -13,7 +13,7 @@ Create a `.env` file in the `backend` folder with the following structure:
 
 ```bash
 # =============================================================================
-# Bazaar Market Backend Environment Configuration
+# bazaarMKT Backend Environment Configuration
 # =============================================================================
 
 # Server Configuration

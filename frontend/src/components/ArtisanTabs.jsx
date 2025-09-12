@@ -68,6 +68,40 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
   // Artisan name is now read-only and cannot be changed
 
+  // Update state when profile changes (e.g., when artisan profile is loaded)
+  React.useEffect(() => {
+    if (profile) {
+      console.log('🔄 OverviewTab: Profile updated, refreshing overview state');
+      console.log('🔄 Profile artisanName:', profile.artisanName);
+      console.log('🔄 Profile description:', profile.description);
+      
+      setOverview({
+        artisanName: profile.artisanName || '',
+        businessImage: profile.businessImage || null,
+        businessImagePreview: profile.businessImage || null,
+        description: profile.description || '',
+        category: profile.category || [],
+        specialties: profile.specialties || [],
+        address: {
+          street: profile.address?.street || '',
+          city: profile.address?.city || '',
+          state: profile.address?.state || '',
+          zipCode: profile.address?.zipCode || ''
+        },
+        contactInfo: {
+          phone: profile.contactInfo?.phone || profile.phone || '',
+          email: profile.contactInfo?.email || profile.email || '',
+          website: profile.contactInfo?.website || '',
+          socialMedia: {
+            instagram: profile.contactInfo?.socialMedia?.instagram || '',
+            facebook: profile.contactInfo?.socialMedia?.facebook || '',
+            twitter: profile.contactInfo?.socialMedia?.twitter || ''
+          }
+        }
+      });
+    }
+  }, [profile]);
+
   // Format phone number as user types
   const formatPhoneNumber = (value) => {
     // Remove all non-digits
@@ -1958,38 +1992,64 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
 }
 
 export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
+  const isArtisan = profile?.role === 'artisan' || profile?.role === 'producer' || profile?.role === 'food_maker';
+  
+  // Check completion status for each step
+  const isPersonalComplete = profile?.firstName && profile?.lastName && profile?.phone;
+  const isAddressComplete = isArtisan ? 
+    (profile?.addresses && profile.addresses.length > 0) : 
+    (profile?.addresses && profile.addresses.length > 0);
+  const isPaymentComplete = profile?.paymentMethods && profile.paymentMethods.length > 0;
+  
+  const completionSteps = [
+    { id: 'personal', name: 'Personal Information', completed: isPersonalComplete },
+    { id: 'address', name: isArtisan ? 'Business Operations' : 'Delivery Address', completed: isAddressComplete },
+    { id: 'payment', name: 'Payment Methods', completed: isPaymentComplete }
+  ];
+  
   return (
     <div className="space-y-8">
       <div className="border-b border-gray-200 pb-6">
         <h3 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Profile Setup</h3>
-        <p className="text-gray-600">Welcome! Let's get your business profile set up and ready to go</p>
+        <p className="text-gray-600">
+          {isArtisan 
+            ? "Welcome! Let's get your business profile set up and ready to go" 
+            : "Welcome! Let's get your account set up so you can start shopping"
+          }
+        </p>
       </div>
       
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h4 className="font-medium text-blue-900 mb-2">Welcome to The Bazaar!</h4>
+        <h4 className="font-medium text-blue-900 mb-2">Welcome to bazaarMKT!</h4>
         <p className="text-blue-700 mb-4">
-          Complete your profile setup to start selling your products. Please fill in the following sections:
+          {isArtisan 
+            ? "Complete your profile setup to start selling your products. Please fill in the following sections:"
+            : "Complete your profile setup to start shopping from local artisans. Please fill in the following sections:"
+          }
         </p>
         
         <div className="space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-blue-600 text-sm font-medium">1</span>
+          {completionSteps.map((step, index) => (
+            <div key={step.id} className="flex items-center space-x-3">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                step.completed 
+                  ? 'bg-green-100' 
+                  : 'bg-blue-100'
+              }`}>
+                {step.completed ? (
+                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <span className="text-blue-600 text-sm font-medium">{index + 1}</span>
+                )}
+              </div>
+              <span className={`${step.completed ? 'text-green-900' : 'text-blue-900'}`}>
+                {step.name}
+                {step.completed && <span className="ml-2 text-green-600 text-sm">✓</span>}
+              </span>
             </div>
-            <span className="text-blue-900">Personal Information</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-blue-600 text-sm font-medium">2</span>
-            </div>
-            <span className="text-blue-900">Business Operations</span>
-          </div>
-          <div className="flex items-center space-x-3">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-blue-600 text-sm font-medium">3</span>
-            </div>
-            <span className="text-blue-900">Payment Methods</span>
-          </div>
+          ))}
         </div>
       </div>
       
@@ -2000,6 +2060,47 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
         >
           Start Setup
         </button>
+      </div>
+      
+      {/* Setup Progress Guide */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+        <h5 className="font-medium text-gray-900 mb-3">Setup Progress Guide</h5>
+        <div className="space-y-2 text-sm text-gray-600">
+          <p className={isPersonalComplete ? 'text-green-700' : ''}>
+            <strong>Step 1 - Personal Information:</strong> Complete your basic profile details
+            {isPersonalComplete && <span className="ml-2 text-green-600">✓ Completed</span>}
+          </p>
+          <p className={isAddressComplete ? 'text-green-700' : ''}>
+            <strong>Step 2 - {isArtisan ? "Business Operations" : "Delivery Address"}:</strong> 
+            {isArtisan 
+              ? " Set up your business hours, delivery options, and operational details" 
+              : " Add your delivery address so artisans can deliver to you"
+            }
+            {isAddressComplete && <span className="ml-2 text-green-600">✓ Completed</span>}
+          </p>
+          <p className={isPaymentComplete ? 'text-green-700' : ''}>
+            <strong>Step 3 - Payment Methods:</strong> Add your preferred payment method for secure transactions
+            {isPaymentComplete && <span className="ml-2 text-green-600">✓ Completed</span>}
+          </p>
+        </div>
+        
+        {/* Overall completion status */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700">Overall Progress:</span>
+            <span className="text-sm font-medium text-gray-900">
+              {completionSteps.filter(step => step.completed).length} of {completionSteps.length} completed
+            </span>
+          </div>
+          <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-green-500 h-2 rounded-full transition-all duration-300"
+              style={{ 
+                width: `${(completionSteps.filter(step => step.completed).length / completionSteps.length) * 100}%` 
+              }}
+            ></div>
+          </div>
+        </div>
       </div>
     </div>
   );

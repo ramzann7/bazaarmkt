@@ -1,4 +1,4 @@
-# 🍽️ Food Finder App - Bazaar Marketplace
+# 🍽️ Food Finder App - bazaarMKT Marketplace
 
 A modern marketplace platform connecting local artisans, food makers, and customers. Built with React, Node.js, and MongoDB Atlas.
 

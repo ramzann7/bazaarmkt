@@ -6,6 +6,7 @@ const Artisan = require('../models/artisan');
 const User = require('../models/user');
 const authMiddleware = require('../middleware/authMiddleware');
 const RevenueService = require('../services/revenueService');
+const WalletService = require('../services/walletService');
 
 // Get current spotlight status for artisan
 router.get('/status', authMiddleware, async (req, res) => {
@@ -85,6 +86,44 @@ router.post('/purchase', authMiddleware, async (req, res) => {
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + days);
 
+    console.log('🔍 Calculating spotlight cost:', { days, amount, pricing: pricing ? pricing.pricePerDay : 10 });
+
+    // Check wallet balance before proceeding
+    console.log('🔍 Checking wallet balance for user:', req.user._id);
+    console.log('🔍 Using artisan._id for wallet lookup:', artisan._id);
+    
+    let wallet;
+    try {
+      wallet = await WalletService.getOrCreateWallet(artisan._id);
+      console.log('🔍 Wallet found/created:', { walletId: wallet._id, balance: wallet.balance });
+    } catch (walletError) {
+      console.error('❌ Error getting wallet:', walletError);
+      throw walletError;
+    }
+    
+    if (wallet.balance < amount) {
+      console.log('❌ Insufficient wallet balance:', { currentBalance: wallet.balance, requiredAmount: amount });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Insufficient wallet balance',
+        error: 'INSUFFICIENT_FUNDS',
+        currentBalance: wallet.balance,
+        requiredAmount: amount,
+        shortfall: amount - wallet.balance
+      });
+    }
+
+    console.log('✅ Wallet balance sufficient:', { currentBalance: wallet.balance, requiredAmount: amount });
+
+    // Deduct amount from wallet
+    console.log('🔍 Deducting spotlight cost from wallet:', amount);
+    const walletTransaction = await WalletService.debitWallet(req.user._id, amount, 'spotlight_purchase', {
+      spotlightDays: days,
+      spotlightType: 'artisan_spotlight',
+      description: `Spotlight subscription for ${days} days`
+    });
+    console.log('✅ Wallet deduction successful:', walletTransaction._id);
+
     // Generate payment ID (in real implementation, this would be from payment processor)
     const paymentId = `spotlight_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -96,7 +135,8 @@ router.post('/purchase', authMiddleware, async (req, res) => {
       endDate,
       amount,
       paymentId,
-      paymentMethod: paymentMethod || 'card'
+      paymentMethod: paymentMethod || 'wallet',
+      walletTransactionId: walletTransaction._id
     });
 
     console.log('🔍 Creating spotlight subscription:', {
@@ -105,7 +145,8 @@ router.post('/purchase', authMiddleware, async (req, res) => {
       amount,
       days,
       startDate,
-      endDate
+      endDate,
+      walletTransactionId: walletTransaction._id
     });
 
     await spotlight.save();
@@ -165,10 +206,41 @@ router.post('/extend', authMiddleware, async (req, res) => {
     const newEndDate = new Date(existingSpotlight.endDate);
     newEndDate.setDate(newEndDate.getDate() + days);
 
+    console.log('🔍 Extending spotlight:', { days, additionalAmount, currentEndDate: existingSpotlight.endDate, newEndDate });
+
+    // Check wallet balance before proceeding
+    console.log('🔍 Checking wallet balance for extension:', req.user._id);
+    const wallet = await WalletService.getOrCreateWallet(artisan._id);
+    
+    if (wallet.balance < additionalAmount) {
+      console.log('❌ Insufficient wallet balance for extension:', { currentBalance: wallet.balance, requiredAmount: additionalAmount });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Insufficient wallet balance for extension',
+        error: 'INSUFFICIENT_FUNDS',
+        currentBalance: wallet.balance,
+        requiredAmount: additionalAmount,
+        shortfall: additionalAmount - wallet.balance
+      });
+    }
+
+    console.log('✅ Wallet balance sufficient for extension:', { currentBalance: wallet.balance, requiredAmount: additionalAmount });
+
+    // Deduct additional amount from wallet
+    console.log('🔍 Deducting extension cost from wallet:', additionalAmount);
+    const walletTransaction = await WalletService.debitWallet(req.user._id, additionalAmount, 'spotlight_extension', {
+      spotlightDays: days,
+      spotlightType: 'artisan_spotlight',
+      originalSpotlightId: existingSpotlight._id,
+      description: `Spotlight extension for ${days} additional days`
+    });
+    console.log('✅ Wallet deduction for extension successful:', walletTransaction._id);
+
     // Update existing spotlight
     existingSpotlight.endDate = newEndDate;
     existingSpotlight.amount += additionalAmount;
     existingSpotlight.updatedAt = new Date();
+    existingSpotlight.walletTransactionId = walletTransaction._id;
 
     await existingSpotlight.save();
 

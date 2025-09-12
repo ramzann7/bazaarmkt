@@ -60,13 +60,13 @@ const artisanSchema = new mongoose.Schema({
     }
   },
   artisanHours: {
-    monday: { open: String, close: String, closed: { type: Boolean, default: false } },
-    tuesday: { open: String, close: String, closed: { type: Boolean, default: false } },
-    wednesday: { open: String, close: String, closed: { type: Boolean, default: false } },
-    thursday: { open: String, close: String, closed: { type: Boolean, default: false } },
-    friday: { open: String, close: String, closed: { type: Boolean, default: false } },
-    saturday: { open: String, close: String, closed: { type: Boolean, default: false } },
-    sunday: { open: String, close: String, closed: { type: Boolean, default: false } }
+    monday: { open: { type: String, default: '09:00' }, close: { type: String, default: '17:00' }, closed: { type: Boolean, default: false } },
+    tuesday: { open: { type: String, default: '09:00' }, close: { type: String, default: '17:00' }, closed: { type: Boolean, default: false } },
+    wednesday: { open: { type: String, default: '09:00' }, close: { type: String, default: '17:00' }, closed: { type: Boolean, default: false } },
+    thursday: { open: { type: String, default: '09:00' }, close: { type: String, default: '17:00' }, closed: { type: Boolean, default: false } },
+    friday: { open: { type: String, default: '09:00' }, close: { type: String, default: '17:00' }, closed: { type: Boolean, default: false } },
+    saturday: { open: { type: String, default: '10:00' }, close: { type: String, default: '16:00' }, closed: { type: Boolean, default: false } },
+    sunday: { open: { type: String, default: '10:00' }, close: { type: String, default: '16:00' }, closed: { type: Boolean, default: true } }
   },
   deliveryOptions: {
     pickup: { type: Boolean, default: true },

@@ -9,7 +9,7 @@
 
 ### Step 2: Create New API Key
 1. Click **"Create a new API key"**
-2. Give it a descriptive name (e.g., "Bazaar Market Email Service")
+2. Give it a descriptive name (e.g., "bazaarMKT Email Service")
 3. **Select these permissions**:
    - ✅ **SMTP API** (for sending emails)
    - ✅ **Contacts API** (for managing contacts)

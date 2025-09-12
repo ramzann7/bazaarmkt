@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useNavigate, Link } from 'react-router-dom';
 import { getFeaturedProducts, getPopularProducts, clearCache, clearFeaturedProductsCache, clearPopularProductsCache } from '../services/productService';
+import { promotionalService } from '../services/promotionalService';
 
 import { 
   PRODUCT_CATEGORIES, 
@@ -37,6 +38,7 @@ import { locationService } from '../services/locationService';
 import ProductTypeBadge from './ProductTypeBadge';
 
 import AddToCart from './AddToCart';
+import ProductCard from './ProductCard';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -90,20 +92,30 @@ export default function Home() {
           return;
         }
         
-        console.log('🔄 Fetching featured products from API...');
-        const response = await getFeaturedProducts();
+        console.log('🔄 Fetching featured products from promotional API...');
+        const promotionalProducts = await promotionalService.getPremiumShowcaseProducts(6, userLocation);
         
-        if (response.success) {
-          console.log('✅ Setting featured products:', response.products?.length || 0, 'products');
-          setFeaturedProducts(response.products || []);
+        if (promotionalProducts && promotionalProducts.length > 0) {
+          console.log('✅ Setting promotional featured products:', promotionalProducts.length, 'products');
+          setFeaturedProducts(promotionalProducts);
           setIsLoadingFeatured(false);
           // Cache the results
-          cacheService.set(CACHE_KEYS.FEATURED_PRODUCTS, response.products, CACHE_TTL.FEATURED_PRODUCTS);
+          cacheService.set(CACHE_KEYS.FEATURED_PRODUCTS, promotionalProducts, CACHE_TTL.FEATURED_PRODUCTS);
         } else {
-          console.error('Failed to load featured products:', response.message);
-          // Don't clear existing products on error, just log the error
-          setError('Failed to load featured products');
-          setIsLoadingFeatured(false);
+          console.log('⚠️ No promotional products, falling back to regular featured products');
+          const response = await getFeaturedProducts();
+          
+          if (response.success) {
+            console.log('✅ Setting regular featured products:', response.products?.length || 0, 'products');
+            setFeaturedProducts(response.products || []);
+            setIsLoadingFeatured(false);
+            // Cache the results
+            cacheService.set(CACHE_KEYS.FEATURED_PRODUCTS, response.products, CACHE_TTL.FEATURED_PRODUCTS);
+          } else {
+            console.error('Failed to load featured products:', response.message);
+            setError('Failed to load featured products');
+            setIsLoadingFeatured(false);
+          }
         }
       } catch (error) {
         console.error('Error loading featured products:', error);
@@ -133,20 +145,30 @@ export default function Home() {
           return;
         }
         
-        console.log('🔄 Fetching popular products from API...');
-        const response = await getPopularProducts();
+        console.log('🔄 Fetching popular products from promotional API...');
+        const promotionalProducts = await promotionalService.getPremiumShowcaseProducts(8, userLocation);
         
-        if (response.success) {
-          console.log('✅ Setting popular products:', response.products?.length || 0, 'products');
-          setPopularProducts(response.products || []);
+        if (promotionalProducts && promotionalProducts.length > 0) {
+          console.log('✅ Setting promotional popular products:', promotionalProducts.length, 'products');
+          setPopularProducts(promotionalProducts);
           setIsLoadingPopular(false);
           // Cache the results
-          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
+          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, promotionalProducts, CACHE_TTL.POPULAR_PRODUCTS);
         } else {
-          console.error('Failed to load popular products:', response.message);
-          // Don't clear existing products on error, just log the error
-          setError('Failed to load popular products');
-          setIsLoadingPopular(false);
+          console.log('⚠️ No promotional products, falling back to regular popular products');
+          const response = await getPopularProducts();
+          
+          if (response.success) {
+            console.log('✅ Setting regular popular products:', response.products?.length || 0, 'products');
+            setPopularProducts(response.products || []);
+            setIsLoadingPopular(false);
+            // Cache the results
+            cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
+          } else {
+            console.error('Failed to load popular products:', response.message);
+            setError('Failed to load popular products');
+            setIsLoadingPopular(false);
+          }
         }
       } catch (error) {
         console.error('Error loading popular products:', error);
@@ -163,6 +185,10 @@ export default function Home() {
   useOptimizedEffect(() => {
     const startTime = performance.now();
     console.log('🔄 Loading basic product data on component mount');
+    
+    // Clear featured products cache to ensure we get the latest promotional data
+    console.log('🗑️ Clearing featured products cache to get latest promotional data');
+    cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
     
     // Check cache first
     const cachedFeatured = cacheService.get(CACHE_KEYS.FEATURED_PRODUCTS);
@@ -885,78 +911,6 @@ export default function Home() {
     return stars;
   };
 
-  // ProductCard component with lazy loading
-  const ProductCard = ({ product, showImagePreview = false, showDistance = false }) => (
-    <div 
-      className="group cursor-pointer relative hover:shadow-lg transition-shadow duration-300" 
-      onClick={() => handleProductClick(product)}
-      title="Select this artisan product"
-    >
-      <div className="relative overflow-hidden rounded-lg bg-gray-100">
-        <img
-          src={getImageUrl(product.image)}
-          alt={product.name}
-          className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          onError={(e) => {
-            console.log('❌ Product card image failed to load:', e.target.src);
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'flex';
-          }}
-          onLoad={(e) => {
-            console.log('✅ Product card image loaded successfully:', e.target.src);
-          }}
-        />
-        <div className={`w-full h-64 flex items-center justify-center bg-gray-200 ${product.image ? 'hidden' : 'flex'}`}>
-          <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
-        </div>
-        {product.isFeatured && (
-          <div className="absolute top-2 left-2 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10">
-            Featured
-          </div>
-        )}
-        {showImagePreview && (
-          <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-opacity duration-300 ease-in-out z-20">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-amber-600 rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
-                <HeartIcon className="w-8 h-8 text-white" />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      <div className="mt-3">
-        <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
-          {product.name}
-        </h3>
-        <p className="text-sm text-gray-500">
-          {product.artisan?.artisanName || 'Unknown Artisan'}
-        </p>
-        {showDistance && (product.distance || product.formattedDistance) && (
-          <div className="mt-2">
-            <DistanceBadge 
-              distance={product.distance} 
-              formattedDistance={product.formattedDistance}
-            />
-          </div>
-        )}
-        {/* Product Type Information */}
-        <div className="mt-2 mb-2">
-          <ProductTypeBadge product={product} variant="compact" />
-        </div>
-        
-        <div className="flex items-center justify-between mt-2">
-          <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
-          <div className="flex items-center space-x-1">
-            {renderStars(product.artisan?.rating?.average || 0)}
-            <span className="text-sm text-gray-500">({(product.artisan?.rating?.average || 0).toFixed(1)})</span>
-          </div>
-        </div>
-        
-
-      </div>
-    </div>
-  );
 
   // Refresh data when page comes into focus (e.g., after returning from artisan page)
   useEffect(() => {
@@ -1008,7 +962,13 @@ export default function Home() {
           ) : featuredProducts.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {featuredProducts.slice(0, 8).map((product) => (
-                <ProductCard key={product._id} product={product} showImagePreview={true} />
+                <ProductCard 
+                  key={product._id} 
+                  product={product} 
+                  showImagePreview={true}
+                  showRating={true}
+                  onProductClick={handleProductClick}
+                />
               ))}
             </div>
           ) : (
@@ -1044,7 +1004,13 @@ export default function Home() {
           ) : popularProducts.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {popularProducts.slice(0, 4).map((product) => (
-                <ProductCard key={product._id} product={product} />
+                <ProductCard 
+                  key={product._id} 
+                  product={product} 
+                  showImagePreview={true}
+                  showRating={true}
+                  onProductClick={handleProductClick}
+                />
               ))}
             </div>
           ) : (
@@ -1100,7 +1066,14 @@ export default function Home() {
           ) : nearbyProducts.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {nearbyProducts.slice(0, 8).map((product) => (
-                <ProductCard key={product._id} product={product} showDistance={true} />
+                <ProductCard 
+                  key={product._id} 
+                  product={product} 
+                  showDistance={true}
+                  showRating={true}
+                  showImagePreview={true}
+                  onProductClick={handleProductClick}
+                />
               ))}
             </div>
           ) : (
@@ -1134,7 +1107,7 @@ export default function Home() {
       <section className="py-16 bg-amber-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose The Bazaar?</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose bazaarMKT?</h2>
             <p className="text-lg text-gray-600">Supporting local artisans and bringing you authentic, quality products</p>
           </div>
           

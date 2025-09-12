@@ -52,7 +52,7 @@ const AddToCart = ({
         return {
           icon: '⚙️',
           status: 'Made to Order',
-          description: `${product.leadTime || 1} ${product.leadTimeUnit || 'days'} lead time • Max ${product.maxOrderQuantity || 10} per order`,
+          description: `${product.leadTime || 1} ${product.leadTimeUnit || 'days'} lead time • Max ${product.maxOrderQuantity || 10} per order • Total capacity: ${product.totalCapacity || 10}`,
           color: 'text-blue-600'
         };
       
@@ -61,11 +61,12 @@ const AddToCart = ({
           const nextDate = new Date(product.nextAvailableDate);
           const today = new Date();
           const daysUntil = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+          const availableQty = product.availableQuantity || 0;
           
           return {
             icon: '📅',
             status: 'Scheduled',
-            description: `${daysUntil > 0 ? `Ready in ${daysUntil} days` : 'Ready today'} • Max ${product.maxOrderQuantity || 10} per order`,
+            description: `${daysUntil > 0 ? `Ready in ${daysUntil} days` : 'Ready today'} • ${availableQty} available • Max ${product.maxOrderQuantity || 10} per order`,
             color: 'text-purple-600'
           };
         } else {
@@ -92,12 +93,12 @@ const AddToCart = ({
         return product.stock || 0;
       
       case 'made_to_order':
-        // For made to order, use maxOrderQuantity or default to 10
+        // For made to order, use maxOrderQuantity (per order limit) or default to 10
         return product.maxOrderQuantity || 10;
       
       case 'scheduled_order':
-        // For scheduled orders, use maxOrderQuantity or default to 10
-        return product.maxOrderQuantity || 10;
+        // For scheduled orders, use availableQuantity (production capacity for that date)
+        return product.availableQuantity || 0;
       
       default:
         // Fallback for unknown types

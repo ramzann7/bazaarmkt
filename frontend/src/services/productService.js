@@ -202,6 +202,8 @@ export const createProduct = async (productData) => {
         requestData.append('image', normalizedData.image);
       } else if (key === 'tags' && Array.isArray(normalizedData[key])) {
         requestData.append('tags', JSON.stringify(normalizedData[key]));
+      } else if (key === 'scheduleDetails' && typeof normalizedData[key] === 'object') {
+        requestData.append('scheduleDetails', JSON.stringify(normalizedData[key]));
       } else if (normalizedData[key] !== undefined && normalizedData[key] !== null) {
         requestData.append(key, normalizedData[key]);
       }
@@ -241,6 +243,8 @@ export const updateProduct = async (productId, productData) => {
         formData.append('image', normalizedData[key]);
       } else if (key === 'tags' && Array.isArray(normalizedData[key])) {
         formData.append('tags', JSON.stringify(normalizedData[key]));
+      } else if (key === 'scheduleDetails' && typeof normalizedData[key] === 'object') {
+        formData.append('scheduleDetails', JSON.stringify(normalizedData[key]));
       } else if (normalizedData[key] !== undefined && normalizedData[key] !== null) {
         formData.append(key, normalizedData[key]);
       }

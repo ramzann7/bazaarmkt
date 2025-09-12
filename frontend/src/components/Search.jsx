@@ -18,6 +18,7 @@ import { getAllProducts, clearProductCache } from '../services/productService';
 import { cartService } from '../services/cartService';
 import enhancedSearchService from '../services/enhancedSearchService';
 import ProductTypeBadge from './ProductTypeBadge';
+import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
 import { 
   PRODUCT_CATEGORIES, 
@@ -248,86 +249,6 @@ export default function Search() {
     return stars;
   };
 
-  // Product card component
-  const ProductCard = ({ product }) => (
-    <div 
-      className="group cursor-pointer relative hover:shadow-lg transition-shadow duration-300" 
-      onClick={() => handleProductClick(product)}
-      title="Select this artisan product"
-    >
-      <div className="relative overflow-hidden rounded-lg bg-gray-100">
-        <img
-          src={getImageUrl(product.image)}
-          alt={product.name}
-          className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'flex';
-          }}
-        />
-        <div className="w-full h-64 flex items-center justify-center bg-gray-200" style={{ display: product.image ? 'none' : 'flex' }}>
-          <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
-        </div>
-        
-        {/* Artisan product overlay */}
-        <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-opacity duration-300 ease-in-out">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-amber-600 rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
-              <HeartIcon className="w-8 h-8 text-white" />
-            </div>
-          </div>
-        </div>
-
-        {/* Status badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {product.isOrganic && (
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-              <SparklesIcon className="h-3 w-3 inline mr-1" />
-              Organic
-            </span>
-          )}
-          {product.isGlutenFree && (
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              Gluten-Free
-            </span>
-          )}
-        </div>
-
-        {/* Popular badge */}
-        {product.stock < 10 && product.stock > 0 && (
-          <div className="absolute bottom-2 left-2">
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 flex items-center">
-              <FireIcon className="h-3 w-3 mr-1" />
-              Popular
-            </span>
-          </div>
-        )}
-      </div>
-      
-      <div className="mt-3">
-        <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors">
-          {product.name}
-        </h3>
-        <p className="text-sm text-gray-500">
-          {product.artisan?.artisanName || `${product.seller?.firstName} ${product.seller?.lastName}`}
-        </p>
-        
-        {/* Product Type Information */}
-        <div className="mt-2 mb-2">
-          <ProductTypeBadge product={product} variant="compact" />
-        </div>
-        
-        <div className="flex items-center justify-between mt-2">
-          <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
-          <div className="flex items-center space-x-1">
-            {renderStars(product.artisan?.rating?.average || 0)}
-            <span className="text-sm text-gray-500">({(product.artisan?.rating?.average || 0).toFixed(1)})</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   // Refresh data when page comes into focus (e.g., after returning from artisan page)
   useEffect(() => {
@@ -449,7 +370,13 @@ export default function Search() {
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProducts.map((product) => (
-                  <ProductCard key={product._id} product={product} />
+                  <ProductCard 
+                    key={product._id} 
+                    product={product} 
+                    showDistance={false}
+                    showImagePreview={true}
+                    onProductClick={handleProductClick}
+                  />
                 ))}
               </div>
             ) : (

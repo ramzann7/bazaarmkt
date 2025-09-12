@@ -1376,9 +1376,11 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       leadTime,
       leadTimeUnit,
       maxOrderQuantity,
+      totalCapacity,
       scheduleType,
       scheduleDetails,
       nextAvailableDate,
+      nextAvailableTime,
       availableQuantity,
       unit,
       weight,
@@ -1424,14 +1426,14 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
     }
 
     // Validate product type specific fields
-    if (productType === 'ready_to_ship' && !stock) {
+    if (productType === 'ready_to_ship' && (stock === undefined || stock === null || stock === '')) {
       return res.status(400).json({ message: 'Stock is required for ready-to-ship products' });
     }
-    if (productType === 'made_to_order' && (!leadTime || !leadTimeUnit)) {
-      return res.status(400).json({ message: 'Lead time and unit are required for made-to-order products' });
+    if (productType === 'made_to_order' && (!leadTime || !leadTimeUnit || !totalCapacity)) {
+      return res.status(400).json({ message: 'Lead time, unit, and total capacity are required for made-to-order products' });
     }
-    if (productType === 'scheduled_order' && (!availableQuantity || !nextAvailableDate || !scheduleType)) {
-      return res.status(400).json({ message: 'Available quantity, next available date, and schedule type are required for scheduled order products' });
+    if (productType === 'scheduled_order' && (!availableQuantity || !nextAvailableDate || !nextAvailableTime || !scheduleType)) {
+      return res.status(400).json({ message: 'Available quantity, next available date, next available time, and schedule type are required for scheduled order products' });
     }
     
     // Handle image upload
@@ -1492,12 +1494,14 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       ...(productType === 'made_to_order' && {
         leadTime: parseInt(leadTime),
         leadTimeUnit: leadTimeUnit || 'days',
-        maxOrderQuantity: parseInt(maxOrderQuantity) || 10
+        maxOrderQuantity: parseInt(maxOrderQuantity) || 10,
+        totalCapacity: parseInt(totalCapacity) || 10
       }),
       ...(productType === 'scheduled_order' && {
         scheduleType: scheduleType,
-        scheduleDetails: scheduleDetails ? (typeof scheduleDetails === 'string' ? JSON.parse(scheduleDetails) : scheduleDetails) : { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
-        nextAvailableDate: nextAvailableDate,
+        scheduleDetails: scheduleDetails ? (typeof scheduleDetails === 'string' && scheduleDetails !== '[object Object]' ? JSON.parse(scheduleDetails) : (typeof scheduleDetails === 'object' ? scheduleDetails : { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 })) : { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+        nextAvailableDate: nextAvailableDate ? new Date(nextAvailableDate) : null,
+        nextAvailableTime: nextAvailableTime || '09:00',
         availableQuantity: parseInt(availableQuantity)
       })
     });
@@ -1507,7 +1511,9 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
     res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -1571,9 +1577,11 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       leadTime,
       leadTimeUnit,
       maxOrderQuantity,
+      totalCapacity,
       scheduleType,
       scheduleDetails,
       nextAvailableDate,
+      nextAvailableTime,
       availableQuantity
     } = req.body;
     
@@ -1632,15 +1640,19 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     if (leadTimeUnit !== undefined) product.leadTimeUnit = leadTimeUnit;
 
     if (maxOrderQuantity !== undefined) product.maxOrderQuantity = parseInt(maxOrderQuantity);
+    if (totalCapacity !== undefined) product.totalCapacity = parseInt(totalCapacity);
     if (scheduleType !== undefined) product.scheduleType = scheduleType;
     if (scheduleDetails !== undefined) {
-      if (typeof scheduleDetails === 'string') {
+      if (typeof scheduleDetails === 'string' && scheduleDetails !== '[object Object]') {
         product.scheduleDetails = JSON.parse(scheduleDetails);
-      } else {
+      } else if (typeof scheduleDetails === 'object') {
         product.scheduleDetails = scheduleDetails;
+      } else {
+        product.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
       }
     }
-    if (nextAvailableDate !== undefined) product.nextAvailableDate = nextAvailableDate;
+    if (nextAvailableDate !== undefined) product.nextAvailableDate = nextAvailableDate ? new Date(nextAvailableDate) : null;
+    if (nextAvailableTime !== undefined) product.nextAvailableTime = nextAvailableTime;
     if (availableQuantity !== undefined) product.availableQuantity = parseInt(availableQuantity);
     
     // Clear old fields when switching product types
@@ -1651,6 +1663,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       product.scheduleType = undefined;
       product.scheduleDetails = undefined;
       product.nextAvailableDate = undefined;
+      product.nextAvailableTime = undefined;
       product.availableQuantity = undefined;
     } else if (productType === 'made_to_order') {
       product.stock = undefined;
@@ -1658,6 +1671,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       product.scheduleType = undefined;
       product.scheduleDetails = undefined;
       product.nextAvailableDate = undefined;
+      product.nextAvailableTime = undefined;
       product.availableQuantity = undefined;
     } else if (productType === 'scheduled_order') {
       product.stock = undefined;

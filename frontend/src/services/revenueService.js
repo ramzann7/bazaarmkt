@@ -1,20 +1,13 @@
 import { authToken } from './authservice';
 
-// Handle both cases: with and without /api suffix
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-const API_BASE_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
-
-// Debug logging
-console.log('🔧 RevenueService - VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('🔧 RevenueService - BASE_URL:', BASE_URL);
-console.log('🔧 RevenueService - API_BASE_URL:', API_BASE_URL);
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 class RevenueService {
   // Get artisan revenue summary
   async getArtisanRevenueSummary(period = 'month') {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/artisan/summary?period=${period}`, {
+      const response = await fetch(`${API_URL}/revenue/artisan/summary?period=${period}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -38,7 +31,7 @@ class RevenueService {
   async getRevenueBreakdown(orderId) {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/breakdown/${orderId}`, {
+      const response = await fetch(`${API_URL}/revenue/breakdown/${orderId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -62,7 +55,7 @@ class RevenueService {
   async getAvailablePromotionalFeatures() {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/features?t=${Date.now()}`, {
+      const response = await fetch(`${API_URL}/revenue/promotional/features?t=${Date.now()}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -87,7 +80,7 @@ class RevenueService {
   async purchasePromotionalFeature(featureData) {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/purchase`, {
+      const response = await fetch(`${API_URL}/revenue/promotional/purchase`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,7 +116,7 @@ class RevenueService {
   async getArtisanPromotionalFeatures() {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/promotional/artisan-features`, {
+      const response = await fetch(`${API_URL}/revenue/promotional/artisan-features`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -146,7 +139,7 @@ class RevenueService {
   // Get transparency information
   async getTransparencyInfo() {
     try {
-      const response = await fetch(`${API_BASE_URL}/revenue/transparency`, {
+      const response = await fetch(`${API_URL}/revenue/transparency`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -222,7 +215,7 @@ class RevenueService {
   async getPlatformRevenueSummary(period = '30') {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/admin/platform-summary?period=${period}`, {
+      const response = await fetch(`${API_URL}/revenue/admin/platform-summary?period=${period}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -246,7 +239,7 @@ class RevenueService {
   async getSpotlightRevenueStats(period = '30') {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_BASE_URL}/revenue/spotlight/stats?period=${period}`, {
+      const response = await fetch(`${API_URL}/revenue/spotlight/stats?period=${period}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

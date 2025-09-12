@@ -13,9 +13,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@googlemaps/js-api-loader": "^1.16.2",
     "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
-    "@googlemaps/js-api-loader": "^1.16.2",
+    "@stripe/react-stripe-js": "^4.0.1",
+    "@stripe/stripe-js": "^7.9.0",
     "axios": "^1.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

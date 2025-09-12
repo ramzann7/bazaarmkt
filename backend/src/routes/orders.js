@@ -283,9 +283,9 @@ router.post('/guest', async (req, res) => {
         'Follow your favorite artisans for updates'
       ],
       contactInfo: {
-        supportEmail: 'support@bazarmkt.com',
+        supportEmail: 'support@bazaarmkt.com',
         supportPhone: '+1-800-BAZAR-MKT',
-        helpCenter: 'https://help.bazarmkt.com'
+        helpCenter: 'https://help.bazaarmkt.com'
       }
     };
 
@@ -324,7 +324,7 @@ router.post('/guest', async (req, res) => {
       },
       followUpInfo,
       accountCreation: {
-        message: '🌟 Ready to unlock the full Bazaar experience?',
+        message: '🌟 Ready to unlock the full bazaarMKT experience?',
         benefits: followUpInfo.benefits,
         cta: 'Create your free account now and start earning rewards!',
         registrationUrl: '/register',
@@ -633,6 +633,26 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
         }
       }
     );
+
+    // Credit wallet when order is delivered
+    if (status === 'delivered' && currentStatus !== 'delivered') {
+      try {
+        const WalletService = require('../services/walletService');
+        
+        // Credit the wallet with order revenue (10% platform fee)
+        const result = await WalletService.creditOrderRevenue(order._id, 0.10);
+        
+        console.log(`🎉 Successfully credited wallet for order ${order._id}:`);
+        console.log(`  Wallet ID: ${result.walletId}`);
+        console.log(`  Transaction ID: ${result.transactionId}`);
+        console.log(`  Net amount: ${result.netAmount} CAD`);
+        console.log(`  New balance: ${result.balanceAfter} CAD`);
+      } catch (walletError) {
+        console.error('❌ Error crediting wallet:', walletError);
+        console.error('❌ Wallet error stack:', walletError.stack);
+        // Don't fail the order update if wallet crediting fails
+      }
+    }
 
     const updatedOrder = await Order.findById(order._id)
       .populate('buyer', 'firstName lastName email phone')

@@ -52,7 +52,30 @@ export default function SpotlightManagement() {
       loadSpotlightData();
     } catch (error) {
       console.error('Error purchasing spotlight:', error);
-      toast.error(error.response?.data?.message || 'Failed to purchase spotlight');
+      
+      // Handle insufficient funds error
+      if (error.response?.data?.error === 'INSUFFICIENT_FUNDS') {
+        const errorData = error.response.data;
+        const shortfall = errorData.shortfall;
+        const currentBalance = errorData.currentBalance;
+        const requiredAmount = errorData.requiredAmount;
+        
+        toast.error(
+          `Insufficient wallet balance! You need ${formatCurrency(requiredAmount)} but only have ${formatCurrency(currentBalance)}. Please top up your wallet.`,
+          { duration: 6000 }
+        );
+        
+        // Show wallet top-up prompt
+        if (window.confirm(
+          `You need ${formatCurrency(shortfall)} more to purchase this spotlight subscription.\n\nWould you like to top up your wallet now?`
+        )) {
+          // Navigate to wallet top-up or show top-up modal
+          // For now, we'll just show a message
+          toast.info('Wallet top-up feature coming soon! Please add funds to your wallet first.');
+        }
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to purchase spotlight');
+      }
     } finally {
       setIsPurchasing(false);
     }
@@ -67,7 +90,30 @@ export default function SpotlightManagement() {
       loadSpotlightData();
     } catch (error) {
       console.error('Error extending spotlight:', error);
-      toast.error(error.response?.data?.message || 'Failed to extend spotlight');
+      
+      // Handle insufficient funds error
+      if (error.response?.data?.error === 'INSUFFICIENT_FUNDS') {
+        const errorData = error.response.data;
+        const shortfall = errorData.shortfall;
+        const currentBalance = errorData.currentBalance;
+        const requiredAmount = errorData.requiredAmount;
+        
+        toast.error(
+          `Insufficient wallet balance! You need ${formatCurrency(requiredAmount)} but only have ${formatCurrency(currentBalance)}. Please top up your wallet.`,
+          { duration: 6000 }
+        );
+        
+        // Show wallet top-up prompt
+        if (window.confirm(
+          `You need ${formatCurrency(shortfall)} more to extend this spotlight subscription.\n\nWould you like to top up your wallet now?`
+        )) {
+          // Navigate to wallet top-up or show top-up modal
+          // For now, we'll just show a message
+          toast.info('Wallet top-up feature coming soon! Please add funds to your wallet first.');
+        }
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to extend spotlight');
+      }
     } finally {
       setIsExtending(false);
     }

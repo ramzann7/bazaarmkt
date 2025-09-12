@@ -13,12 +13,13 @@ import {
   TagIcon,
   SparklesIcon
 } from "@heroicons/react/24/outline";
-import { getProfile, logoutUser } from "../../services/authService";
+import { getProfile, logoutUser } from "../../services/authservice";
 import { orderService } from "../../services/orderService";
 import { revenueService } from "../../services/revenueService";
 import { spotlightService } from "../../services/spotlightService";
 import toast from "react-hot-toast";
 import PendingOrdersWidget from "./PendingOrdersWidget.jsx";
+import WalletCard from "./WalletCard.jsx";
 
 export default function DashboardFixed() {
   const navigate = useNavigate();
@@ -157,6 +158,7 @@ export default function DashboardFixed() {
           console.error('DashboardFixed: Error loading revenue:', error);
         }
 
+
         console.log('DashboardFixed: Dashboard loaded successfully');
       } catch (error) {
         console.error('DashboardFixed: Error loading dashboard:', error);
@@ -203,7 +205,32 @@ export default function DashboardFixed() {
       // Handle specific error cases
       if (error.response?.status === 400) {
         const errorMessage = error.response?.data?.message;
-        if (errorMessage?.includes('already have an active spotlight')) {
+        const errorType = error.response?.data?.error;
+        
+        // Handle insufficient funds error
+        if (errorType === 'INSUFFICIENT_FUNDS') {
+          const errorData = error.response.data;
+          const shortfall = errorData.shortfall;
+          const currentBalance = errorData.currentBalance;
+          const requiredAmount = errorData.requiredAmount;
+          
+          toast.error(
+            `Insufficient wallet balance! You need $${requiredAmount.toFixed(2)} but only have $${currentBalance.toFixed(2)}. Please top up your wallet.`, 
+            { 
+              id: 'spotlight-purchase',
+              duration: 6000 
+            }
+          );
+          
+          // Show wallet top-up prompt
+          if (window.confirm(
+            `You need $${shortfall.toFixed(2)} more to purchase this spotlight subscription.\n\nWould you like to top up your wallet now?`
+          )) {
+            // Navigate to wallet top-up or show top-up modal
+            // For now, we'll just show a message
+            toast.info('Wallet top-up feature coming soon! Please add funds to your wallet first.', { id: 'spotlight-purchase' });
+          }
+        } else if (errorMessage?.includes('already have an active spotlight')) {
           const existingSpotlight = error.response?.data?.existingSpotlight;
           if (existingSpotlight?.endDate) {
             const endDate = new Date(existingSpotlight.endDate).toLocaleDateString();
@@ -355,9 +382,17 @@ export default function DashboardFixed() {
           </div>
         </div>
 
-        {/* Pending Orders Widget */}
-        <div className="mb-8 relative z-10">
-          <PendingOrdersWidget />
+        {/* Orders and Wallet Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Pending Orders Widget - Takes 2/3 of the space */}
+          <div className="lg:col-span-2 relative z-10">
+            <PendingOrdersWidget />
+          </div>
+          
+          {/* Wallet Card - Takes 1/3 of the space */}
+          <div className="lg:col-span-1">
+            <WalletCard />
+          </div>
         </div>
 
         {/* Key Metrics Grid */}
@@ -414,6 +449,7 @@ export default function DashboardFixed() {
               </div>
             </div>
           </div>
+
         </div>
 
         {/* Revenue Breakdown */}

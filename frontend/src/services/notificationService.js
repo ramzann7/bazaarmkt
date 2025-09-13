@@ -273,6 +273,7 @@ export const notificationService = {
   // Send platform notification (for patrons)
   sendPlatformNotification: async (notificationData) => {
     try {
+      const token = localStorage.getItem('token');
       const platformData = {
         userId: notificationData.userId,
         type: notificationData.type,
@@ -287,7 +288,9 @@ export const notificationService = {
         isRead: false
       };
 
-      const response = await axios.post(`${API_URL}/notifications/platform`, platformData);
+      const response = await axios.post(`${API_URL}/notifications/platform`, platformData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       console.log('✅ Platform notification sent successfully');
       return response.data;
     } catch (error) {

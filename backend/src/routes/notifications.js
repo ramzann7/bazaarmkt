@@ -123,7 +123,7 @@ router.get('/preferences/:userId', verifyToken, async (req, res) => {
     const { userId } = req.params;
     
     // Verify user is requesting their own preferences
-    if (req.user._id !== userId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -152,7 +152,7 @@ router.put('/preferences/:userId', verifyToken, async (req, res) => {
     const preferences = req.body;
     
     // Verify user is updating their own preferences
-    if (req.user._id !== userId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -184,7 +184,7 @@ router.get('/user/:userId', verifyToken, async (req, res) => {
     const { limit = 20, page = 1 } = req.query;
     
     // Verify user is requesting their own notifications
-    if (req.user._id !== userId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -241,7 +241,7 @@ router.put('/user/:userId/read-all', verifyToken, async (req, res) => {
     const { userId } = req.params;
     
     // Verify user is updating their own notifications
-    if (req.user._id !== userId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -308,7 +308,7 @@ router.get('/platform/:userId', verifyToken, async (req, res) => {
     const { limit = 20, page = 1 } = req.query;
     
     // Verify user is requesting their own notifications
-    if (req.user._id !== userId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
     
@@ -365,7 +365,7 @@ router.put('/platform/:userId/read-all', verifyToken, async (req, res) => {
     const { userId } = req.params;
     
     // Verify user is updating their own notifications
-    if (req.user._id !== userId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== userId && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied' });
     }
     

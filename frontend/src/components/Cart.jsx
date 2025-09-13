@@ -733,10 +733,16 @@ const Cart = () => {
       toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
       
       // Navigate to order confirmation
-      navigate('/orders', { 
+      navigate('/order-confirmation', { 
         state: { 
+          orders: result.orders,
           message: 'Order placed successfully!',
-          order: result.orders[0] 
+          orderSummary: {
+            totalOrders: result.orders.length,
+            totalAmount: result.orders.reduce((sum, order) => sum + order.totalAmount, 0),
+            estimatedDeliveryTime: '2-3 business days',
+            orderNumbers: result.orders.map(order => order.orderNumber || order._id?.toString().slice(-8).toUpperCase())
+          }
         }
       });
       

@@ -843,13 +843,7 @@ const Cart = () => {
           quantity: item.quantity,
           productType: item.productType || 'ready_to_ship'
         })),
-        deliveryAddress: isAddressRequired() ? deliveryForm : {
-          // For pickup orders, only include basic location info
-          pickupLocation: 'Artisan Location',
-          city: 'Local Pickup',
-          state: 'Pickup Available',
-          country: 'Canada'
-        },
+        deliveryAddress: isAddressRequired() ? deliveryForm : undefined,
         deliveryInstructions: isAddressRequired() ? (deliveryForm.instructions || '') : 'Customer will pickup at artisan location',
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
         paymentMethod: guestPaymentForm.paymentMethod,

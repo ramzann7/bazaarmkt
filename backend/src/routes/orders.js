@@ -4,7 +4,7 @@ const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
 const Artisan = require('../models/artisan');
-const verifyToken = require('../middleware/authmiddleware');
+const verifyToken = require('../middleware/authMiddleware');
 const RevenueService = require('../services/revenueService');
 
 // Get all orders for the authenticated user (patron)
@@ -145,7 +145,7 @@ router.post('/guest', async (req, res) => {
   try {
     console.log('Creating guest order with data:', req.body);
     
-    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentDetails, guestInfo } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentDetails, guestInfo, deliveryMethod } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item' });
@@ -156,9 +156,10 @@ router.post('/guest', async (req, res) => {
       return res.status(400).json({ message: 'Guest orders require firstName, lastName, and email' });
     }
 
-    // Validate delivery address
-    if (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city) {
-      return res.status(400).json({ message: 'Guest orders require complete delivery address' });
+    // Validate delivery address (only required for delivery orders, not pickup)
+    const isPickupOrder = deliveryMethod === 'pickup';
+    if (!isPickupOrder && (!deliveryAddress || !deliveryAddress.street || !deliveryAddress.city)) {
+      return res.status(400).json({ message: 'Delivery orders require complete delivery address' });
     }
 
     // Validate payment method and details
@@ -219,8 +220,14 @@ router.post('/guest', async (req, res) => {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
         totalAmount: artisanOrderData.totalAmount,
-        deliveryAddress,
-        deliveryInstructions,
+        deliveryAddress: isPickupOrder ? {
+          pickupLocation: 'Artisan Location',
+          city: 'Local Pickup',
+          state: 'Pickup Available',
+          country: 'Canada'
+        } : deliveryAddress,
+        deliveryInstructions: isPickupOrder ? 'Customer will pickup at artisan location' : deliveryInstructions,
+        deliveryMethod: deliveryMethod || 'pickup',
         paymentMethod,
         paymentDetails: paymentDetails ? {
           method: paymentMethod,

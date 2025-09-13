@@ -44,7 +44,19 @@ router.get('/posts', async (req, res) => {
     const posts = await CommunityPost.find(query)
       .populate('author', 'firstName lastName profilePicture')
       .populate('artisan', 'artisanName businessImage')
-      .populate('comments')
+      .populate({
+        path: 'comments',
+        populate: [
+          {
+            path: 'author',
+            select: 'firstName lastName profilePicture'
+          },
+          {
+            path: 'artisan',
+            select: 'artisanName businessImage'
+          }
+        ]
+      })
       .sort({ isPinned: -1, isFeatured: -1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);

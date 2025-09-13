@@ -51,7 +51,6 @@ export default function Community() {
     { id: 'story', name: 'Stories', icon: '📖' },
     { id: 'tip', name: 'Tips & Tricks', icon: '💡' },
     { id: 'question', name: 'Questions', icon: '❓' },
-    { id: 'achievement', name: 'Achievements', icon: '🏆' },
     { id: 'product_showcase', name: 'Product Showcase', icon: '🛍️' },
     { id: 'event', name: 'Events', icon: '📅' }
   ];
@@ -235,7 +234,12 @@ export default function Community() {
             )}
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900">{post.artisan?.artisanName}</h3>
+            <button
+              onClick={() => navigate(`/artisan/${post.artisan?._id}`)}
+              className="font-semibold text-gray-900 hover:text-amber-600 transition-colors text-left"
+            >
+              {post.artisan?.artisanName}
+            </button>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <span>{formatTimeAgo(post.createdAt)}</span>
               <span>•</span>
@@ -246,7 +250,7 @@ export default function Community() {
                   <span className="text-amber-600 font-medium">Featured</span>
                 </>
               )}
-            </div>
+              </div>
           </div>
         </div>
         <button className="p-2 hover:bg-gray-100 rounded-full">
@@ -316,8 +320,8 @@ export default function Community() {
             <ShareIcon className="w-5 h-5" />
             <span>Share</span>
           </button>
-        </div>
-        
+          </div>
+
         <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors text-gray-500">
           <BookmarkIcon className="w-5 h-5" />
         </button>
@@ -362,14 +366,17 @@ export default function Community() {
                 <div key={comment._id} className="flex items-start space-x-3">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                     <span className="text-white font-bold text-sm">
-                      {comment.author?.firstName?.charAt(0) || 'U'}
+                      {comment.author?.firstName?.charAt(0) || comment.artisan?.artisanName?.charAt(0) || 'U'}
                     </span>
                   </div>
                   <div className="flex-1">
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="flex items-center space-x-2 mb-1">
                         <span className="font-medium text-gray-900">
-                          {comment.author?.firstName} {comment.author?.lastName}
+                          {comment.author ? 
+                            `${comment.author.firstName} ${comment.author.lastName}` : 
+                            comment.artisan?.artisanName || 'Anonymous'
+                          }
                         </span>
                         <span className="text-xs text-gray-500">
                           {formatTimeAgo(comment.createdAt)}
@@ -573,8 +580,8 @@ export default function Community() {
                 >
                   ✕
                 </button>
-              </div>
-              
+        </div>
+
               <form onSubmit={handleCreatePost} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -588,7 +595,6 @@ export default function Community() {
                     <option value="story">Story</option>
                     <option value="tip">Tip & Trick</option>
                     <option value="question">Question</option>
-                    <option value="achievement">Achievement</option>
                     <option value="product_showcase">Product Showcase</option>
                     <option value="event">Event</option>
                   </select>

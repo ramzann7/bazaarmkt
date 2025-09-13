@@ -94,7 +94,12 @@ class WalletService {
       const response = await axios.get(`${this.baseURL}/transactions?limit=50`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      return response.data;
+      
+      // Return the stats data in the expected format
+      return {
+        success: true,
+        data: response.data.data.stats
+      };
     } catch (error) {
       console.error('Error fetching wallet stats:', error);
       throw error;

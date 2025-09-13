@@ -132,10 +132,14 @@ const ProductCard = ({
             )}
           </div>
 
-          {/* Low stock badge */}
-          {product.stock < 10 && product.stock > 0 && (
+          {/* Low inventory badge */}
+          {((product.productType === 'ready_to_ship' && product.stock < 10 && product.stock > 0) ||
+            (product.productType === 'made_to_order' && product.totalCapacity < 10 && product.totalCapacity > 0) ||
+            (product.productType === 'scheduled_order' && product.availableQuantity < 10 && product.availableQuantity > 0)) && (
             <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10">
-              Low Stock
+              {product.productType === 'ready_to_ship' ? 'Low Stock' :
+               product.productType === 'made_to_order' ? 'Low Capacity' :
+               'Low Available'}
             </div>
           )}
 

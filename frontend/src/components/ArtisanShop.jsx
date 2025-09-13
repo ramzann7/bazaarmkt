@@ -884,9 +884,17 @@ export default function ArtisanShop() {
               {/* Stock and Lead Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 mb-1">Stock</div>
+                  <div className="text-sm text-gray-600 mb-1">
+                    {selectedProduct.productType === 'ready_to_ship' ? 'Stock' :
+                     selectedProduct.productType === 'made_to_order' ? 'Total Capacity' :
+                     'Available Quantity'}
+                  </div>
                   <div className="font-semibold text-gray-900">
-                    {selectedProduct.stock > 0 ? `${selectedProduct.stock} available` : 'Out of stock'}
+                    {selectedProduct.productType === 'ready_to_ship' ? 
+                      (selectedProduct.stock > 0 ? `${selectedProduct.stock} available` : 'Out of stock') :
+                     selectedProduct.productType === 'made_to_order' ? 
+                      `${selectedProduct.totalCapacity || 0} capacity` :
+                      `${selectedProduct.availableQuantity || 0} available`}
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">

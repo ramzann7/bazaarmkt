@@ -166,8 +166,10 @@ export default function Dashboard() {
     async () => {
       try {
         const response = await walletService.getWalletBalance();
+        console.log('Dashboard: Wallet response:', response);
         if (response.success) {
-          setWalletBalance(response.balance);
+          console.log('Dashboard: Setting wallet balance to:', response.data.balance);
+          setWalletBalance(response.data.balance);
           return response;
         }
         return null;

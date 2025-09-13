@@ -473,8 +473,16 @@ export default function AdminProductManagement() {
                   <p className="text-sm text-gray-900">{selectedProduct.category}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Stock</label>
-                  <p className="text-sm text-gray-900">{selectedProduct.stock} units</p>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {selectedProduct.productType === 'ready_to_ship' ? 'Stock' :
+                     selectedProduct.productType === 'made_to_order' ? 'Total Capacity' :
+                     'Available Quantity'}
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedProduct.productType === 'ready_to_ship' ? selectedProduct.stock :
+                     selectedProduct.productType === 'made_to_order' ? selectedProduct.totalCapacity :
+                     selectedProduct.availableQuantity} units
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Artisan</label>

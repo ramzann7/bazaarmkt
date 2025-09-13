@@ -311,8 +311,9 @@ export default function BusinessDetails() {
   const addToCart = async (product, quantity = 1) => {
     console.log('BusinessDetails addToCart called:', { product: product.name, quantity, userId });
     
-    if (quantity > product.stock) {
-      toast.error(`Only ${product.stock} items available`);
+    const maxQuantity = getMaxQuantity(product);
+    if (quantity > maxQuantity) {
+      toast.error(`Only ${maxQuantity} items available`);
       return;
     }
     
@@ -1203,7 +1204,9 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
           </div>
 
           {/* Popular Badge */}
-          {product.stock < 10 && product.stock > 0 && (
+          {((product.productType === 'ready_to_ship' && product.stock < 10 && product.stock > 0) ||
+            (product.productType === 'made_to_order' && product.totalCapacity < 10 && product.totalCapacity > 0) ||
+            (product.productType === 'scheduled_order' && product.availableQuantity < 10 && product.availableQuantity > 0)) && (
             <div className="absolute bottom-2 left-2">
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 flex items-center">
                 <FireIcon className="h-3 w-3 mr-1" />
@@ -1281,7 +1284,11 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
               </div>
 
               <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                <span>Stock: {product.stock}</span>
+                <span>
+                  {product.productType === 'ready_to_ship' ? `Stock: ${product.stock}` :
+                   product.productType === 'made_to_order' ? `Capacity: ${product.totalCapacity || 0}` :
+                   `Available: ${product.availableQuantity || 0}`}
+                </span>
                 {product.leadTimeHours && (
                   <span className="flex items-center">
                     <ClockIcon className="h-4 w-4 mr-1" />

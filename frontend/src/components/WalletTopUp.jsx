@@ -10,8 +10,17 @@ import {
 import walletService from '../services/walletService';
 import toast from 'react-hot-toast';
 
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+// Initialize Stripe with fallback
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
+// Log Stripe configuration for debugging
+console.log('Stripe configuration:', {
+  hasKey: !!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+  keyPrefix: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.substring(0, 7) + '...',
+  stripePromise: !!stripePromise
+});
 
 const WalletTopUpForm = ({ onSuccess, onCancel }) => {
   const stripe = useStripe();

@@ -111,6 +111,7 @@ const notificationRoutes = require('./src/routes/notifications');
 const spotlightRoutes = require('./src/routes/spotlight');
 const walletRoutes = require('./src/routes/wallet');
 const payoutRoutes = require('./src/routes/payouts');
+const communityRoutes = require('./src/routes/community');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -130,6 +131,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/spotlight', spotlightRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/payouts', payoutRoutes);
+app.use('/api/community', communityRoutes);
 
 
 

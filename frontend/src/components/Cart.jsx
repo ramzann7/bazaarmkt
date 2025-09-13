@@ -19,7 +19,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { cartService } from '../services/cartService';
 import { deliveryService } from '../services/deliveryService';
-import { getProfile } from '../services/authservice';
+import { getProfile } from '../services/authService';
 import { paymentService } from '../services/paymentService';
 import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
@@ -1289,139 +1289,114 @@ const Cart = () => {
   if (checkoutStep === 'delivery') {
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-              <TruckIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-stone-900 mb-1">How would you like to receive your order?</h1>
-              <p className="text-base text-stone-600">Choose your preferred delivery method</p>
-            </div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Information</h1>
+            <p className="text-gray-600">Choose your preferred delivery method and provide your details</p>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Delivery Options and Address */}
             <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 {/* Step 1: Delivery Options */}
-                <div className="mb-6">
-                  <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
-                    <div className="w-6 h-6 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">1</span>
-                    </div>
-                    Choose Your Connection Method
-                  </h2>
+                <div className="mb-8">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose Delivery Method</h2>
                   
                   {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                    <div key={artisanId} className="mb-4 p-4 border border-stone-200 rounded-xl bg-gradient-to-br from-stone-50 to-white hover:shadow-lg transition-all duration-300">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                          <UserIcon className="w-4 h-4 text-white" />
+                    <div key={artisanId} className="mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-4 h-4 text-orange-600" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="text-lg font-bold text-stone-900">
+                          <h3 className="text-lg font-semibold text-gray-900">
                             {artisanData.artisan?.artisanName || 'Unknown Artisan'}
                           </h3>
                           
-                          {/* Compact Availability Summary */}
+                          {/* Product Types */}
                           <div className="flex flex-wrap gap-1 mt-1">
                             {artisanData.items.some(item => item.productType === 'ready_to_ship') && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></div>
-                                Ready
+                                Ready to Ship
                               </span>
                             )}
                             {artisanData.items.some(item => item.productType === 'made_to_order') && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></div>
-                                Custom
+                                Made to Order
                               </span>
                             )}
                             {artisanData.items.some(item => item.productType === 'scheduled_order') && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                <div className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-1"></div>
-                                Scheduled
+                                Scheduled Order
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {deliveryOptions[artisanId]?.pickup?.available && (
-                          <label className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50 transition-all duration-300 cursor-pointer group">
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
                               value="pickup"
                               checked={selectedDeliveryMethods[artisanId] === 'pickup'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
-                              className="text-emerald-600 w-5 h-5"
+                              className="text-green-600 w-4 h-4"
                             />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                                  <MapPinIcon className="w-3 h-3 text-emerald-600" />
-                                </div>
-                                <div>
-                                  <span className="text-stone-900 font-bold text-base">Visit the Artisan</span>
-                                  <span className="text-emerald-600 text-xs font-semibold ml-2">(Free)</span>
-                                </div>
+                            <div className="flex items-center gap-3">
+                              <MapPinIcon className="w-5 h-5 text-green-600" />
+                              <div>
+                                <span className="text-gray-900 font-medium">Visit the Artisan</span>
+                                <span className="text-green-600 text-sm ml-2">(Free)</span>
                               </div>
                             </div>
                           </label>
                         )}
                         
                         {deliveryOptions[artisanId]?.personalDelivery?.available && (
-                          <label className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-amber-300 hover:bg-amber-50 transition-all duration-300 cursor-pointer group">
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors cursor-pointer">
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
                               value="personalDelivery"
                               checked={selectedDeliveryMethods[artisanId] === 'personalDelivery'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'personalDelivery')}
-                              className="text-amber-600 w-5 h-5"
+                              className="text-orange-600 w-4 h-4"
                             />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-                                  <TruckIcon className="w-3 h-3 text-amber-600" />
-                                </div>
-                                <div>
-                                  <span className="text-stone-900 font-bold text-base">Personal Delivery</span>
-                                  <span className="text-stone-600 text-xs ml-2">
-                                    ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
-                                    {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
-                                      ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
-                                    }
-                                  </span>
-                                </div>
+                            <div className="flex items-center gap-3">
+                              <TruckIcon className="w-5 h-5 text-orange-600" />
+                              <div>
+                                <span className="text-gray-900 font-medium">Personal Delivery</span>
+                                <span className="text-gray-600 text-sm ml-2">
+                                  ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
+                                  {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
+                                    ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
+                                  }
+                                </span>
                               </div>
                             </div>
                           </label>
                         )}
                         
                         {deliveryOptions[artisanId]?.professionalDelivery?.available && (
-                          <label className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-all duration-300 cursor-pointer group">
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer">
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
                               value="professionalDelivery"
                               checked={selectedDeliveryMethods[artisanId] === 'professionalDelivery'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'professionalDelivery')}
-                              className="text-purple-600 w-5 h-5"
+                              className="text-purple-600 w-4 h-4"
                             />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                                  <ShieldCheckIcon className="w-3 h-3 text-purple-600" />
-                                </div>
-                                <div>
-                                  <span className="text-stone-900 font-bold text-base">Professional Delivery</span>
-                                  <span className="text-stone-600 text-xs ml-2">(Uber Direct - $15)</span>
-                                </div>
+                            <div className="flex items-center gap-3">
+                              <ShieldCheckIcon className="w-5 h-5 text-purple-600" />
+                              <div>
+                                <span className="text-gray-900 font-medium">Professional Delivery</span>
+                                <span className="text-gray-600 text-sm ml-2">(Uber Direct - $15)</span>
                               </div>
                             </div>
                           </label>
@@ -1432,18 +1407,18 @@ const Cart = () => {
                 </div>
 
                 {/* Address Requirement Notice */}
-                <div className="mb-4">
+                <div className="mb-6">
                   {isAddressRequired() ? (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
-                      <ExclamationTriangleIcon className="w-4 h-4 text-blue-600" />
-                      <p className="text-blue-800 text-xs font-medium">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-blue-600" />
+                      <p className="text-blue-800 text-sm font-medium">
                         Address required for selected delivery methods
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-2">
-                      <CheckIcon className="w-4 h-4 text-emerald-600" />
-                      <p className="text-emerald-800 text-xs font-medium">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                      <CheckIcon className="w-5 h-5 text-green-600" />
+                      <p className="text-green-800 text-sm font-medium">
                         No address required for pickup orders
                       </p>
                     </div>
@@ -1452,159 +1427,135 @@ const Cart = () => {
 
                 {/* Guest Information Form (for guest users) - Always show for guests */}
                 {isGuest && (
-                  <div className="mb-6">
-                    <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
-                      <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">2</span>
-                      </div>
-                      Your Information
-                      {!isAddressRequired() && (
-                        <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded-full">
-                          Required for pickup orders
-                        </span>
-                      )}
-                    </h2>
+                  <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Information</h2>
                     
-                    <div className="border-t border-stone-200 pt-4 mb-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">First Name *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.firstName}
-                            onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="First name"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">Last Name *</label>
-                          <input
-                            type="text"
-                            value={deliveryForm.lastName}
-                            onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
-                            className="input-field text-sm py-2"
-                            placeholder="Last name"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-stone-700 mb-1">Email Address *</label>
-                          <input
-                            type="email"
-                            value={deliveryForm.email}
-                            onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
-                            className="input-field"
-                            placeholder="Enter your email address"
-                            required
-                          />
-                          {/* Show existing account notification */}
-                          {existingUser && (
-                            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                              <div className="flex items-center gap-2 text-blue-800">
-                                <CheckCircleIcon className="w-4 h4" />
-                                <span className="text-sm font-medium">
-                                  Welcome back! Using existing account for {existingUser.email}
-                                </span>
-                              </div>
-                              <p className="text-xs text-blue-600 mt-1">
-                                Your information will be updated with this order.
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-stone-700 mb-2">Phone Number</label>
-                          <input
-                            type="tel"
-                            value={deliveryForm.phone}
-                            onChange={(e) => handleDeliveryFormChange('phone', e.target.value)}
-                            className="input-field"
-                            placeholder="Enter your phone number (optional)"
-                          />
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                        <input
+                          type="text"
+                          value={deliveryForm.firstName}
+                          onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          placeholder="First name"
+                          required
+                        />
                       </div>
-                      
-                      {/* Pickup Information Notice */}
-                      {!isAddressRequired() && (
-                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <MapPinIcon className="w-4 h-4 text-emerald-600" />
-                            <div>
-                              <p className="text-emerald-800 text-sm font-medium">Pickup Order</p>
-                              <p className="text-emerald-700 text-xs">
-                                You'll visit the artisan to collect your order. We'll use your email to identify you and send order updates.
-                              </p>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                        <input
+                          type="text"
+                          value={deliveryForm.lastName}
+                          onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          placeholder="Last name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+                        <input
+                          type="email"
+                          value={deliveryForm.email}
+                          onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          placeholder="Enter your email address"
+                          required
+                        />
+                        {/* Show existing account notification */}
+                        {existingUser && (
+                          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-blue-800">
+                              <CheckCircleIcon className="w-4 h-4" />
+                              <span className="text-sm font-medium">
+                                Welcome back! Using existing account for {existingUser.email}
+                              </span>
                             </div>
+                            <p className="text-xs text-blue-600 mt-1">
+                              Your information will be updated with this order.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <input
+                          type="tel"
+                          value={deliveryForm.phone}
+                          onChange={(e) => handleDeliveryFormChange('phone', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          placeholder="Enter your phone number (optional)"
+                        />
+                      </div>
+                    </div>
+                      
+                    {/* Pickup Information Notice */}
+                    {!isAddressRequired() && (
+                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <MapPinIcon className="w-5 h-5 text-green-600" />
+                          <div>
+                            <p className="text-green-800 text-sm font-medium">Pickup Order</p>
+                            <p className="text-green-700 text-sm">
+                              You'll visit the artisan to collect your order. We'll use your email to identify you and send order updates.
+                            </p>
                           </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* Step 3: Delivery Address (only when required) */}
                 {isAddressRequired() && (
-                  <div className="mb-6">
-                    <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-3">
-                      <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-xs">3</span>
-                      </div>
-                      Where should we deliver your order?
-                    </h2>
+                  <div className="mb-8">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Delivery Address</h2>
                     
                     {/* User Addresses - Only for authenticated users */}
                     {!isGuest && userProfile?.addresses && userProfile.addresses.length > 0 ? (
-                      <div className="mb-4">
-                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                          <MapPinIcon className="w-4 h-4 text-blue-600" />
+                      <div className="mb-6">
+                        <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                          <MapPinIcon className="w-5 h-5 text-blue-600" />
                           Your Saved Addresses
                         </h3>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {userProfile.addresses.map((address, index) => (
-                            <label key={index} className="flex items-center space-x-3 p-3 border-2 border-stone-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 cursor-pointer group">
+                            <label key={index} className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
                               <input
                                 type="radio"
                                 name="saved-address"
                                 checked={selectedAddress === address}
                                 onChange={() => handleAddressSelect(address)}
-                                className="text-blue-600 w-5 h-5"
+                                className="text-blue-600 w-4 h-4"
                               />
                               <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                    <MapPinIcon className="w-3 h-3 text-blue-600" />
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-stone-900 text-sm">
-                                      {address.street}, {address.city}, {address.state} {address.zipCode}
-                                    </p>
-                                    <p className="text-xs text-stone-600">{address.country}</p>
-                                  </div>
-                                </div>
+                                <p className="font-medium text-gray-900 text-sm">
+                                  {address.street}, {address.city}, {address.state} {address.zipCode}
+                                </p>
+                                <p className="text-xs text-gray-600">{address.country}</p>
                               </div>
                             </label>
                           ))}
                         </div>
                       </div>
                     ) : !isGuest && profileLoading ? (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
                           <div>
-                            <h3 className="font-semibold text-blue-800 text-sm">Loading Addresses</h3>
-                            <p className="text-blue-700 text-xs">Please wait while we load your saved addresses...</p>
+                            <h3 className="font-medium text-blue-800 text-sm">Loading Addresses</h3>
+                            <p className="text-blue-700 text-sm">Please wait while we load your saved addresses...</p>
                           </div>
                         </div>
                       </div>
                     ) : !isGuest && (
-                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <MapPinIcon className="w-4 h-4 text-amber-600" />
+                      <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <MapPinIcon className="w-5 h-5 text-orange-600" />
                           <div>
-                            <h3 className="font-semibold text-amber-800 text-sm">No Saved Addresses</h3>
-                            <p className="text-amber-700 text-xs">No addresses saved yet. Add one below.</p>
+                            <h3 className="font-medium text-orange-800 text-sm">No Saved Addresses</h3>
+                            <p className="text-orange-700 text-sm">No addresses saved yet. Add one below.</p>
                           </div>
                         </div>
                       </div>
@@ -1616,74 +1567,74 @@ const Cart = () => {
 
                     {/* Manual Address Form - Only show when address is required */}
                     {isAddressRequired() && (
-                      <div className="border-t border-stone-200 pt-4">
-                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                          <PlusIcon className="w-4 h-4 text-green-600" />
+                      <div className="border-t border-gray-200 pt-6">
+                        <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                          <PlusIcon className="w-5 h-5 text-green-600" />
                           {isGuest ? 'Delivery Address' : 'Add New Address'}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">Street Address *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
                             <input
                               type="text"
                               value={deliveryForm.street}
                               onChange={(e) => handleDeliveryFormChange('street', e.target.value)}
-                              className="input-field text-sm py-2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="123 Main St"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">City *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
                             <input
                               type="text"
                               value={deliveryForm.city}
                               onChange={(e) => handleDeliveryFormChange('city', e.target.value)}
-                              className="input-field text-sm py-2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="Montreal"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">State/Province *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">State/Province *</label>
                             <input
                               type="text"
                               value={deliveryForm.state}
                               onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
-                              className="input-field text-sm py-2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="Quebec"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">ZIP/Postal Code *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">ZIP/Postal Code *</label>
                             <input
                               type="text"
                               value={deliveryForm.zipCode}
                               onChange={(e) => handleDeliveryFormChange('zipCode', e.target.value)}
-                              className="input-field text-sm py-2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="H2K 3K2"
                               required
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">Country *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
                             <input
                               type="text"
                               value={deliveryForm.country}
                               onChange={(e) => handleDeliveryFormChange('country', e.target.value)}
-                              className="input-field text-sm py-2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="Canada"
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-xs font-semibold text-stone-700 mb-1">Delivery Instructions</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Instructions</label>
                             <textarea
                               value={deliveryForm.instructions}
                               onChange={(e) => handleDeliveryFormChange('instructions', e.target.value)}
-                              className="input-field text-sm py-2"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                               placeholder="Any special delivery instructions..."
-                              rows="2"
+                              rows="3"
                             />
                           </div>
                         </div>
@@ -1692,38 +1643,38 @@ const Cart = () => {
                     
                     {/* Pickup Instructions for Guest Users */}
                     {isGuest && !isAddressRequired() && (
-                      <div className="border-t border-stone-200 pt-4">
-                        <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                          <MapPinIcon className="w-4 h-4 text-emerald-600" />
+                      <div className="border-t border-gray-200 pt-6">
+                        <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
+                          <MapPinIcon className="w-5 h-5 text-green-600" />
                           Pickup Instructions
                         </h3>
-                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-                          <div className="space-y-3">
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="space-y-4">
                             <div className="flex items-start gap-3">
-                              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center mt-0.5">
-                                <span className="text-emerald-600 text-xs font-bold">1</span>
+                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                                <span className="text-green-600 text-xs font-bold">1</span>
                               </div>
                               <div>
-                                <p className="text-emerald-800 text-sm font-medium">Complete your order</p>
-                                <p className="text-emerald-700 text-xs">Provide your name, email, and phone number above</p>
+                                <p className="text-green-800 text-sm font-medium">Complete your order</p>
+                                <p className="text-green-700 text-sm">Provide your name, email, and phone number above</p>
                               </div>
                             </div>
                             <div className="flex items-start gap-3">
-                              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center mt-0.5">
-                                <span className="text-emerald-600 text-xs font-bold">2</span>
+                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                                <span className="text-green-600 text-xs font-bold">2</span>
                               </div>
                               <div>
-                                <p className="text-emerald-800 text-sm font-medium">Visit the artisan</p>
-                                <p className="text-emerald-700 text-xs">Go to the artisan's location to collect your order</p>
+                                <p className="text-green-800 text-sm font-medium">Visit the artisan</p>
+                                <p className="text-green-700 text-sm">Go to the artisan's location to collect your order</p>
                               </div>
                             </div>
                             <div className="flex items-start gap-3">
-                              <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center mt-0.5">
-                                <span className="text-emerald-600 text-xs font-bold">3</span>
+                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
+                                <span className="text-green-600 text-xs font-bold">3</span>
                               </div>
                               <div>
-                                <p className="text-emerald-800 text-sm font-medium">Show your email</p>
-                                <p className="text-emerald-700 text-xs">Present your email confirmation to the artisan</p>
+                                <p className="text-green-800 text-sm font-medium">Show your email</p>
+                                <p className="text-green-700 text-sm">Present your email confirmation to the artisan</p>
                               </div>
                             </div>
                           </div>
@@ -1734,18 +1685,18 @@ const Cart = () => {
                 )}
 
                 {/* Navigation Buttons */}
-                <div className="flex justify-between mt-8 pt-6 border-t border-stone-200">
+                <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
                   <button
                     onClick={handlePreviousStep}
-                    className="btn-secondary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200"
+                    className="flex items-center px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <ArrowLeftIcon className="w-6 h-6 mr-3" />
-                    Review Your Selection
+                    <ArrowLeftIcon className="w-5 h-5 mr-2" />
+                    Back to Cart
                   </button>
-                                                        {isGuest ? (
+                  {isGuest ? (
                     <button
                       onClick={handleNextStep}
-                      className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                      className="flex items-center px-6 py-3 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={
                         !deliveryForm.firstName || 
                         !deliveryForm.lastName || 
@@ -1755,16 +1706,16 @@ const Cart = () => {
                       }
                     >
                       Continue to Payment
-                      <ArrowRightIcon className="w-6 h-6 ml-3" />
+                      <ArrowRightIcon className="w-5 h-5 ml-2" />
                     </button>
                   ) : (
                     <button
                       onClick={handleNextStep}
-                      className="btn-primary text-lg px-8 py-4 hover:scale-105 transition-transform duration-200 shadow-xl"
+                      className="flex items-center px-6 py-3 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isAddressRequired() && !selectedAddress && !deliveryForm.street}
                     >
                       Continue to Payment
-                      <ArrowRightIcon className="w-6 h-6 ml-3" />
+                      <ArrowRightIcon className="w-5 h-5 ml-2" />
                     </button>
                   )}
                 </div>
@@ -1775,12 +1726,10 @@ const Cart = () => {
             <div className="lg:col-span-1">
               <div className="space-y-6">
                 {/* Delivery Cost Summary */}
-                <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
-                  <h3 className="font-bold text-stone-900 mb-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                      <TruckIcon className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-lg">Delivery Summary</span>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                    <TruckIcon className="w-5 h-5 text-orange-600" />
+                    Delivery Summary
                   </h3>
                   <div className="space-y-3">
                     {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
@@ -1788,13 +1737,13 @@ const Cart = () => {
                       const selectedMethod = selectedDeliveryMethods[artisanId];
                       
                       return (
-                        <div key={artisanId} className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
-                          <span className="font-medium text-stone-700">{artisanData.artisan?.artisanName || 'Unknown Artisan'}:</span>
+                        <div key={artisanId} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <span className="font-medium text-gray-700">{artisanData.artisan?.artisanName || 'Unknown Artisan'}:</span>
                           <span className={`font-semibold ${
-                            selectedMethod === 'pickup' ? 'text-emerald-600' : 
+                            selectedMethod === 'pickup' ? 'text-green-600' : 
                             selectedMethod === 'personalDelivery' ? 
-                              (deliveryFee > 0 ? 'text-amber-600' : 'text-emerald-600') :
-                            selectedMethod === 'professionalDelivery' ? 'text-purple-600' : 'text-stone-500'
+                              (deliveryFee > 0 ? 'text-orange-600' : 'text-green-600') :
+                            selectedMethod === 'professionalDelivery' ? 'text-purple-600' : 'text-gray-500'
                           }`}>
                             {selectedMethod === 'pickup' ? 'Free Pickup' : 
                              selectedMethod === 'personalDelivery' ? 
@@ -1805,38 +1754,36 @@ const Cart = () => {
                         </div>
                       );
                     })}
-                    <div className="border-t border-stone-200 pt-4">
+                    <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold text-stone-800">Total Delivery:</span>
-                        <span className="font-bold text-lg text-stone-900">{formatPrice(getTotalDeliveryFees())}</span>
+                        <span className="font-semibold text-gray-800">Total Delivery:</span>
+                        <span className="font-bold text-lg text-gray-900">{formatPrice(getTotalDeliveryFees())}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Order Summary */}
-                <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
-                  <h3 className="font-bold text-stone-900 mb-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center">
-                      <ShoppingBagIcon className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="text-lg">Order Summary</span>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                    <ShoppingBagIcon className="w-5 h-5 text-green-600" />
+                    Order Summary
                   </h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
-                      <span className="text-stone-600">Subtotal:</span>
-                      <span className="font-semibold text-stone-900">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-gray-600">Subtotal:</span>
+                      <span className="font-semibold text-gray-900">
                         {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-stone-50 rounded-xl border border-stone-200">
-                      <span className="text-stone-600">Delivery Fees:</span>
-                      <span className="font-semibold text-stone-900">{formatPrice(getTotalDeliveryFees())}</span>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-gray-600">Delivery Fees:</span>
+                      <span className="font-semibold text-gray-900">{formatPrice(getTotalDeliveryFees())}</span>
                     </div>
-                    <div className="border-t border-stone-200 pt-4">
+                    <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold text-stone-800 text-lg">Total:</span>
-                        <span className="font-bold text-xl text-stone-900">{formatPrice(getTotalAmount())}</span>
+                        <span className="font-semibold text-gray-800 text-lg">Total:</span>
+                        <span className="font-bold text-xl text-gray-900">{formatPrice(getTotalAmount())}</span>
                       </div>
                     </div>
                   </div>
@@ -1854,103 +1801,101 @@ const Cart = () => {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl flex items-center justify-center mr-4 shadow-lg">
-              <CreditCardIcon className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-4xl font-bold text-stone-900">Payment Information</h1>
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Information</h1>
+            <p className="text-gray-600">Complete your order with secure payment</p>
           </div>
           
-          <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             {isGuest ? (
               // Guest Payment Method Selection
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Select Payment Method</h2>
                 
                 {/* Payment Method Options for Guests */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-green-300 hover:bg-green-50 transition-all duration-300 cursor-pointer group">
+                  <label className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
                     <input
                       type="radio"
                       name="guest-payment-method"
                       value="credit_card"
                       checked={guestPaymentForm.paymentMethod === 'credit_card'}
                       onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-green-600 w-5 h-5"
+                      className="text-green-600 w-4 h-4"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <CreditCardIcon className="w-5 h-5 text-green-600" />
-                        <span className="font-bold text-stone-900">Credit Card</span>
+                        <span className="font-medium text-gray-900">Credit Card</span>
                       </div>
-                      <p className="text-stone-600 text-sm">Secure payment with major credit cards</p>
+                      <p className="text-gray-600 text-sm">Secure payment with major credit cards</p>
                     </div>
                   </label>
                   
-                  <label className="flex items-center space-x-4 p-4 border-2 border-stone-200 rounded-2xl hover:border-blue-300 hover:bg-blue-50 transition-all duration-300 cursor-pointer group">
+                  <label className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
                     <input
                       type="radio"
                       name="guest-payment-method"
                       value="debit_card"
                       checked={guestPaymentForm.paymentMethod === 'debit_card'}
                       onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-blue-600 w-5 h-5"
+                      className="text-blue-600 w-4 h-4"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <CreditCardIcon className="w-5 h-5 text-blue-600" />
-                        <span className="font-bold text-stone-900">Debit Card</span>
+                        <span className="font-medium text-gray-900">Debit Card</span>
                       </div>
-                      <p className="text-stone-600 text-sm">Direct payment from your bank account</p>
+                      <p className="text-gray-600 text-sm">Direct payment from your bank account</p>
                     </div>
                   </label>
                 </div>
 
                 {/* Payment Details Form for Guests */}
                 {guestPaymentForm.paymentMethod && (
-                  <div className="bg-stone-50 border border-stone-200 rounded-xl p-6">
-                    <h4 className="font-semibold text-stone-900 mb-4">Payment Details</h4>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <h4 className="font-medium text-gray-900 mb-4">Payment Details</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-semibold text-stone-700 mb-2">Card Number *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Card Number *</label>
                         <input
                           type="text"
                           value={guestPaymentForm.cardNumber}
                           onChange={(e) => handleGuestPaymentFormChange('cardNumber', e.target.value)}
-                          className="input-field"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           placeholder="1234 5678 9012 3456"
                           maxLength="19"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-stone-700 mb-2">Expiry Date *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
                         <input
                           type="text"
                           value={guestPaymentForm.expiryDate}
                           onChange={(e) => handleGuestPaymentFormChange('expiryDate', e.target.value)}
-                          className="input-field"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           placeholder="MM/YY"
                           maxLength="5"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-stone-700 mb-2">CVV *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">CVV *</label>
                         <input
                           type="text"
                           value={guestPaymentForm.cvv}
                           onChange={(e) => handleGuestPaymentFormChange('cvv', e.target.value)}
-                          className="input-field"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           placeholder="123"
                           maxLength="4"
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="block text-sm font-semibold text-stone-700 mb-2">Cardholder Name *</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Cardholder Name *</label>
                         <input
                           type="text"
                           value={guestPaymentForm.cardholderName}
                           onChange={(e) => handleGuestPaymentFormChange('cardholderName', e.target.value)}
-                          className="input-field"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                           placeholder="Name on card"
                         />
                       </div>
@@ -1961,39 +1906,39 @@ const Cart = () => {
             ) : !isGuest && profileLoading ? (
               // Loading Payment Methods
               <div className="text-center py-8">
-                <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <h3 className="text-lg font-medium text-stone-900 mb-2">Loading Payment Methods</h3>
-                <p className="text-stone-600">Please wait while we load your saved payment methods...</p>
+                <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Payment Methods</h3>
+                <p className="text-gray-600">Please wait while we load your saved payment methods...</p>
               </div>
             ) : !isGuest && paymentMethods.length > 0 ? (
               // Authenticated User Payment Methods
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-stone-900 mb-4">Select Payment Method</h2>
+                <h2 className="text-xl font-medium text-gray-900 mb-4">Select Payment Method</h2>
                 
                 {/* Saved Payment Methods */}
                 <div className="space-y-3">
                   {paymentMethods.map((method) => (
-                    <label key={method._id} className="flex items-center space-x-3 p-4 border border-stone-200 rounded-xl hover:bg-stone-50 transition-all duration-200 cursor-pointer">
+                    <label key={method._id} className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                       <input
                         type="radio"
                         name="payment-method"
                         checked={selectedPaymentMethod?._id === method._id}
                         onChange={() => setSelectedPaymentMethod(method)}
-                        className="text-amber-600 w-5 h-5"
+                        className="text-orange-600 w-5 h-5"
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <CreditCardIcon className="w-5 h-5 text-stone-500" />
-                          <span className="text-stone-600">
+                          <CreditCardIcon className="w-5 h-5 text-gray-500" />
+                          <span className="text-gray-600">
                             {method.brand?.toUpperCase()} •••• {method.last4}
                           </span>
                           {method.isDefault && (
-                            <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">
+                            <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium">
                               Default
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-stone-600">
+                        <p className="text-sm text-gray-600">
                           Expires {method.expiryMonth}/{method.expiryYear}
                         </p>
                       </div>
@@ -2012,9 +1957,9 @@ const Cart = () => {
             ) : (
               // No Payment Methods (for authenticated users)
               <div className="text-center py-8">
-                <CreditCardIcon className="w-16 h-16 text-stone-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-stone-900 mb-2">No Payment Methods</h3>
-                <p className="text-stone-600 mb-4">
+                <CreditCardIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Methods</h3>
+                <p className="text-gray-600 mb-4">
                   {profileLoading ? 'Loading payment methods...' :
                    userProfile?.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
                    'No payment methods available.'}
@@ -2031,16 +1976,16 @@ const Cart = () => {
             
             {/* Add Payment Method Form */}
             {showAddPaymentForm && (
-              <div className="mt-8 p-6 bg-stone-50 rounded-2xl border border-stone-200">
-                <h3 className="text-lg font-semibold text-stone-900 mb-4">Add New Payment Method</h3>
+              <div className="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Payment Method</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-stone-700 mb-2">Card Number</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
                     <input
                       type="text"
                       value={newPaymentForm.cardNumber}
                       onChange={(e) => handlePaymentFormChange('cardNumber', e.target.value)}
-                      className="input-field"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       placeholder="1234 5678 9012 3456"
                       maxLength="19"
                     />
@@ -2049,12 +1994,12 @@ const Cart = () => {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-2">Cardholder Name</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Cardholder Name</label>
                     <input
                       type="text"
                       value={newPaymentForm.cardholderName}
                       onChange={(e) => handlePaymentFormChange('cardholderName', e.target.value)}
-                      className="input-field"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       placeholder="John Doe"
                     />
                     {paymentFormErrors.cardholderName && (
@@ -2062,13 +2007,13 @@ const Cart = () => {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-2">Expiry Date</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
                         value={newPaymentForm.expiryMonth}
                         onChange={(e) => handlePaymentFormChange('expiryMonth', e.target.value)}
-                        className="input-field"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="MM"
                         maxLength="2"
                       />
@@ -2076,7 +2021,7 @@ const Cart = () => {
                         type="text"
                         value={newPaymentForm.expiryYear}
                         onChange={(e) => handlePaymentFormChange('expiryYear', e.target.value)}
-                        className="input-field"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         placeholder="YY"
                         maxLength="2"
                       />
@@ -2086,12 +2031,12 @@ const Cart = () => {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700 mb-2">CVV</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">CVV</label>
                     <input
                       type="text"
                       value={newPaymentForm.cvv}
                       onChange={(e) => handlePaymentFormChange('cvv', e.target.value)}
-                      className="input-field"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                       placeholder="123"
                       maxLength="4"
                     />
@@ -2165,59 +2110,59 @@ const Cart = () => {
   // Render order confirmation page
   if (checkoutStep === 'confirmation' && orderConfirmation) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50 to-emerald-50 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-3xl flex items-center justify-center mr-6 shadow-2xl">
+            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mr-6">
               <CheckIcon className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-stone-900 mb-2">🎉 Order Confirmed!</h1>
-              <p className="text-lg text-stone-600">Your order has been successfully placed with our artisans</p>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">🎉 Order Confirmed!</h1>
+              <p className="text-lg text-gray-600">Your order has been successfully placed with our artisans</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-8 mb-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
             {/* Order Summary */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-stone-900 mb-6 flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+              <h2 className="text-2xl font-medium text-gray-900 mb-6 flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                   <span className="text-white font-bold text-sm">📋</span>
                 </div>
                 Order Summary
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-600 font-medium">Total Orders</p>
                   <p className="text-2xl font-bold text-blue-900">{orderConfirmation.orderSummary?.totalOrders || orderConfirmation.orders?.length}</p>
                 </div>
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <p className="text-sm text-green-600 font-medium">Total Amount</p>
                   <p className="text-2xl font-bold text-green-900">
                     ${orderConfirmation.orderSummary?.totalAmount || 
                       orderConfirmation.orders?.reduce((sum, order) => sum + (order.totalAmount || 0), 0).toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
-                  <p className="text-sm text-amber-600 font-medium">Estimated Delivery</p>
-                  <p className="text-2xl font-bold text-amber-900">
+                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                  <p className="text-sm text-orange-600 font-medium">Estimated Delivery</p>
+                  <p className="text-2xl font-bold text-orange-900">
                     {orderConfirmation.orderSummary?.estimatedDeliveryTime || '2-3 business days'}
                   </p>
                 </div>
               </div>
 
               {/* Order Numbers */}
-              <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
-                <p className="text-sm text-stone-600 font-medium mb-2">Order Numbers:</p>
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <p className="text-sm text-gray-600 font-medium mb-2">Order Numbers:</p>
                 <div className="flex flex-wrap gap-2">
                   {orderConfirmation.orderSummary?.orderNumbers?.map((orderNum, index) => (
-                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-stone-200 font-mono text-sm font-bold">
+                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-mono text-sm font-bold">
                       {orderNum}
                     </span>
                   )) || 
                   orderConfirmation.orders?.map((order, index) => (
-                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-stone-200 font-mono text-sm font-bold">
+                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-mono text-sm font-bold">
                       {order.orderNumber || order.orderId?.toString().slice(-8).toUpperCase()}
                     </span>
                   ))}

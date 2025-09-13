@@ -417,6 +417,20 @@ router.post('/create', verifyToken, async (req, res) => {
       };
     }
 
+    // Use WalletService for proper wallet operations
+    const WalletService = require('../services/walletService');
+    
+    // Check if wallet has sufficient balance
+    const hasBalance = await WalletService.hasSufficientBalance(artisanProfile.user, price);
+    if (!hasBalance) {
+      const currentBalance = await WalletService.getBalance(artisanProfile.user);
+      return res.status(400).json({ 
+        message: 'Insufficient wallet balance',
+        required: price,
+        available: currentBalance
+      });
+    }
+    
     // Create promotional feature
     const promotionalFeature = new PromotionalFeature({
       artisanId: artisanProfile._id, // Use artisan profile ID instead of user ID
@@ -432,48 +446,22 @@ router.post('/create', verifyToken, async (req, res) => {
       isActive: true
     });
     
-    // Check wallet balance and deduct payment
-    const Wallet = require('../models/wallet');
-    const WalletTransaction = require('../models/walletTransaction');
-    
-    let wallet = await Wallet.findOne({ artisanId: artisanProfile._id });
-    
-    if (!wallet) {
-      wallet = new Wallet({
-        artisanId: artisanProfile._id,
-        balance: 0
-      });
-      await wallet.save();
-    }
-    
-    // Check if wallet has sufficient balance
-    if (!wallet.hasSufficientBalance(price)) {
-      return res.status(400).json({ 
-        message: 'Insufficient wallet balance',
-        required: price,
-        available: wallet.balance
-      });
-    }
-    
-    // Create purchase transaction
-    const transaction = await WalletTransaction.createPurchaseTransaction(
-      wallet._id,
-      req.user.userId,
-      promotionalFeature._id,
-      price,
-      `Promotional feature: ${featureType} for ${durationDays} days`
-    );
-    
-    // Deduct funds from wallet
-    const balanceBefore = wallet.balance;
-    await wallet.deductFunds(price, 'purchase');
-    
-    // Update transaction with actual balances
-    transaction.balanceBefore = balanceBefore;
-    transaction.balanceAfter = wallet.balance;
-    await transaction.save();
-    
+    // Save promotional feature first to get the ID
     await promotionalFeature.save();
+    
+    // Deduct funds from wallet using WalletService
+    const debitResult = await WalletService.deductFunds(
+      artisanProfile.user, // Use user ID, not artisan profile ID
+      price,
+      'purchase',
+      `Promotional feature: ${featureType} for ${durationDays} days`,
+      {
+        promotionalFeatureId: promotionalFeature._id,
+        productId: productId,
+        featureType: featureType,
+        durationDays: durationDays
+      }
+    );
     
     // Update the product with promotional feature information
     const updateData = {};
@@ -503,7 +491,11 @@ router.post('/create', verifyToken, async (req, res) => {
     res.json({
       success: true,
       message: 'Promotional feature activated successfully',
-      data: promotionalFeature
+      data: {
+        promotionalFeature,
+        transaction: debitResult,
+        newBalance: debitResult.balanceAfter
+      }
     });
   } catch (error) {
     console.error('Error creating promotional feature:', error);

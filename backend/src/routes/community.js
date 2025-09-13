@@ -160,23 +160,23 @@ router.post('/posts/:postId/comments', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Find artisan profile if it exists (optional for patrons)
     const artisan = await Artisan.findOne({ user: req.user._id });
-    if (!artisan) {
-      return res.status(404).json({ message: 'Artisan profile not found' });
-    }
 
     const commentData = {
       ...req.body,
       post: req.params.postId,
       author: req.user._id,
-      artisan: artisan._id
+      artisan: artisan ? artisan._id : null
     };
 
     const comment = new CommunityComment(commentData);
     await comment.save();
 
-    // Add points for commenting
-    await addPoints(artisan._id, req.user._id, 5, 'community_comment', 'Commented on a community post');
+    // Add points for commenting (only if user is an artisan)
+    if (artisan) {
+      await addPoints(artisan._id, req.user._id, 5, 'community_comment', 'Commented on a community post');
+    }
 
     // Populate the comment before returning
     await comment.populate([

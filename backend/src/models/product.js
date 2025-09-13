@@ -321,20 +321,37 @@ productSchema.pre('save', function(next) {
 productSchema.pre('save', function(next) {
   if (this.productType === 'ready_to_ship') {
     if (this.stock === undefined || this.stock < 0) {
-      return next(new Error('Ready to ship products must have stock quantity'));
+      return next(new Error('Ready to ship products must have stock quantity (minimum 0)'));
     }
+    // Clear non-applicable fields
+    this.totalCapacity = undefined;
+    this.availableQuantity = undefined;
+    this.leadTime = undefined;
+    this.leadTimeUnit = undefined;
+    this.scheduleType = undefined;
+    this.scheduleDetails = undefined;
+    this.nextAvailableDate = undefined;
+    this.nextAvailableTime = undefined;
   }
   
   if (this.productType === 'made_to_order') {
     if (!this.leadTime || this.leadTime < 1) {
-      return next(new Error('Made to order products must have lead time'));
+      return next(new Error('Made to order products must have lead time (minimum 1)'));
     }
     if (!this.leadTimeUnit) {
       return next(new Error('Made to order products must have lead time unit'));
     }
     if (!this.totalCapacity || this.totalCapacity < 1) {
-      return next(new Error('Made to order products must have total capacity'));
+      return next(new Error('Made to order products must have total capacity (minimum 1)'));
     }
+    // Clear non-applicable fields
+    this.stock = undefined;
+    this.lowStockThreshold = undefined;
+    this.availableQuantity = undefined;
+    this.scheduleType = undefined;
+    this.scheduleDetails = undefined;
+    this.nextAvailableDate = undefined;
+    this.nextAvailableTime = undefined;
   }
   
   if (this.productType === 'scheduled_order') {
@@ -345,8 +362,14 @@ productSchema.pre('save', function(next) {
       return next(new Error('Scheduled order products must have schedule type'));
     }
     if (!this.availableQuantity || this.availableQuantity < 1) {
-      return next(new Error('Scheduled order products must have available quantity'));
+      return next(new Error('Scheduled order products must have available quantity (minimum 1)'));
     }
+    // Clear non-applicable fields
+    this.stock = undefined;
+    this.lowStockThreshold = undefined;
+    this.totalCapacity = undefined;
+    this.leadTime = undefined;
+    this.leadTimeUnit = undefined;
   }
   
   next();

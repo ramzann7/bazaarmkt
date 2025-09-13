@@ -14,7 +14,7 @@ const communityCommentSchema = new mongoose.Schema({
   artisan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Artisan',
-    required: true
+    required: false
   },
   content: {
     type: String,

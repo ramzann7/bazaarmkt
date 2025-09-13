@@ -3,20 +3,17 @@ import { useNavigate, Link } from "react-router-dom";
 import { 
   UserIcon, 
   ShoppingBagIcon, 
-  ClockIcon, 
-  StarIcon,
+  ClockIcon,
   CurrencyDollarIcon,
-  ChartBarIcon,
-  EyeIcon,
   UsersIcon,
   ShoppingCartIcon,
   TagIcon,
   SparklesIcon
 } from "@heroicons/react/24/outline";
-import { getProfile, logoutUser } from "../../services/authservice";
+import { getProfile, logoutUser } from "../../services/authService";
 import { orderService } from "../../services/orderService";
-import { revenueService } from "../../services/revenueService";
 import { spotlightService } from "../../services/spotlightService";
+import walletService from "../../services/walletService";
 import toast from "react-hot-toast";
 import PendingOrdersWidget from "./PendingOrdersWidget.jsx";
 import WalletCard from "./WalletCard.jsx";
@@ -38,12 +35,10 @@ export default function DashboardFixed() {
     pendingOrders: 0,
     completedOrders: 0,
     totalPatrons: 0,
-    viewsThisMonth: 0,
-    platformCosts: 0,
-    netEarnings: 0
+    viewsThisMonth: 0
   });
   const [recentOrders, setRecentOrders] = useState([]);
-  const [revenueData, setRevenueData] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -100,7 +95,7 @@ export default function DashboardFixed() {
         // Ensure orders is an array
         const ordersArray = Array.isArray(orders) ? orders : [];
         
-        // Calculate artisan statistics
+        // Calculate artisan statistics based on actual orders
         const stats = {
           totalOrders: ordersArray.length,
           totalRevenue: ordersArray.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
@@ -124,9 +119,7 @@ export default function DashboardFixed() {
             order.status === 'delivered' || order.status === 'completed'
           ).length,
           totalPatrons: new Set(ordersArray.map(order => order.buyer?._id || order.buyerId)).size,
-          viewsThisMonth: 0,
-          platformCosts: 0,
-          netEarnings: 0
+          viewsThisMonth: 0
         };
         
         setArtisanStats(stats);
@@ -139,25 +132,18 @@ export default function DashboardFixed() {
         setRecentOrders(recent);
         console.log('DashboardFixed: Recent orders loaded:', recent);
 
-        // Step 3: Load revenue data
-        console.log('DashboardFixed: Loading revenue data...');
+        // Step 4: Load wallet balance
+        console.log('DashboardFixed: Loading wallet balance...');
         try {
-          const revenue = await revenueService.getArtisanRevenueSummary('month');
-          setRevenueData(revenue);
-          console.log('DashboardFixed: Revenue loaded:', revenue);
-          
-          // Update stats with platform costs and net earnings
-          if (revenue && revenue.revenue) {
-            setArtisanStats(prevStats => ({
-              ...prevStats,
-              platformCosts: revenue.revenue.totalCommission || 0,
-              netEarnings: revenue.revenue.totalEarnings || 0
-            }));
+          const walletResponse = await walletService.getWalletBalance();
+          console.log('DashboardFixed: Wallet response:', walletResponse);
+          if (walletResponse.success) {
+            setWalletBalance(walletResponse.data.balance);
+            console.log('DashboardFixed: Wallet balance loaded:', walletResponse.data.balance);
           }
         } catch (error) {
-          console.error('DashboardFixed: Error loading revenue:', error);
+          console.error('DashboardFixed: Error loading wallet balance:', error);
         }
-
 
         console.log('DashboardFixed: Dashboard loaded successfully');
       } catch (error) {
@@ -382,21 +368,59 @@ export default function DashboardFixed() {
           </div>
         </div>
 
-        {/* Orders and Wallet Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Pending Orders Widget - Takes 2/3 of the space */}
-          <div className="lg:col-span-2 relative z-10">
-            <PendingOrdersWidget />
-          </div>
+        {/* Orders Section */}
+        <div className="mb-8">
+          <PendingOrdersWidget />
+        </div>
+
+        {/* Revenue & Earnings */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Revenue & Earnings</h2>
           
-          {/* Wallet Card - Takes 1/3 of the space */}
-          <div className="lg:col-span-1">
-            <WalletCard />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Total Revenue */}
+            <div className="text-center p-6 bg-gray-50 rounded-xl">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(artisanStats.totalRevenue)}</p>
+              <p className="text-xs text-gray-500">From all orders</p>
+            </div>
+            
+            {/* Your Earnings */}
+            <div className="text-center p-6 bg-gray-50 rounded-xl">
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CurrencyDollarIcon className="w-6 h-6 text-emerald-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Your Earnings</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(artisanStats.totalRevenue * 0.9)}</p>
+              <p className="text-xs text-gray-500">90% after platform fees</p>
+            </div>
+
+            {/* Your Wallet */}
+            <div className="text-center p-6 bg-gray-50 rounded-xl">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CurrencyDollarIcon className="w-6 h-6 text-blue-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Your Wallet</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(walletBalance)}</p>
+              <p className="text-xs text-gray-500 mb-3">Available balance</p>
+              <Link
+                to="/my-wallet"
+                className="inline-flex items-center text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View more details
+                <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
           </div>
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Total Orders */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between">
@@ -435,127 +459,7 @@ export default function DashboardFixed() {
               </div>
             </div>
           </div>
-
-          {/* Net Earnings */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Net Earnings</p>
-                <p className="text-3xl font-bold text-emerald-600">{formatCurrency(artisanStats.netEarnings)}</p>
-                <p className="text-xs text-gray-500">After platform costs</p>
-              </div>
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center">
-                <CurrencyDollarIcon className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-          </div>
-
         </div>
-
-        {/* Revenue Breakdown */}
-        {revenueData && revenueData.revenue && (
-          <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-2xl shadow-sm border border-emerald-200 p-8 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Revenue & Earnings</h2>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                <span className="text-sm font-medium text-gray-600">Live Data</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Gross Revenue */}
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CurrencyDollarIcon className="w-8 h-8 text-green-600" />
-                </div>
-                <p className="text-sm font-medium text-gray-600 mb-2">Gross Revenue</p>
-                <p className="text-3xl font-bold text-green-600 mb-2">{formatCurrency(revenueData.revenue.totalGrossAmount || 0)}</p>
-                <p className="text-xs text-gray-500">Total sales before platform fees</p>
-              </div>
-              
-              {/* Platform Commission */}
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <ChartBarIcon className="w-8 h-8 text-red-600" />
-                </div>
-                <p className="text-sm font-medium text-gray-600 mb-2">Platform Commission</p>
-                <p className="text-3xl font-bold text-red-600 mb-2">{formatCurrency(revenueData.revenue.totalCommission || 0)}</p>
-                <p className="text-xs text-gray-500">10% platform fee</p>
-                <div className="mt-3 px-3 py-1 bg-red-50 rounded-full inline-block">
-                  <span className="text-xs font-medium text-red-700">Platform Cost</span>
-                </div>
-              </div>
-              
-              {/* Your Earnings */}
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CurrencyDollarIcon className="w-8 h-8 text-emerald-600" />
-                </div>
-                <p className="text-sm font-medium text-gray-600 mb-2">Your Earnings</p>
-                <p className="text-3xl font-bold text-emerald-600 mb-2">{formatCurrency(revenueData.revenue.totalEarnings || 0)}</p>
-                <p className="text-xs text-gray-500">90% after platform fees</p>
-                <div className="mt-3 px-3 py-1 bg-emerald-50 rounded-full inline-block">
-                  <span className="text-xs font-medium text-emerald-700">Your Profit</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Transparency Information */}
-            {revenueData.summary && revenueData.summary.transparency && (
-              <div className="mt-8 p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                    <span className="text-blue-600 text-sm">ℹ️</span>
-                  </div>
-                  Transparency Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
-                  <div className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <p>{revenueData.summary.transparency.platformCommission}</p>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <p>{revenueData.summary.transparency.artisanEarnings}</p>
-                  </div>
-                  <div className="flex items-start space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                    <p>{revenueData.summary.transparency.promotionalCosts}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Revenue Breakdown - Fallback */}
-        {(!revenueData || !revenueData.revenue) && (
-          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl shadow-sm border border-gray-200 p-8 mb-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CurrencyDollarIcon className="w-8 h-8 text-gray-400" />
-              </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Revenue & Earnings</h2>
-              <p className="text-gray-600 mb-4">Your revenue data will appear here once you start receiving orders</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <p className="text-sm font-medium text-gray-600">Gross Revenue</p>
-                  <p className="text-2xl font-bold text-gray-400">$0.00</p>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <p className="text-sm font-medium text-gray-600">Platform Commission</p>
-                  <p className="text-2xl font-bold text-gray-400">$0.00</p>
-                </div>
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <p className="text-sm font-medium text-gray-600">Your Earnings</p>
-                  <p className="text-2xl font-bold text-gray-400">$0.00</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
 
         {/* Recent Orders */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
@@ -571,6 +475,44 @@ export default function DashboardFixed() {
           
           {recentOrders.length > 0 ? (
             <div className="space-y-4">
+              {/* Pending Orders Preview */}
+              {artisanStats.pendingOrders > 0 && (
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-amber-800">Pending Orders</h3>
+                    <span className="text-xs text-amber-600">{artisanStats.pendingOrders} pending</span>
+                  </div>
+                  <div className="space-y-2">
+                    {recentOrders
+                      .filter(order => ['pending', 'confirmed', 'preparing'].includes(order.status))
+                      .slice(0, 3)
+                      .map((order) => (
+                        <div key={order._id} className="flex items-center justify-between text-sm">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-amber-700 font-medium">#{order._id.slice(-6)}</span>
+                            <span className="text-gray-600">•</span>
+                            <span className="text-gray-700">
+                              {order.items?.slice(0, 2).map((item, index) => (
+                                <span key={index}>
+                                  {item.quantity}x {item.product?.name || 'Product'}
+                                  {index < Math.min(order.items.length, 2) - 1 && ', '}
+                                </span>
+                              ))}
+                              {order.items?.length > 2 && (
+                                <span className="text-gray-500"> +{order.items.length - 2} more</span>
+                              )}
+                            </span>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* All Recent Orders */}
               {recentOrders.map((order) => (
                 <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-4">

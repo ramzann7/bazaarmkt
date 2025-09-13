@@ -14,7 +14,7 @@ import {
   CalendarIcon,
   WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
-import { authToken, getProfile } from '../services/authservice';
+import { authToken, getProfile } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { promotionalService } from '../services/promotionalService';
@@ -125,14 +125,40 @@ export default function ArtisanProductManagement() {
     }
   };
 
-  const handleStockUpdate = async (productId, newStock) => {
+  const handleInventoryUpdate = async (productId, newValue, productType) => {
     try {
-      const updatedProduct = await productService.updateProduct(productId, { stock: newStock });
+      let updateData = {};
+      
+      // Update the appropriate field based on product type
+      if (productType === 'ready_to_ship') {
+        updateData = { stock: newValue };
+      } else if (productType === 'made_to_order') {
+        updateData = { totalCapacity: newValue };
+      } else if (productType === 'scheduled_order') {
+        updateData = { availableQuantity: newValue };
+      }
+      
+      console.log('🔍 Updating inventory:', { productId, newValue, productType, updateData });
+      
+      const updatedProduct = await productService.updateInventory(productId, updateData);
+      console.log('🔍 Updated product response:', updatedProduct);
+      
       setProducts(products.map(p => p._id === productId ? updatedProduct : p));
-      toast.success('Stock updated successfully!');
+      
+      // Clear the quick update value for this product
+      setQuickUpdateValues(prev => {
+        const updated = { ...prev };
+        delete updated[productId];
+        return updated;
+      });
+      
+      const fieldName = productType === 'ready_to_ship' ? 'stock' :
+                       productType === 'made_to_order' ? 'capacity' :
+                       'available quantity';
+      toast.success(`${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} updated successfully!`);
     } catch (error) {
-      console.error('Error updating stock:', error);
-      toast.error('Failed to update stock');
+      console.error('Error updating inventory:', error);
+      toast.error('Failed to update inventory');
     }
   };
 
@@ -268,6 +294,7 @@ export default function ArtisanProductManagement() {
 
   const [promotionalPricing, setPromotionalPricing] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [quickUpdateValues, setQuickUpdateValues] = useState({});
 
   // Fetch promotional pricing and wallet balance on component mount
   useEffect(() => {
@@ -581,13 +608,30 @@ export default function ArtisanProductManagement() {
                             <p className="text-gray-600">${product.price} / {product.unit || 'piece'}</p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">Stock:</span>
+                            <span className="font-medium text-gray-700">
+                              {product.productType === 'ready_to_ship' ? 'Stock:' :
+                               product.productType === 'made_to_order' ? 'Capacity:' :
+                               'Available:'}
+                            </span>
                             <div className="flex items-center space-x-2">
-                              <p className={`${product.stock <= 5 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                                {product.stock}
+                              <p className={`${
+                                (product.productType === 'ready_to_ship' && product.stock <= 5) ||
+                                (product.productType === 'made_to_order' && product.totalCapacity <= 5) ||
+                                (product.productType === 'scheduled_order' && product.availableQuantity <= 5)
+                                  ? 'text-red-600 font-semibold' : 'text-gray-600'
+                              }`}>
+                                {product.productType === 'ready_to_ship' ? product.stock :
+                                 product.productType === 'made_to_order' ? product.totalCapacity :
+                                 product.availableQuantity}
                               </p>
-                              {product.stock <= 5 && (
-                                <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">Low Stock!</span>
+                              {((product.productType === 'ready_to_ship' && product.stock <= 5) ||
+                                (product.productType === 'made_to_order' && product.totalCapacity <= 5) ||
+                                (product.productType === 'scheduled_order' && product.availableQuantity <= 5)) && (
+                                <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">
+                                  {product.productType === 'ready_to_ship' ? 'Low Stock!' :
+                                   product.productType === 'made_to_order' ? 'Low Capacity!' :
+                                   'Low Available!'}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -666,27 +710,58 @@ export default function ArtisanProductManagement() {
                         </button>
                       </div>
                       
-                      {/* Quick Stock Update */}
+                      {/* Quick Inventory Update */}
                       <div className="bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm">
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">Stock:</span>
+                          <span className="text-sm text-gray-600">
+                            {product.productType === 'ready_to_ship' ? 'Stock:' :
+                             product.productType === 'made_to_order' ? 'Capacity:' :
+                             'Available:'}
+                          </span>
                           <input
                             type="number"
-                            min="0"
-                            defaultValue={product.stock}
+                            min={product.productType === 'ready_to_ship' ? "0" : "1"}
+                            value={quickUpdateValues[product._id] !== undefined ? quickUpdateValues[product._id] : 
+                              (product.productType === 'ready_to_ship' ? product.stock :
+                               product.productType === 'made_to_order' ? product.totalCapacity :
+                               product.availableQuantity)}
                             className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                            onChange={(e) => {
+                              setQuickUpdateValues(prev => ({
+                                ...prev,
+                                [product._id]: parseInt(e.target.value) || 0
+                              }));
+                            }}
                             onBlur={(e) => {
-                              const newStock = parseInt(e.target.value);
-                              if (newStock !== product.stock && !isNaN(newStock)) {
-                                handleStockUpdate(product._id, newStock);
+                              const newValue = parseInt(e.target.value);
+                              const currentValue = product.productType === 'ready_to_ship' ? product.stock :
+                                                 product.productType === 'made_to_order' ? product.totalCapacity :
+                                                 product.availableQuantity;
+                              if (newValue !== currentValue && !isNaN(newValue)) {
+                                handleInventoryUpdate(product._id, newValue, product.productType);
                               }
+                              // Clear the quick update value after successful update
+                              setQuickUpdateValues(prev => {
+                                const updated = { ...prev };
+                                delete updated[product._id];
+                                return updated;
+                              });
                             }}
                             onKeyPress={(e) => {
                               if (e.key === 'Enter') {
-                                const newStock = parseInt(e.target.value);
-                                if (newStock !== product.stock && !isNaN(newStock)) {
-                                  handleStockUpdate(product._id, newStock);
+                                const newValue = parseInt(e.target.value);
+                                const currentValue = product.productType === 'ready_to_ship' ? product.stock :
+                                                   product.productType === 'made_to_order' ? product.totalCapacity :
+                                                   product.availableQuantity;
+                                if (newValue !== currentValue && !isNaN(newValue)) {
+                                  handleInventoryUpdate(product._id, newValue, product.productType);
                                 }
+                                // Clear the quick update value after successful update
+                                setQuickUpdateValues(prev => {
+                                  const updated = { ...prev };
+                                  delete updated[product._id];
+                                  return updated;
+                                });
                               }
                             }}
                           />
@@ -960,9 +1035,9 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     productType: product?.productType || 'ready_to_ship',
     category: product?.category || 'food_beverages',
     subcategory: product?.subcategory || 'baked_goods',
-    stock: product?.productType === 'made_to_order' ? (product?.totalCapacity || 0) :
-           product?.productType === 'scheduled_order' ? (product?.availableQuantity || 0) :
-           (product?.stock || 0),
+    stock: product?.stock || 0,
+    totalCapacity: product?.totalCapacity || 0,
+    availableQuantity: product?.availableQuantity || 0,
     weight: product?.weight || '',
     dimensions: product?.dimensions || '',
     allergens: product?.allergens || '',
@@ -997,6 +1072,9 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   // Update form data when product changes
   useEffect(() => {
     if (product) {
+      console.log('🔍 Initializing form data for product:', product);
+      console.log('🔍 Product totalCapacity:', product.totalCapacity);
+      console.log('🔍 Product availableQuantity:', product.availableQuantity);
       setFormData(prev => ({
         ...prev,
         name: product.name || '',
@@ -1006,9 +1084,9 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         productType: product.productType || 'ready_to_ship',
         category: product.category || 'food_beverages',
         subcategory: product.subcategory || 'baked_goods',
-        stock: product.productType === 'made_to_order' ? (product.totalCapacity || 0) :
-               product.productType === 'scheduled_order' ? (product.availableQuantity || 0) :
-               (product.stock || 0),
+        stock: product.stock || 0,
+        totalCapacity: product.totalCapacity || 0,
+        availableQuantity: product.availableQuantity || 0,
         weight: product.weight || '',
         dimensions: product.dimensions || '',
         allergens: product.allergens || '',
@@ -1069,15 +1147,13 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         lowStockThreshold: parseInt(formData.lowStockThreshold) || 5
       }),
       ...(formData.productType === 'made_to_order' && {
-        stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
-        totalCapacity: Math.max(parseInt(formData.stock) || 0, 1), // Map stock to totalCapacity, minimum 1
+        totalCapacity: Math.max(parseInt(formData.totalCapacity) || 0, 1), // Use totalCapacity field
         leadTime: parseInt(formData.leadTime) || 1,
         leadTimeUnit: formData.leadTimeUnit || 'days',
         maxOrderQuantity: parseInt(formData.maxOrderQuantity) || 10
       }),
       ...(formData.productType === 'scheduled_order' && {
-        stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
-        availableQuantity: Math.max(parseInt(formData.stock) || 0, 1), // Map stock to availableQuantity, minimum 1
+        availableQuantity: Math.max(parseInt(formData.availableQuantity) || 0, 1), // Use availableQuantity field
         scheduleType: formData.scheduleType || 'daily',
         scheduleDetails: {
           frequency: formData.scheduleDetails?.frequency || 'every_day',
@@ -1091,8 +1167,13 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     
     console.log('🔍 Form data before filtering:', formData);
     console.log('🔍 Filtered data being sent:', filteredData);
+    console.log('🔍 Product type:', formData.productType);
     console.log('🔍 Stock value in formData:', formData.stock);
+    console.log('🔍 Total capacity value in formData:', formData.totalCapacity);
+    console.log('🔍 Available quantity value in formData:', formData.availableQuantity);
     console.log('🔍 Stock value in filteredData:', filteredData.stock);
+    console.log('🔍 Total capacity value in filteredData:', filteredData.totalCapacity);
+    console.log('🔍 Available quantity value in filteredData:', filteredData.availableQuantity);
     console.log('🔍 Image value in formData:', formData.image ? 'Present' : 'Not present');
     console.log('🔍 Image value in filteredData:', filteredData.image ? 'Present' : 'Not present');
     
@@ -1131,15 +1212,25 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     }
   };
 
-  // Helper function to handle product type changes with stock validation
+  // Helper function to handle product type changes with inventory validation
   const handleProductTypeChange = (newProductType) => {
     setFormData(prev => {
       const newFormData = { ...prev, productType: newProductType };
       
-      // Ensure stock is at least 1 for made-to-order and scheduled order products
-      if ((newProductType === 'made_to_order' || newProductType === 'scheduled_order') && 
-          (parseInt(prev.stock) || 0) < 1) {
-        newFormData.stock = 1;
+      // Initialize appropriate inventory fields based on product type
+      if (newProductType === 'made_to_order') {
+        // Ensure totalCapacity is at least 1
+        if ((parseInt(prev.totalCapacity) || 0) < 1) {
+          newFormData.totalCapacity = 1;
+        }
+      } else if (newProductType === 'scheduled_order') {
+        // Ensure availableQuantity is at least 1
+        if ((parseInt(prev.availableQuantity) || 0) < 1) {
+          newFormData.availableQuantity = 1;
+        }
+      } else if (newProductType === 'ready_to_ship') {
+        // Stock can be 0 for ready to ship products
+        newFormData.stock = parseInt(prev.stock) || 0;
       }
       
       return newFormData;
@@ -1611,18 +1702,13 @@ const ProductForm = ({ product, onSave, onCancel }) => {
             name="stock"
             value={formData.stock}
             onChange={handleChange}
-            min={formData.productType === 'ready_to_ship' ? "0" : "1"}
+            min="0"
             required
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-all duration-200 bg-white"
-                placeholder={formData.productType === 'ready_to_ship' ? "0" : "1"}
+                placeholder="0"
               />
               <p className="text-xs text-gray-500">
-                {formData.productType === 'ready_to_ship' 
-                  ? 'Current inventory available' 
-                  : formData.productType === 'made_to_order'
-                    ? 'Total production capacity (minimum 1)'
-                    : 'Available quantity for this date (minimum 1)'
-                }
+                Current inventory available for immediate shipping
               </p>
             </div>
 
@@ -1743,8 +1829,8 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           </label>
               <input
                 type="number"
-                name="maxOrderQuantity"
-                value={formData.maxOrderQuantity}
+                name="totalCapacity"
+                value={formData.totalCapacity}
             onChange={handleChange}
                 min="1"
             required

@@ -1524,6 +1524,8 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     console.log('🔍 File:', req.file);
     console.log('🔍 Product ID:', req.params.id);
     console.log('🔍 User ID:', req.user?._id);
+    console.log('🔍 totalCapacity in request:', req.body.totalCapacity);
+    console.log('🔍 availableQuantity in request:', req.body.availableQuantity);
     
     const product = await Product.findById(req.params.id);
     
@@ -1640,7 +1642,10 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     if (leadTimeUnit !== undefined) product.leadTimeUnit = leadTimeUnit;
 
     if (maxOrderQuantity !== undefined) product.maxOrderQuantity = parseInt(maxOrderQuantity);
-    if (totalCapacity !== undefined) product.totalCapacity = parseInt(totalCapacity);
+    if (totalCapacity !== undefined) {
+      console.log('🔍 Updating totalCapacity:', totalCapacity, 'to:', parseInt(totalCapacity));
+      product.totalCapacity = parseInt(totalCapacity);
+    }
     if (scheduleType !== undefined) product.scheduleType = scheduleType;
     if (scheduleDetails !== undefined) {
       if (typeof scheduleDetails === 'string' && scheduleDetails !== '[object Object]') {
@@ -1653,32 +1658,37 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     }
     if (nextAvailableDate !== undefined) product.nextAvailableDate = nextAvailableDate ? new Date(nextAvailableDate) : null;
     if (nextAvailableTime !== undefined) product.nextAvailableTime = nextAvailableTime;
-    if (availableQuantity !== undefined) product.availableQuantity = parseInt(availableQuantity);
+    if (availableQuantity !== undefined) {
+      console.log('🔍 Updating availableQuantity:', availableQuantity, 'to:', parseInt(availableQuantity));
+      product.availableQuantity = parseInt(availableQuantity);
+    }
     
-    // Clear old fields when switching product types
-    if (productType === 'ready_to_ship') {
-      product.leadTime = undefined;
-      product.leadTimeUnit = undefined;
-      product.maxOrderQuantity = undefined;
-      product.scheduleType = undefined;
-      product.scheduleDetails = undefined;
-      product.nextAvailableDate = undefined;
-      product.nextAvailableTime = undefined;
-      product.availableQuantity = undefined;
-    } else if (productType === 'made_to_order') {
-      product.stock = undefined;
-      product.lowStockThreshold = undefined;
-      product.scheduleType = undefined;
-      product.scheduleDetails = undefined;
-      product.nextAvailableDate = undefined;
-      product.nextAvailableTime = undefined;
-      product.availableQuantity = undefined;
-    } else if (productType === 'scheduled_order') {
-      product.stock = undefined;
-      product.lowStockThreshold = undefined;
-      product.leadTime = undefined;
-      product.leadTimeUnit = undefined;
-      product.maxOrderQuantity = undefined;
+    // Clear old fields when switching product types (only if productType is being changed)
+    if (productType !== undefined && productType !== product.productType) {
+      if (productType === 'ready_to_ship') {
+        product.leadTime = undefined;
+        product.leadTimeUnit = undefined;
+        product.maxOrderQuantity = undefined;
+        product.scheduleType = undefined;
+        product.scheduleDetails = undefined;
+        product.nextAvailableDate = undefined;
+        product.nextAvailableTime = undefined;
+        product.availableQuantity = undefined;
+      } else if (productType === 'made_to_order') {
+        product.stock = undefined;
+        product.lowStockThreshold = undefined;
+        product.scheduleType = undefined;
+        product.scheduleDetails = undefined;
+        product.nextAvailableDate = undefined;
+        product.nextAvailableTime = undefined;
+        product.availableQuantity = undefined;
+      } else if (productType === 'scheduled_order') {
+        product.stock = undefined;
+        product.lowStockThreshold = undefined;
+        product.leadTime = undefined;
+        product.leadTimeUnit = undefined;
+        product.maxOrderQuantity = undefined;
+      }
     }
     
     // Handle image upload
@@ -1768,7 +1778,7 @@ router.patch('/:id/stock', verifyToken, async (req, res) => {
 // Update product inventory (for artisan management)
 router.patch('/:id/inventory', verifyToken, async (req, res) => {
   try {
-    const { stock, status } = req.body;
+    const { stock, totalCapacity, availableQuantity, status } = req.body;
     
     const product = await Product.findById(req.params.id);
     
@@ -1784,14 +1794,32 @@ router.patch('/:id/inventory', verifyToken, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to update this product' });
     }
     
-    // Update stock if provided
-    if (stock !== undefined) {
+    // Update inventory based on product type
+    if (product.productType === 'ready_to_ship' && stock !== undefined) {
       product.stock = parseInt(stock);
       
       // Update status based on stock
       if (product.stock === 0) {
         product.status = 'out_of_stock';
       } else if (product.status === 'out_of_stock' && product.stock > 0) {
+        product.status = 'active';
+      }
+    } else if (product.productType === 'made_to_order' && totalCapacity !== undefined) {
+      product.totalCapacity = parseInt(totalCapacity);
+      
+      // Update status based on capacity
+      if (product.totalCapacity === 0) {
+        product.status = 'out_of_stock';
+      } else if (product.status === 'out_of_stock' && product.totalCapacity > 0) {
+        product.status = 'active';
+      }
+    } else if (product.productType === 'scheduled_order' && availableQuantity !== undefined) {
+      product.availableQuantity = parseInt(availableQuantity);
+      
+      // Update status based on available quantity
+      if (product.availableQuantity === 0) {
+        product.status = 'out_of_stock';
+      } else if (product.status === 'out_of_stock' && product.availableQuantity > 0) {
         product.status = 'active';
       }
     }

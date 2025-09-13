@@ -22,15 +22,18 @@ export default function WalletCard() {
     try {
       setIsLoading(true);
       const walletResponse = await walletService.getWalletBalance();
+      console.log('WalletCard: Wallet response:', walletResponse);
       if (walletResponse.success) {
-        setWalletBalance(walletResponse.balance);
+        console.log('WalletCard: Setting wallet balance to:', walletResponse.data.balance);
+        setWalletBalance(walletResponse.data.balance);
       }
       
       // Load recent transactions (if available)
       try {
-        const transactionsResponse = await walletService.getWalletTransactions();
+        const transactionsResponse = await walletService.getTransactions();
+        console.log('WalletCard: Transactions response:', transactionsResponse);
         if (transactionsResponse.success) {
-          setRecentTransactions(transactionsResponse.transactions?.slice(0, 3) || []);
+          setRecentTransactions(transactionsResponse.data.transactions?.slice(0, 3) || []);
         }
       } catch (error) {
         console.log('No recent transactions available');

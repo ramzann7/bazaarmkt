@@ -7,28 +7,22 @@ const Order = require('../models/order');
 class WalletService {
   /**
    * Get or create wallet for an artisan
-   * @param {string} artisanId - The artisan profile ID
+   * @param {string} userId - The user ID (not artisan profile ID)
    * @returns {Promise<Object>} Wallet object
    */
-  static async getOrCreateWallet(artisanId) {
+  static async getOrCreateWallet(userId) {
     try {
-      // Find the artisan profile to get the user ID
-      const artisanProfile = await Artisan.findById(artisanId);
-      if (!artisanProfile) {
-        throw new Error('Artisan profile not found');
-      }
-
-      // Find or create wallet for the user
-      let wallet = await Wallet.findOne({ artisanId: artisanProfile.user });
+      // Find or create wallet for the user directly
+      let wallet = await Wallet.findOne({ artisanId: userId });
       if (!wallet) {
         wallet = new Wallet({
-          artisanId: artisanProfile.user,
+          artisanId: userId,
           balance: 0,
           currency: 'CAD',
           isActive: true
         });
         await wallet.save();
-        console.log(`✅ Created new wallet for artisan ${artisanProfile.artisanName}: ${wallet._id}`);
+        console.log(`✅ Created new wallet for user ${userId}: ${wallet._id}`);
       }
 
       return wallet;
@@ -67,8 +61,8 @@ class WalletService {
       console.log(`  Platform fee (${platformFeeRate * 100}%): ${platformFee} CAD`);
       console.log(`  Net amount to artisan: ${netAmount} CAD`);
 
-      // Get or create wallet
-      const wallet = await this.getOrCreateWallet(order.artisan._id);
+      // Get or create wallet using the user ID from artisan profile
+      const wallet = await this.getOrCreateWallet(order.artisan.user);
       console.log(`  Wallet ID: ${wallet._id}, Current balance: ${wallet.balance} CAD`);
 
       // Create revenue transaction
@@ -111,13 +105,13 @@ class WalletService {
 
   /**
    * Get wallet balance and transaction history
-   * @param {string} artisanId - The artisan profile ID
+   * @param {string} userId - The user ID (not artisan profile ID)
    * @param {number} limit - Number of transactions to return (default 50)
    * @returns {Promise<Object>} Wallet information
    */
-  static async getWalletInfo(artisanId, limit = 50) {
+  static async getWalletInfo(userId, limit = 50) {
     try {
-      const wallet = await this.getOrCreateWallet(artisanId);
+      const wallet = await this.getOrCreateWallet(userId);
       
       // Get recent transactions
       const transactions = await WalletTransaction.find({ walletId: wallet._id })
@@ -176,16 +170,16 @@ class WalletService {
 
   /**
    * Deduct funds from wallet (for purchases, fees, etc.)
-   * @param {string} artisanId - The artisan profile ID
+   * @param {string} userId - The user ID (not artisan profile ID)
    * @param {number} amount - Amount to deduct
    * @param {string} type - Transaction type
    * @param {string} description - Transaction description
    * @param {Object} metadata - Additional metadata
    * @returns {Promise<Object>} Transaction result
    */
-  static async deductFunds(artisanId, amount, type, description, metadata = {}) {
+  static async deductFunds(userId, amount, type, description, metadata = {}) {
     try {
-      const wallet = await this.getOrCreateWallet(artisanId);
+      const wallet = await this.getOrCreateWallet(userId);
       
       if (wallet.balance < amount) {
         throw new Error('Insufficient wallet balance');
@@ -226,16 +220,16 @@ class WalletService {
 
   /**
    * Add funds to wallet (for top-ups, refunds, etc.)
-   * @param {string} artisanId - The artisan profile ID
+   * @param {string} userId - The user ID (not artisan profile ID)
    * @param {number} amount - Amount to add
    * @param {string} type - Transaction type
    * @param {string} description - Transaction description
    * @param {Object} metadata - Additional metadata
    * @returns {Promise<Object>} Transaction result
    */
-  static async addFunds(artisanId, amount, type, description, metadata = {}) {
+  static async addFunds(userId, amount, type, description, metadata = {}) {
     try {
-      const wallet = await this.getOrCreateWallet(artisanId);
+      const wallet = await this.getOrCreateWallet(userId);
 
       // Create transaction
       const transaction = new WalletTransaction({
@@ -272,12 +266,12 @@ class WalletService {
 
   /**
    * Get wallet balance for an artisan
-   * @param {string} artisanId - The artisan profile ID
+   * @param {string} userId - The user ID (not artisan profile ID)
    * @returns {Promise<number>} Current balance
    */
-  static async getBalance(artisanId) {
+  static async getBalance(userId) {
     try {
-      const wallet = await this.getOrCreateWallet(artisanId);
+      const wallet = await this.getOrCreateWallet(userId);
       return wallet.balance;
     } catch (error) {
       console.error('Error getting balance:', error);
@@ -287,13 +281,13 @@ class WalletService {
 
   /**
    * Check if wallet has sufficient balance
-   * @param {string} artisanId - The artisan profile ID
+   * @param {string} userId - The user ID (not artisan profile ID)
    * @param {number} amount - Amount to check
    * @returns {Promise<boolean>} True if sufficient balance
    */
-  static async hasSufficientBalance(artisanId, amount) {
+  static async hasSufficientBalance(userId, amount) {
     try {
-      const wallet = await this.getOrCreateWallet(artisanId);
+      const wallet = await this.getOrCreateWallet(userId);
       return wallet.hasSufficientBalance(amount);
     } catch (error) {
       console.error('Error checking balance:', error);

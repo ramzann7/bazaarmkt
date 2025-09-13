@@ -10,7 +10,11 @@ import toast from 'react-hot-toast';
 
 const WalletTransactions = () => {
   const [transactions, setTransactions] = useState([]);
-  const [pagination, setPagination] = useState({});
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pages: 1,
+    total: 0
+  });
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     type: '',
@@ -33,12 +37,24 @@ const WalletTransactions = () => {
       );
 
       if (response.success) {
-        setTransactions(response.data.transactions);
-        setPagination(response.data.pagination);
+        setTransactions(response.data.transactions || []);
+        // Since backend doesn't provide pagination, we'll create a simple one
+        const totalTransactions = response.data.transactions?.length || 0;
+        setPagination({
+          current: filters.page,
+          pages: Math.max(1, Math.ceil(totalTransactions / 20)),
+          total: totalTransactions
+        });
       }
     } catch (error) {
       console.error('Error loading transactions:', error);
       toast.error('Failed to load transactions');
+      setTransactions([]);
+      setPagination({
+        current: 1,
+        pages: 1,
+        total: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -229,30 +245,30 @@ const WalletTransactions = () => {
       </div>
 
       {/* Pagination */}
-      {pagination.pages > 1 && (
+      {pagination && pagination.pages > 1 && (
         <div className="p-6 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500">
-              Showing page {pagination.current} of {pagination.pages} 
-              ({pagination.total} total transactions)
+              Showing page {pagination?.current || 1} of {pagination?.pages || 1} 
+              ({pagination?.total || 0} total transactions)
             </div>
             
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => handlePageChange(pagination.current - 1)}
-                disabled={pagination.current === 1}
+                onClick={() => handlePageChange((pagination?.current || 1) - 1)}
+                disabled={(pagination?.current || 1) === 1}
                 className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronLeftIcon className="w-5 h-5" />
               </button>
               
               <span className="px-3 py-1 text-sm font-medium text-gray-700">
-                {pagination.current}
+                {pagination?.current || 1}
               </span>
               
               <button
-                onClick={() => handlePageChange(pagination.current + 1)}
-                disabled={pagination.current === pagination.pages}
+                onClick={() => handlePageChange((pagination?.current || 1) + 1)}
+                disabled={(pagination?.current || 1) === (pagination?.pages || 1)}
                 className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ChevronRightIcon className="w-5 h-5" />

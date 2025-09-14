@@ -44,6 +44,8 @@ async function sendOrderStatusNotification(order, newStatus, previousStatus) {
       orderDate: order.orderDate,
       estimatedDelivery: order.estimatedDeliveryTime ? 
         new Date(order.estimatedDeliveryTime).toLocaleDateString() : '2-3 business days',
+      deliveryInstructions: order.deliveryInstructions,
+      deliveryAddress: order.deliveryAddress,
       orderItems: order.items.map(item => ({
         productName: item.product?.name || 'Product',
         quantity: item.quantity,

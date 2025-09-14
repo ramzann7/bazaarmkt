@@ -135,6 +135,15 @@ const generateOrderEmailContent = (type, orderDetails, orderId) => {
             <li><strong>Total Amount:</strong> $${orderTotal}</li>
             <li><strong>Artisan:</strong> ${artisanName}</li>
             <li><strong>Current Status:</strong> ${statusContent.currentStatus}</li>
+            <li><strong>Delivery Method:</strong> ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : 'Delivery'}</li>
+            ${orderDetails?.deliveryInstructions ? `<li><strong>Delivery Instructions:</strong> ${orderDetails.deliveryInstructions}</li>` : ''}
+            ${orderDetails?.deliveryAddress ? `
+              <li><strong>Delivery Address:</strong><br>
+                ${orderDetails.deliveryAddress.street}<br>
+                ${orderDetails.deliveryAddress.city}, ${orderDetails.deliveryAddress.state} ${orderDetails.deliveryAddress.zipCode}<br>
+                ${orderDetails.deliveryAddress.country}
+              </li>
+            ` : ''}
           </ul>
         </div>
         
@@ -178,6 +187,9 @@ ORDER DETAILS:
 • Total Amount: $${orderTotal}
 • Artisan: ${artisanName}
 • Current Status: ${statusContent.currentStatus}
+• Delivery Method: ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : 'Delivery'}
+${orderDetails?.deliveryInstructions ? `• Delivery Instructions: ${orderDetails.deliveryInstructions}` : ''}
+${orderDetails?.deliveryAddress ? `• Delivery Address: ${orderDetails.deliveryAddress.street}, ${orderDetails.deliveryAddress.city}, ${orderDetails.deliveryAddress.state} ${orderDetails.deliveryAddress.zipCode}, ${orderDetails.deliveryAddress.country}` : ''}
 
 ORDER ITEMS:
 ${itemsList}

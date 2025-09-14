@@ -1006,8 +1006,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     let speedKmh = 0;
     
     if (deliveryMethod === 'personalDelivery') {
-      // Personal delivery - walking/biking
-      speedKmh = 5; // Average walking speed
+      // Personal delivery - car travel
+      speedKmh = 30; // Average city driving speed for personal delivery
       baseTimeMinutes = 10; // Base preparation time
     } else if (deliveryMethod === 'delivery') {
       // Professional delivery - driving

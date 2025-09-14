@@ -119,7 +119,7 @@ The bazaarMKT Team
 
 ---
 This is an automated confirmation. Please do not reply to this email.
-For support, contact us at support@bazaarmkt.com
+For support, contact us at support@bazaarmkt.ca
   `.trim();
 }
 
@@ -168,7 +168,7 @@ The bazaarMKT Team
 
 ---
 This is an automated notification. Please do not reply to this email.
-For support, contact us at support@bazaarmkt.com
+For support, contact us at support@bazaarmkt.ca
   `.trim();
 }
 

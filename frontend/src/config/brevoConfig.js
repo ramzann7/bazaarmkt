@@ -4,9 +4,9 @@ export const BREVO_CONFIG = {
   EMAIL_SETTINGS: {
     sender: {
       name: 'bazaarMKT',
-      email: 'noreply@bazaarmkt.com'
+      email: 'noreply@bazaarmkt.ca'
     },
-    replyTo: 'support@bazaarmkt.com',
+    replyTo: 'support@bazaarmkt.ca',
     defaultSubject: 'bazaarMKT Notification'
   },
   CONTACT_ATTRIBUTES: {
@@ -43,7 +43,7 @@ export const getBrevoConfig = () => {
   
   // Development overrides
   if (import.meta.env.DEV) {
-    config.EMAIL_SETTINGS.sender.email = 'test@bazaarmkt.com';
+    config.EMAIL_SETTINGS.sender.email = 'test@bazaarmkt.ca';
   }
   
   return config;

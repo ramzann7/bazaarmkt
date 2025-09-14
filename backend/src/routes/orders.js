@@ -330,9 +330,9 @@ router.post('/guest', async (req, res) => {
         'Follow your favorite artisans for updates'
       ],
       contactInfo: {
-        supportEmail: 'support@bazaarmkt.com',
+        supportEmail: 'support@bazaarmkt.ca',
         supportPhone: '+1-800-BAZAR-MKT',
-        helpCenter: 'https://help.bazaarmkt.com'
+        helpCenter: 'https://help.bazaarmkt.ca'
       }
     };
 

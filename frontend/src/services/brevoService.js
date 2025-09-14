@@ -148,7 +148,7 @@ export const sendOrderCompletionEmail = async (orderData, recipientEmail, recipi
     const emailData = {
       sender: {
         name: 'bazaarMKT',
-        email: 'noreply@bazaarmkt.com'
+        email: 'noreply@bazaarmkt.ca'
       },
       to: [
         {
@@ -177,7 +177,7 @@ export const sendOrderUpdateEmail = async (orderData, recipientEmail, recipientN
     const emailData = {
       sender: {
         name: 'bazaarMKT',
-        email: 'noreply@bazaarmkt.com'
+        email: 'noreply@bazaarmkt.ca'
       },
       to: [
         {
@@ -263,7 +263,7 @@ const generateOrderCompletionHTML = (orderData, recipientName) => {
         
         <div style="text-align: center; margin-top: 30px;">
           <p style="color: #666; font-size: 14px;">Thank you for choosing bazaarMKT!</p>
-          <p style="color: #666; font-size: 14px;">Support: support@bazaarmkt.com</p>
+          <p style="color: #666; font-size: 14px;">Support: support@bazaarmkt.ca</p>
         </div>
       </div>
     </body>
@@ -305,7 +305,7 @@ What Happens Next?
 4. ${isPickupOrder ? 'Visit the artisan to collect your order' : 'Your order will be delivered to your address'}
 
 Thank you for choosing bazaarMKT!
-Support: support@bazaarmkt.com
+Support: support@bazaarmkt.ca
   `;
 };
 
@@ -345,7 +345,7 @@ const generateOrderUpdateHTML = (orderData, recipientName, updateType, updateDet
         
         <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin-top: 25px;">
           <h3 style="color: #2d5a2d; margin-top: 0;">Need Help?</h3>
-          <p style="margin: 0;">If you have any questions about this update, please contact us at support@bazaarmkt.com</p>
+          <p style="margin: 0;">If you have any questions about this update, please contact us at support@bazaarmkt.ca</p>
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
@@ -380,7 +380,7 @@ Update Details:
 ${updateMessages[updateType] || updateMessages.custom}
 
 Need Help?
-If you have any questions about this update, please contact us at support@bazaarmkt.com
+If you have any questions about this update, please contact us at support@bazaarmkt.ca
 
 Thank you for choosing bazaarMKT!
   `;

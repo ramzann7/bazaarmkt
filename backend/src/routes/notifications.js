@@ -481,90 +481,18 @@ For support, contact us at support@bazaarmkt.ca
 
 // Helper function to send email notifications
 async function sendEmailNotification(type, email, orderDetails, orderId) {
-  // This would integrate with an email service like SendGrid, Mailgun, or Brevo
-  // For now, we'll simulate the email sending
+  // Use Brevo service to send real emails
+  const BrevoService = require('../services/brevoService');
   
-  const emailTemplates = {
-    'order_declined': {
-      subject: `Order Declined - ${orderDetails?.orderNumber || orderId}`,
-      body: generateOrderDeclinedEmailBody(orderDetails, orderId)
-    },
-    'order_decline_confirmation': {
-      subject: `Order Decline Confirmation - ${orderDetails?.orderNumber || orderId}`,
-      body: generateOrderDeclineConfirmationEmailBody(orderDetails, orderId)
-    },
-    'pickup_order_with_time': {
-      subject: 'New Pickup Order - bazaarMKT',
-      body: `New pickup order #${orderId} from ${orderDetails?.customerName || 'Customer'}. Pickup time: ${orderDetails?.pickupTime || 'Not specified'}`
-    },
-    'order_completion': {
-      subject: 'Order Confirmed - bazaarMKT',
-      body: generateOrderCompletionEmailBody(orderDetails, orderId)
-    },
-    'order_confirmed': {
-      subject: 'Order Confirmed - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'confirmed')
-    },
-    'order_preparing': {
-      subject: 'Order Being Prepared - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'preparing')
-    },
-    'order_ready': {
-      subject: 'Order Ready - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready')
-    },
-    'order_ready_for_pickup': {
-      subject: 'Order Ready for Pickup - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready_for_pickup')
-    },
-    'order_ready_for_delivery': {
-      subject: 'Order Ready for Delivery - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready_for_delivery')
-    },
-    'order_out_for_delivery': {
-      subject: 'Order Out for Delivery - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'out_for_delivery')
-    },
-    'order_delivering': {
-      subject: 'Order Being Delivered - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'delivering')
-    },
-    'order_picked_up': {
-      subject: 'Order Picked Up - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'picked_up')
-    },
-    'order_shipped': {
-      subject: 'Order Shipped - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'shipped')
-    },
-    'order_delivered': {
-      subject: 'Order Delivered - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'delivered')
-    },
-    'order_cancelled': {
-      subject: 'Order Cancelled - bazaarMKT',
-      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'cancelled')
-    }
-  };
-  
-  const template = emailTemplates[type] || {
-    subject: 'bazaarMKT Notification',
-    body: `Notification for order #${orderId}`
-  };
-  
-  console.log('📧 Email notification prepared:', {
-    to: email,
-    subject: template.subject,
-    body: template.body,
-    orderId
-  });
-  
-  // In a real implementation, you would send the email here
-  // await emailService.send({
-  //   to: email,
-  //   subject: template.subject,
-  //   html: template.body
-  // });
+  try {
+    // Use Brevo service to send the email
+    const result = await BrevoService.sendOrderNotificationEmail(type, email, orderDetails, orderId);
+    console.log('✅ Email notification sent successfully via Brevo:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send email via Brevo:', error);
+    throw error;
+  }
 }
 
 // Helper function to generate order declined SMS body

@@ -160,6 +160,16 @@ class CommunityService {
     }
   }
 
+  async getEngagementLeaderboard() {
+    try {
+      const response = await this.api.get('/leaderboard/engagement');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching engagement leaderboard:', error);
+      throw error;
+    }
+  }
+
   // Artisan Incentives
   async getArtisanIncentives() {
     try {

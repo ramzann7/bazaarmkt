@@ -100,7 +100,9 @@ const communityPostSchema = new mongoose.Schema({
     moderationReason: String
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 // Indexes for better performance

@@ -6,9 +6,7 @@ import {
   BookmarkIcon,
   PlusIcon,
   UserGroupIcon,
-  SparklesIcon,
   FireIcon,
-  TrophyIcon,
   StarIcon,
   PhotoIcon,
   TagIcon,
@@ -24,7 +22,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import communityService from '../services/communityService';
-import { authToken } from '../services/authService';
+import { authToken } from '../services/authservice';
 
 export default function Community() {
   const [posts, setPosts] = useState([]);
@@ -32,7 +30,6 @@ export default function Community() {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [user, setUser] = useState(null);
-  const [communityStats, setCommunityStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [expandedComments, setExpandedComments] = useState({});
   const [newComment, setNewComment] = useState({});
@@ -55,20 +52,10 @@ export default function Community() {
     { id: 'event', name: 'Events', icon: '📅' }
   ];
 
-  const categories = [
-    { id: 'all', name: 'All Categories', icon: '🌟' },
-    { id: 'general', name: 'General', icon: '💬' },
-    { id: 'business', name: 'Business', icon: '💼' },
-    { id: 'craft', name: 'Craft', icon: '🎨' },
-    { id: 'food', name: 'Food', icon: '🍽️' },
-    { id: 'marketing', name: 'Marketing', icon: '📢' },
-    { id: 'community', name: 'Community', icon: '🤝' }
-  ];
 
   useEffect(() => {
     loadUser();
     loadPosts();
-    loadCommunityStats();
     loadLeaderboard();
   }, []);
 
@@ -96,9 +83,11 @@ export default function Community() {
       setLoading(true);
       const response = await communityService.getPosts({
         type: selectedFilter === 'all' ? undefined : selectedFilter,
-        limit: 20
+        limit: 20,
+        populate: 'artisan,comments,likes'
       });
       if (response.success) {
+        console.log('Loaded posts:', response.data);
         setPosts(response.data);
       }
     } catch (error) {
@@ -109,25 +98,15 @@ export default function Community() {
     }
   };
 
-  const loadCommunityStats = async () => {
-    try {
-      const response = await communityService.getCommunityStats();
-      if (response.success) {
-        setCommunityStats(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading community stats:', error);
-    }
-  };
 
   const loadLeaderboard = async () => {
     try {
-      const response = await communityService.getLeaderboard();
+      const response = await communityService.getEngagementLeaderboard();
       if (response.success) {
         setLeaderboard(response.data);
       }
     } catch (error) {
-      console.error('Error loading leaderboard:', error);
+      console.error('Error loading engagement leaderboard:', error);
     }
   };
 
@@ -213,6 +192,65 @@ export default function Community() {
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
     return postDate.toLocaleDateString();
+  };
+
+  const handleShare = async (post) => {
+    const postUrl = `${window.location.origin}/community/post/${post._id}`;
+    const shareText = `Check out this post by ${post.artisan?.artisanName}: "${post.title}"`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: post.title,
+          text: shareText,
+          url: postUrl,
+        });
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareText} ${postUrl}`);
+        toast.success('Post link copied to clipboard!');
+      } catch (error) {
+        console.error('Error copying to clipboard:', error);
+        toast.error('Failed to copy link');
+      }
+    }
+  };
+
+  const handleSocialShare = (post, platform) => {
+    const postUrl = `${window.location.origin}/community/post/${post._id}`;
+    const shareText = `Check out this post by ${post.artisan?.artisanName}: "${post.title}"`;
+    
+    let shareUrl = '';
+    
+    switch (platform) {
+      case 'facebook':
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'twitter':
+        shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'instagram':
+        // Instagram doesn't support direct URL sharing, so we'll copy the text
+        navigator.clipboard.writeText(`${shareText} ${postUrl}`);
+        toast.success('Post content copied! You can now paste it on Instagram.');
+        return;
+      case 'linkedin':
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`;
+        break;
+      case 'whatsapp':
+        shareUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${postUrl}`)}`;
+        break;
+      default:
+        return;
+    }
+    
+    window.open(shareUrl, '_blank', 'width=600,height=400');
   };
 
   const renderPost = (post) => (
@@ -316,10 +354,60 @@ export default function Community() {
             <span>{post.comments?.length || 0}</span>
           </button>
           
-          <button className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors text-gray-500">
-            <ShareIcon className="w-5 h-5" />
-            <span>Share</span>
-          </button>
+          <div className="relative group">
+            <button className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors text-gray-500">
+              <ShareIcon className="w-5 h-5" />
+              <span>Share</span>
+            </button>
+            
+            {/* Share Dropdown */}
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+              <div className="py-2">
+                <button
+                  onClick={() => handleShare(post)}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <span>📋</span>
+                  <span>Copy Link</span>
+                </button>
+                <button
+                  onClick={() => handleSocialShare(post, 'facebook')}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <span>📘</span>
+                  <span>Facebook</span>
+                </button>
+                <button
+                  onClick={() => handleSocialShare(post, 'twitter')}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <span>🐦</span>
+                  <span>Twitter</span>
+                </button>
+                <button
+                  onClick={() => handleSocialShare(post, 'instagram')}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <span>📷</span>
+                  <span>Instagram</span>
+                </button>
+                <button
+                  onClick={() => handleSocialShare(post, 'linkedin')}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <span>💼</span>
+                  <span>LinkedIn</span>
+                </button>
+                <button
+                  onClick={() => handleSocialShare(post, 'whatsapp')}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <span>💬</span>
+                  <span>WhatsApp</span>
+                </button>
+              </div>
+            </div>
+          </div>
           </div>
 
         <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors text-gray-500">
@@ -496,36 +584,12 @@ export default function Community() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Community Stats */}
-            {communityStats && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <SparklesIcon className="w-5 h-5 mr-2 text-amber-600" />
-                  Community Stats
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Total Posts</span>
-                    <span className="font-semibold">{communityStats.totalPosts}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Comments</span>
-                    <span className="font-semibold">{communityStats.totalComments}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Artisans</span>
-                    <span className="font-semibold">{communityStats.totalArtisans}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Leaderboard */}
+            {/* Most Engaged Artisans */}
             {leaderboard.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <TrophyIcon className="w-5 h-5 mr-2 text-amber-600" />
-                  Top Artisans
+                  <FireIcon className="w-5 h-5 mr-2 text-amber-600" />
+                  Most Engaged Artisans
                 </h3>
                 <div className="space-y-3">
                   {leaderboard.slice(0, 5).map((artisan, index) => (
@@ -540,29 +604,18 @@ export default function Community() {
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">{artisan.artisanName}</div>
-                        <div className="text-sm text-gray-500">{artisan.totalPoints} points</div>
+                        <div className="text-sm text-gray-500">
+                          {artisan.totalPosts || 0} posts • {artisan.totalComments || 0} comments • {artisan.totalLikes || 0} likes
+                        </div>
+                        <div className="text-xs text-amber-600 font-medium">
+                          {artisan.engagementScore || 0} engagement points
+                        </div>
                       </div>
                     </div>
                   ))}
-            </div>
-          </div>
-        )}
-
-            {/* Categories */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Categories</h3>
-              <div className="space-y-2">
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                    className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                  >
-                    <span className="text-lg">{category.icon}</span>
-                    <span className="text-gray-700">{category.name}</span>
-                </button>
-              ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

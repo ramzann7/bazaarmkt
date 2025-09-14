@@ -11,7 +11,7 @@ const RevenueService = require('../services/revenueService');
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
     const orders = await Order.find({ patron: req.user._id })
-      .populate('artisan', 'artisanName type businessType description pickupAddress email phone')
+      .populate('artisan', 'artisanName type businessType description address pickupAddress deliveryOptions email phone')
       .populate('items.product', 'name description image price unit category subcategory')
       .sort({ createdAt: -1 });
 
@@ -41,6 +41,7 @@ router.get('/artisan', verifyToken, async (req, res) => {
       .populate('patron', 'firstName lastName email phone')
       .populate('guestInfo')
       .populate('items.product', 'name description image price unit category subcategory')
+      .populate('artisan', 'artisanName address pickupAddress deliveryOptions')
       .sort({ createdAt: -1 });
 
     res.json(orders);
@@ -120,7 +121,7 @@ router.get('/:orderId', verifyToken, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
       .populate('patron', 'firstName lastName email phone')
-      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
+      .populate('artisan', 'artisanName type address pickupAddress deliveryOptions firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     if (!order) {
@@ -815,7 +816,7 @@ router.get('/:orderId/updates', verifyToken, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
       .populate('patron', 'firstName lastName email phone')
-      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
+      .populate('artisan', 'artisanName type address pickupAddress deliveryOptions firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
     
     if (!order) {

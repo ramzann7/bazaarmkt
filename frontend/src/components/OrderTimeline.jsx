@@ -10,7 +10,7 @@ import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/sol
 const OrderTimeline = ({ 
   currentStatus, 
   deliveryMethod = 'pickup', 
-  variant = 'default' // 'default', 'compact', 'minimal'
+  variant = 'default' // 'default', 'compact', 'minimal', 'card'
 }) => {
   // Define timeline steps based on delivery method
   const getTimelineSteps = (method) => {
@@ -138,6 +138,57 @@ const OrderTimeline = ({
             </div>
           );
         })}
+      </div>
+    );
+  }
+
+  if (variant === 'card') {
+    return (
+      <div className="space-y-3">
+        {/* Timeline with labels */}
+        <div className="relative">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+              const isCompleted = index < currentStepIndex;
+              const isCurrent = index === currentStepIndex;
+              const isCancelledStep = isCancelled && index === 0;
+              
+              return (
+                <div key={step.id} className="flex flex-col items-center flex-1 relative">
+                  <div className={`
+                    w-7 h-7 rounded-full flex items-center justify-center mb-2 z-10
+                    ${getBackgroundColor(index)} ${getBorderColor(index)} border-2
+                  `}>
+                    {isCancelledStep ? (
+                      <XMarkIcon className="w-4 h-4 text-red-500" />
+                    ) : isCompleted ? (
+                      <CheckCircleIconSolid className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Icon className={`w-4 h-4 ${getStatusColor(index)}`} />
+                    )}
+                  </div>
+                  <span className={`
+                    text-xs text-center font-medium leading-tight px-1
+                    ${isCurrent ? 'text-blue-600 font-semibold' : 
+                      isCompleted ? 'text-green-600' : 
+                      isCancelledStep ? 'text-red-600' : 'text-gray-500'}
+                  `}>
+                    {step.label}
+                  </span>
+                  
+                  {/* Connecting line */}
+                  {index < steps.length - 1 && (
+                    <div className={`
+                      absolute top-3.5 left-1/2 w-full h-0.5 -z-10
+                      ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}
+                    `} style={{ width: 'calc(100% - 0.875rem)', marginLeft: '0.875rem' }} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   }

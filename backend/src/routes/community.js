@@ -1,6 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const verifyToken = require('../middleware/authMiddleware');
+
+// Optional token verification middleware
+const optionalVerifyToken = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  if (token) {
+    verifyToken(req, res, next);
+  } else {
+    req.user = null;
+    next();
+  }
+};
 const CommunityPost = require('../models/communityPost');
 const CommunityComment = require('../models/communityComment');
 const ArtisanPoints = require('../models/artisanPoints');
@@ -13,7 +24,7 @@ const User = require('../models/user');
 // Community Posts Routes
 
 // Get all posts with pagination and filtering
-router.get('/posts', async (req, res) => {
+router.get('/posts', optionalVerifyToken, async (req, res) => {
   try {
     const {
       page = 1,
@@ -63,9 +74,21 @@ router.get('/posts', async (req, res) => {
 
     const total = await CommunityPost.countDocuments(query);
 
+    // Add likeCount, commentCount, and isLiked to each post
+    const postsWithCounts = posts.map(post => {
+      const postObj = post.toObject();
+      const isLiked = req.user ? post.isLikedBy(req.user._id) : false;
+      return {
+        ...postObj,
+        likeCount: post.likes ? post.likes.length : 0,
+        commentCount: post.comments ? post.comments.length : 0,
+        isLiked: isLiked
+      };
+    });
+
     res.json({
       success: true,
-      data: posts,
+      data: postsWithCounts,
       pagination: {
         current: page,
         pages: Math.ceil(total / limit),
@@ -135,10 +158,13 @@ router.post('/posts/:postId/like', verifyToken, async (req, res) => {
       await post.addLike(req.user._id);
     }
 
+    // Refresh the post to get updated like count
+    const updatedPost = await CommunityPost.findById(req.params.postId);
+    
     res.json({
       success: true,
       liked: !isLiked,
-      likeCount: post.likeCount
+      likeCount: updatedPost.likes ? updatedPost.likes.length : 0
     });
   } catch (error) {
     console.error('Error liking post:', error);
@@ -184,6 +210,12 @@ router.post('/posts/:postId/comments', verifyToken, async (req, res) => {
 
     const comment = new CommunityComment(commentData);
     await comment.save();
+
+    // Add the comment to the post's comments array
+    await CommunityPost.findByIdAndUpdate(
+      req.params.postId,
+      { $push: { comments: comment._id } }
+    );
 
     // Add points for commenting (only if user is an artisan)
     if (artisan) {
@@ -242,6 +274,61 @@ router.get('/leaderboard', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get most engaged artisans (based on community activity)
+router.get('/leaderboard/engagement', async (req, res) => {
+  try {
+    const engagementLeaderboard = await ArtisanPoints.aggregate([
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $unwind: '$artisanInfo'
+      },
+      {
+        $project: {
+          artisan: '$artisanInfo._id',
+          artisanName: '$artisanInfo.artisanName',
+          businessImage: '$artisanInfo.businessImage',
+          totalPosts: '$statistics.communityPosts',
+          totalComments: '$statistics.communityComments',
+          totalLikes: '$statistics.communityLikes',
+          engagementScore: {
+            $add: [
+              { $multiply: ['$statistics.communityPosts', 3] },
+              { $multiply: ['$statistics.communityComments', 2] },
+              '$statistics.communityLikes'
+            ]
+          }
+        }
+      },
+      {
+        $match: {
+          engagementScore: { $gt: 0 }
+        }
+      },
+      {
+        $sort: { engagementScore: -1 }
+      },
+      {
+        $limit: 10
+      }
+    ]);
+    
+    res.json({
+      success: true,
+      data: engagementLeaderboard
+    });
+  } catch (error) {
+    console.error('Error fetching engagement leaderboard:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -73,6 +73,300 @@ router.post('/send', async (req, res) => {
   }
 });
 
+// Helper function to generate order timeline for email templates
+function generateOrderTimeline(orderDetails, orderId) {
+  const currentStatus = orderDetails?.orderStatus || orderDetails?.status || 'pending';
+  const deliveryMethod = orderDetails?.deliveryMethod || 'pickup';
+  const orderNumber = orderDetails?.orderNumber || `#${orderId.toString().slice(-8).toUpperCase()}`;
+  
+  // Define timeline steps based on delivery method
+  const getTimelineSteps = (method) => {
+    if (method === 'pickup') {
+      return [
+        { id: 'pending', label: 'Order Placed', description: 'Your order has been received' },
+        { id: 'confirmed', label: 'Confirmed', description: 'Order confirmed by artisan' },
+        { id: 'preparing', label: 'Preparing', description: 'Artisan is preparing your order' },
+        { id: 'ready_for_pickup', label: 'Ready for Pickup', description: 'Your order is ready for pickup' },
+        { id: 'picked_up', label: 'Picked Up', description: 'Order has been picked up' }
+      ];
+    } else {
+      return [
+        { id: 'pending', label: 'Order Placed', description: 'Your order has been received' },
+        { id: 'confirmed', label: 'Confirmed', description: 'Order confirmed by artisan' },
+        { id: 'preparing', label: 'Preparing', description: 'Artisan is preparing your order' },
+        { id: 'ready_for_delivery', label: 'Ready for Delivery', description: 'Your order is ready for delivery' },
+        { id: 'out_for_delivery', label: 'Out for Delivery', description: 'Your order is on its way' },
+        { id: 'delivered', label: 'Delivered', description: 'Order has been delivered' }
+      ];
+    }
+  };
+
+  const steps = getTimelineSteps(deliveryMethod);
+  
+  // Determine current step index
+  const getCurrentStepIndex = () => {
+    const stepIndex = steps.findIndex(step => step.id === currentStatus);
+    if (stepIndex === -1) {
+      // Handle legacy statuses
+      if (currentStatus === 'ready') return 3; // ready_for_pickup or ready_for_delivery
+      if (currentStatus === 'delivering') return 4; // out_for_delivery
+      if (currentStatus === 'delivered') return 5; // delivered
+      return 0; // Default to first step
+    }
+    return stepIndex;
+  };
+
+  const currentStepIndex = getCurrentStepIndex();
+  const isCancelled = currentStatus === 'cancelled' || currentStatus === 'declined';
+  
+  // Generate timeline HTML
+  let timelineHtml = `
+    <div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+      <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px; font-weight: 600;">Order Progress Timeline</h3>
+      <div style="position: relative;">
+  `;
+  
+  steps.forEach((step, index) => {
+    const isCompleted = index < currentStepIndex;
+    const isCurrent = index === currentStepIndex;
+    const isCancelledStep = isCancelled && index === 0;
+    
+    // Determine status
+    let statusIcon = '○';
+    let statusColor = '#6c757d';
+    let statusText = 'Pending';
+    
+    if (isCancelledStep) {
+      statusIcon = '✕';
+      statusColor = '#dc3545';
+      statusText = 'Cancelled';
+    } else if (isCompleted) {
+      statusIcon = '✓';
+      statusColor = '#28a745';
+      statusText = 'Completed';
+    } else if (isCurrent) {
+      statusIcon = '●';
+      statusColor = '#007bff';
+      statusText = 'Current';
+    }
+    
+    timelineHtml += `
+      <div style="display: flex; align-items: center; margin-bottom: 12px; position: relative;">
+        <div style="
+          width: 24px; 
+          height: 24px; 
+          border-radius: 50%; 
+          background-color: ${statusColor}; 
+          color: white; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          font-size: 12px; 
+          font-weight: bold;
+          margin-right: 12px;
+          flex-shrink: 0;
+        ">${statusIcon}</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: #333; margin-bottom: 2px;">${step.label}</div>
+          <div style="font-size: 12px; color: #666;">${step.description}</div>
+        </div>
+      </div>
+    `;
+    
+    // Add connecting line (except for last step)
+    if (index < steps.length - 1) {
+      timelineHtml += `
+        <div style="
+          position: absolute; 
+          left: 11px; 
+          top: 36px; 
+          width: 2px; 
+          height: 12px; 
+          background-color: ${isCompleted ? '#28a745' : '#dee2e6'};
+        "></div>
+      `;
+    }
+  });
+  
+  timelineHtml += `
+      </div>
+      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+        <div style="font-size: 12px; color: #666;">
+          <strong>Current Status:</strong> ${steps[currentStepIndex]?.label || currentStatus} 
+          ${isCancelled ? '(Order Cancelled)' : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  return timelineHtml;
+}
+
+// Helper function to generate order completion email body
+function generateOrderCompletionEmailBody(orderDetails, orderId) {
+  const orderNumber = orderDetails?.orderNumber || `#${orderId.toString().slice(-8).toUpperCase()}`;
+  const customerName = orderDetails?.customerName || 'Valued Customer';
+  const artisanName = orderDetails?.artisanName || 'your artisan';
+  const orderTotal = orderDetails?.orderTotal ? `$${orderDetails.orderTotal.toFixed(2)}` : 'N/A';
+  const orderDate = orderDetails?.orderDate ? new Date(orderDetails.orderDate).toLocaleDateString() : 'N/A';
+  const estimatedDelivery = orderDetails?.estimatedDelivery || '2-3 business days';
+  
+  // Generate order items list
+  const itemsList = orderDetails?.orderItems?.map(item => 
+    `• ${item.productName} (${item.quantity}x) - $${item.totalPrice.toFixed(2)}`
+  ).join('\n') || '• Order items not available';
+  
+  // Generate timeline
+  const timeline = generateOrderTimeline(orderDetails, orderId);
+  
+  return `
+Dear ${customerName},
+
+Great news! Your order ${orderNumber} has been confirmed and is being prepared by ${artisanName}.
+
+ORDER DETAILS:
+• Order Number: ${orderNumber}
+• Order Date: ${orderDate}
+• Total Amount: ${orderTotal}
+• Artisan: ${artisanName}
+• Estimated Delivery: ${estimatedDelivery}
+
+ORDER ITEMS:
+${itemsList}
+
+${timeline}
+
+WHAT HAPPENS NEXT:
+• Your artisan will prepare your order with care
+• You'll receive updates as your order progresses
+• We'll notify you when it's ready for pickup/delivery
+
+Thank you for choosing bazaarMKT and supporting local artisans!
+
+Best regards,
+The bazaarMKT Team
+
+---
+This is an automated notification. Please do not reply to this email.
+For support, contact us at support@bazaarmkt.ca
+  `.trim();
+}
+
+// Helper function to generate order status update email body
+function generateOrderStatusUpdateEmailBody(orderDetails, orderId, status) {
+  const orderNumber = orderDetails?.orderNumber || `#${orderId.toString().slice(-8).toUpperCase()}`;
+  const customerName = orderDetails?.customerName || 'Valued Customer';
+  const artisanName = orderDetails?.artisanName || 'your artisan';
+  const orderTotal = orderDetails?.orderTotal ? `$${orderDetails.orderTotal.toFixed(2)}` : 'N/A';
+  const orderDate = orderDetails?.orderDate ? new Date(orderDetails.orderDate).toLocaleDateString() : 'N/A';
+  
+  // Generate order items list
+  const itemsList = orderDetails?.orderItems?.map(item => 
+    `• ${item.productName} (${item.quantity}x) - $${item.totalPrice.toFixed(2)}`
+  ).join('\n') || '• Order items not available';
+  
+  // Generate timeline
+  const timeline = generateOrderTimeline(orderDetails, orderId);
+  
+  // Status-specific messages
+  const statusMessages = {
+    'confirmed': {
+      title: 'Order Confirmed!',
+      message: `Great news! Your order ${orderNumber} has been confirmed by ${artisanName} and is being prepared.`,
+      nextSteps: [
+        'Your artisan will begin preparing your order',
+        'You\'ll receive updates as your order progresses',
+        'We\'ll notify you when it\'s ready for pickup/delivery'
+      ]
+    },
+    'preparing': {
+      title: 'Order Being Prepared',
+      message: `Your order ${orderNumber} is now being prepared by ${artisanName}.`,
+      nextSteps: [
+        'Your artisan is carefully preparing your items',
+        'Quality checks are being performed',
+        'You\'ll be notified when preparation is complete'
+      ]
+    },
+    'ready': {
+      title: 'Order Ready!',
+      message: `Your order ${orderNumber} is ready! ${artisanName} has completed preparing your items.`,
+      nextSteps: [
+        'Your order is ready for pickup/delivery',
+        'Please check your delivery method for next steps',
+        'Contact the artisan if you have any questions'
+      ]
+    },
+    'shipped': {
+      title: 'Order Shipped!',
+      message: `Your order ${orderNumber} has been shipped and is on its way to you.`,
+      nextSteps: [
+        'Your order is in transit',
+        'Track your delivery for estimated arrival time',
+        'Contact support if you have any questions'
+      ]
+    },
+    'delivered': {
+      title: 'Order Delivered!',
+      message: `Your order ${orderNumber} has been successfully delivered. Thank you for your order!`,
+      nextSteps: [
+        'Please check your order upon delivery',
+        'Rate your experience with the artisan',
+        'Contact support if you have any issues'
+      ]
+    },
+    'cancelled': {
+      title: 'Order Cancelled',
+      message: `Your order ${orderNumber} has been cancelled.`,
+      nextSteps: [
+        'Your payment will be refunded if applicable',
+        'You can place a new order anytime',
+        'Contact support if you have any questions'
+      ]
+    }
+  };
+  
+  const statusInfo = statusMessages[status] || {
+    title: 'Order Update',
+    message: `Your order ${orderNumber} status has been updated.`,
+    nextSteps: ['Please check your order details for more information']
+  };
+  
+  const nextStepsList = statusInfo.nextSteps.map(step => `• ${step}`).join('\n');
+  
+  return `
+Dear ${customerName},
+
+${statusInfo.title}
+
+${statusInfo.message}
+
+ORDER DETAILS:
+• Order Number: ${orderNumber}
+• Order Date: ${orderDate}
+• Total Amount: ${orderTotal}
+• Artisan: ${artisanName}
+• Current Status: ${status.charAt(0).toUpperCase() + status.slice(1)}
+
+ORDER ITEMS:
+${itemsList}
+
+${timeline}
+
+WHAT HAPPENS NEXT:
+${nextStepsList}
+
+Thank you for choosing bazaarMKT and supporting local artisans!
+
+Best regards,
+The bazaarMKT Team
+
+---
+This is an automated notification. Please do not reply to this email.
+For support, contact us at support@bazaarmkt.ca
+  `.trim();
+}
+
 // Helper function to generate order decline confirmation email body for artisan
 function generateOrderDeclineConfirmationEmailBody(orderDetails, orderId) {
   const orderNumber = orderDetails?.orderNumber || `#${orderId.toString().slice(-8).toUpperCase()}`;
@@ -192,7 +486,31 @@ async function sendEmailNotification(type, email, orderDetails, orderId) {
     },
     'order_completion': {
       subject: 'Order Confirmed - bazaarMKT',
-      body: `Your order #${orderId} has been confirmed and is being prepared.`
+      body: generateOrderCompletionEmailBody(orderDetails, orderId)
+    },
+    'order_confirmed': {
+      subject: 'Order Confirmed - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'confirmed')
+    },
+    'order_preparing': {
+      subject: 'Order Being Prepared - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'preparing')
+    },
+    'order_ready': {
+      subject: 'Order Ready - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready')
+    },
+    'order_shipped': {
+      subject: 'Order Shipped - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'shipped')
+    },
+    'order_delivered': {
+      subject: 'Order Delivered - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'delivered')
+    },
+    'order_cancelled': {
+      subject: 'Order Cancelled - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'cancelled')
     }
   };
   
@@ -244,7 +562,13 @@ async function sendSMSNotification(type, phone, orderDetails, orderId) {
     'order_declined': generateOrderDeclinedSMSBody(orderDetails, orderId),
     'order_decline_confirmation': generateOrderDeclineConfirmationSMSBody(orderDetails, orderId),
     'pickup_order_with_time': `New pickup order #${orderId} from ${orderDetails?.customerName || 'Customer'}. Pickup: ${orderDetails?.pickupTime || 'Not specified'}`,
-    'order_completion': `Your bazaarMKT order #${orderId} has been confirmed and is being prepared.`
+    'order_completion': `Your bazaarMKT order #${orderId} has been confirmed and is being prepared.`,
+    'order_confirmed': `Your bazaarMKT order #${orderId} has been confirmed by ${orderDetails?.artisanName || 'your artisan'}.`,
+    'order_preparing': `Your bazaarMKT order #${orderId} is being prepared by ${orderDetails?.artisanName || 'your artisan'}.`,
+    'order_ready': `Your bazaarMKT order #${orderId} is ready! Please check your delivery method for next steps.`,
+    'order_shipped': `Your bazaarMKT order #${orderId} has been shipped and is on its way to you.`,
+    'order_delivered': `Your bazaarMKT order #${orderId} has been delivered. Thank you for your order!`,
+    'order_cancelled': `Your bazaarMKT order #${orderId} has been cancelled. Payment will be refunded if applicable.`
   };
   
   const message = smsTemplates[type] || `bazaarMKT notification for order #${orderId}`;

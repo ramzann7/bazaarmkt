@@ -14,22 +14,31 @@ async function sendOrderStatusNotification(order, newStatus, previousStatus) {
     const notificationType = `order_${newStatus}`;
     
     // Get customer information (patron or guest)
-    let customerEmail, customerPhone, customerName, customerId;
+    let customerEmail, customerPhone, customerName, customerId, isGuest;
     
     if (order.patron) {
-      // Authenticated user
+      // Authenticated user (patron)
       customerEmail = order.patron.email;
       customerPhone = order.patron.phone;
       customerName = `${order.patron.firstName} ${order.patron.lastName}`;
       customerId = order.patron._id;
+      isGuest = false;
     } else if (order.guestInfo) {
       // Guest user
       customerEmail = order.guestInfo.email;
       customerPhone = order.guestInfo.phone;
       customerName = `${order.guestInfo.firstName} ${order.guestInfo.lastName}`;
       customerId = null; // No user ID for guests
+      isGuest = true;
     } else {
       console.log('⚠️ No customer information found for order:', order._id);
+      return;
+    }
+
+    // For patrons (authenticated users), only send order completion notification
+    // They can track their orders on their profile
+    if (!isGuest && newStatus !== 'confirmed') {
+      console.log('📧 Skipping notification for patron - only order completion notifications are sent to authenticated users');
       return;
     }
     

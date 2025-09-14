@@ -1383,6 +1383,19 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </p>
                 <p className="text-sm text-gray-600">{order.deliveryAddress.country}</p>
                 
+                {/* Delivery Instructions */}
+                {order.deliveryInstructions && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <h5 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-4 h-4 text-amber-600" />
+                      Delivery Instructions
+                    </h5>
+                    <p className="text-sm text-gray-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                      {order.deliveryInstructions}
+                    </p>
+                  </div>
+                )}
+                
                 {/* Delivery Distance and Time Information */}
                 {(() => {
                   const shouldShowDeliveryInfo = order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready');

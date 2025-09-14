@@ -57,7 +57,16 @@ const orderSchema = new mongoose.Schema({
   // Order Status - varies by product type
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivering', 'delivered', 'cancelled', 'declined'],
+    enum: [
+      // Common statuses
+      'pending', 'confirmed', 'preparing', 'cancelled', 'declined',
+      // Pickup-specific statuses
+      'ready_for_pickup', 'picked_up',
+      // Delivery-specific statuses
+      'ready_for_delivery', 'out_for_delivery', 'delivered',
+      // Legacy statuses (for backward compatibility)
+      'ready', 'delivering'
+    ],
     default: 'pending'
   },
   
@@ -119,6 +128,21 @@ const orderSchema = new mongoose.Schema({
   scheduledTime: String,
   pickupDeadline: Date,
   
+  // Pickup time window information
+  pickupTimeWindow: {
+    selectedDate: Date,
+    selectedTimeSlot: String,
+    timeSlotLabel: String, // Human-readable time slot (e.g., "9:00 AM - 12:00 PM")
+    artisanAvailableSlots: [String] // Available time slots from artisan
+  },
+  
+  // Delivery method (pickup, personalDelivery, professionalDelivery)
+  deliveryMethod: {
+    type: String,
+    enum: ['pickup', 'personalDelivery', 'professionalDelivery'],
+    default: 'pickup'
+  },
+  
   deliveryAddress: {
     street: String,
     city: String,
@@ -129,6 +153,7 @@ const orderSchema = new mongoose.Schema({
   deliveryInstructions: String,
   estimatedDeliveryTime: Date,
   actualDeliveryTime: Date,
+  deliveryDistance: Number, // Distance in kilometers for artisan reference
   specialRequests: String,
   
   // Payment Information

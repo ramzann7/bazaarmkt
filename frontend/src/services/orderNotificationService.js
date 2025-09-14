@@ -72,20 +72,41 @@ class OrderNotificationService {
 
   // Start polling for new orders
   startPolling() {
-    // Poll every 10 seconds for new orders
+    // Check if user is authenticated to adjust polling frequency
+    const token = authToken.getToken();
+    const pollInterval = token ? 120000 : 300000; // 2 min for authenticated, 5 min for guests
+    
+    // Poll for new orders
     this.pollInterval = setInterval(async () => {
-      await this.checkForNewOrders();
-    }, 10000);
+      try {
+        await this.checkForNewOrders();
+      } catch (error) {
+        console.error('❌ Error in order polling:', error);
+        // Don't disconnect on individual errors, just log them
+      }
+    }, pollInterval);
 
     // Also check immediately
-    this.checkForNewOrders();
+    this.checkForNewOrders().catch(error => {
+      console.error('❌ Error in initial order check:', error);
+    });
   }
 
   // Check for new orders
   async checkForNewOrders() {
     try {
       const token = authToken.getToken();
-      if (!token) return;
+      if (!token) {
+        // Only log once per session to avoid spam
+        if (!this.hasLoggedNoToken) {
+          console.log('🔍 No auth token, skipping order check');
+          this.hasLoggedNoToken = true;
+        }
+        return;
+      }
+      
+      // Reset the flag when we have a token
+      this.hasLoggedNoToken = false;
 
       // Get user profile to check if they're an artisan
       const { getProfile } = await import('./authservice');
@@ -223,7 +244,17 @@ class OrderNotificationService {
       this.pollInterval = null;
     }
     this.isConnected = false;
+    // Reset the logging flag
+    this.hasLoggedNoToken = false;
     console.log('🔌 Order notification service disconnected');
+  }
+
+  // Reconnect if disconnected
+  reconnect() {
+    if (!this.isConnected) {
+      console.log('🔄 Reconnecting order notification service...');
+      this.connect();
+    }
   }
 
   // Request notification permissions

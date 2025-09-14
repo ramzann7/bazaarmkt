@@ -11,7 +11,7 @@ const RevenueService = require('../services/revenueService');
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
     const orders = await Order.find({ patron: req.user._id })
-      .populate('artisan', 'artisanName type businessType description')
+      .populate('artisan', 'artisanName type businessType description pickupAddress email phone')
       .populate('items.product', 'name description image price unit category subcategory')
       .sort({ createdAt: -1 });
 
@@ -58,7 +58,7 @@ router.get('/business', verifyToken, async (req, res) => {
     }
 
     const orders = await Order.find({ artisan: req.user._id })
-      .populate('buyer', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
       .populate('items.product', 'name description image price unit')
       .sort({ createdAt: -1 });
 
@@ -119,8 +119,8 @@ router.post('/test-post', (req, res) => {
 router.get('/:orderId', verifyToken, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
-      .populate('buyer', 'firstName lastName email phone')
-      .populate('artisan', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     if (!order) {
@@ -128,7 +128,7 @@ router.get('/:orderId', verifyToken, async (req, res) => {
     }
 
     // Check if user has access to this order
-    if (order.buyer._id.toString() !== req.user._id.toString() && 
+    if (order.patron._id.toString() !== req.user._id.toString() && 
         order.artisan._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -143,9 +143,12 @@ router.get('/:orderId', verifyToken, async (req, res) => {
 // Create a guest order (no authentication required)
 router.post('/guest', async (req, res) => {
   try {
+    console.log('🚀🚀🚀 GUEST ORDER ENDPOINT CALLED 🚀🚀🚀');
+    console.log('🚀🚀🚀 GUEST ORDER ENDPOINT CALLED 🚀🚀🚀');
+    console.log('🚀🚀🚀 GUEST ORDER ENDPOINT CALLED 🚀🚀🚀');
     console.log('Creating guest order with data:', req.body);
     
-    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentDetails, guestInfo, deliveryMethod } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentDetails, guestInfo } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item' });
@@ -215,7 +218,9 @@ router.post('/guest', async (req, res) => {
     // Create separate orders for each artisan
     const createdOrders = [];
     
+    
     for (const [artisanId, artisanOrderData] of Object.entries(ordersByArtisan)) {
+      
       const orderData = {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
@@ -228,6 +233,12 @@ router.post('/guest', async (req, res) => {
         } : deliveryAddress,
         deliveryInstructions: isPickupOrder ? 'Customer will pickup at artisan location' : deliveryInstructions,
         deliveryMethod: deliveryMethod || 'pickup',
+        pickupTimeWindow: pickupTimeWindows?.[artisanId] ? {
+          selectedDate: pickupTimeWindows[artisanId].date,
+          selectedTimeSlot: pickupTimeWindows[artisanId].timeSlot?.value || pickupTimeWindows[artisanId].timeSlot,
+          timeSlotLabel: pickupTimeWindows[artisanId].timeSlot?.label || pickupTimeWindows[artisanId].fullLabel,
+          artisanAvailableSlots: [] // This will be populated by the artisan
+        } : null,
         paymentMethod,
         paymentDetails: paymentDetails ? {
           method: paymentMethod,
@@ -255,8 +266,36 @@ router.post('/guest', async (req, res) => {
       }
       
       const populatedOrder = await Order.findById(savedOrder._id)
-        .populate('artisan', 'artisanName type')
+        .populate('artisan', 'artisanName type pickupAddress email phone')
         .populate('items.product', 'name description image price unit');
+      
+      
+      // Send pickup time notification if this is a pickup order with time window
+      if (savedOrder.deliveryMethod === 'pickup' && savedOrder.pickupTimeWindow) {
+        try {
+          const axios = require('axios');
+          const pickupNotificationData = {
+            type: 'pickup_order_with_time',
+            userId: savedOrder.artisan,
+            orderId: savedOrder._id,
+            userEmail: populatedOrder.artisan?.email,
+            userPhone: populatedOrder.artisan?.phone,
+            orderDetails: {
+              orderId: savedOrder._id,
+              pickupTime: savedOrder.pickupTimeWindow.timeSlotLabel,
+              pickupDate: new Date(savedOrder.pickupTimeWindow.selectedDate).toLocaleDateString(),
+              customerName: `${savedOrder.guestInfo?.firstName} ${savedOrder.guestInfo?.lastName} (Guest)`,
+              customerEmail: savedOrder.guestInfo?.email
+            },
+            timestamp: new Date().toISOString()
+          };
+
+          await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, pickupNotificationData);
+          console.log('✅ Pickup time notification sent to artisan');
+        } catch (notificationError) {
+          console.error('❌ Error sending pickup time notification:', notificationError);
+        }
+      }
       
       createdOrders.push(populatedOrder);
     }
@@ -300,14 +339,12 @@ router.post('/guest', async (req, res) => {
       success: true,
       message: '🎉 Your guest order has been placed successfully!',
       orderSummary,
-      orders: createdOrders.map(order => ({
-        orderId: order._id,
-        orderNumber: order._id.toString().slice(-8).toUpperCase(),
-        artisan: {
-          name: order.artisan.artisanName || 'Artisan',
-          type: order.artisan.type || 'Local Artisan'
-        },
-        items: order.items.map(item => ({
+      orders: createdOrders.map(order => {
+        return {
+          orderId: order._id,
+          orderNumber: order._id.toString().slice(-8).toUpperCase(),
+          artisan: order.artisan, // Return full artisan data
+          items: order.items.map(item => ({
           name: item.product.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -321,8 +358,11 @@ router.post('/guest', async (req, res) => {
           city: order.deliveryAddress.city,
           state: order.deliveryAddress.state,
           zipCode: order.deliveryAddress.zipCode
-        }
-      })),
+        },
+        deliveryMethod: order.deliveryMethod,
+        pickupTimeWindow: order.pickupTimeWindow
+        };
+      }),
       guestInfo: {
         firstName: guestInfo.firstName,
         lastName: guestInfo.lastName,
@@ -348,6 +388,9 @@ router.post('/guest', async (req, res) => {
 // Create a new order (authenticated users)
 router.post('/', verifyToken, async (req, res) => {
   try {
+    console.log('🚀🚀🚀 AUTHENTICATED ORDER ENDPOINT CALLED 🚀🚀🚀');
+    console.log('🚀🚀🚀 AUTHENTICATED ORDER ENDPOINT CALLED 🚀🚀🚀');
+    console.log('🚀🚀🚀 AUTHENTICATED ORDER ENDPOINT CALLED 🚀🚀🚀');
     console.log('Creating order for user:', {
       userId: req.user._id,
       isGuest: req.user.isGuest,
@@ -355,7 +398,8 @@ router.post('/', verifyToken, async (req, res) => {
       guestInfo: req.body.guestInfo
     });
     
-    const { items, deliveryAddress, deliveryInstructions, paymentMethod, paymentMethodId, guestInfo } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentMethodId, guestInfo } = req.body;
+    
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item' });
@@ -380,6 +424,18 @@ router.post('/', verifyToken, async (req, res) => {
 
       if (!product.artisan) {
         return res.status(400).json({ message: `Product ${product.name} has no artisan information` });
+      }
+
+      // Check if user is an artisan trying to order from themselves
+      if (['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
+        const Artisan = require('../models/artisan');
+        const userArtisanProfile = await Artisan.findOne({ user: req.user._id });
+        
+        if (userArtisanProfile && userArtisanProfile._id.toString() === product.artisan._id.toString()) {
+          return res.status(400).json({ 
+            message: 'You cannot order from yourself. Artisans cannot purchase their own products.' 
+          });
+        }
       }
 
       const artisanId = product.artisan._id.toString();
@@ -407,12 +463,20 @@ router.post('/', verifyToken, async (req, res) => {
     const createdOrders = [];
     
     for (const [artisanId, artisanOrderData] of Object.entries(ordersByArtisan)) {
+      
       const orderData = {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
         totalAmount: artisanOrderData.totalAmount,
         deliveryAddress,
         deliveryInstructions,
+        deliveryMethod: deliveryMethod || 'pickup',
+        pickupTimeWindow: pickupTimeWindows?.[artisanId] ? {
+          selectedDate: pickupTimeWindows[artisanId].date,
+          selectedTimeSlot: pickupTimeWindows[artisanId].timeSlot?.value || pickupTimeWindows[artisanId].timeSlot,
+          timeSlotLabel: pickupTimeWindows[artisanId].timeSlot?.label || pickupTimeWindows[artisanId].fullLabel,
+          artisanAvailableSlots: [] // This will be populated by the artisan
+        } : null,
         paymentMethod,
         paymentMethodId,
         status: 'pending',
@@ -446,9 +510,39 @@ router.post('/', verifyToken, async (req, res) => {
       
       const populatedOrder = await Order.findById(savedOrder._id)
         .populate('patron', 'firstName lastName email phone')
-        .populate('artisan', 'artisanName type')
+        .populate('artisan', 'artisanName type pickupAddress email phone')
         .populate('items.product', 'name description image price unit');
+      
+      
+      // Send pickup time notification if this is a pickup order with time window
+      if (savedOrder.deliveryMethod === 'pickup' && savedOrder.pickupTimeWindow) {
+        try {
+          const axios = require('axios');
+          const pickupNotificationData = {
+            type: 'pickup_order_with_time',
+            userId: savedOrder.artisan,
+            orderId: savedOrder._id,
+            userEmail: populatedOrder.artisan?.email,
+            userPhone: populatedOrder.artisan?.phone,
+            orderDetails: {
+              orderId: savedOrder._id,
+              pickupTime: savedOrder.pickupTimeWindow.timeSlotLabel,
+              pickupDate: new Date(savedOrder.pickupTimeWindow.selectedDate).toLocaleDateString(),
+              customerName: populatedOrder.patron 
+                ? `${populatedOrder.patron.firstName} ${populatedOrder.patron.lastName}`
+                : `${populatedOrder.guestInfo?.firstName} ${populatedOrder.guestInfo?.lastName} (Guest)`,
+              customerEmail: populatedOrder.patron?.email || populatedOrder.guestInfo?.email
+            },
+            timestamp: new Date().toISOString()
+          };
 
+          await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, pickupNotificationData);
+          console.log('✅ Pickup time notification sent to artisan');
+        } catch (notificationError) {
+          console.error('❌ Error sending pickup time notification:', notificationError);
+        }
+      }
+      
       createdOrders.push(populatedOrder);
     }
 
@@ -466,16 +560,8 @@ router.post('/', verifyToken, async (req, res) => {
 // Update order status (artisan only)
 router.put('/:orderId/status', verifyToken, async (req, res) => {
   try {
-    const { status, preparationStage, notes } = req.body;
+    const { status, preparationStage, notes, estimatedDeliveryTime, deliveryDistance } = req.body;
     
-    console.log('🔍 Backend Debug - Order Status Update Request:', {
-      orderId: req.params.orderId,
-      status,
-      preparationStage,
-      notes,
-      userId: req.user._id,
-      userRole: req.user.role
-    });
 
     const order = await Order.findById(req.params.orderId);
     
@@ -483,12 +569,6 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    console.log('🔍 Backend Debug - Order found:', {
-      orderId: order._id,
-      orderArtisanId: order.artisan.toString(),
-      requestUserId: req.user._id.toString(),
-      orderStatus: order.status
-    });
 
     // Additional role check for artisan-like roles
     if (!['artisan', 'producer', 'food_maker'].includes(req.user.role)) {
@@ -499,7 +579,6 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
     let artisanProfile;
     try {
       artisanProfile = await Artisan.findOne({ user: req.user._id });
-      console.log('🔍 Backend Debug - Artisan profile query result:', artisanProfile);
     } catch (error) {
       console.error('❌ Backend Debug - Error finding artisan profile:', error);
       return res.status(500).json({ message: 'Error finding artisan profile' });
@@ -523,10 +602,14 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       'pending': ['confirmed', 'cancelled'],
       'confirmed': ['preparing', 'cancelled'],
       'preparing': ['ready', 'cancelled'],
-      'ready': ['delivering', 'cancelled'],
+      'ready': ['delivering', 'ready_for_pickup', 'out_for_delivery', 'cancelled'],
+      'ready_for_pickup': ['picked_up', 'cancelled'],
+      'out_for_delivery': ['delivered', 'cancelled'],
       'delivering': ['delivered', 'cancelled'],
       'delivered': [],
-      'cancelled': []
+      'picked_up': [],
+      'cancelled': [],
+      'declined': []
     };
 
     const currentStatus = order.status;
@@ -547,10 +630,21 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
         artisan: notes
       };
     }
+    
+    // Update delivery time and distance for delivery orders
+    if (estimatedDeliveryTime && order.deliveryMethod !== 'pickup') {
+      order.estimatedDeliveryTime = new Date(estimatedDeliveryTime);
+    }
+    
+    // Store delivery distance for artisan reference
+    if (deliveryDistance && order.deliveryMethod !== 'pickup') {
+      order.deliveryDistance = deliveryDistance;
+    }
+    
     order.updatedAt = Date.now();
     
-    // Set delivery time when status changes to delivered
-    if (status === 'delivered') {
+    // Set delivery/pickup time when status changes to delivered or picked_up
+    if (status === 'delivered' || status === 'picked_up') {
       order.actualDeliveryTime = new Date();
     }
 
@@ -641,15 +735,16 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       }
     );
 
-    // Credit wallet when order is delivered
-    if (status === 'delivered' && currentStatus !== 'delivered') {
+    // Credit wallet when order is delivered or picked up
+    if ((status === 'delivered' || status === 'picked_up') && 
+        (currentStatus !== 'delivered' && currentStatus !== 'picked_up')) {
       try {
         const WalletService = require('../services/walletService');
         
         // Credit the wallet with order revenue (10% platform fee)
         const result = await WalletService.creditOrderRevenue(order._id, 0.10);
         
-        console.log(`🎉 Successfully credited wallet for order ${order._id}:`);
+        console.log(`🎉 Successfully credited wallet for order ${order._id} (${status}):`);
         console.log(`  Wallet ID: ${result.walletId}`);
         console.log(`  Transaction ID: ${result.transactionId}`);
         console.log(`  Net amount: ${result.netAmount} CAD`);
@@ -662,8 +757,8 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
     }
 
     const updatedOrder = await Order.findById(order._id)
-      .populate('buyer', 'firstName lastName email phone')
-      .populate('artisan', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json(updatedOrder);
@@ -686,7 +781,7 @@ router.put('/:orderId/payment', verifyToken, async (req, res) => {
     }
 
     // Check if user has access to this order
-    if (order.buyer.toString() !== req.user._id.toString() && 
+    if (order.patron.toString() !== req.user._id.toString() && 
         order.artisan.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -703,8 +798,8 @@ router.put('/:orderId/payment', verifyToken, async (req, res) => {
     );
 
     const updatedOrder = await Order.findById(order._id)
-      .populate('buyer', 'firstName lastName email phone')
-      .populate('artisan', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json(updatedOrder);
@@ -719,8 +814,8 @@ router.put('/:orderId/payment', verifyToken, async (req, res) => {
 router.get('/:orderId/updates', verifyToken, async (req, res) => {
   try {
     const order = await Order.findById(req.params.orderId)
-      .populate('buyer', 'firstName lastName email phone')
-      .populate('artisan', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
     
     if (!order) {
@@ -728,7 +823,7 @@ router.get('/:orderId/updates', verifyToken, async (req, res) => {
     }
     
     // Check if user has access to this order
-    if (order.buyer._id.toString() !== req.user._id.toString() && 
+    if (order.patron._id.toString() !== req.user._id.toString() && 
         order.artisan._id.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Access denied' });
     }
@@ -758,7 +853,7 @@ router.put('/:orderId/cancel', verifyToken, async (req, res) => {
     }
 
     // Check if user is the patron for this order
-    if (order.buyer.toString() !== req.user._id.toString()) {
+    if (order.patron.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: 'Only the patron can cancel the order' });
     }
 
@@ -781,8 +876,8 @@ router.put('/:orderId/cancel', verifyToken, async (req, res) => {
     );
 
     const updatedOrder = await Order.findById(order._id)
-      .populate('buyer', 'firstName lastName email phone')
-      .populate('artisan', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
 
     res.json(updatedOrder);
@@ -798,12 +893,6 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
   try {
     const { reason } = req.body;
     
-    console.log('🔍 Backend Debug - Decline Order Request:', {
-      orderId: req.params.orderId,
-      reason,
-      userId: req.user._id,
-      userRole: req.user.role
-    });
     
     if (!reason || reason.trim().length === 0) {
       console.log('❌ Backend Debug - No reason provided');
@@ -822,11 +911,6 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    console.log('🔍 Backend Debug - Order found:', {
-      orderId: order._id,
-      orderStatus: order.status,
-      orderArtisanId: order.artisan.toString()
-    });
 
     // Check if order can be declined
     if (!['pending', 'confirmed'].includes(order.status)) {
@@ -838,17 +922,11 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
     let artisanProfile;
     try {
       artisanProfile = await Artisan.findOne({ user: req.user._id });
-      console.log('🔍 Backend Debug - Decline: Artisan profile query result:', artisanProfile);
     } catch (error) {
       console.error('❌ Backend Debug - Decline: Error finding artisan profile:', error);
       return res.status(500).json({ message: 'Error finding artisan profile' });
     }
     
-    console.log('🔍 Backend Debug - Artisan profile:', {
-      found: !!artisanProfile,
-      artisanProfileId: artisanProfile?._id?.toString(),
-      orderArtisanId: order.artisan.toString()
-    });
     
     if (!artisanProfile || order.artisan.toString() !== artisanProfile._id.toString()) {
       console.log('❌ Backend Debug - Not authorized to decline this order');
@@ -876,9 +954,102 @@ router.put('/:orderId/decline', verifyToken, async (req, res) => {
 
     // Populate the updated order with related data
     const populatedOrder = await Order.findById(order._id)
-      .populate('buyer', 'firstName lastName email phone')
-      .populate('artisan', 'firstName lastName email phone')
+      .populate('patron', 'firstName lastName email phone')
+      .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
+
+    // Send notification to patron/guest about order decline
+    try {
+      const axios = require('axios');
+      
+      // Determine customer information (patron or guest)
+      const customerInfo = order.patron ? {
+        id: order.patron._id,
+        name: `${order.patron.firstName} ${order.patron.lastName}`,
+        email: order.patron.email,
+        phone: order.patron.phone,
+        type: 'patron'
+      } : {
+        id: null,
+        name: `${order.guestInfo?.firstName || 'Guest'} ${order.guestInfo?.lastName || 'User'}`,
+        email: order.guestInfo?.email,
+        phone: order.guestInfo?.phone,
+        type: 'guest'
+      };
+
+      // Prepare detailed order information for notification
+      const orderItems = populatedOrder.items.map(item => ({
+        productName: item.product?.name || 'Unknown Product',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        productType: item.productType
+      }));
+
+      const notificationData = {
+        type: 'order_declined',
+        userId: customerInfo.id,
+        orderId: order._id,
+        userEmail: customerInfo.email,
+        userPhone: customerInfo.phone,
+        orderDetails: {
+          orderId: order._id,
+          orderNumber: `#${order._id.toString().slice(-8).toUpperCase()}`,
+          customerName: customerInfo.name,
+          customerType: customerInfo.type,
+          declineReason: reason.trim(),
+          declinedAt: new Date(),
+          declinedBy: req.user._id,
+          artisanName: `${populatedOrder.artisan?.firstName || ''} ${populatedOrder.artisan?.lastName || ''}`.trim() || populatedOrder.artisan?.artisanName || 'Unknown Artisan',
+          artisanEmail: populatedOrder.artisan?.email,
+          orderTotal: order.totalAmount,
+          orderItems: orderItems,
+          orderDate: order.orderDate,
+          deliveryMethod: order.deliveryMethod || 'pickup',
+          deliveryAddress: order.deliveryAddress,
+          pickupTimeWindow: order.pickupTimeWindow
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('📧 Sending decline notification:', {
+        customerType: customerInfo.type,
+        customerEmail: customerInfo.email,
+        orderId: order._id,
+        declineReason: reason.trim()
+      });
+
+      // Send notification to customer (this will be handled by the notification service)
+      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, notificationData);
+      console.log('✅ Decline notification sent successfully to:', customerInfo.email || customerInfo.phone || 'customer');
+
+      // Also send a confirmation notification to the artisan
+      const artisanNotificationData = {
+        type: 'order_decline_confirmation',
+        userId: req.user._id,
+        orderId: order._id,
+        userEmail: populatedOrder.artisan?.email,
+        userPhone: populatedOrder.artisan?.phone,
+        orderDetails: {
+          orderId: order._id,
+          orderNumber: `#${order._id.toString().slice(-8).toUpperCase()}`,
+          customerName: customerInfo.name,
+          customerType: customerInfo.type,
+          declineReason: reason.trim(),
+          declinedAt: new Date(),
+          orderTotal: order.totalAmount,
+          orderItems: orderItems
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+      console.log('✅ Artisan decline confirmation sent to:', populatedOrder.artisan?.email || 'artisan');
+    } catch (notificationError) {
+      console.error('❌ Error sending decline notification:', notificationError);
+      console.error('❌ Notification error details:', notificationError.response?.data || notificationError.message);
+      // Don't fail the order decline if notification fails
+    }
 
     res.json({ 
       message: 'Order declined successfully', 

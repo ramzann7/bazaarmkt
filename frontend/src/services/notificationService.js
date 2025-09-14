@@ -24,6 +24,9 @@ export const initializeNotificationService = (brevoApiKey) => {
   } catch (error) {
     console.warn('⚠️ Could not initialize Brevo service:', error.message);
     console.log('ℹ️ Notification service will use backend fallback');
+    console.log('💡 To fix this, create a .env file in the frontend directory with:');
+    console.log('   VITE_BREVO_API_KEY=your_brevo_api_key_here');
+    console.log('   Get your API key from: https://app.brevo.com/settings/keys/api');
   }
 };
 

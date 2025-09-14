@@ -81,7 +81,6 @@ const clearCartCache = (userId) => {
 export const cartService = {
   getCart: (userId) => {
     try {
-      console.log('🔍 getCart called with userId:', userId);
       
       // If userId is explicitly null, treat as guest user
       if (userId === null) {
@@ -91,7 +90,6 @@ export const cartService = {
         const cacheKey = `guest_${guestCartKey}`;
         const cached = cartCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
-          console.log('🔍 Using cached guest cart data');
           return cached.data;
         }
         
@@ -101,14 +99,12 @@ export const cartService = {
         // Cache the result
         cartCache.set(cacheKey, { data: cartData, timestamp: Date.now() });
         
-        console.log('🔍 Guest cart key:', guestCartKey, 'Guest cart data:', guestCart);
         return cartData;
       }
       
       // If no userId provided, try to get it from token
       if (!userId) {
         userId = getCurrentUserId();
-        console.log('🔍 No userId provided, got from token:', userId);
       }
       
       // If no userId or if it's a guest user, use guest cart
@@ -119,7 +115,6 @@ export const cartService = {
         const cacheKey = `guest_${guestCartKey}`;
         const cached = cartCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
-          console.log('🔍 Using cached guest cart data');
           return cached.data;
         }
         
@@ -129,7 +124,6 @@ export const cartService = {
         // Cache the result
         cartCache.set(cacheKey, { data: cartData, timestamp: Date.now() });
         
-        console.log('🔍 Using guest cart, key:', guestCartKey, 'data:', guestCart);
         return cartData;
       }
       
@@ -140,7 +134,6 @@ export const cartService = {
       const cacheKey = `user_${cartKey}`;
       const cached = cartCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < CART_CACHE_TTL) {
-        console.log('🔍 Using cached user cart data');
         return cached.data;
       }
       
@@ -150,7 +143,6 @@ export const cartService = {
       // Cache the result
       cartCache.set(cacheKey, { data: cartData, timestamp: Date.now() });
       
-      console.log('🔍 Using user cart, key:', cartKey, 'data:', cart);
       return cartData;
     } catch (error) {
       console.error('Error getting cart:', error);
@@ -167,33 +159,42 @@ export const cartService = {
       
       console.log('🛒 Adding to cart:', { product: product.name, quantity, userId });
 
-      
-      // Check if user is an artisan (artisans cannot add to cart)
-      if (userId && !isGuestUser()) {
+      // Check if user is an artisan trying to order from themselves
+      if (userId) {
         try {
           const { getProfile } = await import('./authservice');
           const userProfile = await getProfile();
-          if (userProfile.role === 'artisan') {
-            throw new Error('Artisans cannot add products to cart. They are sellers, not buyers.');
+          
+          // Check if user is an artisan
+          if (userProfile && ['artisan', 'producer', 'food_maker'].includes(userProfile.role)) {
+            // Get user's artisan profile
+            const { profileService } = await import('./profileService');
+            const artisanProfile = await profileService.getArtisanProfile();
+            
+            // Check if the product's artisan matches the current user's artisan profile
+            if (artisanProfile && product.artisan && 
+                (artisanProfile._id === product.artisan._id || 
+                 artisanProfile._id === product.artisan)) {
+              throw new Error('You cannot order from yourself. Artisans cannot purchase their own products.');
+            }
           }
         } catch (error) {
-          if (error.message.includes('Artisans cannot add products to cart')) {
+          // If it's our custom error, re-throw it
+          if (error.message.includes('cannot order from yourself')) {
             throw error;
           }
-          // If it's not a role restriction error, continue (might be network error)
-          console.warn('Could not verify user role, continuing with cart operation:', error.message);
+          // For other errors (like profile not found), continue with the cart operation
+          console.log('Could not verify artisan status, allowing cart operation:', error.message);
         }
       }
       
       // If no userId, treat as guest user (no automatic profile creation)
       if (!userId) {
         userId = null; // Explicitly set to null for guest cart
-        console.log('🔍 No userId, setting to null for guest cart');
       }
       
       const cart = cartService.getCart(userId);
       console.log('📦 Current cart before adding:', cart);
-      console.log('🔍 isGuestUser() result:', isGuestUser());
 
       
       const existingItem = cart.find(cartItem => cartItem._id === product._id);
@@ -479,7 +480,6 @@ export const cartService = {
       // If userId is explicitly null, treat as guest user
       if (userId === null) {
         const cart = cartService.getCart(null);
-        console.log('🔍 getCartByArtisan - Raw cart from localStorage (guest):', cart);
         
         // Process guest cart the same way as regular cart
         if (!cart || cart.length === 0) {
@@ -494,7 +494,6 @@ export const cartService = {
         userId = getCurrentUserId();
       }
       const cart = cartService.getCart(userId);
-      console.log('🔍 getCartByArtisan - Raw cart from localStorage:', cart);
       
       const groupedByArtisan = {};
       
@@ -611,11 +610,6 @@ export const cartService = {
         return total + (artisanData.items?.length || 0);
       }, 0);
       
-      console.log('🔍 Sync consistency check:', {
-        localStorageCount,
-        artisanCount,
-        isConsistent: localStorageCount === artisanCount
-      });
       
       if (localStorageCount !== artisanCount) {
         console.warn('⚠️ Cart inconsistency detected during sync!');
@@ -796,6 +790,44 @@ export const cartService = {
         isValid: false,
         errors: ['Checkout validation failed']
       };
+    }
+  },
+
+  // Function to fetch full product details for availability calculations
+  fetchProductDetails: async (productId) => {
+    try {
+      // Get the token for authentication
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      // Use the correct backend API URL
+      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+      
+      // Fetch full product details
+      const response = await fetch(`${apiBaseUrl}/products/${productId}`, {
+        headers
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      }
+      
+      if (response.status === 404) {
+        console.warn(`Product ${productId} not found`);
+        return null;
+      }
+      
+      console.error(`Error fetching product details: ${response.status} ${response.statusText}`);
+      return null;
+    } catch (error) {
+      console.error(`Error fetching product details for ${productId}:`, error);
+      return null;
     }
   },
 

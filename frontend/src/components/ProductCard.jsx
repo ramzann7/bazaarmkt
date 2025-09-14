@@ -7,7 +7,6 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import AddToCart from './AddToCart';
 import ProductTypeBadge from './ProductTypeBadge';
-import DistanceBadge from './DistanceBadge';
 import toast from 'react-hot-toast';
 
 const ProductCard = ({ 
@@ -57,20 +56,20 @@ const ProductCard = ({
 
     for (let i = 0; i < fullStars; i++) {
       stars.push(
-        <StarIconSolid key={i} className="w-4 h-4 text-yellow-400" />
+        <StarIconSolid key={i} className="w-3 h-3 text-yellow-400" />
       );
     }
 
     if (hasHalfStar) {
       stars.push(
-        <StarIcon key={fullStars} className="w-4 h-4 text-yellow-400" />
+        <StarIcon key={fullStars} className="w-3 h-3 text-yellow-400" />
       );
     }
 
     const remainingStars = 5 - Math.ceil(rating);
     for (let i = 0; i < remainingStars; i++) {
       stars.push(
-        <StarIcon key={fullStars + (hasHalfStar ? 1 : 0) + i} className="w-4 h-4 text-gray-300" />
+        <StarIcon key={fullStars + (hasHalfStar ? 1 : 0) + i} className="w-3 h-3 text-gray-300" />
       );
     }
 
@@ -102,15 +101,15 @@ const ProductCard = ({
           <img
             src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
             alt={product.name}
-            className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
           />
-          <div className={`w-full h-64 flex items-center justify-center bg-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
-            <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
+          <div className={`w-full h-48 flex items-center justify-center bg-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
+            <BuildingStorefrontIcon className="w-12 h-12 text-gray-400" />
           </div>
           
           {/* Status badges */}
@@ -132,16 +131,6 @@ const ProductCard = ({
             )}
           </div>
 
-          {/* Low inventory badge */}
-          {((product.productType === 'ready_to_ship' && product.stock < 10 && product.stock > 0) ||
-            (product.productType === 'made_to_order' && product.totalCapacity < 10 && product.totalCapacity > 0) ||
-            (product.productType === 'scheduled_order' && product.availableQuantity < 10 && product.availableQuantity > 0)) && (
-            <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium z-10">
-              {product.productType === 'ready_to_ship' ? 'Low Stock' :
-               product.productType === 'made_to_order' ? 'Low Capacity' :
-               'Low Available'}
-            </div>
-          )}
 
           {/* Hover overlay with heart icon */}
           {showImagePreview && (
@@ -156,35 +145,28 @@ const ProductCard = ({
         </div>
 
         {/* Product details */}
-        <div className="mt-3">
-          <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-2">
+        <div className="mt-2">
+          <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-2 text-sm leading-tight">
             {product.name}
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-1 line-clamp-1">
             {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
           </p>
           
-          {/* Distance badge */}
-          {showDistance && (product.distance || product.formattedDistance) && (
-            <div className="mt-2">
-              <DistanceBadge 
-                distance={product.distance} 
-                formattedDistance={product.formattedDistance}
-              />
+          {/* Distance badge and Product type badge in one row */}
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center space-x-1">
+              {/* Product type badge */}
+              <ProductTypeBadge product={product} variant="compact" />
             </div>
-          )}
-
-          {/* Product type badge */}
-          <div className="mt-2 mb-2">
-            <ProductTypeBadge product={product} variant="compact" />
           </div>
           
           {/* Price and rating */}
           <div className="flex items-center justify-between mt-2">
-            <span className="font-bold text-gray-900">{formatPrice(product.price)}</span>
+            <span className="font-bold text-gray-900 text-sm">{formatPrice(product.price)}</span>
             <div className="flex items-center space-x-1">
               {renderStars(product.artisan?.rating?.average || product.rating || 0)}
-              <span className="text-sm text-gray-500">
+              <span className="text-xs text-gray-500">
                 ({(product.artisan?.rating?.average || product.rating || 0).toFixed(1)})
               </span>
             </div>

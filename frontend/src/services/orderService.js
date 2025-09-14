@@ -68,7 +68,6 @@ export const orderService = {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
           if (payload.isGuest === true) {
-            console.log('🔍 User is guest, redirecting to guest order endpoint');
             // For guest users, prepare guest order data and use the guest endpoint
             const guestOrderData = {
               ...orderData,
@@ -93,11 +92,6 @@ export const orderService = {
         }
       }
 
-      console.log('🔍 Order Service Debug - API_URL:', API_URL);
-      console.log('🔍 Order Service Debug - VITE_API_URL:', import.meta.env.VITE_API_URL);
-      console.log('🔍 Order Service Debug - Final URL being called:', API_URL);
-      console.log('🔍 Order Service Debug - Order Data:', orderData);
-      console.log('🔍 Order Service Debug - Auth Headers:', getAuthHeaders());
       
       const response = await axios.post(`${API_URL}/orders`, orderData, {
         headers: getAuthHeaders()
@@ -112,20 +106,13 @@ export const orderService = {
   // Update order status (artisan only)
   updateOrderStatus: async (orderId, statusData) => {
     try {
-      console.log('🔍 Order Status Update Debug - Order ID:', orderId);
-      console.log('🔍 Order Status Update Debug - Status Data:', statusData);
-      console.log('🔍 Order Status Update Debug - API URL:', `${API_URL}/orders/${orderId}/status`);
-      console.log('🔍 Order Status Update Debug - Auth Headers:', getAuthHeaders());
-      
       const response = await axios.put(`${API_URL}/orders/${orderId}/status`, statusData, {
         headers: getAuthHeaders()
       });
       
-      console.log('🔍 Order Status Update Debug - Response:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Error updating order status:', error);
-      console.error('❌ Error response:', error.response?.data);
       throw error;
     }
   },
@@ -159,18 +146,11 @@ export const orderService = {
   // Decline order (artisan only)
   declineOrder: async (orderId, reason) => {
     try {
-      console.log('🔍 Order Service Debug - Decline Order:', {
-        orderId,
-        reason,
-        url: `${API_URL}/orders/${orderId}/decline`,
-        headers: getAuthHeaders()
-      });
       
       const response = await axios.put(`${API_URL}/orders/${orderId}/decline`, { reason }, {
         headers: getAuthHeaders()
       });
       
-      console.log('✅ Order Service Debug - Decline Response:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Order Service Debug - Decline Error:', error);

@@ -19,6 +19,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { cartService } from '../services/cartService';
 import { deliveryService } from '../services/deliveryService';
+import { pickupTimeService } from '../services/pickupTimeService';
 import { getProfile } from '../services/authService';
 import { paymentService } from '../services/paymentService';
 import { orderService } from '../services/orderService';
@@ -49,6 +50,11 @@ const Cart = () => {
   // Delivery state
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
+  
+  // Pickup time window state
+  const [pickupTimeWindows, setPickupTimeWindows] = useState({});
+  const [selectedPickupTimes, setSelectedPickupTimes] = useState({});
+  const [enhancedProducts, setEnhancedProducts] = useState({});
   const [deliveryForm, setDeliveryForm] = useState({
     firstName: '',
     lastName: '',
@@ -535,11 +541,90 @@ const Cart = () => {
     }
   };
 
+  // Load pickup time windows for artisans
+  const loadPickupTimeWindows = async () => {
+    if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
+      return;
+    }
+    
+    try {
+      const timeWindows = {};
+      
+      // Process each artisan's cart items
+      for (const [artisanId, artisanData] of Object.entries(cartByArtisan)) {
+        if (artisanData.artisan?.pickupSchedule) {
+          // Fetch full product details for each item to get accurate availability
+          const artisanEnhancedProducts = [];
+          
+          for (const item of artisanData.items || []) {
+            try {
+              // Try to fetch full product details from the backend
+              const fullProductDetails = await cartService.fetchProductDetails(item._id);
+              
+              if (fullProductDetails) {
+                // Use the full product details with all availability information
+                artisanEnhancedProducts.push(fullProductDetails);
+                console.log(`✅ Fetched full product details for ${item.name}:`, {
+                  productType: fullProductDetails.productType,
+                  nextAvailableDate: fullProductDetails.nextAvailableDate,
+                  leadTime: fullProductDetails.leadTime
+                });
+              } else {
+                // Fallback to cart item data if fetch fails
+                const fallbackProduct = item.product || item;
+                artisanEnhancedProducts.push(fallbackProduct);
+                console.warn(`⚠️ Could not fetch full details for ${item.name}, using fallback data`);
+              }
+            } catch (error) {
+              console.error(`❌ Error fetching product details for ${item.name}:`, error);
+              // Fallback to cart item data
+              const fallbackProduct = item.product || item;
+              artisanEnhancedProducts.push(fallbackProduct);
+            }
+          }
+          
+          // Store enhanced products for this artisan
+          setEnhancedProducts(prev => ({
+            ...prev,
+            [artisanId]: artisanEnhancedProducts
+          }));
+          
+          const availableSlots = pickupTimeService.generateAvailableTimeSlots(
+            artisanData.artisan.pickupSchedule,
+            artisanEnhancedProducts,
+            7 // 7 days ahead
+          );
+          timeWindows[artisanId] = availableSlots;
+        }
+      }
+      
+      setPickupTimeWindows(timeWindows);
+    } catch (error) {
+      console.error('Error loading pickup time windows:', error);
+    }
+  };
+
   // Handle delivery method selection
   const handleDeliveryMethodChange = (artisanId, method) => {
     setSelectedDeliveryMethods(prev => ({
       ...prev,
       [artisanId]: method
+    }));
+    
+    // Clear pickup time selection if switching away from pickup
+    if (method !== 'pickup') {
+      setSelectedPickupTimes(prev => ({
+        ...prev,
+        [artisanId]: null
+      }));
+    }
+  };
+
+  // Handle pickup time selection
+  const handlePickupTimeChange = (artisanId, timeSlot) => {
+    setSelectedPickupTimes(prev => ({
+      ...prev,
+      [artisanId]: timeSlot
     }));
   };
 
@@ -550,18 +635,26 @@ const Cart = () => {
       [field]: value
     }));
     
-    // Check for existing user when email changes
-    if (field === 'email' && value && value.includes('@')) {
-      try {
-        const existingUserData = await guestService.checkExistingUser(value);
-        setExistingUser(existingUserData);
-        if (existingUserData) {
-          toast.success(`Welcome back! Found existing account for ${value}`);
-        }
-      } catch (error) {
-        // User not found, clear existing user state
-        setExistingUser(null);
+    // Check for existing user when email changes (with debouncing)
+    if (field === 'email' && value && value.includes('@') && value.length > 5) {
+      // Clear any existing timeout
+      if (window.emailCheckTimeout) {
+        clearTimeout(window.emailCheckTimeout);
       }
+      
+      // Set a new timeout to debounce the API call
+      window.emailCheckTimeout = setTimeout(async () => {
+        try {
+          const existingUserData = await guestService.checkExistingUser(value);
+          setExistingUser(existingUserData);
+          if (existingUserData) {
+            toast.success(`Welcome back! Found existing account for ${value}`);
+          }
+        } catch (error) {
+          // User not found, clear existing user state
+          setExistingUser(null);
+        }
+      }, 500); // Wait 500ms after user stops typing
     }
   };
 
@@ -646,6 +739,14 @@ const Cart = () => {
         return;
       }
 
+      // Validate pickup time selection for pickup orders
+      for (const [artisanId, deliveryMethod] of Object.entries(selectedDeliveryMethods)) {
+        if (deliveryMethod === 'pickup' && !selectedPickupTimes[artisanId]) {
+          toast.error('Please select a pickup time for all pickup orders');
+          return;
+        }
+      }
+
       if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
         toast.error('Please provide delivery address');
         return;
@@ -702,11 +803,18 @@ const Cart = () => {
         })),
         deliveryAddress: selectedAddress || deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
+        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+        pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
         paymentMethod: selectedPaymentMethod?.type || 'credit_card',
         paymentMethodId: selectedPaymentMethod?._id
       };
 
+      console.log('🚀🚀🚀 FRONTEND AUTHENTICATED ORDER CREATION 🚀🚀🚀');
       console.log('🔍 Creating order for authenticated user:', orderData);
+      console.log('🔍 Frontend Debug - selectedPickupTimes being sent:', selectedPickupTimes);
+      console.log('🔍 Frontend Debug - selectedPickupTimes keys:', Object.keys(selectedPickupTimes));
+      console.log('🔍 Frontend Debug - selectedPickupTimes values:', Object.values(selectedPickupTimes));
+      console.log('🔍 Frontend Debug - orderData.pickupTimeWindows:', orderData.pickupTimeWindows);
       
       // Create order using authenticated endpoint
       const result = await orderService.createOrder(orderData);
@@ -733,6 +841,14 @@ const Cart = () => {
       toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
       
       // Navigate to order confirmation
+      console.log('🔍 Cart - Navigating to order confirmation with data:', {
+        orders: result.orders,
+        selectedPickupTimes: selectedPickupTimes,
+        selectedDeliveryMethods: selectedDeliveryMethods,
+        isPickupOrder: Object.values(selectedDeliveryMethods).includes('pickup'),
+        firstOrderDeliveryMethod: result.orders[0]?.deliveryMethod
+      });
+      
       navigate('/order-confirmation', { 
         state: { 
           orders: result.orders,
@@ -742,7 +858,9 @@ const Cart = () => {
             totalAmount: result.orders.reduce((sum, order) => sum + order.totalAmount, 0),
             estimatedDeliveryTime: '2-3 business days',
             orderNumbers: result.orders.map(order => order.orderNumber || order._id?.toString().slice(-8).toUpperCase())
-          }
+          },
+          selectedPickupTimes: selectedPickupTimes, // Include pickup time selections
+          isPickupOrder: Object.values(selectedDeliveryMethods).includes('pickup')
         }
       });
       
@@ -852,6 +970,7 @@ const Cart = () => {
         deliveryAddress: isAddressRequired() ? deliveryForm : undefined,
         deliveryInstructions: isAddressRequired() ? (deliveryForm.instructions || '') : 'Customer will pickup at artisan location',
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+        pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
         paymentMethod: guestPaymentForm.paymentMethod,
         paymentDetails: {
           cardNumber: guestPaymentForm.cardNumber,
@@ -869,7 +988,12 @@ const Cart = () => {
         }
       };
 
+      console.log('🚀🚀🚀 FRONTEND GUEST ORDER CREATION 🚀🚀🚀');
       console.log('🔍 Creating guest order:', orderData);
+      console.log('🔍 Frontend Debug - selectedPickupTimes being sent (guest):', selectedPickupTimes);
+      console.log('🔍 Frontend Debug - selectedPickupTimes keys (guest):', Object.keys(selectedPickupTimes));
+      console.log('🔍 Frontend Debug - selectedPickupTimes values (guest):', Object.values(selectedPickupTimes));
+      console.log('🔍 Frontend Debug - orderData.pickupTimeWindows (guest):', orderData.pickupTimeWindows);
       
       // Create guest order using the guest endpoint
       const result = await orderService.createGuestOrder(orderData);
@@ -898,13 +1022,20 @@ const Cart = () => {
       toast.success(`Guest ${orderType} order placed successfully! ${result.totalOrders} order${result.totalOrders > 1 ? 's' : ''} created.`);
       
       // Navigate to order confirmation
+      console.log('🔍 Cart - Guest checkout navigating to order confirmation with data:', {
+        orders: result.orders,
+        selectedPickupTimes: selectedPickupTimes,
+        isPickupOrder: isPickupOrder
+      });
+      
       navigate('/order-confirmation', { 
         state: { 
           message: `Guest ${orderType} order placed successfully!`,
           orders: result.orders,
           guestInfo: result.guestInfo,
           orderSummary: result.orderSummary,
-          isPickupOrder: isPickupOrder
+          isPickupOrder: isPickupOrder,
+          selectedPickupTimes: selectedPickupTimes // Include pickup time selections
         }
       });
       
@@ -926,6 +1057,7 @@ const Cart = () => {
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
       loadDeliveryOptions();
+      loadPickupTimeWindows();
     }
   }, [cartByArtisan]);
 
@@ -950,6 +1082,15 @@ const Cart = () => {
       setCartTotal(newTotal);
     }
   }, [cart, cartTotal]);
+
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (window.emailCheckTimeout) {
+        clearTimeout(window.emailCheckTimeout);
+      }
+    };
+  }, []);
 
   // Render loading skeleton
   if (cartLoading) {
@@ -1338,23 +1479,82 @@ const Cart = () => {
                       
                       <div className="space-y-3">
                         {deliveryOptions[artisanId]?.pickup?.available && (
-                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`delivery-${artisanId}`}
-                              value="pickup"
-                              checked={selectedDeliveryMethods[artisanId] === 'pickup'}
-                              onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
-                              className="text-green-600 w-4 h-4"
-                            />
-                            <div className="flex items-center gap-3">
-                              <MapPinIcon className="w-5 h-5 text-green-600" />
-                              <div>
-                                <span className="text-gray-900 font-medium">Visit the Artisan</span>
-                                <span className="text-green-600 text-sm ml-2">(Free)</span>
+                          <>
+                            <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
+                              <input
+                                type="radio"
+                                name={`delivery-${artisanId}`}
+                                value="pickup"
+                                checked={selectedDeliveryMethods[artisanId] === 'pickup'}
+                                onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
+                                className="text-green-600 w-4 h-4"
+                              />
+                              <div className="flex items-center gap-3">
+                                <MapPinIcon className="w-5 h-5 text-green-600" />
+                                <div>
+                                  <span className="text-gray-900 font-medium">Visit the Artisan</span>
+                                  <span className="text-green-600 text-sm ml-2">(Free)</span>
+                                </div>
                               </div>
-                            </div>
-                          </label>
+                            </label>
+                            
+                            {/* Pickup Time Selection */}
+                            {selectedDeliveryMethods[artisanId] === 'pickup' && pickupTimeWindows[artisanId] && (
+                              <div className="ml-7 mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <h4 className="text-sm font-medium text-green-900 mb-3 flex items-center gap-2">
+                                  <MapPinIcon className="w-4 h-4" />
+                                  Select Pickup Time
+                                </h4>
+                                
+                                {/* Availability Information */}
+                                {(() => {
+                                  // Use enhanced products if available, otherwise fallback to cart item data
+                                  const artisanProducts = enhancedProducts[artisanId] || 
+                                    artisanData.items?.map(item => item.product || item) || [];
+                                  
+                                  const availabilityInfo = pickupTimeService.getAvailabilityInfo(artisanProducts);
+                                  
+                                  return (
+                                    <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-medium text-blue-800">📅 Availability:</span>
+                                        <span className={`text-xs ${
+                                          availabilityInfo.type === 'ready' ? 'text-green-700' : 
+                                          availabilityInfo.type === 'made_to_order' ? 'text-orange-700' : 
+                                          'text-blue-700'
+                                        }`}>
+                                          {availabilityInfo.message}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                                <div className="space-y-2">
+                                  {pickupTimeWindows[artisanId].slice(0, 6).map((timeSlot, index) => (
+                                    <label key={index} className="flex items-center space-x-3 p-2 border border-green-200 rounded-lg hover:border-green-300 hover:bg-green-100 transition-colors cursor-pointer">
+                                      <input
+                                        type="radio"
+                                        name={`pickup-time-${artisanId}`}
+                                        value={timeSlot.fullLabel}
+                                        checked={selectedPickupTimes[artisanId]?.fullLabel === timeSlot.fullLabel}
+                                        onChange={() => handlePickupTimeChange(artisanId, timeSlot)}
+                                        className="text-green-600 w-4 h-4"
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-green-900">{timeSlot.dateLabel}</span>
+                                        <span className="text-sm text-green-700">{timeSlot.timeSlot.label}</span>
+                                      </div>
+                                    </label>
+                                  ))}
+                                </div>
+                                {pickupTimeWindows[artisanId].length > 6 && (
+                                  <p className="text-xs text-green-600 mt-2">
+                                    Showing next 6 available slots. More slots available.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
                         
                         {deliveryOptions[artisanId]?.personalDelivery?.available && (

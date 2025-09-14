@@ -237,6 +237,26 @@ const AddToCart = ({
         </div>
       )}
 
+      {/* Distance Information */}
+      {product?.artisan && (product.distance !== undefined || product.formattedDistance) && (
+        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+          <div className="flex items-center space-x-2">
+            <span className="text-lg">📍</span>
+            <div>
+              <span className="text-sm font-medium text-blue-800">
+                {product.artisan.artisanName}
+              </span>
+              <p className="text-xs text-blue-600">
+                {product.formattedDistance || 
+                 (product.distance !== undefined && product.distance !== null 
+                   ? `${product.distance.toFixed(1)} km away` 
+                   : 'Distance not available')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Simplified Quantity Selector */}
       {showQuantity && (
         <div className="space-y-2">

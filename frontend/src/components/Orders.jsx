@@ -6,11 +6,13 @@ import {
   ArrowLeftIcon,
   ClockIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 import { orderService } from '../services/orderService';
 import { getProfile } from '../services/authService';
 import toast from 'react-hot-toast';
+import OrderTimeline from './OrderTimeline';
 
 export default function Orders() {
   const location = useLocation();
@@ -18,7 +20,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('all'); // all, pending, delivered, cancelled
+  const [filter, setFilter] = useState('needs_action'); // Default to most important orders
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -26,8 +28,8 @@ export default function Orders() {
 
   useEffect(() => {
     loadUserAndOrders();
-    // Set up real-time updates every 30 seconds
-    const interval = setInterval(loadUserAndOrders, 30000);
+    // Set up real-time updates every 2 minutes (less frequent)
+    const interval = setInterval(loadUserAndOrders, 120000);
     return () => clearInterval(interval);
   }, []);
 
@@ -61,6 +63,13 @@ export default function Orders() {
       const userProfile = await getProfile();
       setUserRole(userProfile.role);
       
+      // Set default filter based on user role
+      if (userProfile.role === 'artisan') {
+        setFilter('needs_action'); // Show orders that need action first
+      } else {
+        setFilter('active'); // Show active orders first for patrons
+      }
+      
       // Load orders based on user role
       let ordersData;
       if (userProfile.role === 'artisan') {
@@ -68,8 +77,6 @@ export default function Orders() {
       } else {
         ordersData = await orderService.getPatronOrders();
       }
-      console.log('🔍 Frontend Debug - Loaded Orders:', ordersData);
-      console.log('🔍 Frontend Debug - Order Statuses:', ordersData.map(order => ({ id: order._id, status: order.status })));
       setOrders(ordersData);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -94,16 +101,27 @@ export default function Orders() {
     });
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status, deliveryMethod = 'pickup') => {
     const statusColors = {
+      // Common statuses
       'pending': 'bg-yellow-100 text-yellow-800',
       'confirmed': 'bg-blue-100 text-blue-800',
       'preparing': 'bg-orange-100 text-orange-800',
-      'ready': 'bg-green-100 text-green-800',
-      'delivering': 'bg-purple-100 text-purple-800',
-      'delivered': 'bg-green-100 text-green-800',
       'cancelled': 'bg-red-100 text-red-800',
-      'declined': 'bg-red-100 text-red-800'
+      'declined': 'bg-red-100 text-red-800',
+      
+      // Pickup-specific statuses
+      'ready_for_pickup': 'bg-green-100 text-green-800',
+      'picked_up': 'bg-emerald-100 text-emerald-800',
+      
+      // Delivery-specific statuses
+      'ready_for_delivery': 'bg-green-100 text-green-800',
+      'out_for_delivery': 'bg-purple-100 text-purple-800',
+      'delivered': 'bg-emerald-100 text-emerald-800',
+      
+      // Legacy statuses (for backward compatibility)
+      'ready': 'bg-green-100 text-green-800',
+      'delivering': 'bg-purple-100 text-purple-800'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -118,18 +136,109 @@ export default function Orders() {
     return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getStatusDisplayText = (status, deliveryMethod = 'pickup') => {
+    const statusTexts = {
+      // Common statuses
+      'pending': 'Pending',
+      'confirmed': 'Confirmed',
+      'preparing': 'Preparing',
+      'cancelled': 'Cancelled',
+      'declined': 'Declined',
+      
+      // Pickup-specific statuses
+      'ready_for_pickup': 'Ready for Pickup',
+      'picked_up': 'Picked Up',
+      
+      // Delivery-specific statuses
+      'ready_for_delivery': 'Ready for Delivery',
+      'out_for_delivery': 'Out for Delivery',
+      'delivered': 'Delivered',
+      
+      // Legacy statuses (for backward compatibility)
+      'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
+      'delivering': 'Out for Delivery'
+    };
+    return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
   const getFilteredOrders = () => {
     if (filter === 'all') return orders;
-    return orders.filter(order => order.status === filter);
+    
+    if (userRole === 'artisan') {
+      switch (filter) {
+        case 'needs_action':
+          return orders.filter(order => ['pending', 'confirmed'].includes(order.status));
+        case 'in_progress':
+          return orders.filter(order => [
+            'preparing', 
+            'ready', 
+            'ready_for_pickup', 
+            'ready_for_delivery',
+            'out_for_delivery'
+          ].includes(order.status));
+        case 'delivered':
+        case 'completed':
+          return orders.filter(order => ['delivered', 'picked_up'].includes(order.status));
+        default:
+          return orders.filter(order => order.status === filter);
+      }
+    } else {
+      switch (filter) {
+        case 'active':
+          return orders.filter(order => [
+            'pending', 
+            'confirmed', 
+            'preparing', 
+            'ready', 
+            'ready_for_pickup',
+            'ready_for_delivery',
+            'delivering',
+            'out_for_delivery'
+          ].includes(order.status));
+        case 'delivered':
+          return orders.filter(order => ['delivered', 'picked_up'].includes(order.status));
+        case 'cancelled':
+          return orders.filter(order => ['cancelled', 'declined'].includes(order.status));
+        default:
+          return orders.filter(order => order.status === filter);
+      }
+    }
   };
 
   const getOrderStats = () => {
     const total = orders.length;
-    const pending = orders.filter(o => ['pending', 'confirmed', 'preparing', 'ready', 'delivering'].includes(o.status)).length;
-    const delivered = orders.filter(o => o.status === 'delivered').length;
-    const cancelled = orders.filter(o => o.status === 'cancelled').length;
     
-    return { total, pending, delivered, cancelled };
+    if (userRole === 'artisan') {
+      // For artisans: focus on orders that need action
+      const needsAction = orders.filter(o => ['pending', 'confirmed'].includes(o.status)).length;
+      const inProgress = orders.filter(o => [
+        'preparing', 
+        'ready', 
+        'ready_for_pickup', 
+        'ready_for_delivery',
+        'out_for_delivery'
+      ].includes(o.status)).length;
+      const completed = orders.filter(o => ['delivered', 'picked_up'].includes(o.status)).length;
+      const declined = orders.filter(o => ['declined', 'cancelled'].includes(o.status)).length;
+      
+      return { total, needsAction, inProgress, completed, declined };
+    } else {
+      // For patrons: focus on active orders
+      const active = orders.filter(o => [
+        'pending', 
+        'confirmed', 
+        'preparing', 
+        'ready', 
+        'ready_for_pickup',
+        'ready_for_delivery',
+        'delivering',
+        'out_for_delivery'
+      ].includes(o.status)).length;
+      const delivered = orders.filter(o => ['delivered', 'picked_up'].includes(o.status)).length;
+      const cancelled = orders.filter(o => ['cancelled', 'declined'].includes(o.status)).length;
+      
+      return { total, active, delivered, cancelled };
+    }
   };
 
   const stats = getOrderStats();
@@ -169,80 +278,205 @@ export default function Orders() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+          {userRole === 'artisan' ? (
+            <>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Needs Action</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.needsAction}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="text-red-600 text-lg">🚨</span>
+                  </div>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 text-lg">📦</span>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">In Progress</p>
+                    <p className="text-2xl font-bold text-orange-600">{stats.inProgress}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span className="text-orange-600 text-lg">👨‍🍳</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 text-lg">✅</span>
+                  </div>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <span className="text-yellow-600 text-lg">⏳</span>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">📦</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Delivered</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.delivered}</p>
+            </>
+          ) : (
+            <>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Active Orders</p>
+                    <p className="text-2xl font-bold text-blue-600">{stats.active}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">📦</span>
+                  </div>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-green-600 text-lg">✅</span>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Delivered</p>
+                    <p className="text-2xl font-bold text-green-600">{stats.delivered}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 text-lg">✅</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Cancelled</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.cancelled}</p>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Cancelled</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="text-red-600 text-lg">❌</span>
+                  </div>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <span className="text-red-600 text-lg">❌</span>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 transform hover:scale-105 transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                    <span className="text-gray-600 text-lg">📊</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
+
+        {/* Quick Actions for Artisans */}
+        {userRole === 'artisan' && stats.needsAction > 0 && (
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <span className="text-red-600 text-xl">🚨</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-red-800">
+                    {stats.needsAction} Order{stats.needsAction !== 1 ? 's' : ''} Need{stats.needsAction === 1 ? 's' : ''} Your Attention
+                  </h3>
+                  <p className="text-sm text-red-600">
+                    Review and confirm pending orders to keep customers happy
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setFilter('needs_action')}
+                className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+              >
+                Review Orders
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Actions for Patrons */}
+        {userRole !== 'artisan' && stats.active > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 text-xl">📦</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-800">
+                    {stats.active} Active Order{stats.active !== 1 ? 's' : ''}
+                  </h3>
+                  <p className="text-sm text-blue-600">
+                    Track your orders and see their current status
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setFilter('active')}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                View Active Orders
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Enhanced Filters and View Toggle */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex flex-wrap gap-2">
-              {[
-                { key: 'all', label: 'All Orders', icon: '📦' },
-                { key: 'pending', label: 'Pending', icon: '⏳' },
-                { key: 'confirmed', label: 'Confirmed', icon: '✅' },
-                { key: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
-                { key: 'ready', label: 'Ready', icon: '🎯' },
-                { key: 'delivering', label: 'Delivering', icon: '🚚' },
-                { key: 'delivered', label: 'Delivered', icon: '🎉' },
-                { key: 'cancelled', label: 'Cancelled', icon: '❌' },
-                { key: 'declined', label: 'Declined', icon: '🚫' }
-              ].map(({ key, label, icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                    filter === key
-                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
-                  }`}
-                >
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
+              {userRole === 'artisan' ? (
+                // Artisan filters - focus on actionable orders
+                [
+                  { key: 'all', label: 'All Orders', icon: '📦' },
+                  { key: 'needs_action', label: 'Needs Action', icon: '🚨', statuses: ['pending', 'confirmed'] },
+                  { key: 'in_progress', label: 'In Progress', icon: '👨‍🍳', statuses: ['preparing', 'ready'] },
+                  { key: 'delivered', label: 'Delivered', icon: '✅', statuses: ['delivered'] },
+                  { key: 'completed', label: 'Completed', icon: '🎉', statuses: ['delivered'] }
+                ].map(({ key, label, icon, statuses }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                      filter === key
+                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+                    }`}
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))
+              ) : (
+                // Patron filters - focus on active orders
+                [
+                  { key: 'all', label: 'All Orders', icon: '📦' },
+                  { key: 'active', label: 'Active', icon: '📦', statuses: ['pending', 'confirmed', 'preparing', 'ready', 'delivering'] },
+                  { key: 'delivered', label: 'Delivered', icon: '✅', statuses: ['delivered'] },
+                  { key: 'cancelled', label: 'Cancelled', icon: '❌', statuses: ['cancelled', 'declined'] }
+                ].map(({ key, label, icon, statuses }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                      filter === key
+                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+                    }`}
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))
+              )}
             </div>
             
             <div className="flex items-center gap-4">
@@ -293,12 +527,18 @@ export default function Orders() {
               <ShoppingBagIcon className="w-12 h-12 text-gray-400" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {filter === 'all' ? 'No Orders Yet' : `No ${filter} Orders`}
+              {filter === 'all' ? 'No Orders Yet' : 
+               filter === 'needs_action' ? 'No Orders Need Action' :
+               filter === 'active' ? 'No Active Orders' :
+               filter === 'in_progress' ? 'No Orders In Progress' :
+               `No ${filter} Orders`}
             </h3>
             <p className="text-gray-600 mb-4">
               {filter === 'all' 
-                ? 'Start shopping to see your orders here.' 
-                : 'Try selecting a different filter or start shopping.'
+                ? (userRole === 'artisan' ? 'No customer orders yet.' : 'Start shopping to see your orders here.')
+                : userRole === 'artisan' 
+                  ? 'Great! All orders are being handled properly.'
+                  : 'Try selecting a different filter or start shopping.'
               }
             </p>
             <button
@@ -310,18 +550,41 @@ export default function Orders() {
           </div>
         ) : (
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
-            {filteredOrders.map((order) => (
-              <div
-                key={order._id}
-                className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02]"
-                onClick={() => handleOrderClick(order)}
-              >
+            {filteredOrders.map((order) => {
+              // Determine if order needs immediate attention
+              const needsAttention = userRole === 'artisan' && ['pending', 'confirmed'].includes(order.status);
+              const isUrgent = needsAttention && new Date() - new Date(order.createdAt) > 24 * 60 * 60 * 1000; // Older than 24 hours
+              
+              return (
+                <div
+                  key={order._id}
+                  className={`bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
+                    isUrgent 
+                      ? 'border-red-300 bg-red-50' 
+                      : needsAttention 
+                        ? 'border-orange-300 bg-orange-50' 
+                        : 'border-gray-200'
+                  }`}
+                  onClick={() => handleOrderClick(order)}
+                >
                 {/* Order Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">
-                      Order #{order._id.slice(-8).toUpperCase()}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        Order #{order._id.slice(-8).toUpperCase()}
+                      </h3>
+                      {isUrgent && (
+                        <span className="px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-full animate-pulse">
+                          URGENT
+                        </span>
+                      )}
+                      {needsAttention && !isUrgent && (
+                        <span className="px-2 py-1 text-xs font-bold bg-orange-500 text-white rounded-full">
+                          ACTION NEEDED
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 flex items-center gap-1">
                       <ClockIcon className="w-4 h-4" />
                       {formatDate(order.createdAt)}
@@ -332,14 +595,20 @@ export default function Orders() {
                       ${order.totalAmount.toFixed(2)}
                     </p>
                     <div className="flex gap-2 mt-2">
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
-                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
-                        {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status, order.deliveryMethod)}`}>
+                        {getStatusDisplayText(order.status, order.deliveryMethod)}
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Order Timeline */}
+                <div className="mb-4">
+                  <OrderTimeline 
+                    currentStatus={order.status} 
+                    deliveryMethod={order.deliveryMethod} 
+                    variant="compact"
+                  />
                 </div>
 
                 {/* Order Details */}
@@ -359,15 +628,75 @@ export default function Orders() {
                     </span>
                   </div>
                   
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">📦 Items:</span>
+                    <div className="mt-1 space-y-1">
+                      {order.items.slice(0, 3).map((item, index) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-gray-700">
+                            {item.product?.name || item.name || 'Unknown Product'}
+                          </span>
+                          <span className="text-gray-500 text-xs">
+                            Qty: {item.quantity}
+                          </span>
+                        </div>
+                      ))}
+                      {order.items.length > 3 && (
+                        <div className="text-gray-500 text-xs italic">
+                          +{order.items.length - 3} more item{order.items.length - 3 !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Delivery Method Indicator */}
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">📦 Items:</span> 
-                    <span>{order.items.length} item{order.items.length !== 1 ? 's' : ''}</span>
+                    <span className="font-medium">
+                      {order.deliveryMethod === 'pickup' ? '📍 Pickup' : 
+                       order.deliveryMethod === 'personalDelivery' ? '🚚 Personal Delivery' :
+                       order.deliveryMethod === 'professionalDelivery' ? '🚛 Professional Delivery' : '📦 Delivery'}
+                    </span>
                   </div>
                   
                   {order.deliveryAddress && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="font-medium">📍 Delivery:</span> 
-                      <span>{order.deliveryAddress.street}, {order.deliveryAddress.city}</span>
+                      <span className="font-medium">
+                        {order.deliveryMethod === 'pickup' ? '📍 Pickup:' : '📍 Delivery:'}
+                      </span> 
+                      <span>
+                        {order.deliveryMethod === 'pickup' 
+                          ? `${order.deliveryAddress.city} (Pickup)`
+                          : `${order.deliveryAddress.street}, ${order.deliveryAddress.city}`
+                        }
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Delivery Distance for Artisans */}
+                  {order.deliveryMethod !== 'pickup' && order.deliveryDistance && (
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <span className="font-medium">📏 Distance:</span> 
+                      <span>{order.deliveryDistance.toFixed(1)} km</span>
+                    </div>
+                  )}
+                  
+                  {/* Estimated Delivery Time */}
+                  {order.deliveryMethod !== 'pickup' && order.estimatedDeliveryTime && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <span className="font-medium">🕒 Est. Delivery:</span> 
+                      <span>{new Date(order.estimatedDeliveryTime).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</span>
+                    </div>
+                  )}
+                  
+                  {order.deliveryMethod === 'pickup' && order.pickupTimeWindow && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <span className="font-medium">🕒 Pickup Time:</span> 
+                      <span>{order.pickupTimeWindow.timeSlotLabel}</span>
                     </div>
                   )}
                 </div>
@@ -388,7 +717,8 @@ export default function Orders() {
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -529,12 +859,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   const [declineReason, setDeclineReason] = useState('');
   const [isDeclining, setIsDeclining] = useState(false);
 
-  // Debug useEffect to track showDeclineModal changes
-  useEffect(() => {
-    console.log('🔍 useEffect - showDeclineModal changed to:', showDeclineModal);
-  }, [showDeclineModal]);
-
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-CA', {
       year: 'numeric',
@@ -545,16 +869,27 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     });
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status, deliveryMethod = 'pickup') => {
     const statusColors = {
+      // Common statuses
       'pending': 'bg-yellow-100 text-yellow-800',
       'confirmed': 'bg-blue-100 text-blue-800',
       'preparing': 'bg-orange-100 text-orange-800',
-      'ready': 'bg-green-100 text-green-800',
-      'delivering': 'bg-purple-100 text-purple-800',
-      'delivered': 'bg-green-100 text-green-800',
       'cancelled': 'bg-red-100 text-red-800',
-      'declined': 'bg-red-100 text-red-800'
+      'declined': 'bg-red-100 text-red-800',
+      
+      // Pickup-specific statuses
+      'ready_for_pickup': 'bg-green-100 text-green-800',
+      'picked_up': 'bg-emerald-100 text-emerald-800',
+      
+      // Delivery-specific statuses
+      'ready_for_delivery': 'bg-green-100 text-green-800',
+      'out_for_delivery': 'bg-purple-100 text-purple-800',
+      'delivered': 'bg-emerald-100 text-emerald-800',
+      
+      // Legacy statuses (for backward compatibility)
+      'ready': 'bg-green-100 text-green-800',
+      'delivering': 'bg-purple-100 text-purple-800'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -567,6 +902,31 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'refunded': 'bg-gray-100 text-gray-800'
     };
     return statusColors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusDisplayText = (status, deliveryMethod = 'pickup') => {
+    const statusTexts = {
+      // Common statuses
+      'pending': 'Pending',
+      'confirmed': 'Confirmed',
+      'preparing': 'Preparing',
+      'cancelled': 'Cancelled',
+      'declined': 'Declined',
+      
+      // Pickup-specific statuses
+      'ready_for_pickup': 'Ready for Pickup',
+      'picked_up': 'Picked Up',
+      
+      // Delivery-specific statuses
+      'ready_for_delivery': 'Ready for Delivery',
+      'out_for_delivery': 'Out for Delivery',
+      'delivered': 'Delivered',
+      
+      // Legacy statuses (for backward compatibility)
+      'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
+      'delivering': 'Out for Delivery'
+    };
+    return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   const handleCancelOrder = async () => {
@@ -591,11 +951,9 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   const handleUpdateStatus = async (newStatus) => {
     setIsLoading(true);
     try {
-      console.log('🔍 Orders Component Debug - Updating status for order:', order._id);
-      console.log('🔍 Orders Component Debug - New status:', newStatus);
       
       await orderService.updateOrderStatus(order._id, { status: newStatus });
-      toast.success(`Order status updated to ${newStatus}`);
+      toast.success(`Order status updated to ${getStatusDisplayText(newStatus, order.deliveryMethod)}`);
       onRefresh();
       onClose();
     } catch (error) {
@@ -613,9 +971,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       return;
     }
 
-    console.log('🔍 Decline Order Debug - Order ID:', order._id);
-    console.log('🔍 Decline Order Debug - Reason:', declineReason.trim());
-    console.log('🔍 Decline Order Debug - User Role:', userRole);
 
     setIsDeclining(true);
     try {
@@ -672,8 +1027,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               </div>
               <div className="flex gap-3">
                 <div className="text-center">
-                  <span className={`px-4 py-2 text-sm font-bold rounded-full ${getStatusColor(order.status)}`}>
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                  <span className={`px-4 py-2 text-sm font-bold rounded-full ${getStatusColor(order.status, order.deliveryMethod)}`}>
+                    {getStatusDisplayText(order.status, order.deliveryMethod)}
                   </span>
                   <p className="text-xs text-gray-500 mt-1">Status</p>
                 </div>
@@ -685,6 +1040,16 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Order Timeline */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h4 className="font-medium text-gray-900 mb-4">Order Progress</h4>
+            <OrderTimeline 
+              currentStatus={order.status} 
+              deliveryMethod={order.deliveryMethod} 
+              variant="default"
+            />
           </div>
 
           {/* Artisan/Customer Information */}
@@ -762,13 +1127,78 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           {/* Delivery Information */}
           {order.deliveryAddress && (
             <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-2">Delivery Address</h4>
+              <h4 className="font-medium text-gray-900 mb-2">
+                {order.deliveryMethod === 'pickup' ? 'Pickup Information' : 'Delivery Address'}
+              </h4>
               <div className="space-y-1">
                 <p className="text-sm text-gray-600">{order.deliveryAddress.street}</p>
                 <p className="text-sm text-gray-600">
                   {order.deliveryAddress.city}, {order.deliveryAddress.state} {order.deliveryAddress.zipCode}
                 </p>
                 <p className="text-sm text-gray-600">{order.deliveryAddress.country}</p>
+                
+                {/* Delivery Distance for Artisans */}
+                {order.deliveryMethod !== 'pickup' && order.deliveryDistance && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <MapPinIcon className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm font-medium text-blue-600">
+                        Delivery Distance: {order.deliveryDistance.toFixed(1)} km
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Estimated Delivery Time */}
+                {order.deliveryMethod !== 'pickup' && order.estimatedDeliveryTime && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <ClockIcon className="w-4 h-4 text-green-500" />
+                      <span className="text-sm font-medium text-green-600">
+                        Estimated Delivery: {new Date(order.estimatedDeliveryTime).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Pickup Time Window Information */}
+          {order.deliveryMethod === 'pickup' && order.pickupTimeWindow && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-medium text-green-900 mb-2 flex items-center gap-2">
+                <MapPinIcon className="w-4 h-4" />
+                Selected Pickup Time
+              </h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-green-800">Date:</span>
+                  <span className="text-sm text-green-700">
+                    {new Date(order.pickupTimeWindow.selectedDate).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-green-800">Time Slot:</span>
+                  <span className="text-sm text-green-700">{order.pickupTimeWindow.timeSlotLabel}</span>
+                </div>
+                {order.pickupTimeWindow.selectedTimeSlot && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-green-800">Slot ID:</span>
+                    <span className="text-sm text-green-700">{order.pickupTimeWindow.selectedTimeSlot}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -820,8 +1250,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               
               {userRole === 'artisan' && (
                 <>
-                  {console.log('🔍 Frontend Debug - Order Status:', order.status, 'Order ID:', order._id)}
-                  {console.log('🔍 Checking pending status for order:', order._id, 'status:', order.status)}
                   {order.status === 'pending' && (
                     <>
                       <button
@@ -834,10 +1262,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       </button>
                       <button
                         onClick={() => {
-                          console.log('🔍 Decline Button Clicked!');
-                          console.log('🔍 Current showDeclineModal state:', showDeclineModal);
                           setShowDeclineModal(true);
-                          console.log('🔍 After setShowDeclineModal(true)');
                         }}
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Click to decline order'}
@@ -846,10 +1271,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       >
                         ❌ Decline Order
                       </button>
-                      {console.log('🔍 Decline Button Rendered for order:', order._id, 'status:', order.status)}
                     </>
                   )}
-                  {console.log('🔍 Checking confirmed status for order:', order._id, 'status:', order.status)}
                   {order.status === 'confirmed' && (
                     <>
                       <button
@@ -862,10 +1285,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       </button>
                       <button
                         onClick={() => {
-                          console.log('🔍 Decline Button Clicked!');
-                          console.log('🔍 Current showDeclineModal state:', showDeclineModal);
                           setShowDeclineModal(true);
-                          console.log('🔍 After setShowDeclineModal(true)');
                         }}
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Click to decline order'}
@@ -874,7 +1294,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       >
                         ❌ Decline Order
                       </button>
-                      {console.log('🔍 Decline Button Rendered for order:', order._id, 'status:', order.status)}
                     </>
                   )}
                   {order.status === 'preparing' && (
@@ -888,11 +1307,31 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                   )}
                   {order.status === 'ready' && (
                     <button
-                      onClick={() => handleUpdateStatus('delivering')}
+                      onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery')}
                       disabled={isLoading}
                       className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                     >
-                      {isLoading ? '⏳ Updating...' : '🚚 Start Delivery'}
+                      {isLoading ? '⏳ Updating...' : 
+                       order.deliveryMethod === 'pickup' ? '📍 Ready for Pickup' : 
+                       '🚚 Start Delivery'}
+                    </button>
+                  )}
+                  {order.status === 'ready_for_pickup' && (
+                    <button
+                      onClick={() => handleUpdateStatus('picked_up')}
+                      disabled={isLoading}
+                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                    >
+                      {isLoading ? '⏳ Updating...' : '✅ Mark Picked Up'}
+                    </button>
+                  )}
+                  {order.status === 'out_for_delivery' && (
+                    <button
+                      onClick={() => handleUpdateStatus('delivered')}
+                      disabled={isLoading}
+                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                    >
+                      {isLoading ? '⏳ Updating...' : '🎉 Mark Delivered'}
                     </button>
                   )}
                   {order.status === 'delivering' && (
@@ -919,12 +1358,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       </div>
 
       {/* Decline Order Modal */}
-      {console.log('🔍 Modal Render Check - showDeclineModal:', showDeclineModal)}
-      {console.log('🔍 Modal Render Check - typeof showDeclineModal:', typeof showDeclineModal)}
-      {console.log('🔍 Modal Render Check - showDeclineModal === true:', showDeclineModal === true)}
       {showDeclineModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" style={{ border: '5px solid red' }}>
-          {console.log('🔍 MODAL IS RENDERING!')}
           <div className="bg-white rounded-xl max-w-md w-full shadow-2xl">
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-red-50">
               <div className="flex items-center gap-3">

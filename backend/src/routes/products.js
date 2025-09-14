@@ -1110,7 +1110,7 @@ router.get('/featured', async (req, res) => {
       isFeatured: true, 
       status: 'active'
     })
-    .populate('artisan', 'artisanName type address deliveryOptions')
+    .populate('artisan', 'artisanName type address deliveryOptions rating')
     .sort({ createdAt: -1 })
     .limit(12)
     .lean(); // Use lean() for better performance
@@ -1125,7 +1125,8 @@ router.get('/featured', async (req, res) => {
           artisanName: product.artisan.artisanName,
           type: product.artisan.type,
           address: product.artisan.address,
-          deliveryOptions: product.artisan.deliveryOptions
+          deliveryOptions: product.artisan.deliveryOptions,
+          rating: product.artisan.rating
         };
       } else {
         // Fallback if no artisan data
@@ -1134,7 +1135,8 @@ router.get('/featured', async (req, res) => {
           artisanName: 'Unknown Artisan',
           type: 'other',
           address: null,
-          deliveryOptions: null
+          deliveryOptions: null,
+          rating: null
         };
       }
       
@@ -1238,17 +1240,23 @@ router.get('/popular', async (req, res) => {
           price: '$product.price',
           category: '$product.category',
           subcategory: '$product.subcategory',
+          productType: '$product.productType',
           stock: '$product.stock',
           unit: '$product.unit',
           weight: '$product.weight',
           expiryDate: '$product.expiryDate',
           image: '$product.image',
+          images: '$product.images',
           tags: '$product.tags',
           isOrganic: '$product.isOrganic',
           isGlutenFree: '$product.isGlutenFree',
           isVegan: '$product.isVegan',
           isHalal: '$product.isHalal',
           leadTimeHours: '$product.leadTimeHours',
+          leadTime: '$product.leadTime',
+          leadTimeUnit: '$product.leadTimeUnit',
+          nextAvailableDate: '$product.nextAvailableDate',
+          availableQuantity: '$product.availableQuantity',
           status: '$product.status',
           createdAt: '$product.createdAt',
           updatedAt: '$product.updatedAt',
@@ -1257,7 +1265,8 @@ router.get('/popular', async (req, res) => {
             artisanName: '$artisan.artisanName',
             type: '$artisan.type',
             address: '$artisan.address',
-            deliveryOptions: '$artisan.deliveryOptions'
+            deliveryOptions: '$artisan.deliveryOptions',
+            rating: '$artisan.rating'
           },
           popularity: {
             totalQuantity: '$totalQuantity',
@@ -1278,7 +1287,8 @@ router.get('/popular', async (req, res) => {
           artisanName: product.artisan.artisanName,
           type: product.artisan.type,
           address: product.artisan.address,
-          deliveryOptions: product.artisan.deliveryOptions
+          deliveryOptions: product.artisan.deliveryOptions,
+          rating: product.artisan.rating
         };
       } else {
         // Fallback if no artisan data
@@ -1287,7 +1297,8 @@ router.get('/popular', async (req, res) => {
           artisanName: 'Unknown Artisan',
           type: 'other',
           address: null,
-          deliveryOptions: null
+          deliveryOptions: null,
+          rating: null
         };
       }
       

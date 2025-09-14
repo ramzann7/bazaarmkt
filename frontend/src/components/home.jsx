@@ -44,11 +44,11 @@ import toast from 'react-hot-toast';
 // Skeleton loading component
 const ProductSkeleton = () => (
   <div className="animate-pulse">
-    <div className="bg-gray-200 rounded-lg h-64 mb-3"></div>
+    <div className="bg-gray-200 rounded-lg h-48 mb-2"></div>
     <div className="space-y-2">
-      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+      <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+      <div className="h-3 bg-gray-200 rounded w-1/3"></div>
     </div>
   </div>
 );
@@ -80,33 +80,26 @@ export default function Home() {
   const { execute: loadFeaturedProducts, isLoading: isFeaturedLoading } = useAsyncOperation(
     async () => {
       try {
-        console.log('🔄 Starting featured products loading...');
         setError(null);
         
         // Check cache first for instant loading
         const cachedFeatured = cacheService.getFast(CACHE_KEYS.FEATURED_PRODUCTS);
         if (cachedFeatured) {
-          console.log('✅ Using cached featured products for instant loading');
           setFeaturedProducts(cachedFeatured);
           setIsLoadingFeatured(false);
           return;
         }
-        
-        console.log('🔄 Fetching featured products from promotional API...');
         const promotionalProducts = await promotionalService.getPremiumShowcaseProducts(6, userLocation);
         
         if (promotionalProducts && promotionalProducts.length > 0) {
-          console.log('✅ Setting promotional featured products:', promotionalProducts.length, 'products');
           setFeaturedProducts(promotionalProducts);
           setIsLoadingFeatured(false);
           // Cache the results
           cacheService.set(CACHE_KEYS.FEATURED_PRODUCTS, promotionalProducts, CACHE_TTL.FEATURED_PRODUCTS);
         } else {
-          console.log('⚠️ No promotional products, falling back to regular featured products');
           const response = await getFeaturedProducts();
           
           if (response.success) {
-            console.log('✅ Setting regular featured products:', response.products?.length || 0, 'products');
             setFeaturedProducts(response.products || []);
             setIsLoadingFeatured(false);
             // Cache the results
@@ -133,42 +126,26 @@ export default function Home() {
   const { execute: loadPopularProducts, isLoading: isPopularLoading } = useAsyncOperation(
     async () => {
       try {
-        console.log('🔄 Starting popular products loading...');
         setError(null);
         
         // Check cache first for instant loading
         const cachedPopular = cacheService.getFast(CACHE_KEYS.POPULAR_PRODUCTS);
         if (cachedPopular) {
-          console.log('✅ Using cached popular products for instant loading');
           setPopularProducts(cachedPopular);
           setIsLoadingPopular(false);
           return;
         }
+        const response = await getPopularProducts();
         
-        console.log('🔄 Fetching popular products from promotional API...');
-        const promotionalProducts = await promotionalService.getPremiumShowcaseProducts(8, userLocation);
-        
-        if (promotionalProducts && promotionalProducts.length > 0) {
-          console.log('✅ Setting promotional popular products:', promotionalProducts.length, 'products');
-          setPopularProducts(promotionalProducts);
+        if (response.success) {
+          setPopularProducts(response.products || []);
           setIsLoadingPopular(false);
           // Cache the results
-          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, promotionalProducts, CACHE_TTL.POPULAR_PRODUCTS);
+          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
         } else {
-          console.log('⚠️ No promotional products, falling back to regular popular products');
-          const response = await getPopularProducts();
-          
-          if (response.success) {
-            console.log('✅ Setting regular popular products:', response.products?.length || 0, 'products');
-            setPopularProducts(response.products || []);
-            setIsLoadingPopular(false);
-            // Cache the results
-            cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
-          } else {
-            console.error('Failed to load popular products:', response.message);
-            setError('Failed to load popular products');
-            setIsLoadingPopular(false);
-          }
+          console.error('Failed to load popular products:', response.message);
+          setError('Failed to load popular products');
+          setIsLoadingPopular(false);
         }
       } catch (error) {
         console.error('Error loading popular products:', error);
@@ -184,38 +161,30 @@ export default function Home() {
   // Load basic product data on component mount (not dependent on user)
   useOptimizedEffect(() => {
     const startTime = performance.now();
-    console.log('🔄 Loading basic product data on component mount');
+    // Loading basic product data on component mount
     
     // Clear featured products cache to ensure we get the latest promotional data
-    console.log('🗑️ Clearing featured products cache to get latest promotional data');
     cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+    // Clear popular products cache to ensure we get the latest data
+    cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
     
     // Check cache first
     const cachedFeatured = cacheService.get(CACHE_KEYS.FEATURED_PRODUCTS);
     const cachedPopular = cacheService.get(CACHE_KEYS.POPULAR_PRODUCTS);
     
-    console.log('📦 Cache check:', {
-      hasCachedFeatured: !!cachedFeatured,
-      hasCachedPopular: !!cachedPopular,
-      featuredCount: cachedFeatured?.length || 0,
-      popularCount: cachedPopular?.length || 0
-    });
+    // Cache check completed
     
     if (cachedFeatured) {
-      console.log('✅ Using cached featured products');
       setFeaturedProducts(cachedFeatured);
       setIsLoadingFeatured(false);
     } else {
-      console.log('🔄 Loading featured products from API');
       loadFeaturedProducts();
     }
     
     if (cachedPopular) {
-      console.log('✅ Using cached popular products');
       setPopularProducts(cachedPopular);
       setIsLoadingPopular(false);
     } else {
-      console.log('🔄 Loading popular products from API');
       loadPopularProducts();
     }
     
@@ -314,11 +283,29 @@ export default function Home() {
     loadUserLocation();
   }, [user]);
 
-  // Load location-dependent data when user changes
+  // Load nearby products on component mount and when user changes
   useOptimizedEffect(() => {
     // Load nearby products (depends on user location)
     loadNearbyProducts();
   }, [user], { skipFirstRender: false });
+
+  // Also load nearby products on component mount (independent of user)
+  useOptimizedEffect(() => {
+    // Load nearby products on initial mount
+    loadNearbyProducts();
+  }, [], { skipFirstRender: false });
+
+  // Retry loading nearby products if they fail to load (with retry limit)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (nearbyProducts.length === 0 && !isLoadingNearby && !userLocation) {
+        console.log('🔄 Retrying nearby products loading...');
+        loadNearbyProducts();
+      }
+    }, 5000); // Retry after 5 seconds, only if no user location
+
+    return () => clearTimeout(timer);
+  }, [nearbyProducts.length, isLoadingNearby, userLocation]);
 
   // Handle user logout gracefully - preserve product data
   useEffect(() => {
@@ -373,35 +360,33 @@ export default function Home() {
       console.log('🌍 Loading nearby products...');
       setIsLoadingNearby(true);
       
-      // Get user location with improved fallback system
+      // Get user location with simplified fallback system
       let location = null;
       let locationSource = 'unknown';
       
-      // First, try to get user coordinates from profile (already validated)
+      // 1. Try user location state first (most reliable)
       if (userLocation && userLocation.latitude && userLocation.longitude) {
         location = {
           latitude: userLocation.latitude,
           longitude: userLocation.longitude
         };
         locationSource = userLocation.source || 'user_profile';
-        console.log('✅ Using validated user location:', {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          source: locationSource
-        });
-      } else if (user?.coordinates) {
-        // Fallback: try to parse user coordinates directly
+        console.log('✅ Using user location state:', location);
+      }
+      
+      // 2. Try user coordinates from profile
+      if (!location && user?.coordinates) {
         const lat = parseFloat(user.coordinates.latitude);
         const lng = parseFloat(user.coordinates.longitude);
         
         if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
           location = { latitude: lat, longitude: lng };
-          locationSource = 'user_coordinates_fallback';
-          console.log('✅ Using user coordinates fallback:', location);
+          locationSource = 'user_coordinates';
+          console.log('✅ Using user coordinates:', location);
         }
       }
       
-      // If no location from user profile, try saved location
+      // 3. Try saved location from localStorage
       if (!location) {
         const savedLocation = locationService.getUserLocation();
         if (savedLocation && savedLocation.lat && savedLocation.lng) {
@@ -416,67 +401,13 @@ export default function Home() {
         }
       }
       
-      // If still no location, try to geocode user address
-      if (!location && user?.addresses?.[0]) {
-        try {
-          const userAddress = user.addresses[0];
-          const addressString = [
-            userAddress.street,
-            userAddress.city,
-            userAddress.state,
-            userAddress.zipCode,
-            userAddress.country
-          ].filter(Boolean).join(', ');
-          
-          if (addressString) {
-            console.log('🌍 Attempting to geocode user address:', addressString);
-            
-            // Check cache first for geocoding
-            const geocodeCacheKey = `geocode_${btoa(addressString).replace(/[^a-zA-Z0-9]/g, '')}`;
-            const cachedGeocode = cacheService.getFast(geocodeCacheKey);
-            
-            if (cachedGeocode) {
-              location = {
-                latitude: cachedGeocode.latitude,
-                longitude: cachedGeocode.longitude
-              };
-              locationSource = 'cached_geocode';
-              console.log('✅ Using cached geocode result:', location);
-            } else {
-              // Perform geocoding
-              const geocoded = await geocodingService.geocodeAddress(addressString);
-              if (geocoded && geocoded.latitude && geocoded.longitude) {
-                location = {
-                  latitude: geocoded.latitude,
-                  longitude: geocoded.longitude
-                };
-                locationSource = 'fresh_geocode';
-                console.log('✅ Fresh geocoding successful:', location);
-                
-                // Update user coordinates in profile if geocoding was successful
-                if (user && user._id) {
-                  try {
-                    // This would typically be done through an API call to update the user profile
-                    console.log('💾 Geocoded coordinates should be saved to user profile');
-                  } catch (error) {
-                    console.warn('Could not update user profile with coordinates:', error);
-                  }
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.warn('Geocoding user address failed:', error);
-        }
-      }
-      
-      // If still no location, try browser geolocation
+      // 4. Try browser geolocation (with timeout)
       if (!location && navigator.geolocation) {
         try {
           const position = await new Promise((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
               enableHighAccuracy: false,
-              timeout: 10000,
+              timeout: 5000, // Reduced timeout
               maximumAge: 300000 // 5 minutes
             });
           });
@@ -489,36 +420,27 @@ export default function Home() {
           console.log('✅ Using browser geolocation:', location);
           
           // Save this location for future use
-          if (location.latitude && location.longitude) {
-            locationService.updateLocationFromGPS(location.latitude, location.longitude);
-          }
+          locationService.updateLocationFromGPS(location.latitude, location.longitude);
         } catch (error) {
           console.log('Browser geolocation failed:', error);
         }
       }
       
-      // Final fallback: use default location (Toronto)
+      // 5. Final fallback: use default location (Toronto)
       if (!location) {
         location = { latitude: 43.6532, longitude: -79.3832 }; // Toronto
         locationSource = 'default_location';
         console.log('📍 Using default location (Toronto):', location);
       }
       
-      // Ensure location has valid coordinates
+      // Validate location
       if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
-        console.error('❌ Invalid location data:', {
-          location,
-          type: typeof location,
-          hasLat: location?.latitude !== undefined,
-          hasLng: location?.longitude !== undefined,
-          latType: typeof location?.latitude,
-          lngType: typeof location?.longitude
-        });
+        console.error('❌ Invalid location data:', location);
         setIsLoadingNearby(false);
         return;
       }
       
-      // Update user location state if we found a valid location
+      // Update user location state if needed
       if (!userLocation || userLocation.latitude !== location.latitude || userLocation.longitude !== location.longitude) {
         setUserLocation({
           latitude: location.latitude,
@@ -527,19 +449,19 @@ export default function Home() {
           source: locationSource,
           confidence: locationSource === 'user_profile' ? 100 : 
                      locationSource === 'saved_location' ? 80 :
-                     locationSource === 'cached_geocode' ? 70 :
-                     locationSource === 'fresh_geocode' ? 60 :
+                     locationSource === 'user_coordinates' ? 70 :
                      locationSource === 'browser_geolocation' ? 90 : 50
         });
       }
       
-      // Create cache key based on location with source for better cache management
-      const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${location.latitude.toFixed(3)}_${location.longitude.toFixed(3)}_${locationSource}`;
+      // Create cache key with user type for better cache management
+      const userType = user ? 'patron' : 'guest';
+      const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${userType}_${location.latitude.toFixed(2)}_${location.longitude.toFixed(2)}`;
       
-      // Check cache first with longer TTL for nearby products
-      const cachedNearby = cacheService.getFast(cacheKey);
-      if (cachedNearby) {
-        console.log('✅ Using cached nearby products from:', locationSource);
+      // Check cache first with validation
+      const cachedNearby = cacheService.get(cacheKey);
+      if (cachedNearby && Array.isArray(cachedNearby) && cachedNearby.length > 0) {
+        console.log('✅ Using cached nearby products:', cachedNearby.length, 'products');
         setNearbyProducts(cachedNearby);
         setIsLoadingNearby(false);
         return;
@@ -557,6 +479,11 @@ export default function Home() {
       
       console.log('🔍 Fetching nearby products with params:', searchParams.toString());
       const response = await fetch(`/api/products/enhanced-search?${searchParams.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       console.log('📊 API Response:', {
@@ -567,32 +494,42 @@ export default function Home() {
       });
       
       if (data.products && data.products.length > 0) {
-        // Add distance information to products
-        console.log('📍 Processing products with distance calculation...');
+        // Process products and add distance information
         const productsWithDistance = data.products.map(product => {
-          if (product.artisan && product.artisan.coordinates) {
-            const distance = geocodingService.calculateDistanceBetween(
-              location,
-              product.artisan.coordinates
-            );
-            
-            return {
-              ...product,
-              distance: distance,
-              formattedDistance: geocodingService.formatDistance(distance)
+          // Calculate distance if not provided by API
+          if (product.distance === null || product.distance === undefined) {
+            if (product.artisan && product.artisan.address) {
+              // Use a default distance calculation or set to 0 for now
+              product.distance = 0; // All products are from the same artisan
+              product.formattedDistance = null; // Don't show distance text
+            } else {
+              product.distance = 999; // Unknown distance
+              product.formattedDistance = null; // Don't show distance text
+            }
+          } else {
+            product.distance = parseFloat(product.distance);
+          }
+          
+          // Ensure product has all required fields
+          if (!product.artisan) {
+            product.artisan = {
+              _id: null,
+              artisanName: 'Unknown Artisan',
+              type: 'other',
+              address: null,
+              deliveryOptions: null,
+              rating: null
             };
           }
-          console.log('⚠️ Product without artisan coordinates:', product.name, product.artisan);
+          
           return product;
         }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
-        
-        console.log('📏 Products with distance data:', productsWithDistance.filter(p => p.distance !== undefined).length);
         
         console.log('✅ Nearby products loaded:', productsWithDistance.length);
         setNearbyProducts(productsWithDistance);
         
-        // Cache the results
-        cacheService.set(cacheKey, productsWithDistance, CACHE_TTL.NEARBY_PRODUCTS);
+        // Cache the results with longer TTL for nearby products (30 minutes)
+        cacheService.set(cacheKey, productsWithDistance, 30 * 60 * 1000);
       } else {
         console.log('ℹ️ No nearby products found');
         setNearbyProducts([]);
@@ -707,9 +644,7 @@ export default function Home() {
     };
   }, []);
 
-  // Test reference data imports
-  console.log('PRODUCT_CATEGORIES available:', !!PRODUCT_CATEGORIES);
-  console.log('getPopularProductNames available:', !!getPopularProductNames);
+  // Test reference data imports (removed excessive logging)
 
   // Popular products are now loaded from API
 
@@ -954,19 +889,18 @@ export default function Home() {
           </div>
 
           {isLoadingFeatured ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {[...Array(8)].map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
           ) : featuredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {featuredProducts.slice(0, 8).map((product) => (
                 <ProductCard 
                   key={product._id} 
                   product={product} 
                   showImagePreview={true}
-                  showRating={true}
                   onProductClick={handleProductClick}
                 />
               ))}
@@ -996,19 +930,18 @@ export default function Home() {
           </div>
           
           {isLoadingPopular ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {[...Array(4)].map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
           ) : popularProducts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {popularProducts.slice(0, 4).map((product) => (
                 <ProductCard 
                   key={product._id} 
                   product={product} 
                   showImagePreview={true}
-                  showRating={true}
                   onProductClick={handleProductClick}
                 />
               ))}
@@ -1038,7 +971,8 @@ export default function Home() {
                 onClick={() => {
                   // Clear nearby products cache before refreshing
                   if (userLocation) {
-                    const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${userLocation.latitude.toFixed(2)}_${userLocation.longitude.toFixed(2)}`;
+                    const userType = user ? 'patron' : 'guest';
+                    const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${userType}_${userLocation.latitude.toFixed(2)}_${userLocation.longitude.toFixed(2)}`;
                     cacheService.delete(cacheKey);
                   }
                   loadNearbyProducts();
@@ -1058,19 +992,18 @@ export default function Home() {
           </div>
           
           {isLoadingNearby ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {[...Array(8)].map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
           ) : nearbyProducts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
               {nearbyProducts.slice(0, 8).map((product) => (
                 <ProductCard 
                   key={product._id} 
                   product={product} 
                   showDistance={true}
-                  showRating={true}
                   showImagePreview={true}
                   onProductClick={handleProductClick}
                 />

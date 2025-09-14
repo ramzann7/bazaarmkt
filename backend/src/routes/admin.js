@@ -824,7 +824,7 @@ router.get('/transactions', verifyToken, async (req, res) => {
     if (status) query.status = status;
 
     const orders = await Order.find(query)
-      .populate('buyer seller')
+      .populate('patron seller')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));

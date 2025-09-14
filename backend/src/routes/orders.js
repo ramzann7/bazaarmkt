@@ -7,6 +7,86 @@ const Artisan = require('../models/artisan');
 const verifyToken = require('../middleware/authMiddleware');
 const RevenueService = require('../services/revenueService');
 
+// Helper function to send order status notifications
+async function sendOrderStatusNotification(order, newStatus, previousStatus) {
+  try {
+    // Determine notification type based on status
+    const notificationType = `order_${newStatus}`;
+    
+    // Get customer information (patron or guest)
+    let customerEmail, customerPhone, customerName, customerId;
+    
+    if (order.patron) {
+      // Authenticated user
+      customerEmail = order.patron.email;
+      customerPhone = order.patron.phone;
+      customerName = `${order.patron.firstName} ${order.patron.lastName}`;
+      customerId = order.patron._id;
+    } else if (order.guestInfo) {
+      // Guest user
+      customerEmail = order.guestInfo.email;
+      customerPhone = order.guestInfo.phone;
+      customerName = `${order.guestInfo.firstName} ${order.guestInfo.lastName}`;
+      customerId = null; // No user ID for guests
+    } else {
+      console.log('⚠️ No customer information found for order:', order._id);
+      return;
+    }
+    
+    // Prepare order details for notification
+    const orderDetails = {
+      orderNumber: order.orderNumber || `#${order._id.toString().slice(-8).toUpperCase()}`,
+      orderStatus: newStatus,
+      deliveryMethod: order.deliveryMethod,
+      customerName: customerName,
+      artisanName: order.artisan?.artisanName || 'Your artisan',
+      orderTotal: order.totalAmount,
+      orderDate: order.orderDate,
+      estimatedDelivery: order.estimatedDeliveryTime ? 
+        new Date(order.estimatedDeliveryTime).toLocaleDateString() : '2-3 business days',
+      orderItems: order.items.map(item => ({
+        productName: item.product?.name || 'Product',
+        quantity: item.quantity,
+        totalPrice: item.totalPrice
+      }))
+    };
+    
+    console.log('📧 Sending order status notification:', {
+      type: notificationType,
+      orderId: order._id,
+      customerEmail,
+      customerPhone,
+      newStatus,
+      previousStatus
+    });
+    
+    // Send notification via the notifications API
+    const axios = require('axios');
+    const notificationPayload = {
+      type: notificationType,
+      userId: customerId,
+      orderId: order._id,
+      userEmail: customerEmail,
+      userPhone: customerPhone,
+      orderDetails: orderDetails,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Make internal API call to notifications endpoint
+    const response = await axios.post('http://localhost:4000/api/notifications/send', notificationPayload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ Order status notification sent successfully:', response.data);
+    
+  } catch (error) {
+    console.error('❌ Error in sendOrderStatusNotification:', error);
+    throw error;
+  }
+}
+
 // Get all orders for the authenticated user (patron)
 router.get('/buyer', verifyToken, async (req, res) => {
   try {
@@ -761,6 +841,14 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       .populate('patron', 'firstName lastName email phone')
       .populate('artisan', 'artisanName type pickupAddress firstName lastName email phone')
       .populate('items.product', 'name description image price unit');
+
+    // Send notification for status change
+    try {
+      await sendOrderStatusNotification(updatedOrder, status, currentStatus);
+    } catch (notificationError) {
+      console.error('❌ Error sending status notification:', notificationError);
+      // Don't fail the order update if notification fails
+    }
 
     res.json(updatedOrder);
 

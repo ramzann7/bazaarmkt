@@ -36,16 +36,16 @@ router.post('/send', async (req, res) => {
       }
     }
     
-    // Send SMS notification if phone is provided
-    if (userPhone) {
-      try {
-        await sendSMSNotification(type, userPhone, orderDetails, orderId);
-        console.log('✅ SMS notification sent to:', userPhone);
-      } catch (smsError) {
-        console.error('❌ Failed to send SMS notification:', smsError);
-        // Don't fail the entire request if SMS fails
-      }
-    }
+    // SMS notifications disabled - not set up in Brevo
+    // if (userPhone) {
+    //   try {
+    //     await sendSMSNotification(type, userPhone, orderDetails, orderId);
+    //     console.log('✅ SMS notification sent to:', userPhone);
+    //   } catch (smsError) {
+    //     console.error('❌ Failed to send SMS notification:', smsError);
+    //     // Don't fail the entire request if SMS fails
+    //   }
+    // }
     
     console.log('✅ Notification processed successfully:', {
       type,
@@ -81,7 +81,7 @@ function generateOrderTimeline(orderDetails, orderId) {
   
   // Define timeline steps based on delivery method
   const getTimelineSteps = (method) => {
-    if (method === 'pickup') {
+    if (method === 'pickup' || method === 'pickupOrder') {
       return [
         { id: 'pending', label: 'Order Placed', description: 'Your order has been received' },
         { id: 'confirmed', label: 'Confirmed', description: 'Order confirmed by artisan' },
@@ -90,6 +90,7 @@ function generateOrderTimeline(orderDetails, orderId) {
         { id: 'picked_up', label: 'Picked Up', description: 'Order has been picked up' }
       ];
     } else {
+      // For delivery orders (personalDelivery, delivery, etc.)
       return [
         { id: 'pending', label: 'Order Placed', description: 'Your order has been received' },
         { id: 'confirmed', label: 'Confirmed', description: 'Order confirmed by artisan' },
@@ -107,10 +108,22 @@ function generateOrderTimeline(orderDetails, orderId) {
   const getCurrentStepIndex = () => {
     const stepIndex = steps.findIndex(step => step.id === currentStatus);
     if (stepIndex === -1) {
-      // Handle legacy statuses
-      if (currentStatus === 'ready') return 3; // ready_for_pickup or ready_for_delivery
-      if (currentStatus === 'delivering') return 4; // out_for_delivery
-      if (currentStatus === 'delivered') return 5; // delivered
+      // Handle legacy statuses and variations
+      const statusMap = {
+        'ready': 3, // ready_for_pickup or ready_for_delivery
+        'delivering': 4, // out_for_delivery
+        'delivered': deliveryMethod === 'pickup' || deliveryMethod === 'pickupOrder' ? 4 : 5,
+        'picked_up': 4, // final step for pickup
+        'shipped': 4, // out_for_delivery equivalent
+        'cancelled': -1, // special handling
+        'declined': -1 // special handling
+      };
+      
+      const mappedIndex = statusMap[currentStatus];
+      if (mappedIndex !== undefined) {
+        return mappedIndex;
+      }
+      
       return 0; // Default to first step
     }
     return stepIndex;
@@ -500,6 +513,26 @@ async function sendEmailNotification(type, email, orderDetails, orderId) {
       subject: 'Order Ready - bazaarMKT',
       body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready')
     },
+    'order_ready_for_pickup': {
+      subject: 'Order Ready for Pickup - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready_for_pickup')
+    },
+    'order_ready_for_delivery': {
+      subject: 'Order Ready for Delivery - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'ready_for_delivery')
+    },
+    'order_out_for_delivery': {
+      subject: 'Order Out for Delivery - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'out_for_delivery')
+    },
+    'order_delivering': {
+      subject: 'Order Being Delivered - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'delivering')
+    },
+    'order_picked_up': {
+      subject: 'Order Picked Up - bazaarMKT',
+      body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'picked_up')
+    },
     'order_shipped': {
       subject: 'Order Shipped - bazaarMKT',
       body: generateOrderStatusUpdateEmailBody(orderDetails, orderId, 'shipped')
@@ -566,6 +599,11 @@ async function sendSMSNotification(type, phone, orderDetails, orderId) {
     'order_confirmed': `Your bazaarMKT order #${orderId} has been confirmed by ${orderDetails?.artisanName || 'your artisan'}.`,
     'order_preparing': `Your bazaarMKT order #${orderId} is being prepared by ${orderDetails?.artisanName || 'your artisan'}.`,
     'order_ready': `Your bazaarMKT order #${orderId} is ready! Please check your delivery method for next steps.`,
+    'order_ready_for_pickup': `Your bazaarMKT order #${orderId} is ready for pickup! Please come to collect your order.`,
+    'order_ready_for_delivery': `Your bazaarMKT order #${orderId} is ready for delivery! It will be delivered soon.`,
+    'order_out_for_delivery': `Your bazaarMKT order #${orderId} is out for delivery and on its way to you!`,
+    'order_delivering': `Your bazaarMKT order #${orderId} is being delivered to you right now!`,
+    'order_picked_up': `Your bazaarMKT order #${orderId} has been picked up successfully. Thank you!`,
     'order_shipped': `Your bazaarMKT order #${orderId} has been shipped and is on its way to you.`,
     'order_delivered': `Your bazaarMKT order #${orderId} has been delivered. Thank you for your order!`,
     'order_cancelled': `Your bazaarMKT order #${orderId} has been cancelled. Payment will be refunded if applicable.`

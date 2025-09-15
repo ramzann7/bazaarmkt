@@ -313,7 +313,7 @@ export const deliveryService = {
   },
 
   // Structure delivery options for consistent use across components
-  structureDeliveryOptions: (artisanDeliveryOptions, userLocation = null, artisan = null) => {
+  structureDeliveryOptions: (artisanDeliveryOptions, userLocation = null, artisan = null, isGuestUser = false, isPatronUser = false) => {
     if (!artisanDeliveryOptions) {
       return {
         pickup: { available: false },
@@ -353,6 +353,10 @@ export const deliveryService = {
           personalDeliveryAvailable = false;
           personalDeliveryReason = 'Artisan location not available for distance calculation';
         }
+      } else if (isGuestUser || isPatronUser) {
+        // For guest users and patrons without location, show as available but pending validation
+        personalDeliveryAvailable = true;
+        personalDeliveryReason = `Available within ${deliveryRadius}km radius (address validation required)`;
       } else {
         personalDeliveryAvailable = false;
         personalDeliveryReason = 'User location required to check delivery availability';

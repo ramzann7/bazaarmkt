@@ -52,6 +52,7 @@ const Cart = () => {
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
   const [userLocation, setUserLocation] = useState(null);
+  const [deliveryValidationResults, setDeliveryValidationResults] = useState({});
   
   // Pickup time window state
   const [pickupTimeWindows, setPickupTimeWindows] = useState({});
@@ -436,7 +437,9 @@ const Cart = () => {
           const processedOptions = deliveryService.structureDeliveryOptions(
             artisanData.artisan.deliveryOptions, 
             userLocation,
-            artisanData.artisan
+            artisanData.artisan,
+            isGuest, // Pass guest status for proper validation
+            !isGuest && currentUserId // Pass patron status (authenticated but not guest)
           );
           options[artisanId] = processedOptions;
           
@@ -653,7 +656,7 @@ const Cart = () => {
   };
 
   // Handle delivery method selection
-  const handleDeliveryMethodChange = (artisanId, method) => {
+  const handleDeliveryMethodChange = async (artisanId, method) => {
     setSelectedDeliveryMethods(prev => ({
       ...prev,
       [artisanId]: method
@@ -666,6 +669,25 @@ const Cart = () => {
         [artisanId]: null
       }));
     }
+    
+    // Validate delivery address if personal delivery is selected
+    if (method === 'personalDelivery') {
+      const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
+      if (addressToValidate && addressToValidate.street) {
+        const validation = await validateDeliveryAddress(addressToValidate);
+        setDeliveryValidationResults(prev => ({
+          ...prev,
+          [artisanId]: validation.results?.[artisanId] || null
+        }));
+      }
+    } else {
+      // Clear validation results for this artisan if switching away from personal delivery
+      setDeliveryValidationResults(prev => {
+        const newResults = { ...prev };
+        delete newResults[artisanId];
+        return newResults;
+      });
+    }
   };
 
   // Handle pickup time selection
@@ -675,6 +697,71 @@ const Cart = () => {
       [artisanId]: timeSlot
     }));
   };
+
+  // Validate delivery address for both guest users and patrons
+  const validateDeliveryAddress = async (address) => {
+    if (!address.street || !address.city) {
+      return { valid: true }; // Skip validation for incomplete addresses
+    }
+
+    try {
+      // Geocode the delivery address
+      const geocodedAddress = await locationService.geocodeAddress(
+        `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`
+      );
+
+      if (!geocodedAddress) {
+        return { valid: false, error: 'Could not validate delivery address' };
+      }
+
+      // Check delivery availability for each artisan with personal delivery
+      const validationResults = {};
+      let hasInvalidDelivery = false;
+
+      Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
+        const deliveryOptions = deliveryOptions[artisanId];
+        if (deliveryOptions?.personalDelivery?.available && 
+            selectedDeliveryMethods[artisanId] === 'personalDelivery') {
+          
+          const artisanLat = artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
+          const artisanLng = artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
+          
+          if (artisanLat && artisanLng) {
+            const distance = deliveryService.calculateDistance(
+              geocodedAddress.lat,
+              geocodedAddress.lng,
+              artisanLat,
+              artisanLng
+            );
+            
+            const deliveryRadius = artisanData.artisan.deliveryOptions?.deliveryRadius || 0;
+            const isValid = distance <= deliveryRadius;
+            
+            validationResults[artisanId] = {
+              valid: isValid,
+              distance: distance,
+              radius: deliveryRadius,
+              artisanName: artisanData.artisan.artisanName
+            };
+            
+            if (!isValid) {
+              hasInvalidDelivery = true;
+            }
+          }
+        }
+      });
+
+      return {
+        valid: !hasInvalidDelivery,
+        results: validationResults,
+        geocodedAddress: geocodedAddress
+      };
+    } catch (error) {
+      console.error('Error validating delivery address:', error);
+      return { valid: false, error: 'Error validating delivery address' };
+    }
+  };
+
 
   // Handle delivery form changes
   const handleDeliveryFormChange = async (field, value) => {
@@ -692,16 +779,16 @@ const Cart = () => {
       
       // Set a new timeout to debounce the API call
       window.emailCheckTimeout = setTimeout(async () => {
-        try {
-          const existingUserData = await guestService.checkExistingUser(value);
-          setExistingUser(existingUserData);
-          if (existingUserData) {
-            toast.success(`Welcome back! Found existing account for ${value}`);
-          }
-        } catch (error) {
-          // User not found, clear existing user state
-          setExistingUser(null);
+      try {
+        const existingUserData = await guestService.checkExistingUser(value);
+        setExistingUser(existingUserData);
+        if (existingUserData) {
+          toast.success(`Welcome back! Found existing account for ${value}`);
         }
+      } catch (error) {
+        // User not found, clear existing user state
+        setExistingUser(null);
+      }
       }, 500); // Wait 500ms after user stops typing
     }
   };
@@ -714,7 +801,7 @@ const Cart = () => {
   };
 
   // Handle address selection
-  const handleAddressSelect = (address) => {
+  const handleAddressSelect = async (address) => {
     setSelectedAddress(address);
     if (address) {
       setDeliveryForm({
@@ -724,11 +811,20 @@ const Cart = () => {
         zipCode: address.zipCode || '',
         country: address.country || ''
       });
+      
+      // Clear previous validation results
+      setDeliveryValidationResults({});
+      
+      // Validate delivery address if personal delivery is selected
+      if (Object.values(selectedDeliveryMethods).includes('personalDelivery')) {
+        const validation = await validateDeliveryAddress(address);
+        setDeliveryValidationResults(validation.results || {});
+      }
     }
   };
 
   // Handle checkout step navigation
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (checkoutStep === 'cart') {
       if (cart.length === 0) {
         toast.error('Cart is empty');
@@ -761,6 +857,25 @@ const Cart = () => {
         if (!deliveryForm.firstName || !deliveryForm.lastName || !deliveryForm.email) {
           toast.error('Please provide your first name, last name, and email');
           return;
+        }
+      }
+      
+      // Validate delivery address for both guests and patrons
+      if (isAddressRequired()) {
+        const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
+        if (addressToValidate.street) {
+          const validation = await validateDeliveryAddress(addressToValidate);
+          setDeliveryValidationResults(validation.results || {});
+          
+          if (!validation.valid) {
+            // Show error for each invalid delivery
+            Object.entries(validation.results || {}).forEach(([artisanId, result]) => {
+              if (!result.valid) {
+                toast.error(`Delivery to ${result.artisanName} is outside the ${result.radius}km radius (${result.distance.toFixed(1)}km away)`);
+              }
+            });
+            return;
+          }
         }
       }
       setCheckoutStep('payment');
@@ -1540,23 +1655,23 @@ const Cart = () => {
                       <div className="space-y-3">
                         {deliveryOptions[artisanId]?.pickup?.available && (
                           <>
-                            <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`delivery-${artisanId}`}
-                                value="pickup"
-                                checked={selectedDeliveryMethods[artisanId] === 'pickup'}
-                                onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
-                                className="text-green-600 w-4 h-4"
-                              />
-                              <div className="flex items-center gap-3">
-                                <MapPinIcon className="w-5 h-5 text-green-600" />
-                                <div>
-                                  <span className="text-gray-900 font-medium">Visit the Artisan</span>
-                                  <span className="text-green-600 text-sm ml-2">(Free)</span>
-                                </div>
+                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`delivery-${artisanId}`}
+                              value="pickup"
+                              checked={selectedDeliveryMethods[artisanId] === 'pickup'}
+                              onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
+                              className="text-green-600 w-4 h-4"
+                            />
+                            <div className="flex items-center gap-3">
+                              <MapPinIcon className="w-5 h-5 text-green-600" />
+                              <div>
+                                <span className="text-gray-900 font-medium">Visit the Artisan</span>
+                                <span className="text-green-600 text-sm ml-2">(Free)</span>
                               </div>
-                            </label>
+                            </div>
+                          </label>
                             
                             {/* Pickup Time Selection */}
                             {selectedDeliveryMethods[artisanId] === 'pickup' && pickupTimeWindows[artisanId] && (

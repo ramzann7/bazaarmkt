@@ -651,6 +651,7 @@ export default function ArtisanShop() {
                       product={product}
                       showDistance={false}
                       showImagePreview={true}
+                      showRating={false}
                       onProductClick={handleProductClick}
                     />
                   ))}

@@ -13,6 +13,7 @@ const ProductCard = ({
   product, 
   showDistance = false, 
   showImagePreview = true,
+  showRating = true,
   onProductClick,
   className = ''
 }) => {
@@ -104,23 +105,23 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`group relative transition-shadow duration-300 ${isOutOfStock() ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-lg'} ${className}`}
+        className={`group relative transition-all duration-300 bg-white rounded-xl shadow-sm hover:shadow-xl ${isOutOfStock() ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:-translate-y-1'} ${className}`}
         onClick={handleProductClick}
         title={isOutOfStock() ? "Out of stock" : "Select this artisan product"}
       >
-        <div className="relative overflow-hidden rounded-lg bg-gray-100">
+        <div className="relative overflow-hidden rounded-t-xl bg-gradient-to-br from-gray-50 to-gray-100">
           <img
             src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
             alt={product.name}
-            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-52 object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
           />
-          <div className={`w-full h-48 flex items-center justify-center bg-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
-            <BuildingStorefrontIcon className="w-12 h-12 text-gray-400" />
+          <div className={`w-full h-52 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
+            <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
           </div>
           
           {/* Status badges */}
@@ -170,34 +171,34 @@ const ProductCard = ({
         </div>
 
         {/* Product details */}
-        <div className="mt-2">
-          <h3 className={`font-medium line-clamp-2 text-sm leading-tight ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
+        <div className="p-3">
+          {/* Product type badge - more prominent */}
+          <div className="mb-2">
+            <ProductTypeBadge product={product} variant="compact" />
+          </div>
+          
+          <h3 className={`font-semibold line-clamp-2 text-sm leading-tight mb-1 ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
             {product.name}
             {isOutOfStock() && <span className="text-red-500 ml-1">(Out of Stock)</span>}
           </h3>
-          <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+          
+          <p className="text-xs text-gray-500 mb-2 line-clamp-1">
             {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
           </p>
           
-          {/* Distance badge and Product type badge in one row */}
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center space-x-1">
-              {/* Product type badge */}
-              <ProductTypeBadge product={product} variant="compact" />
-            </div>
-          </div>
-          
           {/* Price and rating */}
-          <div className="flex items-center justify-between mt-2">
-            <span className={`font-bold text-sm ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+          <div className="flex items-center justify-between">
+            <span className={`font-bold text-base ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
               {isOutOfStock() ? 'Unavailable' : formatPrice(product.price)}
             </span>
-            <div className="flex items-center space-x-1">
-              {renderStars(product.artisan?.rating?.average || product.rating || 0)}
-              <span className="text-xs text-gray-500">
-                ({(product.artisan?.rating?.average || product.rating || 0).toFixed(1)})
-              </span>
-            </div>
+            {showRating && (
+              <div className="flex items-center space-x-1">
+                {renderStars(product.artisan?.rating?.average || product.rating || 0)}
+                <span className="text-xs text-gray-500">
+                  ({(product.artisan?.rating?.average || product.rating || 0).toFixed(1)})
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

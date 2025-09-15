@@ -105,107 +105,56 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`group relative transition-all duration-300 bg-white rounded-xl shadow-sm hover:shadow-xl ${isOutOfStock() ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:-translate-y-1'} ${className}`}
+        className={`group relative transition-all duration-300 bg-white rounded-2xl shadow-sm hover:shadow-lg ${isOutOfStock() ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:-translate-y-1'} ${className}`}
         onClick={handleProductClick}
         title={isOutOfStock() ? "Out of stock" : "Select this artisan product"}
       >
-        <div className="relative overflow-hidden rounded-t-xl bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Image container with rounded corners */}
+        <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-br from-gray-50 to-gray-100">
           <img
             src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
             alt={product.name}
-            className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
           />
-          <div className={`w-full h-64 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
-            <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
+          <div className={`w-full h-48 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
+            <BuildingStorefrontIcon className="w-12 h-12 text-gray-400" />
           </div>
           
-          {/* Status badges */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {isOutOfStock() && (
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white z-20">
-                Out of Stock
-              </span>
-            )}
-            {product.isFeatured && !isOutOfStock() && (
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white z-10">
-                Featured
-              </span>
-            )}
-            {product.isOrganic && (
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                Organic
-              </span>
-            )}
-            {product.isGlutenFree && (
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                Gluten-Free
-              </span>
-            )}
-          </div>
-
-          {/* Out of stock overlay */}
+          {/* Simple status badge */}
           {isOutOfStock() && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
-              <div className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold text-sm">
+            <div className="absolute top-3 left-3">
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white">
                 Out of Stock
-              </div>
+              </span>
             </div>
           )}
-
-
-          {/* Hover overlay with heart icon */}
-          {showImagePreview && !isOutOfStock() && (
-            <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-opacity duration-300 ease-in-out z-20">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-amber-600 rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
-                  <HeartIcon className="w-8 h-8 text-white" />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Product details */}
-        <div className="p-4">
-          {/* Product type badge - more prominent */}
-          <div className="mb-3">
+          
+          {/* Product type badge */}
+          <div className="absolute top-3 right-3">
             <ProductTypeBadge product={product} variant="compact" />
           </div>
-          
-          <h3 className={`font-semibold line-clamp-2 text-base leading-tight mb-2 ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
+        </div>
+
+        {/* Product details - simplified */}
+        <div className="p-4 space-y-2">
+          {/* Product name - larger font */}
+          <h3 className={`font-bold line-clamp-2 text-lg leading-tight ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
             {product.name}
-            {isOutOfStock() && <span className="text-red-500 ml-1">(Out of Stock)</span>}
           </h3>
           
-          <p className="text-sm text-gray-600 mb-3 line-clamp-1 font-medium">
+          {/* Artisan name */}
+          <p className="text-sm text-gray-600 line-clamp-1">
             by {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
           </p>
           
-          {/* Product description */}
-          {product.description && (
-            <p className="text-xs text-gray-500 mb-3 line-clamp-2">
-              {product.description}
-            </p>
-          )}
-          
-          {/* Stock info for ready_to_ship products */}
-          {product.productType === 'ready_to_ship' && !isOutOfStock() && (
-            <div className="mb-3">
-              <span className="text-xs text-gray-500">
-                {product.stock > 5 ? `${product.stock} in stock` : 
-                 product.stock > 0 ? `Only ${product.stock} left` : 'Out of stock'}
-              </span>
-            </div>
-          )}
-          
           {/* Price and rating */}
-          <div className="flex items-center justify-between">
-            <span className={`font-bold text-lg ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+          <div className="flex items-center justify-between pt-2">
+            <span className={`font-bold text-xl ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
               {isOutOfStock() ? 'Unavailable' : formatPrice(product.price)}
             </span>
             {showRating && (

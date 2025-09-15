@@ -107,8 +107,16 @@ const AddToCart = ({
   };
   
   const maxQuantity = getMaxQuantity();
-  const isOutOfStock = product.productType === 'ready_to_ship' && maxQuantity <= 0;
-  const canAddToCart = !isOutOfStock && quantity > 0 && quantity <= maxQuantity;
+  
+  // Check if product is out of stock
+  const isOutOfStock = () => {
+    if (product.productType === 'ready_to_ship') {
+      return (maxQuantity || 0) <= 0;
+    }
+    return false;
+  };
+  
+  const canAddToCart = !isOutOfStock() && quantity > 0 && quantity <= maxQuantity;
 
   // Show out of stock message for ready_to_ship products
   const getStockMessage = () => {
@@ -176,7 +184,7 @@ const AddToCart = ({
           className="flex items-center justify-center px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
-          {isAdding ? 'Adding...' : (isOutOfStock ? 'Out of Stock' : 'Add to Cart')}
+          {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
         <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
           {getStockMessage() || `Max ${maxQuantity} per order`}
@@ -219,7 +227,7 @@ const AddToCart = ({
           className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
-          {isAdding ? 'Adding...' : (isOutOfStock ? 'Out of Stock' : 'Add to Cart')}
+          {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
       </div>
     );
@@ -343,7 +351,7 @@ const AddToCart = ({
           className="flex-1 flex items-center justify-center px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-2" />
-          {isAdding ? 'Adding...' : (isOutOfStock ? 'Out of Stock' : 'Add to Cart')}
+          {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
       </div>
 

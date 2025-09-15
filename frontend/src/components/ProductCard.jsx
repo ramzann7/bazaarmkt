@@ -125,18 +125,28 @@ const ProductCard = ({
             <BuildingStorefrontIcon className="w-12 h-12 text-gray-400" />
           </div>
           
-          {/* Simple status badge */}
-          {isOutOfStock() && (
-            <div className="absolute top-3 left-3">
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white">
+          {/* Status and dietary badges */}
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {isOutOfStock() && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white z-20">
                 Out of Stock
               </span>
-            </div>
-          )}
-          
-          {/* Product type badge */}
-          <div className="absolute top-3 right-3">
-            <ProductTypeBadge product={product} variant="compact" />
+            )}
+            {product.isFeatured && !isOutOfStock() && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white z-10">
+                Featured
+              </span>
+            )}
+            {product.isOrganic && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Organic
+              </span>
+            )}
+            {product.isGlutenFree && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Gluten-Free
+              </span>
+            )}
           </div>
         </div>
 
@@ -151,6 +161,11 @@ const ProductCard = ({
           <p className="text-sm text-gray-600 line-clamp-1">
             by {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
           </p>
+          
+          {/* Product type badge */}
+          <div className="flex justify-start">
+            <ProductTypeBadge product={product} variant="compact" />
+          </div>
           
           {/* Price and rating */}
           <div className="flex items-center justify-between pt-2">

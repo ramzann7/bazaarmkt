@@ -113,14 +113,14 @@ const ProductCard = ({
           <img
             src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
             alt={product.name}
-            className="w-full h-52 object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-64 object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
           />
-          <div className={`w-full h-52 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
+          <div className={`w-full h-64 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
             <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
           </div>
           
@@ -171,24 +171,41 @@ const ProductCard = ({
         </div>
 
         {/* Product details */}
-        <div className="p-3">
+        <div className="p-4">
           {/* Product type badge - more prominent */}
-          <div className="mb-2">
+          <div className="mb-3">
             <ProductTypeBadge product={product} variant="compact" />
           </div>
           
-          <h3 className={`font-semibold line-clamp-2 text-sm leading-tight mb-1 ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
+          <h3 className={`font-semibold line-clamp-2 text-base leading-tight mb-2 ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
             {product.name}
             {isOutOfStock() && <span className="text-red-500 ml-1">(Out of Stock)</span>}
           </h3>
           
-          <p className="text-xs text-gray-500 mb-2 line-clamp-1">
-            {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
+          <p className="text-sm text-gray-600 mb-3 line-clamp-1 font-medium">
+            by {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
           </p>
+          
+          {/* Product description */}
+          {product.description && (
+            <p className="text-xs text-gray-500 mb-3 line-clamp-2">
+              {product.description}
+            </p>
+          )}
+          
+          {/* Stock info for ready_to_ship products */}
+          {product.productType === 'ready_to_ship' && !isOutOfStock() && (
+            <div className="mb-3">
+              <span className="text-xs text-gray-500">
+                {product.stock > 5 ? `${product.stock} in stock` : 
+                 product.stock > 0 ? `Only ${product.stock} left` : 'Out of stock'}
+              </span>
+            </div>
+          )}
           
           {/* Price and rating */}
           <div className="flex items-center justify-between">
-            <span className={`font-bold text-base ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+            <span className={`font-bold text-lg ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
               {isOutOfStock() ? 'Unavailable' : formatPrice(product.price)}
             </span>
             {showRating && (

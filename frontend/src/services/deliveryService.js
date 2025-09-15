@@ -83,9 +83,10 @@ export const deliveryService = {
   },
 
   // Get delivery options for an artisan
-  getDeliveryOptions: (artisan) => {
+  getDeliveryOptions: (artisan, userLocation = null) => {
     console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan);
     console.log('🔄 Artisan deliveryOptions:', artisan.deliveryOptions);
+    console.log('🔄 User location:', userLocation);
     
     const options = artisan.deliveryOptions || {
       pickup: true,
@@ -127,6 +128,52 @@ export const deliveryService = {
       pickupAddressDetails = artisan.pickupAddress;
     }
 
+    // Check if personal delivery is available based on user location and artisan radius
+    let personalDeliveryAvailable = false;
+    let personalDeliveryReason = '';
+    
+    if (options.delivery && options.deliveryRadius > 0) {
+      if (userLocation && userLocation.latitude && userLocation.longitude) {
+        // Calculate distance between user and artisan
+        const artisanLat = artisan.address?.latitude || artisan.coordinates?.latitude;
+        const artisanLng = artisan.address?.longitude || artisan.coordinates?.longitude;
+        
+        if (artisanLat && artisanLng) {
+          const distance = deliveryService.calculateDistance(
+            userLocation.latitude, 
+            userLocation.longitude, 
+            artisanLat, 
+            artisanLng
+          );
+          
+          console.log('📍 Distance calculation:', {
+            userLocation: { lat: userLocation.latitude, lng: userLocation.longitude },
+            artisanLocation: { lat: artisanLat, lng: artisanLng },
+            distance: distance,
+            deliveryRadius: options.deliveryRadius,
+            withinRadius: distance <= options.deliveryRadius
+          });
+          
+          if (distance <= options.deliveryRadius) {
+            personalDeliveryAvailable = true;
+            personalDeliveryReason = `Within ${options.deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`;
+          } else {
+            personalDeliveryAvailable = false;
+            personalDeliveryReason = `Outside ${options.deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`;
+          }
+        } else {
+          personalDeliveryAvailable = false;
+          personalDeliveryReason = 'Artisan location not available for distance calculation';
+        }
+      } else {
+        personalDeliveryAvailable = false;
+        personalDeliveryReason = 'User location required to check delivery availability';
+      }
+    } else {
+      personalDeliveryAvailable = false;
+      personalDeliveryReason = 'Personal delivery not configured by artisan';
+    }
+
     return {
       pickup: {
         available: options.pickup,
@@ -141,15 +188,18 @@ export const deliveryService = {
         useBusinessAddress: artisan.pickupUseBusinessAddress || false
       },
       personalDelivery: {
-        available: true, // Always show personal delivery option
+        available: personalDeliveryAvailable,
         label: 'Personal Delivery',
-        description: options.deliveryRadius > 0 ? `Personal delivery within ${options.deliveryRadius}km` : 'Personal delivery available',
+        description: personalDeliveryAvailable 
+          ? personalDeliveryReason 
+          : personalDeliveryReason || 'Personal delivery not available',
         fee: options.deliveryFee || 0,
         radius: options.deliveryRadius || 0,
         freeThreshold: options.freeDeliveryThreshold || 0,
         icon: '🚚',
         instructions: artisan.deliveryInstructions || '',
-        properlyConfigured: options.delivery && options.deliveryRadius > 0 && options.deliveryFee >= 0
+        properlyConfigured: options.delivery && options.deliveryRadius > 0 && options.deliveryFee >= 0,
+        reason: personalDeliveryReason
       },
       professionalDelivery: {
         available: options.professionalDelivery?.enabled || false,
@@ -263,7 +313,7 @@ export const deliveryService = {
   },
 
   // Structure delivery options for consistent use across components
-  structureDeliveryOptions: (artisanDeliveryOptions) => {
+  structureDeliveryOptions: (artisanDeliveryOptions, userLocation = null, artisan = null) => {
     if (!artisanDeliveryOptions) {
       return {
         pickup: { available: false },
@@ -274,6 +324,44 @@ export const deliveryService = {
 
     const { pickup, delivery, deliveryRadius, deliveryFee, freeDeliveryThreshold } = artisanDeliveryOptions;
     
+    // Check if personal delivery is available based on user location and artisan radius
+    let personalDeliveryAvailable = false;
+    let personalDeliveryReason = '';
+    
+    if (delivery && deliveryRadius > 0) {
+      if (userLocation && userLocation.latitude && userLocation.longitude && artisan) {
+        // Calculate distance between user and artisan
+        const artisanLat = artisan.address?.latitude || artisan.coordinates?.latitude;
+        const artisanLng = artisan.address?.longitude || artisan.coordinates?.longitude;
+        
+        if (artisanLat && artisanLng) {
+          const distance = deliveryService.calculateDistance(
+            userLocation.latitude, 
+            userLocation.longitude, 
+            artisanLat, 
+            artisanLng
+          );
+          
+          if (distance <= deliveryRadius) {
+            personalDeliveryAvailable = true;
+            personalDeliveryReason = `Within ${deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`;
+          } else {
+            personalDeliveryAvailable = false;
+            personalDeliveryReason = `Outside ${deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`;
+          }
+        } else {
+          personalDeliveryAvailable = false;
+          personalDeliveryReason = 'Artisan location not available for distance calculation';
+        }
+      } else {
+        personalDeliveryAvailable = false;
+        personalDeliveryReason = 'User location required to check delivery availability';
+      }
+    } else {
+      personalDeliveryAvailable = false;
+      personalDeliveryReason = 'Personal delivery not configured by artisan';
+    }
+    
     return {
       pickup: {
         available: pickup || false,
@@ -282,11 +370,12 @@ export const deliveryService = {
         hours: artisanDeliveryOptions.pickupHours || 'Business hours'
       },
       personalDelivery: {
-        available: delivery || false,
+        available: personalDeliveryAvailable,
         radius: deliveryRadius || 0,
         fee: deliveryFee || 0,
         freeThreshold: freeDeliveryThreshold || 0,
-        instructions: artisanDeliveryOptions.deliveryInstructions || ''
+        instructions: artisanDeliveryOptions.deliveryInstructions || '',
+        reason: personalDeliveryReason
       },
       professionalDelivery: {
         available: artisanDeliveryOptions.professionalDelivery?.enabled || false,

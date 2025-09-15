@@ -20,11 +20,12 @@ import { toast } from 'react-hot-toast';
 import { cartService } from '../services/cartService';
 import { deliveryService } from '../services/deliveryService';
 import { pickupTimeService } from '../services/pickupTimeService';
-import { getProfile } from '../services/authService';
+import { getProfile } from '../services/authservice';
 import { paymentService } from '../services/paymentService';
 import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
 import { notificationService } from '../services/notificationService';
+import { locationService } from '../services/locationService';
 import ProductTypeBadge from './ProductTypeBadge';
 
 const Cart = () => {
@@ -50,6 +51,7 @@ const Cart = () => {
   // Delivery state
   const [deliveryOptions, setDeliveryOptions] = useState({});
   const [selectedDeliveryMethods, setSelectedDeliveryMethods] = useState({});
+  const [userLocation, setUserLocation] = useState(null);
   
   // Pickup time window state
   const [pickupTimeWindows, setPickupTimeWindows] = useState({});
@@ -373,6 +375,48 @@ const Cart = () => {
     }
   };
 
+  // Load user location
+  const loadUserLocation = async () => {
+    try {
+      // First try to get user coordinates from profile
+      if (userProfile && userProfile.coordinates) {
+        const lat = parseFloat(userProfile.coordinates.latitude);
+        const lng = parseFloat(userProfile.coordinates.longitude);
+        
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          setUserLocation({
+            latitude: lat,
+            longitude: lng,
+            source: 'user_profile'
+          });
+          return;
+        }
+      }
+      
+      // Fallback to saved location
+      const savedLocation = locationService.getUserLocation();
+      if (savedLocation && savedLocation.lat && savedLocation.lng) {
+        const lat = parseFloat(savedLocation.lat);
+        const lng = parseFloat(savedLocation.lng);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          setUserLocation({
+            latitude: lat,
+            longitude: lng,
+            source: 'saved_location'
+          });
+          return;
+        }
+      }
+      
+      // If no location available, set to null
+      setUserLocation(null);
+    } catch (error) {
+      console.error('❌ Error loading user location:', error);
+      setUserLocation(null);
+    }
+  };
+
   // Load delivery options - completely rebuilt
   const loadDeliveryOptions = async () => {
     if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
@@ -388,8 +432,12 @@ const Cart = () => {
       // Process each artisan's delivery options
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
         if (artisanData.artisan?.deliveryOptions) {
-          // Use the delivery service to structure options
-          const processedOptions = deliveryService.structureDeliveryOptions(artisanData.artisan.deliveryOptions);
+          // Use the delivery service to structure options with user location and artisan data
+          const processedOptions = deliveryService.structureDeliveryOptions(
+            artisanData.artisan.deliveryOptions, 
+            userLocation,
+            artisanData.artisan
+          );
           options[artisanId] = processedOptions;
           
           // Set default delivery method
@@ -1053,13 +1101,20 @@ const Cart = () => {
     checkAuth();
   }, []);
 
-  // Load delivery options when cart data changes
+  // Load user location when user profile changes
+  useEffect(() => {
+    if (userProfile) {
+      loadUserLocation();
+    }
+  }, [userProfile]);
+
+  // Load delivery options when cart data or user location changes
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
       loadDeliveryOptions();
       loadPickupTimeWindows();
     }
-  }, [cartByArtisan]);
+  }, [cartByArtisan, userLocation]);
 
   // Load user profile immediately when user is authenticated
   useEffect(() => {
@@ -1194,10 +1249,15 @@ const Cart = () => {
                         Pickup
                       </span>
                     )}
-                    {deliveryOptions[artisanId]?.personalDelivery?.available && (
+                    {deliveryOptions[artisanId]?.personalDelivery?.available ? (
                       <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full border border-blue-200 flex items-center gap-1">
                         <TruckIcon className="w-2.5 h-2.5" />
                         Personal: ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
+                      </span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-500 text-xs font-medium px-2 py-1 rounded-full border border-gray-200 flex items-center gap-1">
+                        <TruckIcon className="w-2.5 h-2.5" />
+                        Personal: Not Available
                       </span>
                     )}
                     {deliveryOptions[artisanId]?.professionalDelivery?.available && (
@@ -1557,7 +1617,7 @@ const Cart = () => {
                           </>
                         )}
                         
-                        {deliveryOptions[artisanId]?.personalDelivery?.available && (
+                        {deliveryOptions[artisanId]?.personalDelivery?.available ? (
                           <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors cursor-pointer">
                             <input
                               type="radio"
@@ -1577,9 +1637,29 @@ const Cart = () => {
                                     ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
                                   }
                                 </span>
+                                <div className="text-xs text-green-600 mt-1">
+                                  {deliveryOptions[artisanId]?.personalDelivery?.reason}
+                                </div>
                               </div>
                             </div>
                           </label>
+                        ) : (
+                          <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg bg-gray-50 opacity-60">
+                            <input
+                              type="radio"
+                              disabled
+                              className="text-gray-400 w-4 h-4"
+                            />
+                            <div className="flex items-center gap-3">
+                              <TruckIcon className="w-5 h-5 text-gray-400" />
+                              <div>
+                                <span className="text-gray-500 font-medium">Personal Delivery</span>
+                                <div className="text-xs text-red-600 mt-1">
+                                  {deliveryOptions[artisanId]?.personalDelivery?.reason || 'Not available'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         )}
                         
                         {deliveryOptions[artisanId]?.professionalDelivery?.available && (

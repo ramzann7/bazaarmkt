@@ -1,5 +1,8 @@
 import axios from 'axios';
 import { authToken } from './authservice';
+import { cacheService, CACHE_KEYS } from './cacheService';
+import { clearProductCache } from './productService';
+import { cartService } from './cartService';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -7,6 +10,18 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`,
   'Content-Type': 'application/json'
 });
+
+// Helper function to clear all product-related caches after order creation
+const clearProductCaches = () => {
+  console.log('🧹 Clearing all product-related caches after order creation');
+  clearProductCache();
+  cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+  cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
+  cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
+  cacheService.delete(CACHE_KEYS.PRODUCT_DETAILS);
+  // Clear cart cache to ensure fresh product availability checks
+  cartService.clearCartCache();
+};
 
 export const orderService = {
   // Get all orders for the current user (patron)
@@ -52,6 +67,10 @@ export const orderService = {
   createGuestOrder: async (orderData) => {
     try {
       const response = await axios.post(`${API_URL}/orders/guest`, orderData);
+      
+      // Clear product cache after successful order creation to ensure fresh inventory data
+      clearProductCaches();
+      
       return response.data;
     } catch (error) {
       console.error('Error creating guest order:', error);
@@ -85,7 +104,12 @@ export const orderService = {
                 cardholderName: 'Guest User'
               }
             };
-            return await orderService.createGuestOrder(guestOrderData);
+            const result = await orderService.createGuestOrder(guestOrderData);
+            
+            // Clear product cache after successful guest order creation
+            clearProductCaches();
+            
+            return result;
           }
         } catch (parseError) {
           console.warn('Could not parse token for guest check:', parseError);
@@ -96,6 +120,10 @@ export const orderService = {
       const response = await axios.post(`${API_URL}/orders`, orderData, {
         headers: getAuthHeaders()
       });
+      
+      // Clear product cache after successful order creation to ensure fresh inventory data
+      clearProductCaches();
+      
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
@@ -109,6 +137,9 @@ export const orderService = {
       const response = await axios.put(`${API_URL}/orders/${orderId}/status`, statusData, {
         headers: getAuthHeaders()
       });
+      
+      // Clear product cache after status update as inventory might be restored
+      clearProductCaches();
       
       return response.data;
     } catch (error) {

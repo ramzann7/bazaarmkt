@@ -815,8 +815,8 @@ export const cartService = {
       // Use the correct backend API URL
       const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
       
-      // Fetch full product details
-      const response = await fetch(`${apiBaseUrl}/products/${productId}`, {
+      // Fetch full product details with cache-busting to ensure fresh inventory data
+      const response = await fetch(`${apiBaseUrl}/products/${productId}?t=${Date.now()}`, {
         headers
       });
       
@@ -895,8 +895,8 @@ export const cartService = {
       // Use the correct backend API URL
       const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
       
-      // Fetch full product details
-      const response = await fetch(`${apiBaseUrl}/products/${productId}`, {
+      // Fetch full product details with cache-busting to ensure fresh inventory data
+      const response = await fetch(`${apiBaseUrl}/products/${productId}?t=${Date.now()}`, {
         headers
       });
       

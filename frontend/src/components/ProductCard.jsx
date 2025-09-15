@@ -76,8 +76,19 @@ const ProductCard = ({
     return stars;
   };
 
+  // Check if product is out of stock
+  const isOutOfStock = () => {
+    if (product.productType === 'ready_to_ship') {
+      return (product.stock || 0) <= 0;
+    }
+    return false;
+  };
+
   // Handle product click
   const handleProductClick = () => {
+    if (isOutOfStock()) {
+      return; // Don't allow clicking on out of stock products
+    }
     if (onProductClick) {
       onProductClick(product);
     } else {
@@ -93,9 +104,9 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`group cursor-pointer relative hover:shadow-lg transition-shadow duration-300 ${className}`}
+        className={`group relative transition-shadow duration-300 ${isOutOfStock() ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-lg'} ${className}`}
         onClick={handleProductClick}
-        title="Select this artisan product"
+        title={isOutOfStock() ? "Out of stock" : "Select this artisan product"}
       >
         <div className="relative overflow-hidden rounded-lg bg-gray-100">
           <img
@@ -114,7 +125,12 @@ const ProductCard = ({
           
           {/* Status badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {product.isFeatured && (
+            {isOutOfStock() && (
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white z-20">
+                Out of Stock
+              </span>
+            )}
+            {product.isFeatured && !isOutOfStock() && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white z-10">
                 Featured
               </span>
@@ -131,9 +147,18 @@ const ProductCard = ({
             )}
           </div>
 
+          {/* Out of stock overlay */}
+          {isOutOfStock() && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+              <div className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold text-sm">
+                Out of Stock
+              </div>
+            </div>
+          )}
+
 
           {/* Hover overlay with heart icon */}
-          {showImagePreview && (
+          {showImagePreview && !isOutOfStock() && (
             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-40 transition-opacity duration-300 ease-in-out z-20">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="bg-amber-600 rounded-full p-4 shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
@@ -146,8 +171,9 @@ const ProductCard = ({
 
         {/* Product details */}
         <div className="mt-2">
-          <h3 className="font-medium text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-2 text-sm leading-tight">
+          <h3 className={`font-medium line-clamp-2 text-sm leading-tight ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
             {product.name}
+            {isOutOfStock() && <span className="text-red-500 ml-1">(Out of Stock)</span>}
           </h3>
           <p className="text-xs text-gray-500 mt-1 line-clamp-1">
             {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
@@ -163,7 +189,9 @@ const ProductCard = ({
           
           {/* Price and rating */}
           <div className="flex items-center justify-between mt-2">
-            <span className="font-bold text-gray-900 text-sm">{formatPrice(product.price)}</span>
+            <span className={`font-bold text-sm ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+              {isOutOfStock() ? 'Unavailable' : formatPrice(product.price)}
+            </span>
             <div className="flex items-center space-x-1">
               {renderStars(product.artisan?.rating?.average || product.rating || 0)}
               <span className="text-xs text-gray-500">
@@ -175,7 +203,7 @@ const ProductCard = ({
       </div>
 
       {/* Add to Cart Popup */}
-      {showCartPopup && (
+      {showCartPopup && !isOutOfStock() && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}

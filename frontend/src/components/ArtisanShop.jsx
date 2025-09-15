@@ -642,6 +642,44 @@ export default function ArtisanShop() {
                 </h2>
               </div>
 
+              {/* Inventory Summary */}
+              {filteredProducts.length > 0 && (
+                <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Inventory Summary</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {(() => {
+                      const readyToShipProducts = filteredProducts.filter(p => p.productType === 'ready_to_ship');
+                      const inStockProducts = readyToShipProducts.filter(p => (p.stock || 0) > 0);
+                      const outOfStockProducts = readyToShipProducts.filter(p => (p.stock || 0) <= 0);
+                      const lowStockProducts = readyToShipProducts.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 5);
+                      const madeToOrderProducts = filteredProducts.filter(p => p.productType === 'made_to_order');
+                      const scheduledProducts = filteredProducts.filter(p => p.productType === 'scheduled_order');
+
+                      return (
+                        <>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">{inStockProducts.length}</div>
+                            <div className="text-sm text-gray-600">In Stock</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-orange-600">{lowStockProducts.length}</div>
+                            <div className="text-sm text-gray-600">Low Stock</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600">{outOfStockProducts.length}</div>
+                            <div className="text-sm text-gray-600">Out of Stock</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-blue-600">{madeToOrderProducts.length + scheduledProducts.length}</div>
+                            <div className="text-sm text-gray-600">Custom Orders</div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+
               {filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
                   {filteredProducts.map((product) => (

@@ -110,6 +110,20 @@ const AddToCart = ({
   const isOutOfStock = product.productType === 'ready_to_ship' && maxQuantity <= 0;
   const canAddToCart = !isOutOfStock && quantity > 0 && quantity <= maxQuantity;
 
+  // Show out of stock message for ready_to_ship products
+  const getStockMessage = () => {
+    if (product.productType === 'ready_to_ship') {
+      if (maxQuantity <= 0) {
+        return 'Out of Stock';
+      } else if (maxQuantity <= 5) {
+        return `Only ${maxQuantity} left in stock`;
+      } else {
+        return `${maxQuantity} in stock`;
+      }
+    }
+    return null;
+  };
+
   const handleQuantityChange = (newQuantity) => {
     if (newQuantity >= 1 && newQuantity <= maxQuantity) {
       setQuantity(newQuantity);
@@ -164,11 +178,8 @@ const AddToCart = ({
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock ? 'Out of Stock' : 'Add to Cart')}
         </button>
-        <div className="text-xs text-gray-500 text-center">
-          {product.productType === 'ready_to_ship' 
-            ? `${maxQuantity} in stock` 
-            : `Max ${maxQuantity} per order`
-          }
+        <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+          {getStockMessage() || `Max ${maxQuantity} per order`}
         </div>
       </div>
     );
@@ -199,11 +210,8 @@ const AddToCart = ({
             </button>
           </div>
         )}
-        <div className="text-xs text-gray-500">
-          {product.productType === 'ready_to_ship' 
-            ? `${maxQuantity} in stock` 
-            : `Max ${maxQuantity}`
-          }
+        <div className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+          {getStockMessage() || `Max ${maxQuantity}`}
         </div>
         <button
           onClick={handleAddToCart}
@@ -231,6 +239,23 @@ const AddToCart = ({
               </span>
               <p className="text-xs text-gray-600">
                 {readinessInfo.description}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Warning for Low Stock Items */}
+      {product.productType === 'ready_to_ship' && maxQuantity > 0 && maxQuantity <= 5 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-lg">⚠️</span>
+            <div>
+              <span className="text-sm font-medium text-orange-800">
+                Low Stock Warning
+              </span>
+              <p className="text-xs text-orange-600">
+                Only {maxQuantity} {maxQuantity === 1 ? 'item' : 'items'} left in stock. Order soon!
               </p>
             </div>
           </div>
@@ -282,13 +307,8 @@ const AddToCart = ({
               <PlusIcon className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs text-gray-500">
-            {product.productType === 'ready_to_ship' 
-              ? `${maxQuantity} in stock` 
-              : product.productType === 'made_to_order'
-              ? `Max ${maxQuantity} per order`
-              : `Max ${maxQuantity} per order`
-            }
+          <p className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+            {getStockMessage() || `Max ${maxQuantity} per order`}
           </p>
         </div>
       )}

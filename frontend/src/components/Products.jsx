@@ -742,6 +742,33 @@ export default function Products() {
     });
   };
 
+  const handleQuickStockUpdate = async (product) => {
+    const newStock = prompt(`Update stock for "${product.name}":`, product.stock || 0);
+    if (newStock === null) return; // User cancelled
+    
+    const stockNumber = parseInt(newStock);
+    if (isNaN(stockNumber) || stockNumber < 0) {
+      toast.error('Please enter a valid stock number (0 or greater)');
+      return;
+    }
+
+    try {
+      const updatedProduct = await updateProduct(product._id, { stock: stockNumber });
+      
+      // Update the product in the local state
+      setProducts(products.map(p => 
+        p._id === product._id 
+          ? { ...p, stock: stockNumber, status: stockNumber === 0 ? 'out_of_stock' : 'active' }
+          : p
+      ));
+      
+      toast.success(`Stock updated to ${stockNumber} for "${product.name}"`);
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      toast.error('Failed to update stock');
+    }
+  };
+
   const handleCancelEdit = () => {
     setEditingProduct(null);
   };
@@ -983,28 +1010,65 @@ export default function Products() {
                   <div className="text-xs text-gray-600">Products</div>
                 </div>
                 
-                <div className="bg-gradient-to-br from-[#F5F1EA] to-[#3C6E47] p-4 rounded-lg text-center">
-                  <div className="w-10 h-10 bg-[#3C6E47] rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-white text-sm font-bold">{products.filter(p => p.status === 'active').length}</span>
-                  </div>
-                  <div className="text-sm font-semibold text-gray-900">Active</div>
-                  <div className="text-xs text-gray-600">For Sale</div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg text-center">
-                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-white text-sm font-bold">{products.filter(p => p.productType === 'ready_to_ship').length}</span>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">
+                      {products.filter(p => p.productType === 'ready_to_ship' && (p.stock || 0) > 0).length}
+                    </span>
                   </div>
                   <div className="text-sm font-semibold text-gray-900">In Stock</div>
                   <div className="text-xs text-gray-600">Ready to Ship</div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">
+                      {products.filter(p => p.productType === 'ready_to_ship' && (p.stock || 0) > 0 && (p.stock || 0) <= 5).length}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">Low Stock</div>
+                  <div className="text-xs text-gray-600">Need Restocking</div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">
+                      {products.filter(p => p.productType === 'ready_to_ship' && (p.stock || 0) <= 0).length}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">Out of Stock</div>
+                  <div className="text-xs text-gray-600">Need Attention</div>
+                </div>
+              </div>
+
+              {/* Additional Metrics Row */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">
+                      {products.filter(p => p.productType === 'made_to_order').length}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">Made to Order</div>
+                  <div className="text-xs text-gray-600">Custom Products</div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg text-center">
+                  <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span className="text-white text-sm font-bold">
+                      {products.filter(p => p.productType === 'scheduled_order').length}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">Scheduled</div>
+                  <div className="text-xs text-gray-600">Time-based Orders</div>
                 </div>
                 
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg text-center">
                   <div className="w-10 h-10 bg-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
                     <span className="text-white text-sm font-bold">{products.reduce((sum, p) => sum + (p.soldCount || 0), 0)}</span>
                   </div>
-                  <div className="text-sm font-semibold text-gray-900">Sold</div>
-                  <div className="text-xs text-gray-600">Total Units</div>
+                  <div className="text-sm font-semibold text-gray-900">Total Sold</div>
+                  <div className="text-xs text-gray-600">All Time</div>
                 </div>
               </div>
               
@@ -1144,9 +1208,18 @@ export default function Products() {
                         <span className="text-lg font-bold text-orange-600">${product.price}</span>
                         <div className="text-right">
                           {product.productType === 'ready_to_ship' && (
-                            <span className="text-sm text-gray-500">
-                              Stock: {product.stock} {getUnitLabel(product.unit)}
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`text-sm ${(product.stock || 0) <= 0 ? 'text-red-500' : (product.stock || 0) <= 5 ? 'text-orange-500' : 'text-gray-500'}`}>
+                                Stock: {product.stock} {getUnitLabel(product.unit)}
+                              </span>
+                              <button
+                                onClick={() => handleQuickStockUpdate(product)}
+                                className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                                title="Quick Stock Update"
+                              >
+                                Update
+                              </button>
+                            </div>
                           )}
                           {product.productType === 'made_to_order' && (
                             <span className="text-sm text-gray-500">

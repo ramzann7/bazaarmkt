@@ -159,6 +159,12 @@ export const cartService = {
       
       console.log('🛒 Adding to cart:', { product: product.name, quantity, userId });
 
+      // Check product availability before adding to cart
+      const availabilityCheck = await cartService.checkProductAvailability(product._id, quantity);
+      if (!availabilityCheck.isAvailable) {
+        throw new Error(availabilityCheck.message || 'Product is not available');
+      }
+
       // Check if user is an artisan trying to order from themselves
       if (userId) {
         try {
@@ -789,6 +795,86 @@ export const cartService = {
       return {
         isValid: false,
         errors: ['Checkout validation failed']
+      };
+    }
+  },
+
+  // Check product availability before adding to cart
+  checkProductAvailability: async (productId, requestedQuantity = 1) => {
+    try {
+      // Get the token for authentication
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      // Use the correct backend API URL
+      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+      
+      // Fetch full product details
+      const response = await fetch(`${apiBaseUrl}/products/${productId}`, {
+        headers
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            isAvailable: false,
+            message: 'Product not found'
+          };
+        }
+        return {
+          isAvailable: false,
+          message: 'Unable to check product availability'
+        };
+      }
+      
+      const product = await response.json();
+      
+      // Check availability based on product type
+      if (product.productType === 'ready_to_ship') {
+        const availableStock = product.stock || 0;
+        if (availableStock <= 0) {
+          return {
+            isAvailable: false,
+            message: 'Product is out of stock'
+          };
+        }
+        if (availableStock < requestedQuantity) {
+          return {
+            isAvailable: false,
+            message: `Only ${availableStock} items available in stock`
+          };
+        }
+      } else if (product.productType === 'scheduled_order') {
+        const availableQuantity = product.availableQuantity || 0;
+        if (availableQuantity <= 0) {
+          return {
+            isAvailable: false,
+            message: 'Product is not available for the selected date'
+          };
+        }
+        if (availableQuantity < requestedQuantity) {
+          return {
+            isAvailable: false,
+            message: `Only ${availableQuantity} items available for the selected date`
+          };
+        }
+      }
+      
+      return {
+        isAvailable: true,
+        message: 'Product is available'
+      };
+    } catch (error) {
+      console.error(`Error checking product availability for ${productId}:`, error);
+      return {
+        isAvailable: false,
+        message: 'Unable to check product availability'
       };
     }
   },

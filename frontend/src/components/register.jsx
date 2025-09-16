@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { PRODUCT_CATEGORIES } from "../data/productReference";
 import { validateUserRegistration, formatPhoneInput, validateEmail, validatePhone, validatePassword, validateName } from "../utils/validation";
 import geographicSettingsService from "../services/geographicSettingsService";
+import { ADDRESS_CONFIG } from "../config/addressConfig";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [fieldTouched, setFieldTouched] = useState({});
+  const [addressConfig, setAddressConfig] = useState(ADDRESS_CONFIG.default);
 
   const handleChange = (e) => {
     let value = e.target.value;
@@ -47,6 +49,23 @@ export default function Register() {
       value = formatPhoneInput(value);
     }
     
+    // Special handling for country changes - update address configuration
+    if (fieldName === 'country') {
+      const countryConfig = Object.values(ADDRESS_CONFIG).find(config => 
+        config.countries.includes(value)
+      );
+      if (countryConfig) {
+        setAddressConfig(countryConfig);
+        // Reset state when country changes
+        setFormData(prev => ({
+          ...prev,
+          [fieldName]: value,
+          state: ''
+        }));
+        return;
+      }
+    }
+    
     // Special handling for artisan name to ensure first letter of each word is capitalized
     if (fieldName === 'artisanName') {
       value = value.split(' ').map(word => 
@@ -54,12 +73,23 @@ export default function Register() {
       ).join(' ');
     }
     
-    // Special handling for Quebec postal code formatting
+    // Special handling for postal code formatting based on country
     if (fieldName === 'zipCode') {
-      // Format as H1A 1A1
-      value = value.replace(/\s+/g, '').toUpperCase();
-      if (value.length > 3) {
-        value = value.slice(0, 3) + ' ' + value.slice(3, 6);
+      if (formData.country === 'Canada') {
+        // Format as H1A 1A1
+        value = value.replace(/\s+/g, '').toUpperCase();
+        if (value.length > 3) {
+          value = value.slice(0, 3) + ' ' + value.slice(3, 6);
+        }
+      } else if (formData.country === 'United States') {
+        // Format as 12345 or 12345-6789
+        value = value.replace(/\D/g, '');
+        if (value.length > 5) {
+          value = value.slice(0, 5) + '-' + value.slice(5, 9);
+        }
+      } else {
+        // For other countries, just clean up spaces
+        value = value.replace(/\s+/g, ' ').trim();
       }
     }
     
@@ -458,7 +488,7 @@ export default function Register() {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     className={`form-input focus-luxury ${validationErrors.zipCode && fieldTouched.zipCode ? 'border-red-500' : ''}`}
-                    placeholder="H1A 1A1"
+                    placeholder={addressConfig.postalCodePlaceholder || "Postal Code"}
                     maxLength="7"
                   />
                   {validationErrors.zipCode && fieldTouched.zipCode && (
@@ -467,34 +497,61 @@ export default function Register() {
                 </div>
               </div>
 
-              {/* Province and Country (Read-only) */}
+              {/* Province and Country */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="form-group">
                   <label htmlFor="state" className="form-label">
-                    Province
+                    {addressConfig.name === 'Canada' ? 'Province' : 'State/Province'}
                   </label>
-                  <input
-                    id="state"
-                    name="state"
-                    type="text"
-                    value={formData.state}
-                    disabled
-                    className="form-input focus-luxury bg-gray-100 cursor-not-allowed"
-                  />
+                  {addressConfig.states.length > 0 ? (
+                    <select
+                      id="state"
+                      name="state"
+                      value={formData.state}
+                      onChange={handleChange}
+                      className="form-input focus-luxury"
+                      required
+                    >
+                      <option value="">Select {addressConfig.name === 'Canada' ? 'Province' : 'State'}</option>
+                      {addressConfig.states.map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id="state"
+                      name="state"
+                      type="text"
+                      value={formData.state}
+                      onChange={handleChange}
+                      className="form-input focus-luxury"
+                      placeholder="State/Province"
+                      required
+                    />
+                  )}
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="country" className="form-label">
                     Country
                   </label>
-                  <input
+                  <select
                     id="country"
                     name="country"
-                    type="text"
                     value={formData.country}
-                    disabled
-                    className="form-input focus-luxury bg-gray-100 cursor-not-allowed"
-                  />
+                    onChange={handleChange}
+                    className="form-input focus-luxury"
+                    required
+                  >
+                    <option value="">Select Country</option>
+                    <option value="Canada">Canada</option>
+                    <option value="United States">United States</option>
+                    <option value="United Kingdom">United Kingdom</option>
+                    <option value="Australia">Australia</option>
+                    <option value="Germany">Germany</option>
+                    <option value="France">France</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
               </div>
 

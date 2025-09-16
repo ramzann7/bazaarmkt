@@ -144,7 +144,7 @@ export default function ArtisanProductManagement() {
     setProducts(updatedProducts);
     
     // If we're currently editing this product, update the form data to stay in sync
-    if (product && product._id === updatedProduct._id) {
+    if (selectedProduct && selectedProduct._id === updatedProduct._id) {
       setFormData(prev => ({
         ...prev,
         stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :

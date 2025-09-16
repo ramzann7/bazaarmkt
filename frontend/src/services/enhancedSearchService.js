@@ -110,6 +110,155 @@ class EnhancedSearchService {
     }
   }
 
+  // Enhanced subcategory search with complex prioritization
+  async searchBySubcategory(subcategory, userLocation = null, additionalFilters = {}) {
+    try {
+      console.log('🔍 Enhanced subcategory search:', subcategory);
+      
+      // Get user coordinates if not provided
+      if (!userLocation) {
+        try {
+          const userCoords = await geocodingService.getUserCoordinates();
+          if (userCoords) {
+            userLocation = userCoords;
+          }
+        } catch (error) {
+          console.log('Could not get user coordinates:', error);
+        }
+      }
+
+      const params = new URLSearchParams();
+      
+      // Set subcategory as the primary search parameter
+      params.append('subcategory', subcategory.id);
+      params.append('category', subcategory.categoryKey);
+      
+      // Add user location for proximity weighting
+      if (userLocation) {
+        params.append('userLat', userLocation.latitude);
+        params.append('userLng', userLocation.longitude);
+        params.append('proximityRadius', additionalFilters.maxDistance || '50');
+      }
+      
+      // Enhanced ranking parameters for subcategory searches
+      params.append('enhancedRanking', 'true');
+      params.append('includeQualityScore', 'true');
+      params.append('includeProximity', 'true');
+      params.append('includeEngagement', 'true');
+      params.append('includeDistance', 'true');
+      params.append('includeSponsored', 'true');
+      params.append('prioritizeSubcategory', 'true'); // New parameter for subcategory prioritization
+      params.append('prioritizePromotions', 'true'); // Prioritize promotional features
+      params.append('includeInventoryStatus', 'true'); // Include inventory information
+      
+      // Add additional filters
+      Object.keys(additionalFilters).forEach(key => {
+        if (additionalFilters[key] !== undefined && additionalFilters[key] !== null && additionalFilters[key] !== '') {
+          params.append(key, additionalFilters[key]);
+        }
+      });
+
+      const response = await axios.get(`${this.baseURL}/enhanced-subcategory-search?${params.toString()}`);
+      
+      // Get enhanced sponsored products for this subcategory
+      let sponsoredProducts = [];
+      try {
+        sponsoredProducts = await this.getSponsoredProductsForSubcategory(subcategory, userLocation);
+        console.log('✨ Found sponsored products for subcategory:', sponsoredProducts.length);
+      } catch (error) {
+        console.log('Could not fetch sponsored products for subcategory:', error);
+      }
+      
+      // Add distance information to results if user location is available
+      if (userLocation && response.data.products) {
+        response.data.products = await this.addDistanceInfo(response.data.products, userLocation);
+      }
+      
+      // Integrate sponsored products with enhanced ranking
+      const enhancedResults = this.integrateSponsoredProducts(
+        response.data.products || [],
+        sponsoredProducts,
+        subcategory.name,
+        userLocation
+      );
+      
+      // Apply subcategory-specific prioritization
+      const prioritizedResults = this.applySubcategoryPrioritization(enhancedResults, subcategory);
+      
+      return {
+        ...response.data,
+        products: prioritizedResults,
+        sponsoredCount: sponsoredProducts.length,
+        subcategory: subcategory,
+        searchType: 'subcategory'
+      };
+    } catch (error) {
+      console.error('Enhanced subcategory search error:', error);
+      throw error;
+    }
+  }
+
+  // Get sponsored products specifically for subcategory searches
+  async getSponsoredProductsForSubcategory(subcategory, userLocation) {
+    try {
+      const { promotionalService } = await import('./promotionalService');
+      return await promotionalService.getArtisanSpotlightProducts(
+        subcategory.id,
+        8, // More sponsored products for subcategory searches
+        subcategory.name,
+        userLocation,
+        { subcategory: subcategory.id, category: subcategory.categoryKey }
+      );
+    } catch (error) {
+      console.error('Error fetching sponsored products for subcategory:', error);
+      return [];
+    }
+  }
+
+  // Apply subcategory-specific prioritization
+  applySubcategoryPrioritization(products, subcategory) {
+    return products.map(product => {
+      let priorityScore = product.enhancedRelevanceScore || product.relevanceScore || 0;
+      
+      // Boost score for exact subcategory match
+      if (product.subcategory === subcategory.id) {
+        priorityScore += 100;
+      }
+      
+      // Boost score for promotional features
+      if (product.isFeatured) priorityScore += 50;
+      if (product.isPromotional) priorityScore += 75;
+      if (product.artisanSpotlight) priorityScore += 100;
+      
+      // Boost score for in-stock products
+      if (product.stock > 0 || product.remainingCapacity > 0 || product.availableQuantity > 0) {
+        priorityScore += 25;
+      }
+      
+      // Boost score for high-rated artisans
+      if (product.artisan?.rating?.average >= 4.5) {
+        priorityScore += 30;
+      }
+      
+      return {
+        ...product,
+        subcategoryPriorityScore: priorityScore
+      };
+    }).sort((a, b) => {
+      // Sort by subcategory priority score
+      if (a.subcategoryPriorityScore !== b.subcategoryPriorityScore) {
+        return b.subcategoryPriorityScore - a.subcategoryPriorityScore;
+      }
+      
+      // Then by sponsored status
+      if (a.isSponsored && !b.isSponsored) return -1;
+      if (!a.isSponsored && b.isSponsored) return 1;
+      
+      // Finally by original relevance score
+      return (b.enhancedRelevanceScore || b.relevanceScore || 0) - (a.enhancedRelevanceScore || a.relevanceScore || 0);
+    });
+  }
+
   // Integrate sponsored products with search results
   integrateSponsoredProducts(regularProducts, sponsoredProducts, searchQuery, userLocation) {
     if (!sponsoredProducts || sponsoredProducts.length === 0) {

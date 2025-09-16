@@ -57,6 +57,7 @@ export default function Products() {
     maxOrderQuantity: 10,
     totalCapacity: '',
     remainingCapacity: '',
+    capacityPeriod: 'daily',
     
     // Scheduled Order Fields
     scheduleType: 'daily',
@@ -552,7 +553,8 @@ export default function Products() {
           leadTimeUnit: newProduct.leadTimeUnit,
           maxOrderQuantity: parseInt(newProduct.maxOrderQuantity),
           totalCapacity: parseInt(newProduct.totalCapacity),
-          remainingCapacity: parseInt(newProduct.remainingCapacity) || parseInt(newProduct.totalCapacity)
+          remainingCapacity: parseInt(newProduct.remainingCapacity) || parseInt(newProduct.totalCapacity),
+          capacityPeriod: newProduct.capacityPeriod || 'daily'
         }),
         ...(newProduct.productType === 'scheduled_order' && {
           scheduleType: newProduct.scheduleType,
@@ -589,6 +591,7 @@ export default function Products() {
         leadTime: '',
         leadTimeUnit: 'days',
         maxOrderQuantity: 10,
+        capacityPeriod: 'daily',
         
         // Scheduled Order Fields
         scheduleType: 'daily',
@@ -716,6 +719,7 @@ export default function Products() {
       maxOrderQuantity: product.maxOrderQuantity || 10,
       totalCapacity: product.totalCapacity || '',
       remainingCapacity: product.remainingCapacity || product.totalCapacity || '',
+      capacityPeriod: product.capacityPeriod || 'daily',
       scheduleType: product.scheduleType || 'daily',
       scheduleDetails: {
         frequency: product.scheduleDetails?.frequency || 'every_day',
@@ -883,7 +887,8 @@ export default function Products() {
           leadTimeUnit: editingProduct.leadTimeUnit,
           maxOrderQuantity: parseInt(editingProduct.maxOrderQuantity),
           totalCapacity: parseInt(editingProduct.totalCapacity),
-          remainingCapacity: parseInt(editingProduct.remainingCapacity) || parseInt(editingProduct.totalCapacity)
+          remainingCapacity: parseInt(editingProduct.remainingCapacity) || parseInt(editingProduct.totalCapacity),
+          capacityPeriod: editingProduct.capacityPeriod || 'daily'
         }),
         ...(editingProduct.productType === 'scheduled_order' && {
           scheduleType: editingProduct.scheduleType,
@@ -955,6 +960,7 @@ export default function Products() {
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
         updated.availableQuantity = 1;
+        updated.capacityPeriod = 'daily';
       } else if (value === 'made_to_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
@@ -962,6 +968,7 @@ export default function Products() {
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
         updated.availableQuantity = 1;
+        updated.capacityPeriod = 'daily';
       } else if (value === 'scheduled_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
@@ -990,6 +997,7 @@ export default function Products() {
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
         updated.availableQuantity = 1;
+        updated.capacityPeriod = 'daily';
       } else if (value === 'made_to_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
@@ -997,6 +1005,7 @@ export default function Products() {
         updated.scheduleDetails = { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 };
         updated.nextAvailableDate = '';
         updated.availableQuantity = 1;
+        updated.capacityPeriod = 'daily';
       } else if (value === 'scheduled_order') {
         updated.stock = '';
         updated.lowStockThreshold = 5;
@@ -1804,6 +1813,22 @@ export default function Products() {
                               placeholder="e.g., 8"
                             />
                             <p className="text-xs text-gray-500 mt-1">Available capacity (starts equal to total capacity)</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Capacity Period <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={editingProduct.capacityPeriod || 'daily'}
+                              onChange={(e) => setEditingProduct({...editingProduct, capacityPeriod: e.target.value})}
+                              required
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            >
+                              <option value="daily">Daily</option>
+                              <option value="weekly">Weekly</option>
+                              <option value="monthly">Monthly</option>
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">How often does your production capacity reset?</p>
                           </div>
 
                         </div>
@@ -2621,6 +2646,22 @@ export default function Products() {
                           placeholder="e.g., 8"
                         />
                         <p className="text-xs text-gray-500 mt-1">Available capacity (starts equal to total capacity)</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Capacity Period <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          value={newProduct.capacityPeriod}
+                          onChange={(e) => setNewProduct({...newProduct, capacityPeriod: e.target.value})}
+                          required
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">How often does your production capacity reset?</p>
                       </div>
 
                     </div>

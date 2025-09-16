@@ -73,7 +73,7 @@ export default function Navbar() {
         cachedCartCount = cartService.getCartCount(user._id);
         cacheService.set(cartCountKey, cachedCartCount, CACHE_TTL.CART_COUNT);
       }
-      console.log('🛒 Navbar: Setting cart count for user:', { userId: user._id, count: cachedCartCount });
+      console.log('🛒 Navbar: Setting cart count for user:', { userId: user._id, count: cachedCartCount, userObject: user });
       setCartCount(cachedCartCount);
     } else {
       // For guest users, always get fresh cart count
@@ -188,18 +188,42 @@ export default function Navbar() {
         setShowSubcategoryDropdown(true);
       } else {
         setShowSubcategoryDropdown(false);
+        
+        // If no subcategories, automatically search for the main category
+        if (category !== 'all') {
+          const categoryName = categories.find(c => c.key === category)?.name || category;
+          
+          // Track the category selection
+          searchTrackingService.trackSearch(categoryName, category);
+          
+          // Automatically navigate to search with the category
+          const searchParams = new URLSearchParams();
+          searchParams.append('category', category);
+          searchParams.append('autoSearch', 'true'); // Flag to indicate automatic search
+          navigate(`/search?${searchParams.toString()}`);
+        }
       }
     };
-  }, []);
+  }, [categories, navigate]);
 
-  // Memoized subcategory change handler
+  // Memoized subcategory change handler with automatic search
   const handleSubcategoryChange = useMemo(() => {
     return (subcategory) => {
       setSelectedSubcategory(subcategory);
       setShowCategoryDropdown(false);
       setShowSubcategoryDropdown(false);
+      
+      // Track the subcategory selection
+      searchTrackingService.trackSearch(subcategory.name, subcategory.id);
+      
+      // Automatically navigate to search with the subcategory
+      const searchParams = new URLSearchParams();
+      searchParams.append('subcategory', subcategory.id);
+      searchParams.append('category', subcategory.categoryKey);
+      searchParams.append('autoSearch', 'true'); // Flag to indicate automatic search
+      navigate(`/search?${searchParams.toString()}`);
     };
-  }, []);
+  }, [navigate]);
 
   // Clear category selection
   const clearCategorySelection = useMemo(() => {
@@ -343,13 +367,13 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6 ml-8 flex-shrink-0">
-            <OptimizedLink to="/" className="text-white hover:text-[#E6B655] transition-colors font-medium text-sm">
+            <OptimizedLink to="/" className="text-white hover:text-[#E6B655] transition-colors font-medium text-base">
               Home
             </OptimizedLink>
-              <OptimizedLink to="/find-artisans" className="text-white hover:text-[#E6B655] transition-colors font-medium text-sm">
+              <OptimizedLink to="/find-artisans" className="text-white hover:text-[#E6B655] transition-colors font-medium text-base">
                 Find Artisan
               </OptimizedLink>
-            <Link to="/community" className="text-white hover:text-[#E6B655] transition-colors font-medium text-sm">
+            <Link to="/community" className="text-white hover:text-[#E6B655] transition-colors font-medium text-base">
               Community
             </Link>
           </div>
@@ -729,21 +753,21 @@ export default function Navbar() {
           <div className="px-2 pt-2 pb-3 space-y-1">
             <OptimizedLink
               to="/"
-              className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+              className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
               Home
             </OptimizedLink>
             <OptimizedLink
               to="/find-artisans"
-              className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+              className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
               Find Artisan
             </OptimizedLink>
             <Link
               to="/community"
-              className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+              className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
               Community

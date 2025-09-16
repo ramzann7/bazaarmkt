@@ -12,6 +12,9 @@ const { logAdminAction, getAdminAuditLogs } = require('../utils/adminAuditLogger
 // Import promotional routes
 const promotionalRoutes = require('./adminPromotional');
 
+// Import platform settings routes
+const platformSettingsRoutes = require('./adminPlatformSettings');
+
 // Admin middleware to check if user is admin
 const requireAdmin = [auth, adminAuth];
 
@@ -983,5 +986,8 @@ router.get('/audit-logs', requireAdmin, async (req, res) => {
 
 // Use promotional routes
 router.use('/promotional', promotionalRoutes);
+
+// Use platform settings routes
+router.use('/platform-settings', platformSettingsRoutes);
 
 module.exports = router;

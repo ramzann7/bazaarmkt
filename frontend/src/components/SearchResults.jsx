@@ -22,10 +22,12 @@ import { authToken, getProfile } from '../services/authservice';
 import { geocodingService } from '../services/geocodingService';
 import searchTrackingService from '../services/searchTrackingService';
 import { promotionalService } from '../services/promotionalService';
+import enhancedSearchService from '../services/enhancedSearchService';
 
 import ProductTypeBadge from './ProductTypeBadge';
 import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
+import InventoryModel from '../models/InventoryModel';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
@@ -48,8 +50,19 @@ export default function SearchResults() {
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
+  // Helper function to filter out out-of-stock products
+  const filterInStockProducts = (products) => {
+    return products.filter(product => {
+      const inventoryModel = new InventoryModel(product);
+      const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+      return !outOfStockStatus.isOutOfStock;
+    });
+  };
+
   const query = searchParams.get('q') || '';
   const categoryParam = searchParams.get('category') || '';
+  const subcategoryParam = searchParams.get('subcategory') || '';
+  const autoSearch = searchParams.get('autoSearch') === 'true';
 
   const categories = [
     { id: 'Bakery', name: 'Bakery', icon: '🥖' },
@@ -92,10 +105,10 @@ export default function SearchResults() {
   }, []);
 
   useEffect(() => {
-    if (query || categoryParam) {
+    if (query || categoryParam || subcategoryParam) {
       // Track the search when component loads
       if (query) {
-        searchTrackingService.trackSearch(query, categoryParam);
+        searchTrackingService.trackSearch(query, categoryParam || subcategoryParam);
       }
       performSearch();
     } else {
@@ -104,7 +117,7 @@ export default function SearchResults() {
       setFilteredProducts([]);
       setIsLoading(false);
     }
-  }, [query, categoryParam, userLocation]);
+  }, [query, categoryParam, subcategoryParam, userLocation]);
 
   useEffect(() => {
     applyFiltersAndSort();
@@ -168,11 +181,30 @@ export default function SearchResults() {
   const performSearch = async () => {
     try {
       setIsLoading(true);
-      console.log('🔍 Performing search for:', query, 'category:', categoryParam);
+      console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'autoSearch:', autoSearch);
       
       let searchResults;
       
-      if (query) {
+      if (subcategoryParam && categoryParam) {
+        // Enhanced subcategory search with complex prioritization
+        try {
+          console.log('🎯 Using enhanced subcategory search');
+          const subcategory = {
+            id: subcategoryParam,
+            name: subcategoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            categoryKey: categoryParam,
+            icon: '🌟'
+          };
+          
+          const enhancedResults = await enhancedSearchService.searchBySubcategory(subcategory, userLocation);
+          searchResults = enhancedResults.products || [];
+          
+          console.log('✨ Enhanced subcategory search results:', searchResults.length, 'products');
+        } catch (error) {
+          console.log('⚠️ Enhanced subcategory search failed, falling back to regular search:', error);
+          searchResults = await getAllProducts({ category: categoryParam, subcategory: subcategoryParam });
+        }
+      } else if (query) {
         // Search by query - try promotional service first, then fallback to regular service
         try {
           const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
@@ -246,7 +278,9 @@ export default function SearchResults() {
           .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
         setProducts(processedProducts);
-        setFilteredProducts(processedProducts);
+        // Filter out out-of-stock products for search results
+        const inStockProducts = filterInStockProducts(processedProducts);
+        setFilteredProducts(inStockProducts);
       } else {
         console.log('⚠️ Search results not in expected format:', searchResults);
         setProducts([]);
@@ -329,7 +363,9 @@ export default function SearchResults() {
         break;
     }
 
-    setFilteredProducts(filtered);
+    // Also filter out out-of-stock products
+    const inStockFiltered = filterInStockProducts(filtered);
+    setFilteredProducts(inStockFiltered);
   };
 
   const handleProductClick = (product) => {
@@ -413,12 +449,45 @@ export default function SearchResults() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">
-                Local Community Results for "{query}"
-              </h1>
-              <p className="text-slate-600 mt-1">
-                {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} found from your neighbors
-              </p>
+              {subcategoryParam && categoryParam ? (
+                <>
+                  <h1 className="text-2xl font-bold text-slate-800">
+                    {subcategoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Products
+                  </h1>
+                  <p className="text-slate-600 mt-1">
+                    {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
+                    {autoSearch && <span className="text-amber-600 font-medium"> • Auto-selected for you</span>}
+                  </p>
+                </>
+              ) : query ? (
+                <>
+                  <h1 className="text-2xl font-bold text-slate-800">
+                    Search Results for "{query}"
+                  </h1>
+                  <p className="text-slate-600 mt-1">
+                    {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} found from your neighbors
+                  </p>
+                </>
+              ) : categoryParam ? (
+                <>
+                  <h1 className="text-2xl font-bold text-slate-800">
+                    {categoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Products
+                  </h1>
+                  <p className="text-slate-600 mt-1">
+                    {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
+                    {autoSearch && <span className="text-amber-600 font-medium"> • Auto-selected for you</span>}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-2xl font-bold text-slate-800">
+                    All Products
+                  </h1>
+                  <p className="text-slate-600 mt-1">
+                    {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} available
+                  </p>
+                </>
+              )}
             </div>
             
             {/* Sort and Filter Controls */}

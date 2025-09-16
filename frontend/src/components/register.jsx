@@ -7,6 +7,7 @@ import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
 import { PRODUCT_CATEGORIES } from "../data/productReference";
 import { validateUserRegistration, formatPhoneInput, validateEmail, validatePhone, validatePassword, validateName } from "../utils/validation";
+import geographicSettingsService from "../services/geographicSettingsService";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -24,6 +25,12 @@ export default function Register() {
     artisanName: "",
     businessType: "food_beverages",
     businessDescription: "",
+    // Address fields
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -45,6 +52,15 @@ export default function Register() {
       value = value.split(' ').map(word => 
         word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
       ).join(' ');
+    }
+    
+    // Special handling for Quebec postal code formatting
+    if (fieldName === 'zipCode') {
+      // Format as H1A 1A1
+      value = value.replace(/\s+/g, '').toUpperCase();
+      if (value.length > 3) {
+        value = value.slice(0, 3) + ' ' + value.slice(3, 6);
+      }
     }
     
     setFormData({
@@ -84,6 +100,21 @@ export default function Register() {
         if (value) {
           const artisanNameValidation = validateName(value, 'Business name');
           error = artisanNameValidation.error || '';
+        }
+        break;
+      case 'street':
+        if (!value.trim()) {
+          error = 'Street address is required';
+        }
+        break;
+      case 'city':
+        if (!value.trim()) {
+          error = 'City is required';
+        }
+        break;
+      case 'zipCode':
+        if (!value.trim()) {
+          error = 'Postal code is required';
         }
         break;
       default:
@@ -136,6 +167,29 @@ export default function Register() {
       return;
     }
 
+    // Validate address using flexible system
+    try {
+      const addressValidation = await geographicSettingsService.validateAddress({
+        street: formData.street,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        country: formData.country
+      });
+
+      if (!addressValidation.isValid) {
+        toast.error(addressValidation.errors.join(', '));
+        return;
+      }
+    } catch (error) {
+      console.error('Address validation error:', error);
+      // Fallback to basic validation
+      if (!formData.street.trim() || !formData.city.trim() || !formData.state.trim() || !formData.zipCode.trim() || !formData.country.trim()) {
+        toast.error('All address fields are required');
+        return;
+      }
+    }
+
     // Validate artisan-specific fields
     if (formData.role === 'artisan') {
       if (!formData.businessType || formData.businessType === '') {
@@ -149,6 +203,18 @@ export default function Register() {
     try {
       const { confirmPassword, ...registerData } = formData;
       
+      // Add address to user data
+      registerData.addresses = [{
+        type: 'home',
+        label: 'Home',
+        street: formData.street,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        country: formData.country,
+        isDefault: true
+      }];
+
       // Prepare artisan data if registering as artisan
       if (formData.role === 'artisan') {
         registerData.artisanData = {
@@ -156,7 +222,14 @@ export default function Register() {
           type: formData.businessType,
           description: formData.businessDescription || `Artisan profile for ${formData.firstName} ${formData.lastName}`,
           category: [formData.businessType], // Set the main category based on business type
-          specialties: [] // Will be populated during profile setup
+          specialties: [], // Will be populated during profile setup
+          address: {
+            street: formData.street,
+            city: formData.city,
+            state: formData.state,
+            zipCode: formData.zipCode,
+            country: formData.country
+          }
         };
       }
       
@@ -320,6 +393,117 @@ export default function Register() {
               {validationErrors.phone && fieldTouched.phone && (
                 <p className="text-red-500 text-sm mt-1">{validationErrors.phone}</p>
               )}
+            </div>
+
+            {/* Address Section */}
+            <div className="border-t border-stone-200 pt-6">
+              <h3 className="text-lg font-semibold text-stone-800 mb-4 flex items-center">
+                <span className="mr-2">📍</span>
+                Address (Required)
+              </h3>
+              
+              {/* Street Address */}
+              <div className="form-group">
+                <label htmlFor="street" className="form-label">
+                  Street Address *
+                </label>
+                <input
+                  id="street"
+                  name="street"
+                  type="text"
+                  autoComplete="street-address"
+                  value={formData.street}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`form-input focus-luxury ${validationErrors.street && fieldTouched.street ? 'border-red-500' : ''}`}
+                  placeholder="123 Main Street"
+                />
+                {validationErrors.street && fieldTouched.street && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.street}</p>
+                )}
+              </div>
+
+              {/* City and Postal Code */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label htmlFor="city" className="form-label">
+                    City *
+                  </label>
+                  <input
+                    id="city"
+                    name="city"
+                    type="text"
+                    autoComplete="address-level2"
+                    value={formData.city}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`form-input focus-luxury ${validationErrors.city && fieldTouched.city ? 'border-red-500' : ''}`}
+                    placeholder="Montreal"
+                  />
+                  {validationErrors.city && fieldTouched.city && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.city}</p>
+                  )}
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="zipCode" className="form-label">
+                    Postal Code *
+                  </label>
+                  <input
+                    id="zipCode"
+                    name="zipCode"
+                    type="text"
+                    autoComplete="postal-code"
+                    value={formData.zipCode}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`form-input focus-luxury ${validationErrors.zipCode && fieldTouched.zipCode ? 'border-red-500' : ''}`}
+                    placeholder="H1A 1A1"
+                    maxLength="7"
+                  />
+                  {validationErrors.zipCode && fieldTouched.zipCode && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.zipCode}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Province and Country (Read-only) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label htmlFor="state" className="form-label">
+                    Province
+                  </label>
+                  <input
+                    id="state"
+                    name="state"
+                    type="text"
+                    value={formData.state}
+                    disabled
+                    className="form-input focus-luxury bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="country" className="form-label">
+                    Country
+                  </label>
+                  <input
+                    id="country"
+                    name="country"
+                    type="text"
+                    value={formData.country}
+                    disabled
+                    className="form-input focus-luxury bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                <p className="text-blue-800 text-sm">
+                  <strong>Note:</strong> Please provide a complete and accurate address. 
+                  Address validation may apply based on your location.
+                </p>
+              </div>
             </div>
 
             {/* Artisan-specific fields */}

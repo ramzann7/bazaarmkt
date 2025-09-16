@@ -7,9 +7,10 @@ import {
   CogIcon,
   ShieldCheckIcon,
   CurrencyDollarIcon,
-  SparklesIcon
+  SparklesIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
-import { authToken, getProfile } from '../services/authService';
+import { authToken, getProfile } from '../services/authservice';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import adminService from '../services/adminService';
@@ -101,6 +102,30 @@ export default function AdminDashboard() {
       icon: SparklesIcon,
       color: 'bg-amber-500',
       path: '/admin/promotional'
+    },
+    {
+      id: 'platform-settings',
+      title: 'Platform Settings',
+      description: 'Configure platform fees, payout settings, and general settings',
+      icon: CogIcon,
+      color: 'bg-purple-500',
+      path: '/admin/platform-settings'
+    },
+    {
+      id: 'geographic-settings',
+      title: 'Geographic Settings',
+      description: 'Configure geographic restrictions and address validation',
+      icon: GlobeAltIcon,
+      color: 'bg-indigo-500',
+      path: '/admin/geographic-settings'
+    },
+    {
+      id: 'geographic-test',
+      title: 'Geographic Testing',
+      description: 'Test geographic restrictions and address validation',
+      icon: ShieldCheckIcon,
+      color: 'bg-teal-500',
+      path: '/admin/geographic-test'
     },
     {
       id: 'settings',

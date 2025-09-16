@@ -237,21 +237,6 @@ const AddToCart = ({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Simplified Product Readiness Information */}
-      {showReadinessInfo && readinessInfo && (
-        <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-          <div className="flex items-center space-x-2">
-            <span className="text-lg">{readinessInfo.icon}</span>
-            <div>
-              <span className={`text-sm font-medium ${readinessInfo.color}`}>
-                {readinessInfo.status}
-              </span>
-              <p className="text-xs text-gray-600">
-                {readinessInfo.description}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Stock Warning for Low Stock Items */}
       {product.productType === 'ready_to_ship' && maxQuantity > 0 && maxQuantity <= 5 && (

@@ -93,6 +93,10 @@ export default function AdminPromotionalDashboard() {
         adminService.getPromotionalPricing()
       ]);
       
+      console.log('🔍 Frontend - Stats received:', stats);
+      console.log('🔍 Frontend - Promotions received:', promotions);
+      console.log('🔍 Frontend - Pricing received:', pricing);
+      
       setPromotionalStats(stats);
       setActivePromotions(promotions);
       
@@ -441,7 +445,7 @@ export default function AdminPromotionalDashboard() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
                         <h3 className="text-sm font-medium text-gray-900">
-                          {promotion.artisan?.name || 'Unknown Artisan'}
+                          {promotion.artisan?.artisanName || promotion.artisanId?.firstName + ' ' + promotion.artisanId?.lastName || 'Unknown Artisan'}
                         </h3>
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadge(promotion.status)}`}>
                           {promotion.status}

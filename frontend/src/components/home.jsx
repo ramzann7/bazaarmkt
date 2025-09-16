@@ -39,6 +39,7 @@ import ProductTypeBadge from './ProductTypeBadge';
 
 import AddToCart from './AddToCart';
 import ProductCard from './ProductCard';
+import InventoryModel from '../models/InventoryModel';
 import toast from 'react-hot-toast';
 
 // Skeleton loading component
@@ -62,6 +63,28 @@ export default function Home() {
   const [nearbyProducts, setNearbyProducts] = useState([]);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
   const [isLoadingPopular, setIsLoadingPopular] = useState(true);
+
+  // Helper function to filter out out-of-stock products
+  const filterInStockProducts = (products) => {
+    return products.filter(product => {
+      const inventoryModel = new InventoryModel(product);
+      const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+      return !outOfStockStatus.isOutOfStock;
+    });
+  };
+
+  // Create filtered versions of product arrays for home page display
+  const availableFeaturedProducts = useMemo(() => {
+    return filterInStockProducts(featuredProducts);
+  }, [featuredProducts]);
+
+  const availablePopularProducts = useMemo(() => {
+    return filterInStockProducts(popularProducts);
+  }, [popularProducts]);
+
+  const availableNearbyProducts = useMemo(() => {
+    return filterInStockProducts(nearbyProducts);
+  }, [nearbyProducts]);
   const [isLoadingNearby, setIsLoadingNearby] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showCartPopup, setShowCartPopup] = useState(false);
@@ -894,9 +917,9 @@ export default function Home() {
                 <ProductSkeleton key={index} />
               ))}
             </div>
-          ) : featuredProducts.length > 0 ? (
+          ) : availableFeaturedProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {featuredProducts.slice(0, 8).map((product) => (
+              {availableFeaturedProducts.slice(0, 8).map((product) => (
                 <ProductCard 
                   key={product._id} 
                   product={product} 
@@ -934,9 +957,9 @@ export default function Home() {
                 <ProductSkeleton key={index} />
               ))}
             </div>
-          ) : popularProducts.length > 0 ? (
+          ) : availablePopularProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {popularProducts.slice(0, 4).map((product) => (
+              {availablePopularProducts.slice(0, 4).map((product) => (
                 <ProductCard 
                   key={product._id} 
                   product={product} 
@@ -995,9 +1018,9 @@ export default function Home() {
                 <ProductSkeleton key={index} />
               ))}
             </div>
-          ) : nearbyProducts.length > 0 ? (
+          ) : availableNearbyProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {nearbyProducts.slice(0, 8).map((product) => (
+              {availableNearbyProducts.slice(0, 8).map((product) => (
                 <ProductCard 
                   key={product._id} 
                   product={product} 

@@ -9,7 +9,6 @@ import {
   CameraIcon,
   PlusIcon,
   MinusIcon,
-  XMarkIcon,
   FireIcon,
   ClockIcon,
   TruckIcon,
@@ -34,6 +33,8 @@ import { cartService } from '../services/cartService';
 import ProductTypeBadge from './ProductTypeBadge';
 import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
+import SocialShare from './SocialShare';
+import SocialMetaTags from './SocialMetaTags';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
@@ -46,8 +47,6 @@ export default function ArtisanShop() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [user, setUser] = useState(null);
   const [cartCount, setCartCount] = useState(0);
@@ -246,11 +245,6 @@ export default function ArtisanShop() {
     }
   };
 
-  const handleProductClick = (product) => {
-    setSelectedProduct(product);
-    setShowCartPopup(true);
-    setQuantity(1);
-  };
 
   const handleQuantityChange = (newQuantity) => {
     if (newQuantity >= 1 && newQuantity <= 99) {
@@ -263,8 +257,6 @@ export default function ArtisanShop() {
       // For guest users, pass null as userId to use guest cart
       const userId = user ? user._id : null;
       await cartService.addToCart(product, quantity, userId);
-      setShowCartPopup(false);
-      setSelectedProduct(null);
       updateCartCount();
       toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
     } catch (error) {
@@ -431,6 +423,18 @@ export default function ArtisanShop() {
 
   return (
     <div className="min-h-screen bg-[#F5F1EA]">
+      {/* Social Media Meta Tags */}
+      {artisan && (
+        <SocialMetaTags
+          title={`${artisan.artisanName || artisan.businessName || 'Artisan Shop'} - Handmade Products`}
+          description={`Discover unique handmade products from ${artisan.artisanName || artisan.businessName || 'this talented artisan'}. ${artisan.tagline || artisan.bio || 'Support local artisans and find one-of-a-kind items!'}`}
+          image={artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner || '/default-artisan-banner.jpg'}
+          url={window.location.href}
+          type="website"
+          siteName="Artisan Marketplace"
+        />
+      )}
+
       {/* Sticky Header with Cart and Follow */}
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-[#E6B655] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3">
@@ -519,13 +523,23 @@ export default function ArtisanShop() {
                   )}
                 </div>
 
-                {/* Shop Now Button */}
-                <button
-                  onClick={() => document.getElementById('products-section').scrollIntoView({ behavior: 'smooth' })}
-                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  Shop Now
-                </button>
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => document.getElementById('products-section').scrollIntoView({ behavior: 'smooth' })}
+                    className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    Shop Now
+                  </button>
+                  
+                  <SocialShare
+                    artisan={artisan}
+                    shareUrl={window.location.href}
+                    shareTitle={`Check out ${artisan?.artisanName || artisan?.businessName || 'this amazing artisan shop'}!`}
+                    shareDescription={`Discover unique handmade products from ${artisan?.artisanName || artisan?.businessName || 'this talented artisan'}. ${artisan?.tagline || artisan?.bio || 'Support local artisans and find one-of-a-kind items!'}`}
+                    className="flex-1 sm:flex-none"
+                  />
+                </div>
               </div>
             </div>
 
@@ -591,56 +605,56 @@ export default function ArtisanShop() {
       {/* Product Catalog Section */}
       <section id="products-section" className="py-8">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:space-x-8">
-            {/* Sidebar Filters */}
-            <div className="lg:w-64 mb-6 lg:mb-0">
-              <div className="lg:sticky lg:top-24">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900 flex items-center">
-                      <FunnelIcon className="w-4 h-4 mr-2" />
-                      Filters
-                    </h3>
+          {/* Product Grid Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Products ({filteredProducts.length})
+            </h2>
+          </div>
+
+          {/* Horizontal Filter Bar */}
+          <div className="mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+                  <FunnelIcon className="w-4 h-4 mr-2" />
+                  Filter by Category
+                </h3>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{showFilters ? 'Hide' : 'Show'} Filters</span>
+                  {showFilters ? (
+                    <ChevronUpIcon className="w-4 h-4" />
+                  ) : (
+                    <ChevronDownIcon className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              
+              <div className={`${showFilters ? 'block' : 'hidden'} transition-all duration-200`}>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map(category => (
                     <button
-                      onClick={() => setShowFilters(!showFilters)}
-                      className="lg:hidden"
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedCategory === category
+                          ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                      }`}
                     >
-                      {showFilters ? (
-                        <ChevronUpIcon className="w-4 h-4 text-gray-500" />
-                      ) : (
-                        <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                      )}
+                      {category === 'all' ? 'All Products' : category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </button>
-                  </div>
-                  
-                  <div className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
-                    <div className="space-y-2">
-                      {categories.map(category => (
-                        <button
-                          key={category}
-                          onClick={() => setSelectedCategory(category)}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            selectedCategory === category
-                              ? 'bg-orange-100 text-orange-700 border border-orange-200'
-                              : 'text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {category === 'all' ? 'All Products' : category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Product Grid */}
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Products ({filteredProducts.length})
-                </h2>
-              </div>
+          {/* Product Grid */}
+          <div>
 
 
               {filteredProducts.length > 0 ? (
@@ -669,7 +683,6 @@ export default function ArtisanShop() {
                   </p>
                 </div>
               )}
-            </div>
           </div>
         </div>
       </section>
@@ -812,117 +825,17 @@ export default function ArtisanShop() {
         </div>
       </section>
 
-      {/* Product Cart Popup */}
-      {showCartPopup && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900">Product Details</h3>
-              <button
-                onClick={() => setShowCartPopup(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <XMarkIcon className="w-6 h-6" />
-              </button>
-            </div>
-            
-            {/* Product Image */}
-            <div className="mb-6">
-              <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
-                {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                  <img
-                    src={getImageUrl(selectedProduct.images[0])}
-                    alt={selectedProduct.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.log('❌ ArtisanShop image failed to load:', e.target.src);
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                    onLoad={(e) => {
-                      console.log('✅ ArtisanShop image loaded successfully:', e.target.src);
-                    }}
-                  />
-                ) : selectedProduct.image ? (
-                  <img
-                    src={getImageUrl(selectedProduct.image)}
-                    alt={selectedProduct.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.log('❌ ArtisanShop image failed to load:', e.target.src);
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
-                    onLoad={(e) => {
-                      console.log('✅ ArtisanShop image loaded successfully:', e.target.src);
-                    }}
-                  />
-                ) : null}
-                <div className={`w-full h-48 bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center ${(selectedProduct.images && selectedProduct.images.length > 0) || selectedProduct.image ? 'hidden' : 'flex'}`}>
-                  <CameraIcon className="w-12 h-12 text-orange-400" />
-                </div>
-              </div>
-            </div>
-            
-            {/* Product Info */}
-            <div className="space-y-4 mb-6">
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-2">{selectedProduct.name}</h4>
-                {selectedProduct.description && (
-                  <p className="text-gray-600 text-sm leading-relaxed">{selectedProduct.description}</p>
-                )}
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold text-orange-600">
-                  {formatPrice(selectedProduct.price)}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {selectedProduct.unit || 'piece'}
-                </span>
-              </div>
-              
-              {/* Stock and Lead Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 mb-1">
-                    {selectedProduct.productType === 'ready_to_ship' ? 'Stock' :
-                     selectedProduct.productType === 'made_to_order' ? 'Total Capacity' :
-                     'Available Quantity'}
-                  </div>
-                  <div className="font-semibold text-gray-900">
-                    {selectedProduct.productType === 'ready_to_ship' ? 
-                      (selectedProduct.stock > 0 ? `${selectedProduct.stock} available` : 'Out of stock') :
-                     selectedProduct.productType === 'made_to_order' ? 
-                      `${selectedProduct.totalCapacity || 0} capacity` :
-                      `${selectedProduct.availableQuantity || 0} available`}
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 mb-1">Lead Time</div>
-                  <div className="font-semibold text-gray-900">
-                    {selectedProduct.leadTime ? `${selectedProduct.leadTime} ${selectedProduct.leadTimeUnit || 'days'}` : 'Contact artisan'}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Enhanced Add to Cart Component */}
-            <AddToCart 
-              product={selectedProduct}
-              variant="modal"
-              onSuccess={(product, quantity) => {
-                setShowCartPopup(false);
-                setSelectedProduct(null);
-                toast.success(`Added ${quantity} ${quantity === 1 ? (product.unit || 'piece') : ((product.unit || 'piece') + 's')} to cart!`);
-              }}
-              onError={(error) => {
-                console.error('Add to cart error:', error);
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Floating Share Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <SocialShare
+          artisan={artisan}
+          shareUrl={window.location.href}
+          shareTitle={`Check out ${artisan?.artisanName || artisan?.businessName || 'this amazing artisan shop'}!`}
+          shareDescription={`Discover unique handmade products from ${artisan?.artisanName || artisan?.businessName || 'this talented artisan'}. ${artisan?.tagline || artisan?.bio || 'Support local artisans and find one-of-a-kind items!'}`}
+          className="shadow-lg hover:shadow-xl transform hover:scale-105"
+        />
+      </div>
+
     </div>
   );
 }

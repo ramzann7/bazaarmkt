@@ -1105,7 +1105,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         
         // Temporary fallback for testing - use known artisan address
         console.log('📍 Using fallback artisan address for testing');
-        const fallbackArtisanAddress = '3440 rue alexandra, Saint-Hubert, Quebec, J4T 3E9';
+        const fallbackArtisanAddress = '123 Main Street, Montreal, Quebec, H1A 1A1';
         const artisanCoords = await geocodingService.geocodeAddress(fallbackArtisanAddress);
         
         if (!artisanCoords) {

@@ -170,6 +170,7 @@ class InventoryService {
     }
   }
 
+
   /**
    * Calculate next production date based on schedule type
    * @param {string} scheduleType - Schedule type

@@ -63,6 +63,15 @@ const revenueSchema = new mongoose.Schema({
     }
   },
   
+  // Platform fee percentage (for transparency and future flexibility)
+  platformFeePercentage: {
+    type: Number,
+    required: true,
+    default: 10, // 10%
+    min: 0,
+    max: 50
+  },
+  
   // Commission rate (for transparency and future flexibility)
   commissionRate: {
     type: Number,

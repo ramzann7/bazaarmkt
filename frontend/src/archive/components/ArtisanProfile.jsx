@@ -21,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { profileService } from '../services/profileService';
 import { productService } from '../services/productService';
-import { getProfile } from '../services/authService';
+import { getProfile } from '../services/authservice';
 import { onboardingService } from '../services/onboardingService';
 import toast from 'react-hot-toast';
 

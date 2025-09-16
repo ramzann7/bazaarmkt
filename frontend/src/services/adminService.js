@@ -218,6 +218,7 @@ export const getPromotionalStats = async (period = 30) => {
         'Authorization': `Bearer ${token}`
       }
     });
+    console.log('🔍 getPromotionalStats - Response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error fetching promotional stats:', error);
@@ -228,11 +229,13 @@ export const getPromotionalStats = async (period = 30) => {
 // Get active promotions
 export const getActivePromotions = async () => {
   try {
+    console.log('🔍 getActivePromotions - URL:', `${API_URL}/admin/promotional/active`);
     const response = await axios.get(`${API_URL}/admin/promotional/active`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
+    console.log('🔍 getActivePromotions - Response:', response.data);
     return response.data.data || []; // Extract data array from paginated response
   } catch (error) {
     console.error('Error fetching active promotions:', error);
@@ -285,6 +288,77 @@ export const initializeDefaultPricing = async () => {
   }
 };
 
+// Platform Settings API calls
+
+// Get platform settings
+export const getPlatformSettings = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/admin/platform-settings`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error('Error fetching platform settings:', error);
+    throw error;
+  }
+};
+
+// Update platform settings
+export const updatePlatformSettings = async (settingsData) => {
+  try {
+    const response = await axios.put(`${API_URL}/admin/platform-settings`, settingsData, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating platform settings:', error);
+    throw error;
+  }
+};
+
+// Reset platform settings to defaults
+export const resetPlatformSettings = async () => {
+  try {
+    const response = await axios.post(`${API_URL}/admin/platform-settings/reset-defaults`, {}, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error resetting platform settings:', error);
+    throw error;
+  }
+};
+
+// Get platform fee percentage (public)
+export const getPlatformFeePercentage = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/admin/platform-settings/fee-percentage`);
+    return response.data.data.platformFeePercentage;
+  } catch (error) {
+    console.error('Error fetching platform fee percentage:', error);
+    return 10; // Default fallback
+  }
+};
+
+// Calculate platform fee for an order
+export const calculatePlatformFee = async (orderAmount) => {
+  try {
+    const response = await axios.post(`${API_URL}/admin/platform-settings/calculate-fee`, {
+      orderAmount
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error('Error calculating platform fee:', error);
+    throw error;
+  }
+};
+
 export default {
   getStats,
   getUsers,
@@ -302,5 +376,10 @@ export default {
   getActivePromotions,
   getPromotionalPricing,
   updatePromotionalPricing,
-  initializeDefaultPricing
+  initializeDefaultPricing,
+  getPlatformSettings,
+  updatePlatformSettings,
+  resetPlatformSettings,
+  getPlatformFeePercentage,
+  calculatePlatformFee
 };

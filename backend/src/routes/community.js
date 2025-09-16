@@ -74,15 +74,31 @@ router.get('/posts', optionalVerifyToken, async (req, res) => {
 
     const total = await CommunityPost.countDocuments(query);
 
-    // Add likeCount, commentCount, and isLiked to each post
+    // Add likeCount, commentCount, isLiked, and RSVP data to each post
     const postsWithCounts = posts.map(post => {
       const postObj = post.toObject();
       const isLiked = req.user ? post.isLikedBy(req.user._id) : false;
+      
+      // Add RSVP data for event posts
+      let rsvpData = {};
+      if (post.type === 'event' && post.event) {
+        const userRSVPStatus = req.user ? post.isRSVPedBy(req.user._id) : false;
+        rsvpData = {
+          rsvpCount: post.rsvpCount,
+          waitlistCount: post.waitlistCount,
+          hasCapacity: post.hasCapacity,
+          userRSVPStatus: userRSVPStatus,
+          maxAttendees: post.event.maxAttendees,
+          rsvpRequired: post.event.rsvpRequired
+        };
+      }
+      
       return {
         ...postObj,
         likeCount: post.likes ? post.likes.length : 0,
         commentCount: post.comments ? post.comments.length : 0,
-        isLiked: isLiked
+        isLiked: isLiked,
+        ...rsvpData
       };
     });
 
@@ -186,6 +202,249 @@ router.get('/posts/:postId/comments', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching comments:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// RSVP to an event post
+router.post('/posts/:postId/rsvp', verifyToken, async (req, res) => {
+  try {
+    const post = await CommunityPost.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.type !== 'event') {
+      return res.status(400).json({ message: 'This post is not an event' });
+    }
+
+    if (!post.event.rsvpRequired) {
+      return res.status(400).json({ message: 'This event does not require RSVP' });
+    }
+
+    // Find artisan profile
+    const artisan = await Artisan.findOne({ user: req.user._id });
+    if (!artisan) {
+      return res.status(404).json({ message: 'Artisan profile not found' });
+    }
+
+    // Check if event is in the future
+    const eventDate = new Date(post.event.date);
+    if (eventDate < new Date()) {
+      return res.status(400).json({ message: 'Cannot RSVP to past events' });
+    }
+
+    await post.addRSVP(req.user._id, artisan._id);
+
+    // Refresh the post to get updated RSVP data
+    const updatedPost = await CommunityPost.findById(req.params.postId)
+      .populate([
+        { path: 'author', select: 'firstName lastName profilePicture' },
+        { path: 'artisan', select: 'artisanName businessImage' },
+        { 
+          path: 'event.rsvps.user', 
+          select: 'firstName lastName profilePicture' 
+        },
+        { 
+          path: 'event.rsvps.artisan', 
+          select: 'artisanName businessImage' 
+        }
+      ]);
+
+    res.json({
+      success: true,
+      message: 'RSVP successful',
+      data: {
+        rsvpCount: updatedPost.rsvpCount,
+        waitlistCount: updatedPost.waitlistCount,
+        hasCapacity: updatedPost.hasCapacity,
+        userRSVPStatus: updatedPost.isRSVPedBy(req.user._id)
+      }
+    });
+  } catch (error) {
+    console.error('Error RSVPing to event:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Cancel RSVP to an event post
+router.delete('/posts/:postId/rsvp', verifyToken, async (req, res) => {
+  try {
+    const post = await CommunityPost.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.type !== 'event') {
+      return res.status(400).json({ message: 'This post is not an event' });
+    }
+
+    await post.cancelRSVP(req.user._id);
+
+    // Refresh the post to get updated RSVP data
+    const updatedPost = await CommunityPost.findById(req.params.postId)
+      .populate([
+        { path: 'author', select: 'firstName lastName profilePicture' },
+        { path: 'artisan', select: 'artisanName businessImage' },
+        { 
+          path: 'event.rsvps.user', 
+          select: 'firstName lastName profilePicture' 
+        },
+        { 
+          path: 'event.rsvps.artisan', 
+          select: 'artisanName businessImage' 
+        }
+      ]);
+
+    res.json({
+      success: true,
+      message: 'RSVP cancelled',
+      data: {
+        rsvpCount: updatedPost.rsvpCount,
+        waitlistCount: updatedPost.waitlistCount,
+        hasCapacity: updatedPost.hasCapacity,
+        userRSVPStatus: updatedPost.isRSVPedBy(req.user._id)
+      }
+    });
+  } catch (error) {
+    console.error('Error cancelling RSVP:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get RSVP list for an event
+router.get('/posts/:postId/rsvps', async (req, res) => {
+  try {
+    const post = await CommunityPost.findById(req.params.postId)
+      .populate([
+        { 
+          path: 'event.rsvps.user', 
+          select: 'firstName lastName profilePicture' 
+        },
+        { 
+          path: 'event.rsvps.artisan', 
+          select: 'artisanName businessImage' 
+        }
+      ]);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.type !== 'event') {
+      return res.status(400).json({ message: 'This post is not an event' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        rsvps: post.event.rsvps,
+        rsvpCount: post.rsvpCount,
+        waitlistCount: post.waitlistCount,
+        maxAttendees: post.event.maxAttendees,
+        hasCapacity: post.hasCapacity
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching RSVPs:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Vote on a poll
+router.post('/posts/:postId/poll/vote', verifyToken, async (req, res) => {
+  try {
+    const { optionIndex } = req.body;
+    const post = await CommunityPost.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.type !== 'poll') {
+      return res.status(400).json({ message: 'This post is not a poll' });
+    }
+
+    if (!post.poll.options || optionIndex >= post.poll.options.length) {
+      return res.status(400).json({ message: 'Invalid poll option' });
+    }
+
+    // Check if poll has expired
+    if (post.poll.expiresAt && new Date(post.poll.expiresAt) < new Date()) {
+      return res.status(400).json({ message: 'This poll has expired' });
+    }
+
+    // Check if user already voted (unless multiple votes are allowed)
+    if (!post.poll.allowMultipleVotes) {
+      const existingVote = post.poll.votes.find(vote => vote.user.toString() === req.user._id.toString());
+      if (existingVote) {
+        return res.status(400).json({ message: 'You have already voted on this poll' });
+      }
+    }
+
+    // Remove existing vote if user already voted (for multiple votes)
+    if (post.poll.allowMultipleVotes) {
+      post.poll.votes = post.poll.votes.filter(vote => vote.user.toString() !== req.user._id.toString());
+    }
+
+    // Add new vote
+    post.poll.votes.push({
+      user: req.user._id,
+      options: [optionIndex],
+      votedAt: new Date()
+    });
+
+    await post.save();
+
+    res.json({
+      success: true,
+      message: 'Vote recorded',
+      data: {
+        votes: post.poll.votes
+      }
+    });
+  } catch (error) {
+    console.error('Error voting on poll:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get poll results
+router.get('/posts/:postId/poll/results', async (req, res) => {
+  try {
+    const post = await CommunityPost.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    if (post.type !== 'poll') {
+      return res.status(400).json({ message: 'This post is not a poll' });
+    }
+
+    const results = post.poll.options.map((option, index) => {
+      const voteCount = post.poll.votes.filter(vote => 
+        vote.options.includes(index) && vote.user
+      ).length;
+      return {
+        option,
+        index,
+        voteCount,
+        percentage: post.poll.votes.length > 0 ? (voteCount / post.poll.votes.length) * 100 : 0
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        results,
+        totalVotes: post.poll.votes.filter(vote => vote.user).length,
+        expiresAt: post.poll.expiresAt,
+        allowMultipleVotes: post.poll.allowMultipleVotes
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching poll results:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

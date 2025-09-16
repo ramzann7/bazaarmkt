@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
-import { loginUser } from "../services/authService";
+import { loginUser } from "../services/authservice";
 import { onboardingService } from "../services/onboardingService";
 import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";

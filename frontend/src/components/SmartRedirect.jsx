@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { authToken, getProfile } from '../services/authService';
+import { authToken, getProfile } from '../services/authservice';
 import { cartService } from '../services/cartService';
 import { onboardingService } from '../services/onboardingService';
 import { orderService } from '../services/orderService';

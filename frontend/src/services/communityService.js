@@ -212,6 +212,58 @@ class CommunityService {
       throw error;
     }
   }
+
+  // RSVP Methods
+  async rsvpToEvent(postId) {
+    try {
+      const response = await this.api.post(`/posts/${postId}/rsvp`);
+      return response.data;
+    } catch (error) {
+      console.error('Error RSVPing to event:', error);
+      throw error;
+    }
+  }
+
+  async cancelRSVP(postId) {
+    try {
+      const response = await this.api.delete(`/posts/${postId}/rsvp`);
+      return response.data;
+    } catch (error) {
+      console.error('Error cancelling RSVP:', error);
+      throw error;
+    }
+  }
+
+  async getEventRSVPs(postId) {
+    try {
+      const response = await this.api.get(`/posts/${postId}/rsvps`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching event RSVPs:', error);
+      throw error;
+    }
+  }
+
+  // Poll Methods
+  async voteOnPoll(postId, optionIndex) {
+    try {
+      const response = await this.api.post(`/posts/${postId}/poll/vote`, { optionIndex });
+      return response.data;
+    } catch (error) {
+      console.error('Error voting on poll:', error);
+      throw error;
+    }
+  }
+
+  async getPollResults(postId) {
+    try {
+      const response = await this.api.get(`/posts/${postId}/poll/results`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching poll results:', error);
+      throw error;
+    }
+  }
 }
 
 export default new CommunityService();

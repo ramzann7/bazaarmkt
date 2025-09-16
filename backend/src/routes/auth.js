@@ -5,9 +5,10 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const verifyToken = require('../middleware/authMiddleware');
 const { validateUserRegistration, validateEmail } = require('../utils/validation');
+const { validateQuebecAddressMiddleware } = require('../middleware/quebecValidation');
 
 // Register user
-router.post('/register', async (req, res) => {
+router.post('/register', validateQuebecAddressMiddleware, async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone, role = 'patron', artisanData } = req.body;
 
@@ -166,7 +167,7 @@ router.post('/guest', async (req, res) => {
 });
 
 // Register artisan with business profile
-router.post('/register/artisan', async (req, res) => {
+router.post('/register/artisan', validateQuebecAddressMiddleware, async (req, res) => {
   try {
     const { 
       email, 

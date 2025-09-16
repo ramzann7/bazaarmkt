@@ -4,6 +4,7 @@ const Order = require('../models/order');
 const PromotionalFeature = require('../models/promotionalFeature');
 const ArtisanSpotlight = require('../models/artisanSpotlight');
 const User = require('../models/user');
+const PlatformSettingsService = require('./platformSettingsService');
 
 class RevenueService {
   // Calculate revenue breakdown for an order
@@ -18,9 +19,10 @@ class RevenueService {
         throw new Error('Order not found');
       }
 
-      const commissionRate = 0.10; // 10% platform commission
+      // Get platform fee percentage from settings
+      const platformFeePercentage = await PlatformSettingsService.getPlatformFeePercentage();
       const grossAmount = order.totalAmount;
-      const platformCommission = grossAmount * commissionRate;
+      const platformCommission = (grossAmount * platformFeePercentage) / 100;
       const artisanEarnings = grossAmount - platformCommission;
 
       // Create revenue record with 'completed' status since this is only called when order is delivered/picked up
@@ -30,7 +32,7 @@ class RevenueService {
         grossAmount,
         platformCommission,
         artisanEarnings,
-        commissionRate,
+        platformFeePercentage,
         paymentProcessor: 'stripe', // Default, can be updated
         status: 'completed', // Revenue is only recognized when order is completed
         paymentDate: new Date(), // Set payment date to now since order is completed

@@ -112,6 +112,7 @@ const spotlightRoutes = require('./src/routes/spotlight');
 const walletRoutes = require('./src/routes/wallet');
 const payoutRoutes = require('./src/routes/payouts');
 const communityRoutes = require('./src/routes/community');
+const geographicSettingsRoutes = require('./src/routes/geographicSettings');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -132,6 +133,7 @@ app.use('/api/spotlight', spotlightRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/community', communityRoutes);
+app.use('/api/geographic-settings', geographicSettingsRoutes);
 
 
 
@@ -191,6 +193,9 @@ app.use((error, req, res, next) => {
   next(error);
 });
 
+// Import inventory service for scheduled capacity restoration
+const inventoryService = require('./src/services/inventoryService');
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
@@ -199,5 +204,25 @@ app.listen(PORT, () => {
   console.log(`📦 Payload limit: 100MB`);
   console.log(`🖼️ Static files served from: ${path.join(__dirname, 'public/uploads')}`);
   console.log(`🔗 Test image endpoint: http://localhost:${PORT}/api/test-image/image-1755916231829-653071106.jpg`);
+  
+  // Set up scheduled capacity restoration
+  console.log(`⏰ Setting up scheduled capacity restoration...`);
+  
+  // Run capacity restoration every hour
+  setInterval(async () => {
+    try {
+      console.log(`🔄 Running scheduled capacity restoration...`);
+      const updates = await inventoryService.checkAndRestoreInventory();
+      if (updates.length > 0) {
+        console.log(`✅ Capacity restoration completed: ${updates.length} products updated`);
+      } else {
+        console.log(`ℹ️ No capacity restoration needed`);
+      }
+    } catch (error) {
+      console.error(`❌ Error in scheduled capacity restoration:`, error.message);
+    }
+  }, 60 * 60 * 1000); // Run every hour (60 minutes * 60 seconds * 1000 milliseconds)
+  
+  console.log(`✅ Scheduled capacity restoration set up (runs every hour)`);
 });
 

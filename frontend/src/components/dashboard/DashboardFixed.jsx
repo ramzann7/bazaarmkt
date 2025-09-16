@@ -10,7 +10,7 @@ import {
   TagIcon,
   SparklesIcon
 } from "@heroicons/react/24/outline";
-import { getProfile, logoutUser } from "../../services/authService";
+import { getProfile, logoutUser } from "../../services/authservice";
 import { orderService } from "../../services/orderService";
 import { spotlightService } from "../../services/spotlightService";
 import walletService from "../../services/walletService";

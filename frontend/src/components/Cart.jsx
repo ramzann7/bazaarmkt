@@ -2087,7 +2087,7 @@ const Cart = () => {
                               value={deliveryForm.state}
                               onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="Quebec"
+                              placeholder="State/Province"
                               required
                             />
                           </div>

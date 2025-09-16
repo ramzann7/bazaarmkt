@@ -1389,6 +1389,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       leadTimeUnit,
       maxOrderQuantity,
       totalCapacity,
+      capacityPeriod,
       scheduleType,
       scheduleDetails,
       nextAvailableDate,
@@ -1507,7 +1508,8 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
         leadTime: parseInt(leadTime),
         leadTimeUnit: leadTimeUnit || 'days',
         maxOrderQuantity: parseInt(maxOrderQuantity) || 10,
-        totalCapacity: parseInt(totalCapacity) || 10
+        totalCapacity: parseInt(totalCapacity) || 10,
+        capacityPeriod: capacityPeriod || 'daily'
       }),
       ...(productType === 'scheduled_order' && {
         scheduleType: scheduleType,
@@ -1592,6 +1594,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       leadTimeUnit,
       maxOrderQuantity,
       totalCapacity,
+      capacityPeriod,
       scheduleType,
       scheduleDetails,
       nextAvailableDate,
@@ -1658,6 +1661,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       console.log('🔍 Updating totalCapacity:', totalCapacity, 'to:', parseInt(totalCapacity));
       product.totalCapacity = parseInt(totalCapacity);
     }
+    if (capacityPeriod !== undefined) product.capacityPeriod = capacityPeriod;
     if (scheduleType !== undefined) product.scheduleType = scheduleType;
     if (scheduleDetails !== undefined) {
       if (typeof scheduleDetails === 'string' && scheduleDetails !== '[object Object]') {

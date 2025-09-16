@@ -4,13 +4,14 @@ const User = require('../models/user');
 const verifyToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
+    console.log('🔍 Auth middleware - Token received:', !!token, token ? token.substring(0, 20) + '...' : 'none');
     
     if (!token) {
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production');
-    console.log('Decoded token:', decoded);
+    console.log('🔍 Auth middleware - Decoded token:', decoded);
     
     const user = await User.findById(decoded.userId).select('-password');
     

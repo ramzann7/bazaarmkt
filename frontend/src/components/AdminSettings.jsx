@@ -14,7 +14,7 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
-import { authToken, getProfile } from '../services/authService';
+import { authToken, getProfile } from '../services/authservice';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import adminService from '../services/adminService';

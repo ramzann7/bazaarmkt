@@ -2,6 +2,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import Navbar from "./components/navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import { performanceService } from "./services/performanceService";
@@ -77,6 +78,9 @@ const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManag
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
 const AdminSettings = lazy(() => import("./components/AdminSettings.jsx"));
 const AdminPromotionalDashboard = lazy(() => import("./components/AdminPromotionalDashboard.jsx"));
+const AdminPlatformSettings = lazy(() => import("./components/AdminPlatformSettings.jsx"));
+const AdminGeographicSettings = lazy(() => import("./components/AdminGeographicSettings.jsx"));
+const GeographicSettingsTest = lazy(() => import("./components/GeographicSettingsTest.jsx"));
 const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
 const ArtisanProductManagement = lazy(() => import("./components/ArtisanProductManagement.jsx"));
 
@@ -234,6 +238,18 @@ function AppRoutes() {
           element={isAuthenticated ? <AdminPromotionalDashboard /> : <Navigate to="/login" />}
         />
         <Route
+          path="/admin/platform-settings"
+          element={isAuthenticated ? <AdminPlatformSettings /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin/geographic-settings"
+          element={isAuthenticated ? <AdminGeographicSettings /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin/geographic-test"
+          element={isAuthenticated ? <GeographicSettingsTest /> : <Navigate to="/login" />}
+        />
+        <Route
           path="/admin/settings"
           element={isAuthenticated ? <AdminSettings /> : <Navigate to="/login" />}
         />
@@ -254,13 +270,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <Navbar />
-        <AppRoutes />
-        <Footer />
-      </AuthProvider>
-    </Router>
+    <HelmetProvider>
+      <Router>
+        <AuthProvider>
+          <Navbar />
+          <AppRoutes />
+          <Footer />
+        </AuthProvider>
+      </Router>
+    </HelmetProvider>
   );
 }
 

@@ -13,15 +13,84 @@ const { validate, promotionalPricingSchema } = require('../middleware/validation
 // Admin middleware to check if user is admin
 const requireAdmin = [auth, adminAuth];
 
+// Test endpoint to check if route is working (no auth for testing)
+router.get('/test-no-auth', async (req, res) => {
+  try {
+    console.log('🔍 Test endpoint (no auth) called');
+    
+    // Test if PromotionalFeature model can be queried
+    const count = await PromotionalFeature.countDocuments();
+    console.log('🔍 PromotionalFeature count:', count);
+    
+    res.json({ 
+      message: 'Promotional routes are working!', 
+      timestamp: new Date(),
+      promotionalFeatureCount: count
+    });
+  } catch (error) {
+    console.error('🔍 Test endpoint error:', error);
+    console.error('🔍 Error stack:', error.stack);
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
+// Test endpoint with basic auth only
+router.get('/test-auth-only', auth, async (req, res) => {
+  try {
+    console.log('🔍 Test endpoint (auth only) called');
+    console.log('🔍 User:', req.user);
+    
+    // Test if PromotionalFeature model can be queried
+    const count = await PromotionalFeature.countDocuments();
+    console.log('🔍 PromotionalFeature count:', count);
+    
+    res.json({ 
+      message: 'Auth is working!', 
+      timestamp: new Date(),
+      user: req.user,
+      promotionalFeatureCount: count
+    });
+  } catch (error) {
+    console.error('🔍 Test endpoint error:', error);
+    console.error('🔍 Error stack:', error.stack);
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
+// Test endpoint to check if route is working
+router.get('/test', requireAdmin, async (req, res) => {
+  try {
+    console.log('🔍 Test endpoint called');
+    
+    // Test if PromotionalFeature model can be queried
+    const count = await PromotionalFeature.countDocuments();
+    console.log('🔍 PromotionalFeature count:', count);
+    
+    res.json({ 
+      message: 'Promotional routes are working!', 
+      timestamp: new Date(),
+      promotionalFeatureCount: count
+    });
+  } catch (error) {
+    console.error('🔍 Test endpoint error:', error);
+    console.error('🔍 Error stack:', error.stack);
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Get promotional statistics
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
+    console.log('🔍 Promotional stats endpoint called');
     const { period = 30 } = req.query;
     const days = parseInt(period);
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+    
+    console.log('🔍 Stats query params:', { period, days, startDate });
 
     // Get total revenue from promotional features
+    console.log('🔍 Starting revenue stats aggregation...');
     const revenueStats = await PromotionalFeature.aggregate([
       {
         $match: {
@@ -37,42 +106,58 @@ router.get('/stats', requireAdmin, async (req, res) => {
         }
       }
     ]);
+    console.log('🔍 Revenue stats result:', revenueStats);
 
     // Get active promotions count
+    console.log('🔍 Starting active promotions count...');
     const activePromotions = await PromotionalFeature.countDocuments({
       isActive: true,
       startDate: { $lte: new Date() },
       endDate: { $gte: new Date() }
     });
+    console.log('🔍 Active promotions count:', activePromotions);
 
     // Get unique active artisans
+    console.log('🔍 Starting active artisans distinct query...');
     const activeArtisans = await PromotionalFeature.distinct('artisanId', {
       isActive: true,
       startDate: { $lte: new Date() },
       endDate: { $gte: new Date() }
     });
+    console.log('🔍 Active artisans result:', activeArtisans);
 
     const stats = revenueStats[0] || { totalRevenue: 0, totalPromotions: 0 };
     const averageRevenuePerDay = days > 0 ? stats.totalRevenue / days : 0;
 
-    res.json({
+    const result = {
       totalRevenue: stats.totalRevenue,
       totalPromotions: stats.totalPromotions,
       activePromotions,
       activeArtisans: activeArtisans.length,
       averageRevenuePerDay
-    });
+    };
+    
+    console.log('🔍 Final stats result:', result);
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching promotional stats:', error);
-    res.status(500).json({ message: 'Error fetching promotional statistics' });
+    console.error('🔍 Error fetching promotional stats:', error);
+    console.error('🔍 Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Error fetching promotional statistics',
+      error: error.message,
+      stack: error.stack
+    });
   }
 });
 
 // Get active promotions with details (paginated)
 router.get('/active', requireAdmin, paginationMiddleware, async (req, res) => {
   try {
+    console.log('🔍 Active promotions endpoint called');
     const { page, limit, skip } = req.pagination;
+    console.log('🔍 Pagination params:', { page, limit, skip });
     
+    console.log('🔍 Starting promotions query...');
     const promotions = await PromotionalFeature.find({
       isActive: true,
       startDate: { $lte: new Date() },
@@ -84,6 +169,20 @@ router.get('/active', requireAdmin, paginationMiddleware, async (req, res) => {
     .skip(skip)
     .limit(limit)
     .lean(); // Use lean() for better performance
+
+    console.log('🔍 Found promotions:', promotions.length);
+
+    // Get artisan details for each promotion
+    console.log('🔍 Starting artisan lookup...');
+    for (let promotion of promotions) {
+      if (promotion.artisanId) {
+        const artisan = await Artisan.findOne({ user: promotion.artisanId._id })
+          .select('artisanName businessImage')
+          .lean();
+        promotion.artisan = artisan;
+        console.log('🔍 Found artisan for promotion:', promotion._id, artisan ? artisan.artisanName : 'none');
+      }
+    }
 
     const total = await PromotionalFeature.countDocuments({
       isActive: true,
@@ -101,11 +200,18 @@ router.get('/active', requireAdmin, paginationMiddleware, async (req, res) => {
 // Get promotional pricing configuration
 router.get('/pricing', requireAdmin, async (req, res) => {
   try {
+    console.log('🔍 Promotional pricing endpoint called');
     const pricing = await PromotionalPricing.find({ isActive: true }).sort({ featureType: 1 });
+    console.log('🔍 Pricing found:', pricing.length, 'items');
     res.json(pricing);
   } catch (error) {
-    console.error('Error fetching promotional pricing:', error);
-    res.status(500).json({ message: 'Error fetching promotional pricing' });
+    console.error('🔍 Error fetching promotional pricing:', error);
+    console.error('🔍 Error stack:', error.stack);
+    res.status(500).json({ 
+      message: 'Error fetching promotional pricing',
+      error: error.message,
+      stack: error.stack
+    });
   }
 });
 
@@ -260,6 +366,17 @@ router.get('/analytics', requireAdmin, paginationMiddleware, async (req, res) =>
           from: 'users',
           localField: '_id',
           foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $unwind: '$user'
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: '_id',
+          foreignField: 'user',
           as: 'artisan'
         }
       },

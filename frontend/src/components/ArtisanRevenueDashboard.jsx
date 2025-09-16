@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { revenueService } from '../services/revenueService';
 import { promotionalService } from '../services/promotionalService';
+import * as adminService from '../services/adminService';
 import toast from 'react-hot-toast';
 
 export default function ArtisanRevenueDashboard() {
@@ -24,11 +25,13 @@ export default function ArtisanRevenueDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [isLoading, setIsLoading] = useState(true);
   const [showTransparency, setShowTransparency] = useState(false);
+  const [platformFeePercentage, setPlatformFeePercentage] = useState(10);
 
   useEffect(() => {
     loadRevenueData();
     loadPromotionalFeatures();
     loadUserFeatures();
+    loadPlatformFeePercentage();
   }, [selectedPeriod]);
 
   const loadRevenueData = async () => {
@@ -61,6 +64,16 @@ export default function ArtisanRevenueDashboard() {
     } catch (error) {
       console.error('Error loading user features:', error);
       toast.error('Failed to load your promotional features');
+    }
+  };
+
+  const loadPlatformFeePercentage = async () => {
+    try {
+      const feePercentage = await adminService.getPlatformFeePercentage();
+      setPlatformFeePercentage(feePercentage);
+    } catch (error) {
+      console.error('Error loading platform fee percentage:', error);
+      // Keep default value of 10%
     }
   };
 
@@ -202,11 +215,11 @@ export default function ArtisanRevenueDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">90%</div>
+            <div className="text-3xl font-bold text-green-600">{100 - platformFeePercentage}%</div>
             <p className="text-sm text-gray-600">You Keep</p>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600">10%</div>
+            <div className="text-3xl font-bold text-orange-600">{platformFeePercentage}%</div>
             <p className="text-sm text-gray-600">Platform Commission</p>
           </div>
           <div className="text-center">
@@ -219,8 +232,8 @@ export default function ArtisanRevenueDashboard() {
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-semibold text-gray-900 mb-2">How it works:</h3>
             <ul className="text-sm text-gray-600 space-y-1">
-              <li>• For every $100 sale, you receive $90 directly</li>
-              <li>• $10 goes to platform maintenance and development</li>
+              <li>• For every $100 sale, you receive ${100 - platformFeePercentage} directly</li>
+              <li>• ${platformFeePercentage} goes to platform maintenance and development</li>
               <li>• No hidden fees or surprise charges</li>
               <li>• Weekly payouts with $25 minimum</li>
             </ul>

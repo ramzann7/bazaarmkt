@@ -1,6 +1,6 @@
 // src/components/Login.jsx
 import { useState } from "react";
-import { loginUser, logoutUser, getProfile } from "../services/authService";
+import { loginUser, logoutUser, getProfile } from "../services/authservice";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });

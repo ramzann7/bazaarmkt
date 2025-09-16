@@ -145,13 +145,21 @@ export default function ArtisanProductManagement() {
     
     // If we're currently editing this product, update the form data to stay in sync
     if (selectedProduct && selectedProduct._id === updatedProduct._id) {
+      // Update the selectedProduct with the latest data
+      setSelectedProduct(updatedProduct);
+      
+      // Update the form data to match the updated product
       setFormData(prev => ({
         ...prev,
         stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :
                updatedProduct.productType === 'scheduled_order' ? (updatedProduct.availableQuantity || 0) :
                (updatedProduct.stock || 0),
         // Update capacity period if it exists
-        capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod
+        capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod,
+        // Update other inventory fields
+        totalCapacity: updatedProduct.totalCapacity || prev.totalCapacity,
+        remainingCapacity: updatedProduct.remainingCapacity || prev.remainingCapacity,
+        availableQuantity: updatedProduct.availableQuantity || prev.availableQuantity
       }));
     }
     
@@ -624,7 +632,7 @@ export default function ArtisanProductManagement() {
                             <span className="font-medium text-gray-700">
                               {product.productType === 'ready_to_ship' ? 'Stock:' :
                                product.productType === 'made_to_order' ? 'Capacity:' :
-                               'Available:'}
+                               'Quantity:'}
                             </span>
                             <InventoryDisplay product={product} />
                           </div>

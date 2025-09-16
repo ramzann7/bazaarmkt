@@ -136,11 +136,6 @@ const ProductCard = ({
           
           {/* Status and dietary badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {outOfStockStatus.isOutOfStock && (
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white z-20">
-                {outOfStockStatus.message}
-              </span>
-            )}
             {product.isFeatured && !outOfStockStatus.isOutOfStock && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white z-10">
                 Featured

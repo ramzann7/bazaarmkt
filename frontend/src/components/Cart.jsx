@@ -26,6 +26,7 @@ import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
 import { notificationService } from '../services/notificationService';
 import { locationService } from '../services/locationService';
+import { geocodingService } from '../services/geocodingService';
 import ProductTypeBadge from './ProductTypeBadge';
 
 const Cart = () => {
@@ -457,6 +458,16 @@ const Cart = () => {
       setDeliveryOptions(options);
       setSelectedDeliveryMethods(methods);
       
+      // Initialize pickup times for pickup orders
+      const initialPickupTimes = {};
+      Object.entries(methods).forEach(([artisanId, method]) => {
+        if (method === 'pickup') {
+          // Don't set a default pickup time, let user select
+          initialPickupTimes[artisanId] = null;
+        }
+      });
+      setSelectedPickupTimes(initialPickupTimes);
+      
     } catch (error) {
       console.error('❌ Error loading delivery options:', error);
     } finally {
@@ -692,6 +703,7 @@ const Cart = () => {
 
   // Handle pickup time selection
   const handlePickupTimeChange = (artisanId, timeSlot) => {
+    console.log('🕐 Pickup time selected for artisan:', artisanId, 'Time slot:', timeSlot);
     setSelectedPickupTimes(prev => ({
       ...prev,
       [artisanId]: timeSlot
@@ -706,22 +718,26 @@ const Cart = () => {
 
     try {
       // Geocode the delivery address
-      const geocodedAddress = await locationService.geocodeAddress(
+      const geocodedAddress = await geocodingService.geocodeAddress(
         `${address.street}, ${address.city}, ${address.state} ${address.zipCode}, ${address.country}`
       );
 
       if (!geocodedAddress) {
-        return { valid: false, error: 'Could not validate delivery address' };
+        return { 
+          valid: false, 
+          error: 'Could not validate delivery address. Please check if the address is correct and try again, or contact support if the issue persists.' 
+        };
       }
 
       // Check delivery availability for each artisan with personal delivery
       const validationResults = {};
       let hasInvalidDelivery = false;
+      const updatedDeliveryOptions = { ...deliveryOptions };
+      const updatedSelectedMethods = { ...selectedDeliveryMethods };
 
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-        const deliveryOptions = deliveryOptions[artisanId];
-        if (deliveryOptions?.personalDelivery?.available && 
-            selectedDeliveryMethods[artisanId] === 'personalDelivery') {
+        const artisanDeliveryOptions = deliveryOptions[artisanId];
+        if (artisanDeliveryOptions?.personalDelivery?.available) {
           
           const artisanLat = artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
           const artisanLng = artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
@@ -744,12 +760,48 @@ const Cart = () => {
               artisanName: artisanData.artisan.artisanName
             };
             
+            // Update delivery options based on validation
             if (!isValid) {
               hasInvalidDelivery = true;
+              
+              // Disable personal delivery for this artisan
+              updatedDeliveryOptions[artisanId] = {
+                ...updatedDeliveryOptions[artisanId],
+                personalDelivery: {
+                  ...updatedDeliveryOptions[artisanId].personalDelivery,
+                  available: false,
+                  reason: `Outside ${deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`
+                }
+              };
+              
+              // If personal delivery was selected, switch to pickup if available
+              if (selectedDeliveryMethods[artisanId] === 'personalDelivery') {
+                if (updatedDeliveryOptions[artisanId].pickup?.available) {
+                  updatedSelectedMethods[artisanId] = 'pickup';
+                } else if (updatedDeliveryOptions[artisanId].professionalDelivery?.available) {
+                  updatedSelectedMethods[artisanId] = 'professionalDelivery';
+                }
+              }
+            } else {
+              // Enable personal delivery for this artisan
+              updatedDeliveryOptions[artisanId] = {
+                ...updatedDeliveryOptions[artisanId],
+                personalDelivery: {
+                  ...updatedDeliveryOptions[artisanId].personalDelivery,
+                  available: true,
+                  reason: `Available within ${deliveryRadius}km radius (${distance.toFixed(1)}km away)`
+                }
+              };
             }
           }
         }
       });
+
+      // Update delivery options and selected methods if there were changes
+      if (hasInvalidDelivery || Object.keys(validationResults).length > 0) {
+        setDeliveryOptions(updatedDeliveryOptions);
+        setSelectedDeliveryMethods(updatedSelectedMethods);
+      }
 
       return {
         valid: !hasInvalidDelivery,
@@ -758,7 +810,10 @@ const Cart = () => {
       };
     } catch (error) {
       console.error('Error validating delivery address:', error);
-      return { valid: false, error: 'Error validating delivery address' };
+      return { 
+        valid: false, 
+        error: 'Unable to validate delivery address. Please check your internet connection and try again, or contact support if the issue persists.' 
+      };
     }
   };
 
@@ -791,6 +846,29 @@ const Cart = () => {
       }
       }, 500); // Wait 500ms after user stops typing
     }
+    
+    // Validate address when address fields are completed
+    if (['street', 'city', 'state', 'zipCode', 'country'].includes(field)) {
+      // Clear any existing timeout
+      if (window.addressValidationTimeout) {
+        clearTimeout(window.addressValidationTimeout);
+      }
+      
+      // Set a new timeout to debounce the address validation
+      window.addressValidationTimeout = setTimeout(async () => {
+        const updatedForm = { ...deliveryForm, [field]: value };
+        
+        // Only validate if we have enough address information
+        if (updatedForm.street && updatedForm.city && updatedForm.state) {
+          try {
+            console.log('🔍 Validating address for delivery options update:', updatedForm);
+            await validateDeliveryAddress(updatedForm);
+          } catch (error) {
+            console.error('❌ Error validating address:', error);
+          }
+        }
+      }, 1000); // Wait 1 second after user stops typing
+    }
   };
 
   const handleGuestPaymentFormChange = (field, value) => {
@@ -815,10 +893,13 @@ const Cart = () => {
       // Clear previous validation results
       setDeliveryValidationResults({});
       
-      // Validate delivery address if personal delivery is selected
-      if (Object.values(selectedDeliveryMethods).includes('personalDelivery')) {
+      // Always validate delivery address to update delivery options
+      try {
+        console.log('🔍 Validating selected address for delivery options update:', address);
         const validation = await validateDeliveryAddress(address);
         setDeliveryValidationResults(validation.results || {});
+      } catch (error) {
+        console.error('❌ Error validating selected address:', error);
       }
     }
   };
@@ -868,12 +949,17 @@ const Cart = () => {
           setDeliveryValidationResults(validation.results || {});
           
           if (!validation.valid) {
-            // Show error for each invalid delivery
-            Object.entries(validation.results || {}).forEach(([artisanId, result]) => {
-              if (!result.valid) {
-                toast.error(`Delivery to ${result.artisanName} is outside the ${result.radius}km radius (${result.distance.toFixed(1)}km away)`);
-              }
-            });
+            // Check if it's a geocoding error
+            if (validation.error) {
+              toast.error(validation.error);
+            } else {
+              // Show error for each invalid delivery
+              Object.entries(validation.results || {}).forEach(([artisanId, result]) => {
+                if (!result.valid) {
+                  toast.error(`Delivery to ${result.artisanName} is outside the ${result.radius}km radius (${result.distance.toFixed(1)}km away)`);
+                }
+              });
+            }
             return;
           }
         }
@@ -905,6 +991,10 @@ const Cart = () => {
       // Validate pickup time selection for pickup orders
       for (const [artisanId, deliveryMethod] of Object.entries(selectedDeliveryMethods)) {
         if (deliveryMethod === 'pickup' && !selectedPickupTimes[artisanId]) {
+          console.log('❌ Pickup time validation failed for artisan:', artisanId);
+          console.log('   Delivery method:', deliveryMethod);
+          console.log('   Selected pickup time:', selectedPickupTimes[artisanId]);
+          console.log('   Available pickup windows:', pickupTimeWindows[artisanId]);
           toast.error('Please select a pickup time for all pickup orders');
           return;
         }

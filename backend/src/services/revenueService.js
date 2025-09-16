@@ -23,7 +23,7 @@ class RevenueService {
       const platformCommission = grossAmount * commissionRate;
       const artisanEarnings = grossAmount - platformCommission;
 
-      // Create revenue record
+      // Create revenue record with 'completed' status since this is only called when order is delivered/picked up
       const revenueData = {
         orderId: order._id,
         artisanId: order.artisan,
@@ -32,7 +32,9 @@ class RevenueService {
         artisanEarnings,
         commissionRate,
         paymentProcessor: 'stripe', // Default, can be updated
-        status: 'pending'
+        status: 'completed', // Revenue is only recognized when order is completed
+        paymentDate: new Date(), // Set payment date to now since order is completed
+        settlementStatus: 'pending' // Settlement will be handled by wallet service
       };
 
       // Add patron or guest info based on order type
@@ -71,6 +73,30 @@ class RevenueService {
       };
     } catch (error) {
       console.error('Error calculating order revenue:', error);
+      throw error;
+    }
+  }
+
+  // Update revenue settlement status when wallet is credited
+  static async updateRevenueSettlement(orderId, settlementStatus = 'paid', settlementReference = null) {
+    try {
+      const revenue = await Revenue.findOne({ orderId });
+      if (!revenue) {
+        throw new Error('Revenue record not found for order');
+      }
+
+      revenue.settlementStatus = settlementStatus;
+      revenue.settlementDate = new Date();
+      if (settlementReference) {
+        revenue.settlementReference = settlementReference;
+      }
+
+      await revenue.save();
+      console.log(`✅ Updated revenue settlement status for order ${orderId}: ${settlementStatus}`);
+
+      return revenue;
+    } catch (error) {
+      console.error('Error updating revenue settlement:', error);
       throw error;
     }
   }

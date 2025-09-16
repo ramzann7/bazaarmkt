@@ -973,5 +973,8 @@ export const cartService = {
   },
 
   // Export the isGuestUser function
-  isGuestUser: () => isGuestUser()
+  isGuestUser: () => isGuestUser(),
+
+  // Export the clearCartCache function
+  clearCartCache: (userId) => clearCartCache(userId)
 };

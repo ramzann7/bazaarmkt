@@ -55,6 +55,8 @@ export default function Products() {
     leadTime: '',
     leadTimeUnit: 'days',
     maxOrderQuantity: 10,
+    totalCapacity: '',
+    remainingCapacity: '',
     
     // Scheduled Order Fields
     scheduleType: 'daily',
@@ -548,7 +550,9 @@ export default function Products() {
         ...(newProduct.productType === 'made_to_order' && {
           leadTime: parseInt(newProduct.leadTime),
           leadTimeUnit: newProduct.leadTimeUnit,
-          maxOrderQuantity: parseInt(newProduct.maxOrderQuantity)
+          maxOrderQuantity: parseInt(newProduct.maxOrderQuantity),
+          totalCapacity: parseInt(newProduct.totalCapacity),
+          remainingCapacity: parseInt(newProduct.remainingCapacity) || parseInt(newProduct.totalCapacity)
         }),
         ...(newProduct.productType === 'scheduled_order' && {
           scheduleType: newProduct.scheduleType,
@@ -710,6 +714,8 @@ export default function Products() {
       leadTime: product.leadTime || '',
       leadTimeUnit: product.leadTimeUnit || 'days',
       maxOrderQuantity: product.maxOrderQuantity || 10,
+      totalCapacity: product.totalCapacity || '',
+      remainingCapacity: product.remainingCapacity || product.totalCapacity || '',
       scheduleType: product.scheduleType || 'daily',
       scheduleDetails: {
         frequency: product.scheduleDetails?.frequency || 'every_day',
@@ -753,7 +759,10 @@ export default function Products() {
     }
 
     try {
-      const updatedProduct = await updateProduct(product._id, { stock: stockNumber });
+      const updatedProduct = await updateInventory(product._id, { 
+        stock: stockNumber,
+        status: stockNumber === 0 ? 'out_of_stock' : 'active'
+      });
       
       // Update the product in the local state
       setProducts(products.map(p => 
@@ -766,6 +775,88 @@ export default function Products() {
     } catch (error) {
       console.error('Error updating stock:', error);
       toast.error('Failed to update stock');
+    }
+  };
+
+  const handleQuickCapacityUpdate = async (product) => {
+    const currentCapacity = product.remainingCapacity || 0;
+    const totalCapacity = product.totalCapacity || 0;
+    const newCapacity = prompt(
+      `Add capacity for "${product.name}":\nCurrent: ${currentCapacity}/${totalCapacity}\nEnter amount to add:`, 
+      '1'
+    );
+    if (newCapacity === null) return; // User cancelled
+    
+    const capacityToAdd = parseInt(newCapacity);
+    if (isNaN(capacityToAdd) || capacityToAdd <= 0) {
+      toast.error('Please enter a valid capacity amount (greater than 0)');
+      return;
+    }
+
+    const newRemainingCapacity = currentCapacity + capacityToAdd;
+    const newTotalCapacity = totalCapacity + capacityToAdd;
+
+    try {
+      const updatedProduct = await updateInventory(product._id, { 
+        remainingCapacity: newRemainingCapacity,
+        totalCapacity: newTotalCapacity,
+        status: newRemainingCapacity > 0 ? 'active' : 'out_of_stock'
+      });
+      
+      // Update the product in the local state
+      setProducts(products.map(p => 
+        p._id === product._id 
+          ? { 
+              ...p, 
+              remainingCapacity: newRemainingCapacity,
+              totalCapacity: newTotalCapacity,
+              status: newRemainingCapacity > 0 ? 'active' : 'out_of_stock'
+            }
+          : p
+      ));
+      
+      toast.success(`Added ${capacityToAdd} capacity for "${product.name}". New capacity: ${newRemainingCapacity}/${newTotalCapacity}`);
+    } catch (error) {
+      console.error('Error updating capacity:', error);
+      toast.error('Failed to update capacity');
+    }
+  };
+
+  const handleQuickAvailableQuantityUpdate = async (product) => {
+    const currentAvailable = product.availableQuantity || 0;
+    const newAvailable = prompt(
+      `Update available quantity for "${product.name}":\nCurrent: ${currentAvailable}\nEnter new available quantity:`, 
+      currentAvailable.toString()
+    );
+    if (newAvailable === null) return; // User cancelled
+    
+    const availableNumber = parseInt(newAvailable);
+    if (isNaN(availableNumber) || availableNumber < 0) {
+      toast.error('Please enter a valid available quantity (0 or greater)');
+      return;
+    }
+
+    try {
+      const updatedProduct = await updateInventory(product._id, { 
+        availableQuantity: availableNumber,
+        status: availableNumber > 0 ? 'active' : 'out_of_stock'
+      });
+      
+      // Update the product in the local state
+      setProducts(products.map(p => 
+        p._id === product._id 
+          ? { 
+              ...p, 
+              availableQuantity: availableNumber,
+              status: availableNumber > 0 ? 'active' : 'out_of_stock'
+            }
+          : p
+      ));
+      
+      toast.success(`Available quantity updated to ${availableNumber} for "${product.name}"`);
+    } catch (error) {
+      console.error('Error updating available quantity:', error);
+      toast.error('Failed to update available quantity');
     }
   };
 
@@ -790,7 +881,9 @@ export default function Products() {
         ...(editingProduct.productType === 'made_to_order' && {
           leadTime: parseInt(editingProduct.leadTime),
           leadTimeUnit: editingProduct.leadTimeUnit,
-          maxOrderQuantity: parseInt(editingProduct.maxOrderQuantity)
+          maxOrderQuantity: parseInt(editingProduct.maxOrderQuantity),
+          totalCapacity: parseInt(editingProduct.totalCapacity),
+          remainingCapacity: parseInt(editingProduct.remainingCapacity) || parseInt(editingProduct.totalCapacity)
         }),
         ...(editingProduct.productType === 'scheduled_order' && {
           scheduleType: editingProduct.scheduleType,
@@ -1222,14 +1315,32 @@ export default function Products() {
                             </div>
                           )}
                           {product.productType === 'made_to_order' && (
-                            <span className="text-sm text-gray-500">
-                              Stock: {product.totalCapacity} {getUnitLabel(product.unit)} • Max: {product.maxOrderQuantity}/order
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`text-sm ${(product.remainingCapacity || 0) <= 0 ? 'text-red-500' : (product.remainingCapacity || 0) <= 1 ? 'text-orange-500' : 'text-gray-500'}`}>
+                                Available: {product.remainingCapacity || 0}/{product.totalCapacity || 0} {getUnitLabel(product.unit)} • Max: {product.maxOrderQuantity}/order
+                              </span>
+                              <button
+                                onClick={() => handleQuickCapacityUpdate(product)}
+                                className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded hover:bg-green-200 transition-colors"
+                                title="Add Capacity"
+                              >
+                                +Add
+                              </button>
+                            </div>
                           )}
                           {product.productType === 'scheduled_order' && (
-                            <span className="text-sm text-gray-500">
-                              Stock: {product.availableQuantity} {getUnitLabel(product.unit)}
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className={`text-sm ${(product.availableQuantity || 0) <= 0 ? 'text-red-500' : (product.availableQuantity || 0) <= 1 ? 'text-orange-500' : 'text-gray-500'}`}>
+                                Available: {product.availableQuantity || 0} {getUnitLabel(product.unit)}
+                              </span>
+                              <button
+                                onClick={() => handleQuickAvailableQuantityUpdate(product)}
+                                className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                                title="Update Available Quantity"
+                              >
+                                Update
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1664,6 +1775,35 @@ export default function Products() {
                               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                               placeholder="10"
                             />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Total Capacity <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              required
+                              value={editingProduct.totalCapacity || ''}
+                              onChange={(e) => setEditingProduct({...editingProduct, totalCapacity: parseInt(e.target.value)})}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                              placeholder="e.g., 10"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Maximum capacity for this product</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Remaining Capacity
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={editingProduct.remainingCapacity || editingProduct.totalCapacity || ''}
+                              onChange={(e) => setEditingProduct({...editingProduct, remainingCapacity: parseInt(e.target.value)})}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                              placeholder="e.g., 8"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Available capacity (starts equal to total capacity)</p>
                           </div>
 
                         </div>
@@ -2452,6 +2592,35 @@ export default function Products() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                           placeholder="10"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Total Capacity <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={newProduct.totalCapacity}
+                          onChange={(e) => setNewProduct({...newProduct, totalCapacity: parseInt(e.target.value)})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="e.g., 10"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Maximum capacity for this product</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Remaining Capacity
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newProduct.remainingCapacity || newProduct.totalCapacity}
+                          onChange={(e) => setNewProduct({...newProduct, remainingCapacity: parseInt(e.target.value)})}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          placeholder="e.g., 8"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Available capacity (starts equal to total capacity)</p>
                       </div>
 
                     </div>

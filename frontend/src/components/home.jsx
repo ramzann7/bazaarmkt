@@ -1134,7 +1134,7 @@ export default function Home() {
                 onSuccess={(product, quantity) => {
                   closeCartPopup();
                   setSelectedProduct(null);
-                  toast.success(`Added ${quantity} ${quantity === 1 ? product.unit || 'piece' : product.unit + 's'} to cart!`);
+                  toast.success(`Added ${quantity} ${quantity === 1 ? (product.unit || 'piece') : ((product.unit || 'piece') + 's')} to cart!`);
                 }}
                 onError={(error) => {
                   console.error('Add to cart error:', error);

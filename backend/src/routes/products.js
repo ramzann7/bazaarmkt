@@ -1789,7 +1789,7 @@ router.patch('/:id/stock', verifyToken, async (req, res) => {
 // Update product inventory (for artisan management)
 router.patch('/:id/inventory', verifyToken, async (req, res) => {
   try {
-    const { stock, totalCapacity, availableQuantity, status } = req.body;
+    const { stock, totalCapacity, remainingCapacity, availableQuantity, status } = req.body;
     
     const product = await Product.findById(req.params.id);
     
@@ -1815,13 +1815,19 @@ router.patch('/:id/inventory', verifyToken, async (req, res) => {
       } else if (product.status === 'out_of_stock' && product.stock > 0) {
         product.status = 'active';
       }
-    } else if (product.productType === 'made_to_order' && totalCapacity !== undefined) {
-      product.totalCapacity = parseInt(totalCapacity);
+    } else if (product.productType === 'made_to_order') {
+      if (totalCapacity !== undefined) {
+        product.totalCapacity = parseInt(totalCapacity);
+      }
+      if (remainingCapacity !== undefined) {
+        product.remainingCapacity = parseInt(remainingCapacity);
+      }
       
-      // Update status based on capacity
-      if (product.totalCapacity === 0) {
+      // Update status based on remaining capacity
+      const currentRemaining = product.remainingCapacity || 0;
+      if (currentRemaining === 0) {
         product.status = 'out_of_stock';
-      } else if (product.status === 'out_of_stock' && product.totalCapacity > 0) {
+      } else if (product.status === 'out_of_stock' && currentRemaining > 0) {
         product.status = 'active';
       }
     } else if (product.productType === 'scheduled_order' && availableQuantity !== undefined) {

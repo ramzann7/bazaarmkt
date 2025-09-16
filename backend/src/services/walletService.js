@@ -87,6 +87,16 @@ class WalletService {
 
       console.log(`✅ Successfully credited wallet for order ${orderId}: ${netAmount} CAD`);
 
+      // Update revenue settlement status
+      try {
+        const RevenueService = require('./revenueService');
+        await RevenueService.updateRevenueSettlement(orderId, 'paid', transaction._id.toString());
+        console.log(`✅ Updated revenue settlement status for order ${orderId}`);
+      } catch (settlementError) {
+        console.error('❌ Error updating revenue settlement status:', settlementError);
+        // Don't fail the wallet credit if settlement update fails
+      }
+
       return {
         success: true,
         walletId: wallet._id,

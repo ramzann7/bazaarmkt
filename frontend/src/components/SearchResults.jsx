@@ -582,7 +582,7 @@ export default function SearchResults() {
                 onSuccess={(product, quantity) => {
                   setShowCartPopup(false);
                   setSelectedProduct(null);
-                  toast.success(`Added ${quantity} ${quantity === 1 ? product.unit || 'piece' : product.unit + 's'} to cart!`);
+                  toast.success(`Added ${quantity} ${quantity === 1 ? (product.unit || 'piece') : ((product.unit || 'piece') + 's')} to cart!`);
                 }}
                 onError={(error) => {
                   console.error('Add to cart error:', error);

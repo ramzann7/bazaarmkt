@@ -73,6 +73,12 @@ const productSchema = new mongoose.Schema({
     min: 1,
     default: 10
   },
+  remainingCapacity: {
+    type: Number,
+    required: function() { return this.productType === 'made_to_order'; },
+    min: 0,
+    default: function() { return this.totalCapacity || 10; }
+  },
   
   // Available quantity for scheduled orders (inventory to be made)
   availableQuantity: {
@@ -325,6 +331,7 @@ productSchema.pre('save', function(next) {
     }
     // Clear non-applicable fields
     this.totalCapacity = undefined;
+    this.remainingCapacity = undefined;
     this.availableQuantity = undefined;
     this.leadTime = undefined;
     this.leadTimeUnit = undefined;
@@ -368,6 +375,7 @@ productSchema.pre('save', function(next) {
     this.stock = undefined;
     this.lowStockThreshold = undefined;
     this.totalCapacity = undefined;
+    this.remainingCapacity = undefined;
     this.leadTime = undefined;
     this.leadTimeUnit = undefined;
   }

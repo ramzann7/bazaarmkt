@@ -299,6 +299,18 @@ router.post('/guest', async (req, res) => {
             message: `Only ${availableStock} items available for "${product.name}". Requested: ${item.quantity}` 
           });
         }
+      } else if (product.productType === 'made_to_order') {
+        const availableCapacity = product.remainingCapacity || 0;
+        if (availableCapacity <= 0) {
+          return res.status(400).json({ 
+            message: `Product "${product.name}" is at full capacity` 
+          });
+        }
+        if (availableCapacity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Only ${availableCapacity} items can be ordered for "${product.name}". Requested: ${item.quantity}` 
+          });
+        }
       } else if (product.productType === 'scheduled_order') {
         const availableQuantity = product.availableQuantity || 0;
         if (availableQuantity <= 0) {
@@ -376,13 +388,8 @@ router.post('/guest', async (req, res) => {
 
       const savedOrder = await order.save();
       
-      // Calculate revenue for this order
-      try {
-        await RevenueService.calculateOrderRevenue(savedOrder._id);
-      } catch (revenueError) {
-        console.error('Error calculating revenue for order:', savedOrder._id, revenueError);
-        // Don't fail the order creation if revenue calculation fails
-      }
+      // Note: Revenue will be calculated and recognized only when order is completed (delivered/picked up)
+      // This ensures proper revenue recognition and payment release timing
 
       // Update product inventory immediately when order is placed
       console.log('📦 Updating inventory for new order:', savedOrder._id);
@@ -390,7 +397,7 @@ router.post('/guest', async (req, res) => {
         try {
           const product = await Product.findById(item.product);
           if (product) {
-            // Only update inventory for ready_to_ship products
+            // Update inventory based on product type
             if (product.productType === 'ready_to_ship') {
               const newStock = Math.max(0, product.stock - item.quantity);
               product.stock = newStock;
@@ -403,9 +410,37 @@ router.post('/guest', async (req, res) => {
               }
               
               await product.save();
-              console.log(`✅ Updated inventory for product ${product.name}: stock=${newStock}`);
+              console.log(`✅ Updated inventory for ready_to_ship product ${product.name}: stock=${newStock}`);
+            } else if (product.productType === 'made_to_order') {
+              // For made_to_order products, reduce remaining capacity
+              const currentRemaining = product.remainingCapacity || 0;
+              const newRemaining = Math.max(0, currentRemaining - item.quantity);
+              product.remainingCapacity = newRemaining;
+              
+              // Update product status if capacity is reached
+              if (newRemaining === 0) {
+                product.status = 'out_of_stock';
+              } else if (newRemaining <= 1) {
+                product.status = 'active'; // Keep active but low capacity
+              }
+              
+              await product.save();
+              console.log(`✅ Updated capacity for made_to_order product ${product.name}: remaining=${newRemaining}`);
+            } else if (product.productType === 'scheduled_order') {
+              // For scheduled orders, update available quantity for the specific date
+              const availableQuantity = product.availableQuantity || 0;
+              const newAvailableQuantity = Math.max(0, availableQuantity - item.quantity);
+              product.availableQuantity = newAvailableQuantity;
+              
+              // Update product status if no availability
+              if (newAvailableQuantity === 0) {
+                product.status = 'out_of_stock';
+              }
+              
+              await product.save();
+              console.log(`✅ Updated availability for scheduled_order product ${product.name}: available=${newAvailableQuantity}`);
             } else {
-              console.log(`ℹ️ Skipping inventory update for ${product.productType} product: ${product.name}`);
+              console.log(`ℹ️ Skipping inventory update for unknown product type ${product.productType}: ${product.name}`);
             }
           } else {
             console.error(`❌ Product not found: ${item.product}`);
@@ -492,10 +527,10 @@ router.post('/guest', async (req, res) => {
       orderSummary,
       orders: createdOrders.map(order => {
         return {
-          orderId: order._id,
-          orderNumber: order._id.toString().slice(-8).toUpperCase(),
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-8).toUpperCase(),
           artisan: order.artisan, // Return full artisan data
-          items: order.items.map(item => ({
+        items: order.items.map(item => ({
           name: item.product.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -602,6 +637,18 @@ router.post('/', verifyToken, async (req, res) => {
             message: `Only ${availableStock} items available for "${product.name}". Requested: ${item.quantity}` 
           });
         }
+      } else if (product.productType === 'made_to_order') {
+        const availableCapacity = product.remainingCapacity || 0;
+        if (availableCapacity <= 0) {
+          return res.status(400).json({ 
+            message: `Product "${product.name}" is at full capacity` 
+          });
+        }
+        if (availableCapacity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Only ${availableCapacity} items can be ordered for "${product.name}". Requested: ${item.quantity}` 
+          });
+        }
       } else if (product.productType === 'scheduled_order') {
         const availableQuantity = product.availableQuantity || 0;
         if (availableQuantity <= 0) {
@@ -678,13 +725,8 @@ router.post('/', verifyToken, async (req, res) => {
 
       const savedOrder = await order.save();
       
-      // Calculate revenue for this order
-      try {
-        await RevenueService.calculateOrderRevenue(savedOrder._id);
-      } catch (revenueError) {
-        console.error('Error calculating revenue for order:', savedOrder._id, revenueError);
-        // Don't fail the order creation if revenue calculation fails
-      }
+      // Note: Revenue will be calculated and recognized only when order is completed (delivered/picked up)
+      // This ensures proper revenue recognition and payment release timing
 
       // Update product inventory immediately when order is placed
       console.log('📦 Updating inventory for new authenticated order:', savedOrder._id);
@@ -692,7 +734,7 @@ router.post('/', verifyToken, async (req, res) => {
         try {
           const product = await Product.findById(item.product);
           if (product) {
-            // Only update inventory for ready_to_ship products
+            // Update inventory based on product type
             if (product.productType === 'ready_to_ship') {
               const newStock = Math.max(0, product.stock - item.quantity);
               product.stock = newStock;
@@ -705,9 +747,37 @@ router.post('/', verifyToken, async (req, res) => {
               }
               
               await product.save();
-              console.log(`✅ Updated inventory for product ${product.name}: stock=${newStock}`);
+              console.log(`✅ Updated inventory for ready_to_ship product ${product.name}: stock=${newStock}`);
+            } else if (product.productType === 'made_to_order') {
+              // For made_to_order products, reduce remaining capacity
+              const currentRemaining = product.remainingCapacity || 0;
+              const newRemaining = Math.max(0, currentRemaining - item.quantity);
+              product.remainingCapacity = newRemaining;
+              
+              // Update product status if capacity is reached
+              if (newRemaining === 0) {
+                product.status = 'out_of_stock';
+              } else if (newRemaining <= 1) {
+                product.status = 'active'; // Keep active but low capacity
+              }
+              
+              await product.save();
+              console.log(`✅ Updated capacity for made_to_order product ${product.name}: remaining=${newRemaining}`);
+            } else if (product.productType === 'scheduled_order') {
+              // For scheduled orders, update available quantity for the specific date
+              const availableQuantity = product.availableQuantity || 0;
+              const newAvailableQuantity = Math.max(0, availableQuantity - item.quantity);
+              product.availableQuantity = newAvailableQuantity;
+              
+              // Update product status if no availability
+              if (newAvailableQuantity === 0) {
+                product.status = 'out_of_stock';
+              }
+              
+              await product.save();
+              console.log(`✅ Updated availability for scheduled_order product ${product.name}: available=${newAvailableQuantity}`);
             } else {
-              console.log(`ℹ️ Skipping inventory update for ${product.productType} product: ${product.name}`);
+              console.log(`ℹ️ Skipping inventory update for unknown product type ${product.productType}: ${product.name}`);
             }
           } else {
             console.error(`❌ Product not found: ${item.product}`);
@@ -722,7 +792,7 @@ router.post('/', verifyToken, async (req, res) => {
         .populate('patron', 'firstName lastName email phone')
         .populate('artisan', 'artisanName type pickupAddress email phone')
         .populate('items.product', 'name description image price unit');
-      
+
       
       // Send pickup time notification if this is a pickup order with time window
       if (savedOrder.deliveryMethod === 'pickup' && savedOrder.pickupTimeWindow) {
@@ -752,7 +822,7 @@ router.post('/', verifyToken, async (req, res) => {
           console.error('❌ Error sending pickup time notification:', notificationError);
         }
       }
-      
+
       createdOrders.push(populatedOrder);
     }
 
@@ -867,8 +937,8 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
           const product = await Product.findById(item.product);
           if (product) {
             // Update sold count for all product types
-            product.soldCount = (product.soldCount || 0) + item.quantity;
-            await product.save();
+              product.soldCount = (product.soldCount || 0) + item.quantity;
+              await product.save();
             console.log(`✅ Updated sold count for product ${product.name}: sold=${product.soldCount}`);
           } else {
             console.error(`❌ Product not found: ${item.product}`);
@@ -888,7 +958,7 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
         try {
           const product = await Product.findById(item.product);
           if (product) {
-            // Only restore inventory for ready_to_ship products
+            // Restore inventory based on product type
             if (product.productType === 'ready_to_ship') {
               const newStock = product.stock + item.quantity;
               product.stock = newStock;
@@ -902,9 +972,39 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
               product.soldCount = Math.max(0, (product.soldCount || 0) - item.quantity);
               
               await product.save();
-              console.log(`✅ Restored inventory for product ${product.name}: stock=${newStock}, sold=${product.soldCount}`);
+              console.log(`✅ Restored inventory for ready_to_ship product ${product.name}: stock=${newStock}, sold=${product.soldCount}`);
+            } else if (product.productType === 'made_to_order') {
+              // For made_to_order products, restore remaining capacity
+              const newRemaining = product.remainingCapacity + item.quantity;
+              product.remainingCapacity = newRemaining;
+              
+              // Update product status
+              if (newRemaining > 0) {
+                product.status = 'active';
+              }
+              
+              // Decrease sold count
+              product.soldCount = Math.max(0, (product.soldCount || 0) - item.quantity);
+              
+              await product.save();
+              console.log(`✅ Restored capacity for made_to_order product ${product.name}: remaining=${newRemaining}, sold=${product.soldCount}`);
+            } else if (product.productType === 'scheduled_order') {
+              // For scheduled orders, restore available quantity
+              const newAvailableQuantity = product.availableQuantity + item.quantity;
+              product.availableQuantity = newAvailableQuantity;
+              
+              // Update product status
+              if (newAvailableQuantity > 0) {
+                product.status = 'active';
+              }
+              
+              // Decrease sold count
+              product.soldCount = Math.max(0, (product.soldCount || 0) - item.quantity);
+              
+              await product.save();
+              console.log(`✅ Restored availability for scheduled_order product ${product.name}: available=${newAvailableQuantity}, sold=${product.soldCount}`);
             } else {
-              console.log(`ℹ️ Skipping inventory restoration for ${product.productType} product: ${product.name}`);
+              console.log(`ℹ️ Skipping inventory restoration for unknown product type ${product.productType}: ${product.name}`);
             }
           } else {
             console.error(`❌ Product not found: ${item.product}`);
@@ -929,24 +1029,30 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
       }
     );
 
-    // Credit wallet when order is delivered or picked up
+    // Credit wallet and recognize revenue when order is delivered or picked up
     if ((status === 'delivered' || status === 'picked_up') && 
         (currentStatus !== 'delivered' && currentStatus !== 'picked_up')) {
       try {
-        const WalletService = require('../services/walletService');
+        console.log(`💰 Processing revenue recognition for completed order ${order._id} (${status})`);
         
-        // Credit the wallet with order revenue (10% platform fee)
+        // First, create the revenue record with 'completed' status
+        await RevenueService.calculateOrderRevenue(order._id);
+        console.log(`✅ Revenue record created for order ${order._id}`);
+        
+        // Then credit the wallet with order revenue (10% platform fee)
+        const WalletService = require('../services/walletService');
         const result = await WalletService.creditOrderRevenue(order._id, 0.10);
         
-        console.log(`🎉 Successfully credited wallet for order ${order._id} (${status}):`);
+        console.log(`🎉 Successfully processed revenue recognition and wallet credit for order ${order._id} (${status}):`);
+        console.log(`  Revenue Status: Completed`);
         console.log(`  Wallet ID: ${result.walletId}`);
         console.log(`  Transaction ID: ${result.transactionId}`);
         console.log(`  Net amount: ${result.netAmount} CAD`);
         console.log(`  New balance: ${result.balanceAfter} CAD`);
-      } catch (walletError) {
-        console.error('❌ Error crediting wallet:', walletError);
-        console.error('❌ Wallet error stack:', walletError.stack);
-        // Don't fail the order update if wallet crediting fails
+      } catch (revenueError) {
+        console.error('❌ Error processing revenue recognition:', revenueError);
+        console.error('❌ Revenue error stack:', revenueError.stack);
+        // Don't fail the order update if revenue processing fails
       }
     }
 

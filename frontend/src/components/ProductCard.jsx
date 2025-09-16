@@ -162,7 +162,7 @@ const ProductCard = ({
         {/* Product details - simplified */}
         <div className="p-4 space-y-2">
           {/* Product name - larger font */}
-          <h3 className={`font-bold line-clamp-2 text-lg leading-tight ${isOutOfStock() ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
+          <h3 className={`font-bold line-clamp-2 text-lg leading-tight ${outOfStockStatus.isOutOfStock ? 'text-gray-500' : 'text-gray-900 group-hover:text-amber-600 transition-colors'}`}>
             {product.name}
           </h3>
           
@@ -178,8 +178,8 @@ const ProductCard = ({
           
           {/* Price and rating */}
           <div className="flex items-center justify-between pt-2">
-            <span className={`font-bold text-xl ${isOutOfStock() ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-              {isOutOfStock() ? 'Unavailable' : formatPrice(product.price)}
+            <span className={`font-bold text-xl ${outOfStockStatus.isOutOfStock ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+              {outOfStockStatus.isOutOfStock ? 'Unavailable' : formatPrice(product.price)}
             </span>
             {showRating && (
               <div className="flex items-center space-x-1">
@@ -194,7 +194,7 @@ const ProductCard = ({
       </div>
 
       {/* Add to Cart Popup */}
-      {showCartPopup && !isOutOfStock() && (
+      {showCartPopup && !outOfStockStatus.isOutOfStock && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             {/* Header */}

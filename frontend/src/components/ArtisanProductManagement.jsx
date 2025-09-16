@@ -1050,6 +1050,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         leadTime: product.leadTime || 1,
         leadTimeUnit: product.leadTimeUnit || 'days',
         maxOrderQuantity: product.maxOrderQuantity || 10,
+        capacityPeriod: product.capacityPeriod || 'daily',
         scheduleType: product.scheduleType || 'daily',
         scheduleDetails: product.scheduleDetails || {
           frequency: 'every_day',

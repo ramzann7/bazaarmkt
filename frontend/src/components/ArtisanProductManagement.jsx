@@ -64,7 +64,13 @@ export default function ArtisanProductManagement() {
   };
 
   useEffect(() => {
-    checkArtisanAccess();
+    const initializeComponent = async () => {
+      await checkArtisanAccess();
+      // Check and restore inventory after loading products
+      setTimeout(() => checkAndRestoreInventory(), 1000);
+    };
+    
+    initializeComponent();
   }, []);
 
   useEffect(() => {
@@ -167,6 +173,103 @@ export default function ArtisanProductManagement() {
       console.error('Error updating available quantity:', error);
       toast.error('Failed to update available quantity');
     }
+  };
+
+  const handleTotalCapacityUpdate = async (productId, newRemainingCapacity, newTotalCapacity) => {
+    try {
+      const updatedProduct = await productService.updateProduct(productId, { 
+        remainingCapacity: newRemainingCapacity,
+        totalCapacity: newTotalCapacity
+      });
+      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
+      setProducts(updatedProducts);
+      // The useEffect will automatically update filteredProducts when products change
+      toast.success('Total capacity updated successfully!');
+    } catch (error) {
+      console.error('Error updating total capacity:', error);
+      toast.error('Failed to update total capacity');
+    }
+  };
+
+  // Function to check and restore inventory based on periods and dates
+  const checkAndRestoreInventory = async () => {
+    try {
+      const now = new Date();
+      const updates = [];
+
+      for (const product of products) {
+        if (product.productType === 'made_to_order' && product.capacityPeriod) {
+          // Check if capacity period has passed and needs restoration
+          const lastRestored = product.lastCapacityRestore ? new Date(product.lastCapacityRestore) : product.createdAt ? new Date(product.createdAt) : now;
+          let needsRestore = false;
+
+          switch (product.capacityPeriod) {
+            case 'daily':
+              needsRestore = now.getDate() !== lastRestored.getDate() || 
+                           now.getMonth() !== lastRestored.getMonth() || 
+                           now.getFullYear() !== lastRestored.getFullYear();
+              break;
+            case 'weekly':
+              const daysDiff = Math.floor((now - lastRestored) / (1000 * 60 * 60 * 24));
+              needsRestore = daysDiff >= 7;
+              break;
+            case 'monthly':
+              needsRestore = now.getMonth() !== lastRestored.getMonth() || 
+                           now.getFullYear() !== lastRestored.getFullYear();
+              break;
+          }
+
+          if (needsRestore) {
+            updates.push({
+              id: product._id,
+              remainingCapacity: product.totalCapacity || 0,
+              lastCapacityRestore: now.toISOString()
+            });
+          }
+        } else if (product.productType === 'scheduled_order' && product.nextAvailableDate) {
+          // Check if scheduled production date has passed
+          const productionDate = new Date(product.nextAvailableDate);
+          if (now >= productionDate) {
+            updates.push({
+              id: product._id,
+              availableQuantity: product.totalProductionQuantity || product.availableQuantity || 0,
+              nextAvailableDate: getNextProductionDate(product.scheduleType, now)
+            });
+          }
+        }
+      }
+
+      // Apply updates if any
+      if (updates.length > 0) {
+        for (const update of updates) {
+          await productService.updateProduct(update.id, update);
+        }
+        // Reload products to reflect changes
+        await loadProducts();
+        toast.success(`${updates.length} product(s) inventory restored!`);
+      }
+    } catch (error) {
+      console.error('Error restoring inventory:', error);
+    }
+  };
+
+  // Helper function to calculate next production date
+  const getNextProductionDate = (scheduleType, currentDate) => {
+    const nextDate = new Date(currentDate);
+    switch (scheduleType) {
+      case 'daily':
+        nextDate.setDate(nextDate.getDate() + 1);
+        break;
+      case 'weekly':
+        nextDate.setDate(nextDate.getDate() + 7);
+        break;
+      case 'monthly':
+        nextDate.setMonth(nextDate.getMonth() + 1);
+        break;
+      default:
+        nextDate.setDate(nextDate.getDate() + 1);
+    }
+    return nextDate.toISOString();
   };
 
   const checkArtisanAccess = async () => {
@@ -637,6 +740,9 @@ export default function ArtisanProductManagement() {
                                   {(product.remainingCapacity || 0) <= 1 && (
                                     <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">Low Capacity!</span>
                                   )}
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {product.capacityPeriod || 'per period'}
+                                  </p>
                                 </>
                               ) : (
                                 <>
@@ -727,46 +833,121 @@ export default function ArtisanProductManagement() {
                       
                       {/* Quick Inventory Update */}
                       <div className="bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">
-                            {product.productType === 'ready_to_ship' ? 'Stock:' :
-                             product.productType === 'made_to_order' ? 'Remaining:' :
-                             'Available:'}
-                          </span>
-                          <input
-                            type="number"
-                            min="0"
-                            defaultValue={
-                              product.productType === 'ready_to_ship' ? product.stock :
-                              product.productType === 'made_to_order' ? (product.remainingCapacity || 0) :
-                              product.availableQuantity
-                            }
-                            className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                            onBlur={(e) => {
-                              const newValue = parseInt(e.target.value);
-                              if (product.productType === 'ready_to_ship' && newValue !== product.stock && !isNaN(newValue)) {
-                                handleStockUpdate(product._id, newValue);
-                              } else if (product.productType === 'made_to_order' && newValue !== (product.remainingCapacity || 0) && !isNaN(newValue)) {
-                                handleCapacityUpdate(product._id, newValue, product.totalCapacity || 0);
-                              } else if (product.productType === 'scheduled_order' && newValue !== product.availableQuantity && !isNaN(newValue)) {
-                                handleAvailableQuantityUpdate(product._id, newValue);
-                              }
-                            }}
-                            onKeyPress={(e) => {
-                              if (e.key === 'Enter') {
+                        {product.productType === 'ready_to_ship' ? (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">Stock:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              defaultValue={product.stock}
+                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                              onBlur={(e) => {
                                 const newValue = parseInt(e.target.value);
-                                if (product.productType === 'ready_to_ship' && newValue !== product.stock && !isNaN(newValue)) {
+                                if (newValue !== product.stock && !isNaN(newValue)) {
                                   handleStockUpdate(product._id, newValue);
-                                } else if (product.productType === 'made_to_order' && newValue !== (product.remainingCapacity || 0) && !isNaN(newValue)) {
-                                  handleCapacityUpdate(product._id, newValue, product.totalCapacity || 0);
-                                } else if (product.productType === 'scheduled_order' && newValue !== product.availableQuantity && !isNaN(newValue)) {
-                                  handleAvailableQuantityUpdate(product._id, newValue);
                                 }
-                              }
-                            }}
-                          />
-                          <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
-                        </div>
+                              }}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  const newValue = parseInt(e.target.value);
+                                  if (newValue !== product.stock && !isNaN(newValue)) {
+                                    handleStockUpdate(product._id, newValue);
+                                  }
+                                }
+                              }}
+                            />
+                            <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
+                          </div>
+                        ) : product.productType === 'made_to_order' ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">Remaining:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                defaultValue={product.remainingCapacity || 0}
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                                onBlur={(e) => {
+                                  const newValue = parseInt(e.target.value);
+                                  if (newValue !== (product.remainingCapacity || 0) && !isNaN(newValue)) {
+                                    handleCapacityUpdate(product._id, newValue, product.totalCapacity || 0);
+                                  }
+                                }}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const newValue = parseInt(e.target.value);
+                                    if (newValue !== (product.remainingCapacity || 0) && !isNaN(newValue)) {
+                                      handleCapacityUpdate(product._id, newValue, product.totalCapacity || 0);
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">Total Capacity:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                defaultValue={product.totalCapacity || 0}
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                                onBlur={(e) => {
+                                  const newTotalCapacity = parseInt(e.target.value);
+                                  if (newTotalCapacity !== (product.totalCapacity || 0) && !isNaN(newTotalCapacity)) {
+                                    const currentUsed = (product.totalCapacity || 0) - (product.remainingCapacity || 0);
+                                    const newRemainingCapacity = Math.max(0, newTotalCapacity - currentUsed);
+                                    handleTotalCapacityUpdate(product._id, newRemainingCapacity, newTotalCapacity);
+                                  }
+                                }}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const newTotalCapacity = parseInt(e.target.value);
+                                    if (newTotalCapacity !== (product.totalCapacity || 0) && !isNaN(newTotalCapacity)) {
+                                      const currentUsed = (product.totalCapacity || 0) - (product.remainingCapacity || 0);
+                                      const newRemainingCapacity = Math.max(0, newTotalCapacity - currentUsed);
+                                      handleTotalCapacityUpdate(product._id, newRemainingCapacity, newTotalCapacity);
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {product.capacityPeriod || 'per period'} • {product.unit || 'units'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm text-gray-600">Available:</span>
+                              <input
+                                type="number"
+                                min="0"
+                                defaultValue={product.availableQuantity || 0}
+                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                                onBlur={(e) => {
+                                  const newValue = parseInt(e.target.value);
+                                  if (newValue !== product.availableQuantity && !isNaN(newValue)) {
+                                    handleAvailableQuantityUpdate(product._id, newValue);
+                                  }
+                                }}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const newValue = parseInt(e.target.value);
+                                    if (newValue !== product.availableQuantity && !isNaN(newValue)) {
+                                      handleAvailableQuantityUpdate(product._id, newValue);
+                                    }
+                                  }
+                                }}
+                              />
+                              <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
+                            </div>
+                            {product.nextAvailableDate && (
+                              <div className="text-xs text-gray-500">
+                                Production: {new Date(product.nextAvailableDate).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -213,9 +213,7 @@ class InventoryModel {
         if (field === 'totalCapacity') {
           if (value < 0) errors.push('Total capacity cannot be negative');
           if (!Number.isInteger(value)) errors.push('Total capacity must be a whole number');
-          if (value < this.getUsedCapacity()) {
-            errors.push('Total capacity cannot be less than currently used capacity');
-          }
+          if (value < 1) errors.push('Total capacity must be at least 1');
         }
         if (field === 'remainingCapacity') {
           if (value < 0) errors.push('Remaining capacity cannot be negative');

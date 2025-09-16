@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import productService from '../services/productService';
+import axios from 'axios';
+import { productService } from '../services/productService';
 import InventoryModel from '../models/InventoryModel';
+
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
 
 const InventoryManagement = ({ 
   product, 
@@ -28,9 +31,12 @@ const InventoryManagement = ({
     }
 
     try {
-      const updatedProduct = await productService.updateProduct(product._id, { 
+      const response = await axios.put(`${API_URL}/${product._id}/inventory`, { 
         stock: newStock 
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      const updatedProduct = response.data.product;
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);
@@ -53,12 +59,21 @@ const InventoryManagement = ({
     }
 
     try {
-      const capacityCalculation = inventoryModel.calculateRemainingCapacity(newTotalCapacity);
+      console.log('🔍 Current inventory data:', inventoryModel.inventoryData);
+      console.log('🔍 New total capacity:', newTotalCapacity);
       
-      const updatedProduct = await productService.updateProduct(product._id, { 
+      const capacityCalculation = inventoryModel.calculateRemainingCapacity(newTotalCapacity);
+      console.log('🔍 Capacity calculation result:', capacityCalculation);
+      
+      const response = await axios.put(`${API_URL}/${product._id}/inventory`, { 
         totalCapacity: capacityCalculation.totalCapacity,
         remainingCapacity: capacityCalculation.remainingCapacity
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      const updatedProduct = response.data.product;
+      
+      console.log('🔍 Updated product from API:', updatedProduct);
       
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
@@ -82,9 +97,12 @@ const InventoryManagement = ({
     }
 
     try {
-      const updatedProduct = await productService.updateProduct(product._id, { 
+      const response = await axios.put(`${API_URL}/${product._id}/inventory`, { 
         availableQuantity: newAvailableQuantity
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      const updatedProduct = response.data.product;
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);

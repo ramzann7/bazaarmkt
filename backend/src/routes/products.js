@@ -6,6 +6,7 @@ const fs = require('fs');
 const mongoose = require('mongoose');
 const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
+const inventoryService = require('../services/inventoryService');
 
 // Import category validation utilities
 const { normalizeCategoryKey, normalizeSubcategoryKey } = require('../scripts/migrateCategoryData');
@@ -1904,6 +1905,140 @@ router.get('/categories/list', async (req, res) => {
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ==================== INVENTORY MANAGEMENT ROUTES ====================
+
+/**
+ * Update product inventory
+ * PUT /api/products/:id/inventory
+ */
+router.put('/:id/inventory', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inventoryData = req.body;
+    
+    const updatedProduct = await inventoryService.updateInventory(id, inventoryData);
+    
+    res.json({
+      success: true,
+      message: 'Inventory updated successfully',
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Error updating inventory:', error);
+    res.status(400).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Update product capacity (for made-to-order products)
+ * PUT /api/products/:id/capacity
+ */
+router.put('/:id/capacity', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { totalCapacity } = req.body;
+    
+    if (!totalCapacity || totalCapacity < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Total capacity must be at least 1'
+      });
+    }
+    
+    const updatedProduct = await inventoryService.updateCapacity(id, totalCapacity);
+    
+    res.json({
+      success: true,
+      message: 'Capacity updated successfully',
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Error updating capacity:', error);
+    res.status(400).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Check and restore inventory for all products
+ * POST /api/products/inventory/restore
+ */
+router.post('/inventory/restore', verifyToken, async (req, res) => {
+  try {
+    const updates = await inventoryService.checkAndRestoreInventory();
+    
+    res.json({
+      success: true,
+      message: `${updates.length} product(s) inventory restored`,
+      updates: updates
+    });
+  } catch (error) {
+    console.error('Error restoring inventory:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Get inventory summary
+ * GET /api/products/inventory/summary
+ */
+router.get('/inventory/summary', verifyToken, async (req, res) => {
+  try {
+    const { artisanId } = req.query;
+    const summary = await inventoryService.getInventorySummary(artisanId);
+    
+    res.json({
+      success: true,
+      summary: summary
+    });
+  } catch (error) {
+    console.error('Error getting inventory summary:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Get inventory data for a specific product
+ * GET /api/products/:id/inventory
+ */
+router.get('/:id/inventory', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    const inventoryData = inventoryService.getProductInventoryData(product);
+    
+    res.json({
+      success: true,
+      inventory: inventoryData
+    });
+  } catch (error) {
+    console.error('Error getting product inventory:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
   }
 });
 

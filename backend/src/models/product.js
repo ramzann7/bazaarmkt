@@ -79,6 +79,16 @@ const productSchema = new mongoose.Schema({
     min: 0,
     default: function() { return this.totalCapacity || 10; }
   },
+  capacityPeriod: {
+    type: String,
+    enum: ['daily', 'weekly', 'monthly'],
+    required: function() { return this.productType === 'made_to_order'; },
+    default: 'daily'
+  },
+  lastCapacityRestore: {
+    type: Date,
+    default: null
+  },
   
   // Available quantity for scheduled orders (inventory to be made)
   availableQuantity: {
@@ -121,6 +131,11 @@ const productSchema = new mongoose.Schema({
     type: String,
     required: function() { return this.productType === 'scheduled_order'; },
     default: '09:00'
+  },
+  totalProductionQuantity: {
+    type: Number,
+    min: 1,
+    default: function() { return this.availableQuantity || 1; }
   },
   
   // Common Inventory Fields
@@ -351,6 +366,13 @@ productSchema.pre('save', function(next) {
     if (!this.totalCapacity || this.totalCapacity < 1) {
       return next(new Error('Made to order products must have total capacity (minimum 1)'));
     }
+    if (!this.capacityPeriod) {
+      this.capacityPeriod = 'daily';
+    }
+    // Ensure remaining capacity is not greater than total capacity
+    if (this.remainingCapacity > this.totalCapacity) {
+      this.remainingCapacity = this.totalCapacity;
+    }
     // Clear non-applicable fields
     this.stock = undefined;
     this.lowStockThreshold = undefined;
@@ -359,6 +381,7 @@ productSchema.pre('save', function(next) {
     this.scheduleDetails = undefined;
     this.nextAvailableDate = undefined;
     this.nextAvailableTime = undefined;
+    this.totalProductionQuantity = undefined;
   }
   
   if (this.productType === 'scheduled_order') {
@@ -371,11 +394,17 @@ productSchema.pre('save', function(next) {
     if (!this.availableQuantity || this.availableQuantity < 1) {
       return next(new Error('Scheduled order products must have available quantity (minimum 1)'));
     }
+    // Set total production quantity if not provided
+    if (!this.totalProductionQuantity) {
+      this.totalProductionQuantity = this.availableQuantity;
+    }
     // Clear non-applicable fields
     this.stock = undefined;
     this.lowStockThreshold = undefined;
     this.totalCapacity = undefined;
     this.remainingCapacity = undefined;
+    this.capacityPeriod = undefined;
+    this.lastCapacityRestore = undefined;
     this.leadTime = undefined;
     this.leadTimeUnit = undefined;
   }
@@ -389,6 +418,8 @@ productSchema.index({ category: 1, subcategory: 1 });
 productSchema.index({ tags: 1 });
 productSchema.index({ productType: 1 });
 productSchema.index({ nextAvailableDate: 1 });
+productSchema.index({ lastCapacityRestore: 1 });
+productSchema.index({ capacityPeriod: 1 });
 
 module.exports = mongoose.model('Product', productSchema);
 

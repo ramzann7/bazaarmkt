@@ -21,6 +21,8 @@ import { promotionalService } from '../services/promotionalService';
 import walletService from '../services/walletService';
 import { productService } from '../services/productService';
 import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
+import InventoryManagement, { InventoryDisplay } from './InventoryManagement';
+import InventoryModel from '../models/InventoryModel';
 
 export default function ArtisanProductManagement() {
   const [products, setProducts] = useState([]);
@@ -131,145 +133,29 @@ export default function ArtisanProductManagement() {
     }
   };
 
-  const handleStockUpdate = async (productId, newStock) => {
-    try {
-      const updatedProduct = await productService.updateProduct(productId, { stock: newStock });
-      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
-      setProducts(updatedProducts);
-      // The useEffect will automatically update filteredProducts when products change
-      toast.success('Stock updated successfully!');
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      toast.error('Failed to update stock');
-    }
+  // Unified inventory update handler using the new inventory system
+  const handleInventoryUpdate = (updatedProduct) => {
+    const updatedProducts = products.map(p => p._id === updatedProduct._id ? updatedProduct : p);
+    setProducts(updatedProducts);
+    // The useEffect will automatically update filteredProducts when products change
   };
 
-  const handleCapacityUpdate = async (productId, newRemainingCapacity, newTotalCapacity) => {
-    try {
-      const updatedProduct = await productService.updateProduct(productId, { 
-        remainingCapacity: newRemainingCapacity,
-        totalCapacity: newTotalCapacity
-      });
-      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
-      setProducts(updatedProducts);
-      // The useEffect will automatically update filteredProducts when products change
-      toast.success('Capacity updated successfully!');
-    } catch (error) {
-      console.error('Error updating capacity:', error);
-      toast.error('Failed to update capacity');
-    }
-  };
-
-  const handleAvailableQuantityUpdate = async (productId, newAvailableQuantity) => {
-    try {
-      const updatedProduct = await productService.updateProduct(productId, { 
-        availableQuantity: newAvailableQuantity
-      });
-      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
-      setProducts(updatedProducts);
-      // The useEffect will automatically update filteredProducts when products change
-      toast.success('Available quantity updated successfully!');
-    } catch (error) {
-      console.error('Error updating available quantity:', error);
-      toast.error('Failed to update available quantity');
-    }
-  };
-
-  const handleTotalCapacityUpdate = async (productId, newRemainingCapacity, newTotalCapacity) => {
-    try {
-      const updatedProduct = await productService.updateProduct(productId, { 
-        remainingCapacity: newRemainingCapacity,
-        totalCapacity: newTotalCapacity
-      });
-      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
-      setProducts(updatedProducts);
-      // The useEffect will automatically update filteredProducts when products change
-      toast.success('Total capacity updated successfully!');
-    } catch (error) {
-      console.error('Error updating total capacity:', error);
-      toast.error('Failed to update total capacity');
-    }
-  };
-
-  // Function to check and restore inventory based on periods and dates
+  // Function to check and restore inventory using the new InventoryModel
   const checkAndRestoreInventory = async () => {
     try {
-      const now = new Date();
-      const updates = [];
-
-      for (const product of products) {
-        if (product.productType === 'made_to_order' && product.capacityPeriod) {
-          // Check if capacity period has passed and needs restoration
-          const lastRestored = product.lastCapacityRestore ? new Date(product.lastCapacityRestore) : product.createdAt ? new Date(product.createdAt) : now;
-          let needsRestore = false;
-
-          switch (product.capacityPeriod) {
-            case 'daily':
-              needsRestore = now.getDate() !== lastRestored.getDate() || 
-                           now.getMonth() !== lastRestored.getMonth() || 
-                           now.getFullYear() !== lastRestored.getFullYear();
-              break;
-            case 'weekly':
-              const daysDiff = Math.floor((now - lastRestored) / (1000 * 60 * 60 * 24));
-              needsRestore = daysDiff >= 7;
-              break;
-            case 'monthly':
-              needsRestore = now.getMonth() !== lastRestored.getMonth() || 
-                           now.getFullYear() !== lastRestored.getFullYear();
-              break;
-          }
-
-          if (needsRestore) {
-            updates.push({
-              id: product._id,
-              remainingCapacity: product.totalCapacity || 0,
-              lastCapacityRestore: now.toISOString()
-            });
-          }
-        } else if (product.productType === 'scheduled_order' && product.nextAvailableDate) {
-          // Check if scheduled production date has passed
-          const productionDate = new Date(product.nextAvailableDate);
-          if (now >= productionDate) {
-            updates.push({
-              id: product._id,
-              availableQuantity: product.totalProductionQuantity || product.availableQuantity || 0,
-              nextAvailableDate: getNextProductionDate(product.scheduleType, now)
-            });
-          }
-        }
-      }
-
-      // Apply updates if any
-      if (updates.length > 0) {
-        for (const update of updates) {
-          await productService.updateProduct(update.id, update);
+      const restorationUpdates = InventoryModel.processInventoryRestoration(products);
+      
+      if (restorationUpdates.length > 0) {
+        for (const update of restorationUpdates) {
+          await productService.updateProduct(update.productId, update.updates);
         }
         // Reload products to reflect changes
         await loadProducts();
-        toast.success(`${updates.length} product(s) inventory restored!`);
+        toast.success(`${restorationUpdates.length} product(s) inventory restored!`);
       }
     } catch (error) {
       console.error('Error restoring inventory:', error);
     }
-  };
-
-  // Helper function to calculate next production date
-  const getNextProductionDate = (scheduleType, currentDate) => {
-    const nextDate = new Date(currentDate);
-    switch (scheduleType) {
-      case 'daily':
-        nextDate.setDate(nextDate.getDate() + 1);
-        break;
-      case 'weekly':
-        nextDate.setDate(nextDate.getDate() + 7);
-        break;
-      case 'monthly':
-        nextDate.setMonth(nextDate.getMonth() + 1);
-        break;
-      default:
-        nextDate.setDate(nextDate.getDate() + 1);
-    }
-    return nextDate.toISOString();
   };
 
   const checkArtisanAccess = async () => {
@@ -722,39 +608,7 @@ export default function ArtisanProductManagement() {
                                product.productType === 'made_to_order' ? 'Capacity:' :
                                'Available:'}
                             </span>
-                            <div className="flex items-center space-x-2">
-                              {product.productType === 'ready_to_ship' ? (
-                                <>
-                                  <p className={`${product.stock <= 5 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                                    {product.stock}
-                                  </p>
-                                  {product.stock <= 5 && (
-                                    <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">Low Stock!</span>
-                                  )}
-                                </>
-                              ) : product.productType === 'made_to_order' ? (
-                                <>
-                                  <p className={`${(product.remainingCapacity || 0) <= 1 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                                    {(product.remainingCapacity || 0)}/{product.totalCapacity || 0}
-                                  </p>
-                                  {(product.remainingCapacity || 0) <= 1 && (
-                                    <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">Low Capacity!</span>
-                                  )}
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {product.capacityPeriod || 'per period'}
-                                  </p>
-                                </>
-                              ) : (
-                                <>
-                                  <p className={`${product.availableQuantity <= 5 ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                                    {product.availableQuantity}
-                                  </p>
-                                  {product.availableQuantity <= 5 && (
-                                    <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full">Low Available!</span>
-                                  )}
-                                </>
-                              )}
-                            </div>
+                            <InventoryDisplay product={product} />
                           </div>
                           <div>
                             <span className="font-medium text-gray-700">Created:</span>
@@ -832,123 +686,10 @@ export default function ArtisanProductManagement() {
                       </div>
                       
                       {/* Quick Inventory Update */}
-                      <div className="bg-white px-4 py-3 rounded-lg border border-gray-200 shadow-sm">
-                        {product.productType === 'ready_to_ship' ? (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm text-gray-600">Stock:</span>
-                            <input
-                              type="number"
-                              min="0"
-                              defaultValue={product.stock}
-                              className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                              onBlur={(e) => {
-                                const newValue = parseInt(e.target.value);
-                                if (newValue !== product.stock && !isNaN(newValue)) {
-                                  handleStockUpdate(product._id, newValue);
-                                }
-                              }}
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  const newValue = parseInt(e.target.value);
-                                  if (newValue !== product.stock && !isNaN(newValue)) {
-                                    handleStockUpdate(product._id, newValue);
-                                  }
-                                }
-                              }}
-                            />
-                            <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
-                          </div>
-                        ) : product.productType === 'made_to_order' ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm text-gray-600">Remaining:</span>
-                              <input
-                                type="number"
-                                min="0"
-                                defaultValue={product.remainingCapacity || 0}
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                                onBlur={(e) => {
-                                  const newValue = parseInt(e.target.value);
-                                  if (newValue !== (product.remainingCapacity || 0) && !isNaN(newValue)) {
-                                    handleCapacityUpdate(product._id, newValue, product.totalCapacity || 0);
-                                  }
-                                }}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    const newValue = parseInt(e.target.value);
-                                    if (newValue !== (product.remainingCapacity || 0) && !isNaN(newValue)) {
-                                      handleCapacityUpdate(product._id, newValue, product.totalCapacity || 0);
-                                    }
-                                  }
-                                }}
-                              />
-                              <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm text-gray-600">Total Capacity:</span>
-                              <input
-                                type="number"
-                                min="0"
-                                defaultValue={product.totalCapacity || 0}
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                                onBlur={(e) => {
-                                  const newTotalCapacity = parseInt(e.target.value);
-                                  if (newTotalCapacity !== (product.totalCapacity || 0) && !isNaN(newTotalCapacity)) {
-                                    const currentUsed = (product.totalCapacity || 0) - (product.remainingCapacity || 0);
-                                    const newRemainingCapacity = Math.max(0, newTotalCapacity - currentUsed);
-                                    handleTotalCapacityUpdate(product._id, newRemainingCapacity, newTotalCapacity);
-                                  }
-                                }}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    const newTotalCapacity = parseInt(e.target.value);
-                                    if (newTotalCapacity !== (product.totalCapacity || 0) && !isNaN(newTotalCapacity)) {
-                                      const currentUsed = (product.totalCapacity || 0) - (product.remainingCapacity || 0);
-                                      const newRemainingCapacity = Math.max(0, newTotalCapacity - currentUsed);
-                                      handleTotalCapacityUpdate(product._id, newRemainingCapacity, newTotalCapacity);
-                                    }
-                                  }
-                                }}
-                              />
-                              <span className="text-xs text-gray-500">
-                                {product.capacityPeriod || 'per period'} • {product.unit || 'units'}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm text-gray-600">Available:</span>
-                              <input
-                                type="number"
-                                min="0"
-                                defaultValue={product.availableQuantity || 0}
-                                className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                                onBlur={(e) => {
-                                  const newValue = parseInt(e.target.value);
-                                  if (newValue !== product.availableQuantity && !isNaN(newValue)) {
-                                    handleAvailableQuantityUpdate(product._id, newValue);
-                                  }
-                                }}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    const newValue = parseInt(e.target.value);
-                                    if (newValue !== product.availableQuantity && !isNaN(newValue)) {
-                                      handleAvailableQuantityUpdate(product._id, newValue);
-                                    }
-                                  }
-                                }}
-                              />
-                              <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
-                            </div>
-                            {product.nextAvailableDate && (
-                              <div className="text-xs text-gray-500">
-                                Production: {new Date(product.nextAvailableDate).toLocaleDateString()}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <InventoryManagement 
+                        product={product} 
+                        onInventoryUpdate={handleInventoryUpdate}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1237,6 +978,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     leadTime: product?.leadTime || 1,
     leadTimeUnit: product?.leadTimeUnit || 'days',
     maxOrderQuantity: product?.maxOrderQuantity || 10,
+    capacityPeriod: product?.capacityPeriod || '',
     // Scheduled specific fields
     scheduleType: product?.scheduleType || 'daily',
     scheduleDetails: product?.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
@@ -1327,9 +1069,11 @@ const ProductForm = ({ product, onSave, onCancel }) => {
       ...(formData.productType === 'made_to_order' && {
         stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
         totalCapacity: Math.max(parseInt(formData.stock) || 0, 1), // Map stock to totalCapacity, minimum 1
+        remainingCapacity: Math.max(parseInt(formData.stock) || 0, 1), // Initialize remaining capacity same as total
         leadTime: parseInt(formData.leadTime) || 1,
         leadTimeUnit: formData.leadTimeUnit || 'days',
-        maxOrderQuantity: parseInt(formData.maxOrderQuantity) || 10
+        maxOrderQuantity: parseInt(formData.maxOrderQuantity) || 10,
+        capacityPeriod: formData.capacityPeriod || 'daily'
       }),
       ...(formData.productType === 'scheduled_order' && {
         stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
@@ -2073,6 +1817,25 @@ const ProductForm = ({ product, onSave, onCancel }) => {
               <p className="text-xs text-gray-500 mt-1">
                 How long customers need to wait for this product
               </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Capacity Period *
+              </label>
+              <select
+                name="capacityPeriod"
+                value={formData.capacityPeriod}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+              >
+                <option value="">Select capacity period</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">How often does your production capacity reset?</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">

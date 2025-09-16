@@ -52,7 +52,7 @@ class InventoryModel {
           isLow: this.inventoryData.remainingCapacity <= 1,
           lowThreshold: 1,
           lowMessage: 'Low Capacity!',
-          period: this.inventoryData.capacityPeriod || 'per period'
+          period: this.inventoryData.capacityPeriod ? `per ${this.inventoryData.capacityPeriod}` : null
         };
 
       case 'scheduled_order':

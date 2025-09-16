@@ -285,21 +285,23 @@ export const InventoryDisplay = ({ product }) => {
   if (!displayData) return null;
 
   return (
-    <div className="flex items-center space-x-2">
-      <p className={`${displayData.isLow ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-        {displayData.total ? `${displayData.current}/${displayData.total}` : displayData.current}
-      </p>
-      {displayData.isLow && (
-        <span className={`text-xs px-2 py-1 rounded-full ${
-          status.color === 'red' ? 'text-red-500 bg-red-50' :
-          status.color === 'yellow' ? 'text-yellow-500 bg-yellow-50' :
-          'text-gray-500 bg-gray-50'
-        }`}>
-          {displayData.lowMessage}
-        </span>
-      )}
+    <div className="flex flex-col space-y-1">
+      <div className="flex items-center space-x-2">
+        <p className={`${displayData.isLow ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+          {displayData.total ? `${displayData.current}/${displayData.total}` : displayData.current}
+        </p>
+        {displayData.isLow && (
+          <span className={`text-xs px-2 py-1 rounded-full ${
+            status.color === 'red' ? 'text-red-500 bg-red-50' :
+            status.color === 'yellow' ? 'text-yellow-500 bg-yellow-50' :
+            'text-gray-500 bg-gray-50'
+          }`}>
+            {displayData.lowMessage}
+          </span>
+        )}
+      </div>
       {displayData.period && (
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-500 font-medium">
           {displayData.period}
         </p>
       )}

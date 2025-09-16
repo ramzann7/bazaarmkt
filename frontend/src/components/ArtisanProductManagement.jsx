@@ -1782,6 +1782,25 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
+            Capacity Period *
+          </label>
+          <select
+            name="capacityPeriod"
+            value={formData.capacityPeriod}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+          >
+            <option value="">Select capacity period</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">How often does your production capacity reset?</p>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
                 Preparation Time
           </label>
               <input
@@ -1845,24 +1864,6 @@ const ProductForm = ({ product, onSave, onCancel }) => {
               </p>
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Capacity Period *
-              </label>
-              <select
-                name="capacityPeriod"
-                value={formData.capacityPeriod}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-              >
-                <option value="">Select capacity period</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">How often does your production capacity reset?</p>
-            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Maximum Order Quantity

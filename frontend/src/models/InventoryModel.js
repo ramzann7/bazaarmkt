@@ -316,6 +316,70 @@ class InventoryModel {
   }
 
   /**
+   * Check if product is out of stock
+   */
+  isOutOfStock() {
+    switch (this.product.productType) {
+      case 'ready_to_ship':
+        return this.inventoryData.stock <= 0;
+      
+      case 'made_to_order':
+        return this.inventoryData.remainingCapacity <= 0;
+      
+      case 'scheduled_order':
+        return this.inventoryData.availableQuantity <= 0;
+      
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Get out of stock status with details
+   */
+  getOutOfStockStatus() {
+    const isOut = this.isOutOfStock();
+    
+    if (!isOut) {
+      return {
+        isOutOfStock: false,
+        message: null,
+        reason: null
+      };
+    }
+
+    let message = '';
+    let reason = '';
+
+    switch (this.product.productType) {
+      case 'ready_to_ship':
+        message = 'Out of Stock';
+        reason = 'No items available';
+        break;
+      
+      case 'made_to_order':
+        message = 'No Capacity Available';
+        reason = 'All production slots are filled';
+        break;
+      
+      case 'scheduled_order':
+        message = 'Fully Booked';
+        reason = 'All available slots are taken';
+        break;
+      
+      default:
+        message = 'Unavailable';
+        reason = 'Product not available';
+    }
+
+    return {
+      isOutOfStock: true,
+      message,
+      reason
+    };
+  }
+
+  /**
    * Static method to process multiple products for inventory restoration
    */
   static processInventoryRestoration(products) {

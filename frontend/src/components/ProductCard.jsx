@@ -7,6 +7,7 @@ import {
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import AddToCart from './AddToCart';
 import ProductTypeBadge from './ProductTypeBadge';
+import InventoryModel from '../models/InventoryModel';
 import toast from 'react-hot-toast';
 
 const ProductCard = ({ 
@@ -77,17 +78,17 @@ const ProductCard = ({
     return stars;
   };
 
-  // Check if product is out of stock
-  const isOutOfStock = () => {
-    if (product.productType === 'ready_to_ship') {
-      return (product.stock || 0) <= 0;
-    }
-    return false;
+  // Check if product is out of stock using InventoryModel
+  const getOutOfStockStatus = () => {
+    const inventoryModel = new InventoryModel(product);
+    return inventoryModel.getOutOfStockStatus();
   };
+
+  const outOfStockStatus = getOutOfStockStatus();
 
   // Handle product click
   const handleProductClick = () => {
-    if (isOutOfStock()) {
+    if (outOfStockStatus.isOutOfStock) {
       return; // Don't allow clicking on out of stock products
     }
     if (onProductClick) {
@@ -105,34 +106,42 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`group relative transition-all duration-300 bg-white rounded-2xl shadow-sm hover:shadow-lg ${isOutOfStock() ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:-translate-y-1'} ${className}`}
+        className={`group relative transition-all duration-300 bg-white rounded-2xl shadow-sm hover:shadow-lg ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:-translate-y-1'} ${className}`}
         onClick={handleProductClick}
-        title={isOutOfStock() ? "Out of stock" : "Select this artisan product"}
+        title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : "Select this artisan product"}
       >
         {/* Image container with rounded corners */}
         <div className="relative overflow-hidden rounded-t-2xl bg-gradient-to-br from-gray-50 to-gray-100">
           <img
             src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
             alt={product.name}
-            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+            className={`w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
           />
+          {/* Out of stock overlay */}
+          {outOfStockStatus.isOutOfStock && (
+            <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+              <div className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                {outOfStockStatus.message}
+              </div>
+            </div>
+          )}
           <div className={`w-full h-48 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
             <BuildingStorefrontIcon className="w-12 h-12 text-gray-400" />
           </div>
           
           {/* Status and dietary badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {isOutOfStock() && (
+            {outOfStockStatus.isOutOfStock && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500 text-white z-20">
-                Out of Stock
+                {outOfStockStatus.message}
               </span>
             )}
-            {product.isFeatured && !isOutOfStock() && (
+            {product.isFeatured && !outOfStockStatus.isOutOfStock && (
               <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white z-10">
                 Featured
               </span>
@@ -240,18 +249,27 @@ const ProductCard = ({
 
             {/* Add to Cart Component */}
             <div className="px-6 pb-6">
-              <AddToCart 
-                product={product}
-                variant="modal"
-                onSuccess={(product, quantity) => {
-                  setShowCartPopup(false);
-                  toast.success(`Added ${quantity} ${quantity === 1 ? (product.unit || 'piece') : ((product.unit || 'piece') + 's')} to cart!`);
-                }}
-                onError={(error) => {
-                  console.error('Add to cart error:', error);
-                  toast.error('Failed to add item to cart');
-                }}
-              />
+              {outOfStockStatus.isOutOfStock ? (
+                <div className="text-center py-4">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-800 font-medium mb-2">{outOfStockStatus.message}</p>
+                    <p className="text-red-600 text-sm">{outOfStockStatus.reason}</p>
+                  </div>
+                </div>
+              ) : (
+                <AddToCart 
+                  product={product}
+                  variant="modal"
+                  onSuccess={(product, quantity) => {
+                    setShowCartPopup(false);
+                    toast.success(`Added ${quantity} ${quantity === 1 ? (product.unit || 'piece') : ((product.unit || 'piece') + 's')} to cart!`);
+                  }}
+                  onError={(error) => {
+                    console.error('Add to cart error:', error);
+                    toast.error('Failed to add item to cart');
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

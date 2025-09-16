@@ -187,11 +187,29 @@ class GeographicSettingsService {
   async getAddressValidationRules(country) {
     try {
       const settings = await GeographicSettings.getCurrentSettings();
-      const rules = settings.getAddressValidationRules(country);
       
+      // If settings is a Mongoose model instance, use the method
+      if (settings && typeof settings.getAddressValidationRules === 'function') {
+        const rules = settings.getAddressValidationRules(country);
+        return {
+          success: true,
+          data: rules
+        };
+      }
+      
+      // If settings is a plain object (default settings), check manually
+      if (settings && settings.addressValidation && settings.addressValidation.enabled) {
+        const rule = settings.addressValidation.countryRules.find(r => r.country === country);
+        return {
+          success: true,
+          data: rule || null
+        };
+      }
+      
+      // No validation rules found
       return {
         success: true,
-        data: rules
+        data: null
       };
     } catch (error) {
       console.error('Error getting address validation rules:', error);

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const geographicSettingsService = require('../services/geographicSettingsService');
-const { authenticateToken } = require('../middleware/authMiddleware');
-const { requireAdmin } = require('../middleware/adminAuth');
+const authenticateToken = require('../middleware/authMiddleware');
+const requireAdmin = require('../middleware/adminAuth');
 
 // Get current geographic settings (public endpoint for frontend)
 router.get('/current', async (req, res) => {

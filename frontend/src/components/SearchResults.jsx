@@ -522,7 +522,6 @@ export default function SearchResults() {
                 showDistance={!!product.formattedDistance}
                 showRating={true}
                 showImagePreview={true}
-                onProductClick={handleProductClick}
               />
             ))}
           </div>

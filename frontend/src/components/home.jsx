@@ -901,7 +901,6 @@ export default function Home() {
                   key={product._id} 
                   product={product} 
                   showImagePreview={true}
-                  onProductClick={handleProductClick}
                 />
               ))}
             </div>
@@ -942,7 +941,6 @@ export default function Home() {
                   key={product._id} 
                   product={product} 
                   showImagePreview={true}
-                  onProductClick={handleProductClick}
                 />
               ))}
             </div>
@@ -1005,7 +1003,6 @@ export default function Home() {
                   product={product} 
                   showDistance={true}
                   showImagePreview={true}
-                  onProductClick={handleProductClick}
                 />
               ))}
             </div>

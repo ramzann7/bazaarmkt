@@ -652,7 +652,6 @@ export default function ArtisanShop() {
                       showDistance={false}
                       showImagePreview={true}
                       showRating={false}
-                      onProductClick={handleProductClick}
                     />
                   ))}
                 </div>

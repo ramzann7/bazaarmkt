@@ -375,7 +375,6 @@ export default function Search() {
                     product={product} 
                     showDistance={false}
                     showImagePreview={true}
-                    onProductClick={handleProductClick}
                   />
                 ))}
               </div>

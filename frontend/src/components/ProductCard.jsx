@@ -242,6 +242,121 @@ const ProductCard = ({
               </div>
             </div>
 
+            {/* Enhanced Inventory Information */}
+            <div className="px-6 pb-4">
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h5 className="font-semibold text-gray-900 mb-3 flex items-center">
+                  <svg className="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  Product Details
+                </h5>
+                
+                {/* Ready to Ship Products */}
+                {product.productType === 'ready_to_ship' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Available Stock:</span>
+                      <span className={`font-medium ${(product.stock || 0) <= 5 ? 'text-orange-600' : 'text-green-600'}`}>
+                        {product.stock || 0} {product.unit || 'pieces'}
+                      </span>
+                    </div>
+                    {(product.stock || 0) <= 5 && (product.stock || 0) > 0 && (
+                      <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                        ⚠️ Low stock - only {product.stock} remaining
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Made to Order Products */}
+                {product.productType === 'made_to_order' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Available Capacity:</span>
+                      <span className={`font-medium ${(product.remainingCapacity || 0) <= 2 ? 'text-orange-600' : 'text-green-600'}`}>
+                        {product.remainingCapacity || 0} {product.unit || 'pieces'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Capacity Period:</span>
+                      <span className="font-medium text-gray-900 capitalize">
+                        {product.capacityPeriod || 'daily'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Lead Time:</span>
+                      <span className="font-medium text-gray-900">
+                        {product.leadTime || 1} {product.leadTimeUnit || 'days'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Total Capacity:</span>
+                      <span className="text-sm text-gray-500">
+                        {product.totalCapacity || 0} {product.unit || 'pieces'}
+                      </span>
+                    </div>
+                    {(product.remainingCapacity || 0) <= 2 && (product.remainingCapacity || 0) > 0 && (
+                      <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                        ⚠️ Limited capacity - only {product.remainingCapacity} slots available
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Scheduled Order Products */}
+                {product.productType === 'scheduled_order' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Available Quantity:</span>
+                      <span className={`font-medium ${(product.availableQuantity || 0) <= 3 ? 'text-orange-600' : 'text-green-600'}`}>
+                        {product.availableQuantity || 0} {product.unit || 'pieces'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Next Available:</span>
+                      <span className="font-medium text-gray-900">
+                        {product.nextAvailableDate ? new Date(product.nextAvailableDate).toLocaleDateString() : 'TBD'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Available Time:</span>
+                      <span className="font-medium text-gray-900">
+                        {product.nextAvailableTime || '09:00'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Schedule Type:</span>
+                      <span className="font-medium text-gray-900 capitalize">
+                        {product.scheduleType || 'daily'}
+                      </span>
+                    </div>
+                    {product.nextAvailableDate && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Days Until Available:</span>
+                        <span className="font-medium text-blue-600">
+                          {Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24))} days
+                        </span>
+                      </div>
+                    )}
+                    {(product.availableQuantity || 0) <= 3 && (product.availableQuantity || 0) > 0 && (
+                      <div className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                        ⚠️ Limited quantity - only {product.availableQuantity} available for this date
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Product Type Badge */}
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Product Type:</span>
+                    <ProductTypeBadge product={product} variant="compact" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Add to Cart Component */}
             <div className="px-6 pb-6">
               {outOfStockStatus.isOutOfStock ? (

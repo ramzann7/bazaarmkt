@@ -15,7 +15,7 @@ const InventoryManagement = ({
     if (product) {
       setInventoryModel(new InventoryModel(product));
     }
-  }, [product]);
+  }, [product._id, product.stock, product.totalCapacity, product.remainingCapacity, product.availableQuantity, product.capacityPeriod]);
 
   // Handle stock updates for ready-to-ship products
   const handleStockUpdate = async (newStock) => {
@@ -31,8 +31,9 @@ const InventoryManagement = ({
       const updatedProduct = await productService.updateProduct(product._id, { 
         stock: newStock 
       });
-      inventoryModel.updateInventoryData({ stock: newStock });
-      setInventoryModel(new InventoryModel(updatedProduct));
+      // Create new inventory model with updated data
+      const newInventoryModel = new InventoryModel(updatedProduct);
+      setInventoryModel(newInventoryModel);
       onInventoryUpdate?.(updatedProduct);
       toast.success('Stock updated successfully!');
     } catch (error) {
@@ -59,11 +60,9 @@ const InventoryManagement = ({
         remainingCapacity: capacityCalculation.remainingCapacity
       });
       
-      inventoryModel.updateInventoryData({ 
-        totalCapacity: capacityCalculation.totalCapacity,
-        remainingCapacity: capacityCalculation.remainingCapacity
-      });
-      setInventoryModel(new InventoryModel(updatedProduct));
+      // Create new inventory model with updated data
+      const newInventoryModel = new InventoryModel(updatedProduct);
+      setInventoryModel(newInventoryModel);
       onInventoryUpdate?.(updatedProduct);
       toast.success(`Total capacity updated! New capacity: ${capacityCalculation.totalCapacity}, Remaining: ${capacityCalculation.remainingCapacity}`);
     } catch (error) {
@@ -86,8 +85,9 @@ const InventoryManagement = ({
       const updatedProduct = await productService.updateProduct(product._id, { 
         availableQuantity: newAvailableQuantity
       });
-      inventoryModel.updateInventoryData({ availableQuantity: newAvailableQuantity });
-      setInventoryModel(new InventoryModel(updatedProduct));
+      // Create new inventory model with updated data
+      const newInventoryModel = new InventoryModel(updatedProduct);
+      setInventoryModel(newInventoryModel);
       onInventoryUpdate?.(updatedProduct);
       toast.success('Available quantity updated successfully!');
     } catch (error) {

@@ -88,7 +88,9 @@ export default function ArtisanProductManagement() {
   };
 
   const handleEditProduct = (product) => {
-    setSelectedProduct(product);
+    // Get the most current product data from the products array
+    const currentProduct = products.find(p => p._id === product._id) || product;
+    setSelectedProduct(currentProduct);
     setShowProductModal(true);
   };
 
@@ -135,8 +137,24 @@ export default function ArtisanProductManagement() {
 
   // Unified inventory update handler using the new inventory system
   const handleInventoryUpdate = (updatedProduct) => {
-    const updatedProducts = products.map(p => p._id === updatedProduct._id ? updatedProduct : p);
+    // Create a new object reference to ensure React detects the change
+    const updatedProducts = products.map(p => 
+      p._id === updatedProduct._id ? { ...updatedProduct } : { ...p }
+    );
     setProducts(updatedProducts);
+    
+    // If we're currently editing this product, update the form data to stay in sync
+    if (product && product._id === updatedProduct._id) {
+      setFormData(prev => ({
+        ...prev,
+        stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :
+               updatedProduct.productType === 'scheduled_order' ? (updatedProduct.availableQuantity || 0) :
+               (updatedProduct.stock || 0),
+        // Update capacity period if it exists
+        capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod
+      }));
+    }
+    
     // The useEffect will automatically update filteredProducts when products change
   };
 

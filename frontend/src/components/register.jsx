@@ -197,6 +197,12 @@ export default function Register() {
       return;
     }
 
+    // Check if the site is available for the selected country/province
+    if (formData.country !== 'Canada') {
+      toast.error('Sorry, bazaarMKT is currently only available in Canada. We\'re working on expanding to other regions soon!');
+      return;
+    }
+
     // Validate address using flexible system
     try {
       const addressValidation = await geographicSettingsService.validateAddress({
@@ -208,7 +214,16 @@ export default function Register() {
       });
 
       if (!addressValidation.isValid) {
-        toast.error(addressValidation.errors.join(', '));
+        // Check if it's a geographic restriction error
+        if (addressValidation.errors.some(error => 
+          error.toLowerCase().includes('not available') || 
+          error.toLowerCase().includes('not supported') ||
+          error.toLowerCase().includes('restricted')
+        )) {
+          toast.error('Sorry, bazaarMKT is not yet available in your province. We\'re working on expanding to all Canadian provinces soon!');
+        } else {
+          toast.error(addressValidation.errors.join(', '));
+        }
         return;
       }
     } catch (error) {
@@ -557,8 +572,8 @@ export default function Register() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> Please provide a complete and accurate address. 
-                  Address validation may apply based on your location.
+                  <strong>Note:</strong> bazaarMKT is currently available in Canada. 
+                  Please provide a complete and accurate Canadian address to register.
                 </p>
               </div>
             </div>

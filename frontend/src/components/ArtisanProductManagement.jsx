@@ -128,7 +128,9 @@ export default function ArtisanProductManagement() {
   const handleStockUpdate = async (productId, newStock) => {
     try {
       const updatedProduct = await productService.updateProduct(productId, { stock: newStock });
-      setProducts(products.map(p => p._id === productId ? updatedProduct : p));
+      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
+      setProducts(updatedProducts);
+      // The useEffect will automatically update filteredProducts when products change
       toast.success('Stock updated successfully!');
     } catch (error) {
       console.error('Error updating stock:', error);
@@ -142,7 +144,9 @@ export default function ArtisanProductManagement() {
         remainingCapacity: newRemainingCapacity,
         totalCapacity: newTotalCapacity
       });
-      setProducts(products.map(p => p._id === productId ? updatedProduct : p));
+      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
+      setProducts(updatedProducts);
+      // The useEffect will automatically update filteredProducts when products change
       toast.success('Capacity updated successfully!');
     } catch (error) {
       console.error('Error updating capacity:', error);
@@ -155,7 +159,9 @@ export default function ArtisanProductManagement() {
       const updatedProduct = await productService.updateProduct(productId, { 
         availableQuantity: newAvailableQuantity
       });
-      setProducts(products.map(p => p._id === productId ? updatedProduct : p));
+      const updatedProducts = products.map(p => p._id === productId ? updatedProduct : p);
+      setProducts(updatedProducts);
+      // The useEffect will automatically update filteredProducts when products change
       toast.success('Available quantity updated successfully!');
     } catch (error) {
       console.error('Error updating available quantity:', error);
@@ -651,51 +657,30 @@ export default function ArtisanProductManagement() {
                         </div>
                         
                         {/* Additional Product Details */}
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                            {/* Inventory Management Details */}
-                            <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                              <span className="font-medium text-gray-700">
-                                {product.productType === 'ready_to_ship' ? 'Stock Management:' :
-                                 product.productType === 'made_to_order' ? 'Capacity Management:' :
-                                 'Quantity Management:'}
-                              </span>
-                              <p className="text-gray-600 mt-1">
-                                {product.productType === 'ready_to_ship' ? (
-                                  `Current Stock: ${product.stock} ${product.unit || 'units'}`
-                                ) : product.productType === 'made_to_order' ? (
-                                  `Remaining: ${product.remainingCapacity || 0}/${product.totalCapacity || 0} ${product.unit || 'units'}`
-                                ) : (
-                                  `Available: ${product.availableQuantity || 0} ${product.unit || 'units'}`
-                                )}
-                              </p>
-                              {product.productType === 'made_to_order' && (
-                                <p className="text-gray-500 text-xs mt-1">
-                                  Used: {((product.totalCapacity || 0) - (product.remainingCapacity || 0))} units
-                                </p>
+                        {(product.weight || product.dimensions || product.allergens) && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                              {product.weight && (
+                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium text-gray-700">Weight:</span>
+                                  <p className="text-gray-600">{product.weight}</p>
+                                </div>
+                              )}
+                              {product.dimensions && (
+                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium text-gray-700">Dimensions:</span>
+                                  <p className="text-gray-600">{product.dimensions}</p>
+                                </div>
+                              )}
+                              {product.allergens && (
+                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
+                                  <span className="font-medium text-gray-700">Allergens:</span>
+                                  <p className="text-gray-600">{product.allergens}</p>
+                                </div>
                               )}
                             </div>
-                            
-                            {product.weight && (
-                              <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                <span className="font-medium text-gray-700">Weight:</span>
-                                <p className="text-gray-600">{product.weight}</p>
-                              </div>
-                            )}
-                            {product.dimensions && (
-                              <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                <span className="font-medium text-gray-700">Dimensions:</span>
-                                <p className="text-gray-600">{product.dimensions}</p>
-                              </div>
-                            )}
-                            {product.allergens && (
-                              <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                <span className="font-medium text-gray-700">Allergens:</span>
-                                <p className="text-gray-600">{product.allergens}</p>
-                              </div>
-                            )}
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
                     
@@ -780,49 +765,7 @@ export default function ArtisanProductManagement() {
                               }
                             }}
                           />
-                          <span className="text-xs text-gray-500">
-                            {product.productType === 'made_to_order' ? `${product.unit || 'units'}` : `${product.unit || 'units'}`}
-                          </span>
-                          {product.productType === 'made_to_order' && (
-                            <button
-                              onClick={() => {
-                                const currentTotal = product.totalCapacity || 0;
-                                const currentRemaining = product.remainingCapacity || 0;
-                                const amountToAdd = prompt(
-                                  `Add capacity for "${product.name}":\nCurrent Total: ${currentTotal}\nCurrent Remaining: ${currentRemaining}\nEnter amount to add to total capacity:`, 
-                                  '1'
-                                );
-                                if (amountToAdd && !isNaN(parseInt(amountToAdd)) && parseInt(amountToAdd) > 0) {
-                                  const newTotal = currentTotal + parseInt(amountToAdd);
-                                  const newRemaining = currentRemaining + parseInt(amountToAdd);
-                                  handleCapacityUpdate(product._id, newRemaining, newTotal);
-                                }
-                              }}
-                              className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded hover:bg-green-200 transition-colors"
-                              title="Add Capacity"
-                            >
-                              +Add
-                            </button>
-                          )}
-                          {product.productType === 'scheduled_order' && (
-                            <button
-                              onClick={() => {
-                                const currentAvailable = product.availableQuantity || 0;
-                                const amountToAdd = prompt(
-                                  `Add available quantity for "${product.name}":\nCurrent Available: ${currentAvailable}\nEnter amount to add:`, 
-                                  '1'
-                                );
-                                if (amountToAdd && !isNaN(parseInt(amountToAdd)) && parseInt(amountToAdd) > 0) {
-                                  const newAvailable = currentAvailable + parseInt(amountToAdd);
-                                  handleAvailableQuantityUpdate(product._id, newAvailable);
-                                }
-                              }}
-                              className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
-                              title="Add Available Quantity"
-                            >
-                              +Add
-                            </button>
-                          )}
+                          <span className="text-xs text-gray-500">{product.unit || 'units'}</span>
                         </div>
                       </div>
                     </div>

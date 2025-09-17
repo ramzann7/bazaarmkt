@@ -362,7 +362,7 @@ export default function Navbar() {
             <div className="w-8 h-8 bg-[#E6B655] rounded-lg flex items-center justify-center shadow-lg">
               <BuildingStorefrontIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-white font-serif tracking-wide">bazaarMKT</span>
+            <span className="text-lg sm:text-xl font-bold text-white font-serif tracking-wide">bazaarMKT</span>
           </OptimizedLink>
 
           {/* Desktop Navigation */}
@@ -621,8 +621,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Search */}
-        <div className="md:hidden py-4 search-container">
+          {/* Mobile Search */}
+        <div className="md:hidden py-3 px-1 search-container">
           <form onSubmit={handleSearch} className="w-full">
             <div className="relative">
               <div className="flex">
@@ -631,23 +631,23 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={toggleCategoryDropdown}
-                    className={`flex items-center space-x-2 px-3 py-2 border border-r-0 border-gray-300 rounded-l-lg text-sm ${
+                    className={`flex items-center space-x-1 px-2 py-2 border border-r-0 border-gray-300 rounded-l-lg text-sm ${
                       selectedCategory !== 'all' || selectedSubcategory 
                         ? 'bg-amber-50 border-amber-300' 
                         : 'bg-gray-50'
                     }`}
                   >
-                    <span className="text-lg">
+                    <span className="text-base">
                       {selectedSubcategory ? selectedSubcategory.icon : 
                        selectedCategory === 'all' ? '🌟' : 
                        categories.find(c => c.key === selectedCategory)?.icon || '🌟'}
                     </span>
-                    <span className="text-xs font-medium text-gray-700 truncate max-w-[60px]">
+                    <span className="text-xs font-medium text-gray-700 truncate max-w-[50px]">
                       {selectedSubcategory ? selectedSubcategory.name : 
                        selectedCategory === 'all' ? 'All' : 
                        categories.find(c => c.key === selectedCategory)?.name || 'All'}
                     </span>
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <ChevronDownIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
                   </button>
                   
                   {/* Mobile Main Categories Dropdown */}

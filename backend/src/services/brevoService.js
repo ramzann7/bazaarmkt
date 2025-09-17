@@ -257,10 +257,12 @@ const getStatusSpecificContent = (type, orderDetails) => {
     'order_ready_for_delivery': {
       subject: `Order Ready for Delivery - ${orderNumber} - bazaarMKT`,
       title: 'Order Ready for Delivery!',
-      message: `Your order ${orderNumber} is ready for delivery! ${artisanName} will deliver it to you soon.`,
+      message: `Your order ${orderNumber} is ready for delivery! ${artisanName} will deliver it to you soon.${orderDetails?.travelTimeInfo ? ` Estimated travel time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       currentStatus: 'Ready for Delivery',
       nextSteps: [
-        'Your order is ready and will be delivered soon',
+        orderDetails?.travelTimeInfo 
+          ? `Your order will be delivered in approximately ${orderDetails.travelTimeInfo.estimatedTravelTime}`
+          : 'Your order is ready and will be delivered soon',
         'You\'ll receive updates when it\'s out for delivery',
         'Please ensure someone is available to receive the order'
       ]
@@ -268,10 +270,12 @@ const getStatusSpecificContent = (type, orderDetails) => {
     'order_out_for_delivery': {
       subject: `Order Out for Delivery - ${orderNumber} - bazaarMKT`,
       title: 'Order Out for Delivery!',
-      message: `Your order ${orderNumber} is out for delivery and on its way to you! ${artisanName} is bringing your order.`,
+      message: `Your order ${orderNumber} is out for delivery and on its way to you! ${artisanName} is bringing your order.${orderDetails?.travelTimeInfo ? ` Estimated travel time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       currentStatus: 'Out for Delivery',
       nextSteps: [
-        'Your order is on its way to you',
+        orderDetails?.travelTimeInfo 
+          ? `Your order should arrive in approximately ${orderDetails.travelTimeInfo.estimatedTravelTime}`
+          : 'Your order is on its way to you',
         'Please ensure someone is available to receive it',
         'You\'ll be notified when it\'s delivered'
       ]
@@ -279,10 +283,12 @@ const getStatusSpecificContent = (type, orderDetails) => {
     'order_delivering': {
       subject: `Order Being Delivered - ${orderNumber} - bazaarMKT`,
       title: 'Order Being Delivered!',
-      message: `Your order ${orderNumber} is currently being delivered by ${artisanName}.`,
+      message: `Your order ${orderNumber} is currently being delivered by ${artisanName}.${orderDetails?.travelTimeInfo ? ` Estimated travel time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       currentStatus: 'Being Delivered',
       nextSteps: [
-        'Your order is on its way to you',
+        orderDetails?.travelTimeInfo 
+          ? `Your order should arrive in approximately ${orderDetails.travelTimeInfo.estimatedTravelTime}`
+          : 'Your order is on its way to you',
         'Please ensure someone is available to receive it',
         'You\'ll be notified when it\'s delivered'
       ]

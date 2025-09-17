@@ -8,7 +8,7 @@ import {
   initializeBrevo
 } from './brevoService';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 // Initialize Brevo service (call this when you have the API key)
 export const initializeNotificationService = (brevoApiKey) => {

@@ -3,7 +3,7 @@ import { authToken } from './authservice';
 import { geocodingService } from './geocodingService';
 import { normalizeSearchFilters, logCategoryUsage } from '../utils/categoryUtils';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : 'http://localhost:4000/api/products';
 
 // Enhanced search service with sophisticated ranking
 class EnhancedSearchService {

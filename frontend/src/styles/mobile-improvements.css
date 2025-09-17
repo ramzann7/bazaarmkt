@@ -1,0 +1,179 @@
+/* Mobile-first responsive improvements for bazaarMKT */
+
+/* Ensure proper mobile viewport */
+@media (max-width: 640px) {
+  /* Reduce excessive padding on mobile */
+  .mobile-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  
+  /* Improve button sizes for touch */
+  .mobile-button {
+    min-height: 44px !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+  
+  /* Better text sizing for mobile */
+  .mobile-text-lg {
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  .mobile-text-xl {
+    font-size: 1.125rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  .mobile-text-2xl {
+    font-size: 1.25rem !important;
+    line-height: 1.4 !important;
+  }
+  
+  .mobile-text-3xl {
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  /* Improve form inputs for mobile */
+  .mobile-input {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    padding: 0.75rem !important;
+    border-radius: 0.5rem !important;
+  }
+  
+  /* Better spacing for mobile */
+  .mobile-spacing {
+    margin-bottom: 1rem !important;
+  }
+  
+  .mobile-spacing-lg {
+    margin-bottom: 1.5rem !important;
+  }
+  
+  /* Improve grid layouts for mobile */
+  .mobile-grid-2 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  
+  /* Better card padding on mobile */
+  .mobile-card {
+    padding: 0.75rem !important;
+    border-radius: 0.75rem !important;
+  }
+  
+  /* Improve modal sizing on mobile */
+  .mobile-modal {
+    margin: 1rem !important;
+    max-height: calc(100vh - 2rem) !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Better navigation on mobile */
+  .mobile-nav {
+    padding: 0.5rem 1rem !important;
+  }
+  
+  /* Improve search bar on mobile */
+  .mobile-search {
+    font-size: 16px !important;
+    padding: 0.625rem 0.75rem !important;
+  }
+  
+  /* Better product card sizing */
+  .mobile-product-card {
+    min-height: 280px !important;
+  }
+  
+  .mobile-product-image {
+    aspect-ratio: 1 !important;
+    height: auto !important;
+  }
+  
+  /* Improve table responsiveness */
+  .mobile-table {
+    font-size: 0.75rem !important;
+  }
+  
+  .mobile-table th,
+  .mobile-table td {
+    padding: 0.5rem 0.25rem !important;
+  }
+  
+  /* Better sidebar handling on mobile */
+  .mobile-sidebar {
+    order: 2 !important;
+    margin-top: 1.5rem !important;
+  }
+  
+  /* Improve dashboard stats cards */
+  .mobile-stat-card {
+    padding: 1rem !important;
+    text-align: center !important;
+  }
+  
+  .mobile-stat-number {
+    font-size: 1.25rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .mobile-stat-label {
+    font-size: 0.75rem !important;
+    margin-top: 0.25rem !important;
+  }
+}
+
+/* Tablet improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-grid-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .tablet-text-balance {
+    text-wrap: balance !important;
+  }
+}
+
+/* Touch-friendly improvements for all mobile devices */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .hover-only {
+    display: none !important;
+  }
+  
+  /* Better focus states for touch */
+  button:focus,
+  a:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid #D77A61 !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* Landscape mobile improvements */
+@media (max-width: 896px) and (orientation: landscape) {
+  .landscape-mobile {
+    height: auto !important;
+    min-height: auto !important;
+  }
+  
+  .landscape-mobile-nav {
+    height: 3rem !important;
+  }
+  
+  .landscape-mobile-content {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+}

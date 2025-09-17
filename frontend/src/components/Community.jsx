@@ -152,31 +152,19 @@ export default function Community() {
   const loadLeaderboard = async () => {
     try {
       const response = await communityService.getEngagementLeaderboard();
-      console.log('Leaderboard response:', response);
+      console.log('📊 Engagement leaderboard response:', response);
       if (response.success && response.data && response.data.length > 0) {
-        console.log('Setting leaderboard data:', response.data);
+        console.log('✅ Setting real leaderboard data:', response.data);
         setLeaderboard(response.data);
       } else {
-        console.log('No leaderboard data received, using fallback');
-        // Fallback data for testing
-        setLeaderboard([
-          { _id: '1', artisanName: 'Sarah\'s Bakery', engagementScore: 150 },
-          { _id: '2', artisanName: 'Mike\'s Farm', engagementScore: 120 },
-          { _id: '3', artisanName: 'Emma\'s Kitchen', engagementScore: 95 },
-          { _id: '4', artisanName: 'David\'s Delights', engagementScore: 80 },
-          { _id: '5', artisanName: 'Lisa\'s Craft', engagementScore: 65 }
-        ]);
+        console.log('ℹ️ No engaged artisans found - this is normal for new platforms');
+        setLeaderboard([]);
       }
     } catch (error) {
-      console.error('Error loading engagement leaderboard:', error);
-      // Fallback data on error
-      setLeaderboard([
-        { _id: '1', artisanName: 'Sarah\'s Bakery', engagementScore: 150 },
-        { _id: '2', artisanName: 'Mike\'s Farm', engagementScore: 120 },
-        { _id: '3', artisanName: 'Emma\'s Kitchen', engagementScore: 95 },
-        { _id: '4', artisanName: 'David\'s Delights', engagementScore: 80 },
-        { _id: '5', artisanName: 'Lisa\'s Craft', engagementScore: 65 }
-      ]);
+      console.error('❌ Error loading engagement leaderboard:', error);
+      // Don't use fallback data - show empty state instead
+      setLeaderboard([]);
+      toast.error('Failed to load engaged artisans');
     }
   };
 
@@ -1097,8 +1085,8 @@ export default function Community() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-3">
             {/* Filter Tabs */}
@@ -1110,7 +1098,7 @@ export default function Community() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                 {postTypes.map((type) => (
                   <button
                     key={type.id}
@@ -1179,7 +1167,7 @@ export default function Community() {
                 <FireIcon className="w-5 h-5 mr-2 text-amber-600" />
                 Most Engaged Artisans
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {leaderboard.length > 0 ? (
                   leaderboard.slice(0, 5).map((artisan, index) => (
                     <button
@@ -1190,8 +1178,8 @@ export default function Community() {
                       }}
                       className="w-full text-left p-2 rounded-lg hover:bg-amber-50 transition-colors group"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      <div className="flex items-start space-x-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                           index === 0 ? 'bg-yellow-100 text-yellow-800' :
                           index === 1 ? 'bg-gray-100 text-gray-800' :
                           index === 2 ? 'bg-orange-100 text-orange-800' :
@@ -1199,16 +1187,27 @@ export default function Community() {
                         }`}>
                           {index + 1}
                         </div>
-                        <span className="font-medium text-gray-900 group-hover:text-amber-700 transition-colors">
-                          {artisan.artisanName}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <span className="font-medium text-gray-900 group-hover:text-amber-700 transition-colors truncate">
+                              {artisan.artisanName}
+                            </span>
+                            {artisan.isVerified && (
+                              <CheckCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            <span className="capitalize">{artisan.type?.replace('_', ' ')}</span>
+                          </div>
+                        </div>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 text-sm">No artisan data available</p>
-                    <p className="text-xs text-gray-400 mt-1">Leaderboard will appear here</p>
+                  <div className="text-center py-6">
+                    <UserGroupIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-medium">No engaged artisans yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Active artisans will appear here based on their community participation and business activity</p>
                   </div>
                 )}
               </div>

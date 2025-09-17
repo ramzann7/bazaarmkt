@@ -819,7 +819,7 @@ export default function FindArtisans() {
 
   // Loading state for results section only
   const renderLoadingSkeleton = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       {[...Array(6)].map((_, i) => (
         <div key={i} className="animate-pulse">
           <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
@@ -914,7 +914,7 @@ export default function FindArtisans() {
               </div>
               
               {isLoadingFavorites ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {[...Array(3)].map((_, i) => (
                     <div key={i} className="animate-pulse">
                       <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
@@ -927,7 +927,7 @@ export default function FindArtisans() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {favoriteArtisans.map(artisan => (
                     <div
                       key={artisan._id}
@@ -1093,7 +1093,7 @@ export default function FindArtisans() {
                 </button>
               </div>
             ) : filteredAndSortedArtisans.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredAndSortedArtisans.map(renderArtisanCard)}
               </div>
             ) : (

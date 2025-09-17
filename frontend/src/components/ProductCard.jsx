@@ -156,14 +156,14 @@ const ProductCard = ({
         </div>
 
         {/* Product details */}
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {/* Product name */}
-          <h3 className={`font-semibold text-gray-900 line-clamp-2 text-base leading-snug mb-1 ${outOfStockStatus.isOutOfStock ? 'text-gray-500' : 'group-hover:text-amber-600 transition-colors'}`}>
+          <h3 className={`font-semibold text-gray-900 line-clamp-2 text-sm sm:text-base leading-snug mb-1 ${outOfStockStatus.isOutOfStock ? 'text-gray-500' : 'group-hover:text-amber-600 transition-colors'}`}>
             {product.name}
           </h3>
           
           {/* Artisan name */}
-          <p className="text-sm text-gray-500 line-clamp-1 mb-2">
+          <p className="text-xs sm:text-sm text-gray-500 line-clamp-1 mb-2">
             by {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
           </p>
           
@@ -179,7 +179,7 @@ const ProductCard = ({
           
           {/* Price and Add to Cart */}
           <div className="flex items-center justify-between">
-            <span className={`font-bold text-lg ${outOfStockStatus.isOutOfStock ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+            <span className={`font-bold text-base sm:text-lg ${outOfStockStatus.isOutOfStock ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
               {outOfStockStatus.isOutOfStock ? 'Sold Out' : formatPrice(product.price)}
             </span>
             {!outOfStockStatus.isOutOfStock && (

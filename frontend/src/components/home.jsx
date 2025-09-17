@@ -887,10 +887,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#F5F1EA]">
       {/* Featured Products Grid */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 font-serif">Featured Products</h2>
+      <section className="py-8 sm:py-12 lg:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif">Featured Products</h2>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => {
@@ -912,13 +912,13 @@ export default function Home() {
           </div>
 
           {isLoadingFeatured ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
               {[...Array(8)].map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
           ) : availableFeaturedProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
               {availableFeaturedProducts.slice(0, 8).map((product) => (
                 <ProductCard 
                   key={product._id} 

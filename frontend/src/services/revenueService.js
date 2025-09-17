@@ -1,6 +1,6 @@
 import { authToken } from './authservice';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 class RevenueService {
   // Get artisan revenue summary

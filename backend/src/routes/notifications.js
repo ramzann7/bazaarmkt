@@ -303,9 +303,11 @@ function generateOrderStatusUpdateEmailBody(orderDetails, orderId, status) {
     },
     'ready': {
       title: 'Order Ready!',
-      message: `Your order ${orderNumber} is ready! ${artisanName} has completed preparing your items.`,
+      message: `Your order ${orderNumber} is ready! ${artisanName} has completed preparing your items.${orderDetails?.travelTimeInfo ? ` Estimated delivery time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       nextSteps: [
-        'Your order is ready for pickup/delivery',
+        orderDetails?.travelTimeInfo 
+          ? `Your order will be delivered in approximately ${orderDetails.travelTimeInfo.estimatedTravelTime}`
+          : 'Your order is ready for pickup/delivery',
         'Please check your delivery method for next steps',
         'Contact the artisan if you have any questions'
       ]

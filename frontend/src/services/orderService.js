@@ -4,7 +4,7 @@ import { cacheService, CACHE_KEYS } from './cacheService';
 import { clearProductCache } from './productService';
 import { cartService } from './cartService';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`,

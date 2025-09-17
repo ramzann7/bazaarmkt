@@ -537,58 +537,193 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
-// Get most engaged artisans (based on community activity)
+// Get most engaged artisans (based on real activity metrics)
 router.get('/leaderboard/engagement', async (req, res) => {
   try {
-    const engagementLeaderboard = await ArtisanPoints.aggregate([
+    const { limit = 10 } = req.query;
+    
+    // Calculate engagement based on real activity data
+    const engagementLeaderboard = await Artisan.aggregate([
       {
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisan',
-          foreignField: '_id',
-          as: 'artisanInfo'
+        $match: {
+          isActive: { $ne: false } // Include artisans that are not explicitly inactive
         }
       },
       {
-        $unwind: '$artisanInfo'
+        // Lookup community posts
+        $lookup: {
+          from: 'communityposts',
+          localField: '_id',
+          foreignField: 'artisan',
+          as: 'communityPosts'
+        }
       },
       {
-        $project: {
-          artisan: '$artisanInfo._id',
-          artisanName: '$artisanInfo.artisanName',
-          businessImage: '$artisanInfo.businessImage',
-          totalPosts: '$statistics.communityPosts',
-          totalComments: '$statistics.communityComments',
-          totalLikes: '$statistics.communityLikes',
+        // Lookup community comments
+        $lookup: {
+          from: 'communitycomments',
+          localField: '_id',
+          foreignField: 'artisan',
+          as: 'communityComments'
+        }
+      },
+      {
+        // Lookup products
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: 'artisan',
+          as: 'products'
+        }
+      },
+      {
+        // Lookup orders (artisan field in orders)
+        $lookup: {
+          from: 'orders',
+          localField: '_id',
+          foreignField: 'artisan',
+          as: 'orders'
+        }
+      },
+      {
+        // Calculate engagement metrics
+        $addFields: {
+          // Community engagement
+          totalCommunityPosts: { $size: '$communityPosts' },
+          totalCommunityComments: { $size: '$communityComments' },
+          
+          // Business activity engagement  
+          totalProducts: { $size: '$products' },
+          totalOrders: { $size: '$orders' },
+          completedOrders: {
+            $size: {
+              $filter: {
+                input: '$orders',
+                cond: { 
+                  $in: ['$$this.status', ['delivered', 'completed', 'picked_up']] 
+                }
+              }
+            }
+          },
+          
+          // Recent activity (last 30 days)
+          recentPosts: {
+            $size: {
+              $filter: {
+                input: '$communityPosts',
+                cond: {
+                  $gte: ['$$this.createdAt', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)]
+                }
+              }
+            }
+          },
+          recentOrders: {
+            $size: {
+              $filter: {
+                input: '$orders',
+                cond: {
+                  $gte: ['$$this.createdAt', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        // Calculate weighted engagement score
+        $addFields: {
           engagementScore: {
             $add: [
-              { $multiply: ['$statistics.communityPosts', 3] },
-              { $multiply: ['$statistics.communityComments', 2] },
-              '$statistics.communityLikes'
+              // Community engagement (higher weight)
+              { $multiply: ['$totalCommunityPosts', 15] },
+              { $multiply: ['$totalCommunityComments', 8] },
+              { $multiply: ['$recentPosts', 20] }, // Recent activity bonus
+              
+              // Business activity engagement
+              { $multiply: ['$totalProducts', 5] },
+              { $multiply: ['$completedOrders', 10] },
+              { $multiply: ['$recentOrders', 12] }, // Recent orders bonus
+              
+              // Base engagement for active artisans
+              5
             ]
           }
         }
       },
       {
         $match: {
-          engagementScore: { $gt: 0 }
+          engagementScore: { $gte: 5 } // Show artisans with base engagement (5 points minimum)
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          artisanName: 1,
+          businessImage: 1,
+          type: 1,
+          address: 1,
+          isVerified: 1,
+          engagementScore: 1,
+          totalCommunityPosts: 1,
+          totalCommunityComments: 1,
+          totalProducts: 1,
+          totalOrders: 1,
+          completedOrders: 1,
+          recentPosts: 1,
+          recentOrders: 1,
+          // Calculate engagement breakdown for transparency
+          engagementBreakdown: {
+            communityActivity: {
+              $add: [
+                { $multiply: ['$totalCommunityPosts', 15] },
+                { $multiply: ['$totalCommunityComments', 8] },
+                { $multiply: ['$recentPosts', 20] }
+              ]
+            },
+            businessActivity: {
+              $add: [
+                { $multiply: ['$totalProducts', 5] },
+                { $multiply: ['$completedOrders', 10] },
+                { $multiply: ['$recentOrders', 12] }
+              ]
+            }
+          }
         }
       },
       {
         $sort: { engagementScore: -1 }
       },
       {
-        $limit: 10
+        $limit: parseInt(limit)
       }
     ]);
     
+    console.log(`📊 Found ${engagementLeaderboard.length} engaged artisans`);
+    
     res.json({
       success: true,
-      data: engagementLeaderboard
+      data: engagementLeaderboard,
+      metadata: {
+        calculationMethod: 'real_activity_metrics',
+        lastUpdated: new Date().toISOString(),
+        scoringWeights: {
+          communityPosts: 15,
+          communityComments: 8,
+          recentPosts: 20,
+          products: 5,
+          completedOrders: 10,
+          recentOrders: 12,
+          baseEngagement: 5
+        }
+      }
     });
   } catch (error) {
     console.error('Error fetching engagement leaderboard:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

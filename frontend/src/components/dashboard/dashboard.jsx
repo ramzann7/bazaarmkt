@@ -87,9 +87,14 @@ export default function Dashboard() {
         const ordersArray = Array.isArray(orders) ? orders : [];
         
         // Calculate comprehensive artisan statistics
+        // Only count completed/delivered orders for revenue calculations
+        const completedOrders = ordersArray.filter(order => 
+          order.status === 'delivered' || order.status === 'completed' || order.status === 'picked_up'
+        );
+        
         const stats = {
           totalOrders: ordersArray.length,
-          totalRevenue: ordersArray.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
+          totalRevenue: completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
           totalProducts: 0, // Will be updated when we have product service
           averageRating: ordersArray.length > 0 ? 
             ordersArray.reduce((sum, order) => sum + (order.rating || 0), 0) / ordersArray.length : 0,
@@ -98,7 +103,7 @@ export default function Dashboard() {
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
           }).length,
-          revenueThisMonth: ordersArray.filter(order => {
+          revenueThisMonth: completedOrders.filter(order => {
             const orderDate = new Date(order.createdAt);
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();

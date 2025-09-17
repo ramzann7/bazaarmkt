@@ -5,6 +5,7 @@ import { Suspense, lazy, useEffect } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import Navbar from "./components/navbar.jsx";
 import Footer from "./components/Footer.jsx";
+import "./styles/mobile-improvements.css";
 import { performanceService } from "./services/performanceService";
 import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";

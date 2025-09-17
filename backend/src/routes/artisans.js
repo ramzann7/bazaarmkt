@@ -100,8 +100,8 @@ router.get('/:id', async (req, res) => {
       // Fetch products linked to this artisan
       const products = await Product.find({ 
         artisan: artisan._id,
-        status: 'active'
-      }).select('name price image category subcategory description stock unit soldCount tags isOrganic isGlutenFree isVegan isHalal weight expiryDate leadTimeHours');
+        status: { $in: ['active', 'out_of_stock'] } // Include both active and out-of-stock products
+      }).select('name price image category subcategory description stock unit soldCount tags isOrganic isGlutenFree isVegan isHalal weight expiryDate leadTimeHours productType availableQuantity remainingCapacity totalCapacity maxOrderQuantity lowStockThreshold isActive isFeatured status createdAt updatedAt');
       
       artisan = artisan.toObject();
       artisan.products = products;

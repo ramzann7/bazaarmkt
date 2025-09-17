@@ -7,6 +7,39 @@ const Artisan = require('../models/artisan');
 const verifyToken = require('../middleware/authMiddleware');
 const RevenueService = require('../services/revenueService');
 
+// Helper function to calculate travel time based on delivery method and distance
+function calculateTravelTime(distance, deliveryMethod) {
+  if (!distance || distance <= 0) return null;
+  
+  let avgSpeedKmh = 30; // Default city driving speed
+  let baseTimeMinutes = 5; // Base preparation/loading time
+  
+  switch (deliveryMethod) {
+    case 'personalDelivery':
+      avgSpeedKmh = 25; // Slower for personal delivery (more careful driving)
+      baseTimeMinutes = 10;
+      break;
+    case 'professionalDelivery':
+      avgSpeedKmh = 35; // Faster for professional delivery
+      baseTimeMinutes = 15;
+      break;
+    default:
+      avgSpeedKmh = 30;
+      baseTimeMinutes = 5;
+  }
+  
+  const travelTimeMinutes = Math.round((distance / avgSpeedKmh) * 60);
+  const totalTimeMinutes = baseTimeMinutes + travelTimeMinutes;
+  
+  return {
+    travelTime: travelTimeMinutes,
+    totalTime: totalTimeMinutes,
+    formattedTime: totalTimeMinutes < 60 
+      ? `${totalTimeMinutes} minutes`
+      : `${Math.floor(totalTimeMinutes / 60)}h ${totalTimeMinutes % 60}m`
+  };
+}
+
 // Helper function to send order status notifications
 async function sendOrderStatusNotification(order, newStatus, previousStatus) {
   try {
@@ -42,6 +75,27 @@ async function sendOrderStatusNotification(order, newStatus, previousStatus) {
       return;
     }
     
+    // Calculate travel time information for delivery notifications
+    let travelTimeInfo = null;
+    if ((newStatus === 'ready_for_delivery' || newStatus === 'out_for_delivery' || newStatus === 'delivering') && 
+        order.deliveryMethod !== 'pickup' && order.deliveryDistance) {
+      
+      const timeCalc = calculateTravelTime(order.deliveryDistance, order.deliveryMethod);
+      
+      if (timeCalc) {
+        travelTimeInfo = {
+          distance: order.deliveryDistance,
+          estimatedTravelTime: timeCalc.formattedTime,
+          estimatedArrival: order.estimatedDeliveryTime ? 
+            new Date(order.estimatedDeliveryTime).toLocaleTimeString('en-US', { 
+              hour: 'numeric', 
+              minute: '2-digit', 
+              hour12: true 
+            }) : null
+        };
+      }
+    }
+    
     // Prepare order details for notification
     const orderDetails = {
       orderNumber: order.orderNumber || `#${order._id.toString().slice(-8).toUpperCase()}`,
@@ -55,6 +109,7 @@ async function sendOrderStatusNotification(order, newStatus, previousStatus) {
         new Date(order.estimatedDeliveryTime).toLocaleDateString() : '2-3 business days',
       deliveryInstructions: order.deliveryInstructions,
       deliveryAddress: order.deliveryAddress,
+      travelTimeInfo: travelTimeInfo, // Add travel time information
       orderItems: order.items.map(item => ({
         productName: item.product?.name || 'Product',
         quantity: item.quantity,

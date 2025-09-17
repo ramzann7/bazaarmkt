@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Create axios instance for payment API calls
 const paymentApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

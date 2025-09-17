@@ -1063,7 +1063,7 @@ router.get('/artisan/:artisanId', async (req, res) => {
   try {
     const products = await Product.find({ 
       artisan: req.params.artisanId,
-      status: 'active'
+      status: { $in: ['active', 'out_of_stock'] } // Include both active and out-of-stock products
     })
     .populate('artisan', 'artisanName type address deliveryOptions')
     .sort({ createdAt: -1 });

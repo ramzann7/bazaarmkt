@@ -132,58 +132,15 @@ export const deliveryService = {
       pickupAddressDetails = artisan.pickupAddress;
     }
 
-    // Check if personal delivery is available based on user location and artisan radius
+    // Check if personal delivery is configured and show availability status
     let personalDeliveryAvailable = false;
     let personalDeliveryReason = '';
     
     if (options.delivery && options.deliveryRadius > 0) {
-      if (userLocation && userLocation.latitude && userLocation.longitude) {
-        // Calculate distance between user and artisan
-        const artisanLat = artisan.address?.latitude || artisan.coordinates?.latitude;
-        const artisanLng = artisan.address?.longitude || artisan.coordinates?.longitude;
-        
-        if (artisanLat && artisanLng) {
-          const distance = deliveryService.calculateDistance(
-            userLocation.latitude, 
-            userLocation.longitude, 
-            artisanLat, 
-            artisanLng
-          );
-          
-          console.log('📍 Distance calculation:', {
-            userLocation: { lat: userLocation.latitude, lng: userLocation.longitude },
-            artisanLocation: { lat: artisanLat, lng: artisanLng },
-            distance: distance,
-            deliveryRadius: options.deliveryRadius,
-            withinRadius: distance <= options.deliveryRadius
-          });
-          
-          if (distance <= options.deliveryRadius) {
-            personalDeliveryAvailable = true;
-            personalDeliveryReason = `Within ${options.deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`;
-          } else {
-            personalDeliveryAvailable = false;
-            personalDeliveryReason = `Outside ${options.deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`;
-          }
-        } else {
-          personalDeliveryAvailable = false;
-          personalDeliveryReason = 'Artisan location not available for distance calculation';
-        }
-      } else if (isGuestUser || isPatronUser) {
-        // For guest users and patrons, show personal delivery as available but pending address validation
-        if (hasDeliveryAddress) {
-          // If they have a delivery address but no location, we need to geocode it
-          personalDeliveryAvailable = true;
-          personalDeliveryReason = `Available within ${options.deliveryRadius}km radius (address validation required)`;
-        } else {
-          // Show as available initially, will be validated when address is provided
-          personalDeliveryAvailable = true;
-          personalDeliveryReason = `Available within ${options.deliveryRadius}km radius`;
-        }
-      } else {
-        personalDeliveryAvailable = false;
-        personalDeliveryReason = 'User location required to check delivery availability';
-      }
+      // Always show personal delivery as available initially
+      // Actual validation will happen when user selects it and enters address
+      personalDeliveryAvailable = true;
+      personalDeliveryReason = `Available within ${options.deliveryRadius}km radius - enter address to validate`;
     } else {
       personalDeliveryAvailable = false;
       personalDeliveryReason = 'Personal delivery not configured by artisan';

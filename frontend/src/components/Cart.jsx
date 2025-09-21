@@ -500,12 +500,13 @@ const Cart = () => {
         const lng = parseFloat(userProfile.coordinates.longitude);
         
         if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-          setUserLocation({
+          const locationData = {
             latitude: lat,
             longitude: lng,
             source: 'user_profile'
-          });
-          return;
+          };
+          setUserLocation(locationData);
+          return locationData;
         }
       }
       
@@ -516,20 +517,23 @@ const Cart = () => {
         const lng = parseFloat(savedLocation.lng);
         
         if (!isNaN(lat) && !isNaN(lng)) {
-          setUserLocation({
+          const locationData = {
             latitude: lat,
             longitude: lng,
             source: 'saved_location'
-          });
-          return;
+          };
+          setUserLocation(locationData);
+          return locationData;
         }
       }
       
       // If no location available, set to null
       setUserLocation(null);
+      return null;
     } catch (error) {
       console.error('❌ Error loading user location:', error);
       setUserLocation(null);
+      return null;
     }
   };
 
@@ -807,10 +811,23 @@ const Cart = () => {
     if (method === 'personalDelivery') {
       const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
       if (addressToValidate && addressToValidate.street) {
+        // First try to get user location for distance calculation
+        let userLocationForValidation = userLocation;
+        if (!userLocationForValidation) {
+          console.log('📍 No user location available, attempting to load...');
+          userLocationForValidation = await loadUserLocation();
+        }
+        
         const validation = await validateDeliveryAddress(addressToValidate);
         setDeliveryValidationResults(prev => ({
           ...prev,
           [artisanId]: validation.results?.[artisanId] || null
+        }));
+      } else {
+        // Clear validation results if no address provided
+        setDeliveryValidationResults(prev => ({
+          ...prev,
+          [artisanId]: null
         }));
       }
     }
@@ -992,11 +1009,27 @@ const Cart = () => {
       window.addressValidationTimeout = setTimeout(async () => {
         const updatedForm = { ...deliveryForm, [field]: value };
         
-        // Only validate if we have enough address information
+        // Only validate if we have enough address information and personal delivery is selected
         if (updatedForm.street && updatedForm.city && updatedForm.state) {
           try {
             console.log('🔍 Validating address for delivery options update:', updatedForm);
-            await validateDeliveryAddress(updatedForm);
+            
+            // Check if any artisan has personal delivery selected
+            const hasPersonalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+              method === 'personalDelivery'
+            );
+            
+            if (hasPersonalDeliverySelected) {
+              // First try to get user location for distance calculation
+              let userLocationForValidation = userLocation;
+              if (!userLocationForValidation) {
+                console.log('📍 No user location available for address validation, attempting to load...');
+                userLocationForValidation = await loadUserLocation();
+              }
+              
+              const validation = await validateDeliveryAddress(updatedForm);
+              setDeliveryValidationResults(validation.results || {});
+            }
           } catch (error) {
             console.error('❌ Error validating address:', error);
           }
@@ -1491,12 +1524,12 @@ const Cart = () => {
     checkAuth();
   }, []);
 
-  // Load user location when user profile changes
-  useEffect(() => {
-    if (userProfile) {
-      loadUserLocation();
-    }
-  }, [userProfile]);
+  // Don't automatically load user location - only when needed for delivery validation
+  // useEffect(() => {
+  //   if (userProfile) {
+  //     loadUserLocation();
+  //   }
+  // }, [userProfile]);
 
   // Track if we've already loaded options for current cart state
   const loadedOptionsRef = React.useRef(null);
@@ -2075,9 +2108,22 @@ const Cart = () => {
                                 {/* Show details only when selected */}
                                 {selectedDeliveryMethods[artisanId] === 'personalDelivery' && (
                                   <div className="mt-2 space-y-2">
-                                    <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
-                                      📍 <strong>Address Required:</strong> Enter your delivery address below to confirm availability within {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
-                                    </div>
+                                    {/* Address validation status */}
+                                    {deliveryValidationResults[artisanId] ? (
+                                      deliveryValidationResults[artisanId].valid ? (
+                                        <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
+                                          ✅ <strong>Available:</strong> Your address is {deliveryValidationResults[artisanId].distance.toFixed(1)}km away (within {deliveryValidationResults[artisanId].radius}km radius)
+                                        </div>
+                                      ) : (
+                                        <div className="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200">
+                                          ❌ <strong>Not Available:</strong> Your address is {deliveryValidationResults[artisanId].distance.toFixed(1)}km away (outside {deliveryValidationResults[artisanId].radius}km radius)
+                                        </div>
+                                      )
+                                    ) : (
+                                      <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
+                                        📍 <strong>Address Required:</strong> Enter your delivery address below to confirm availability within {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
+                                      </div>
+                                    )}
                                     
                                     {deliveryOptions[artisanId]?.personalDelivery?.instructions && (
                                       <div className="text-xs text-gray-600 bg-orange-50 p-2 rounded">
@@ -2095,10 +2141,6 @@ const Cart = () => {
                                       ) : (
                                         <> Free delivery</>
                                       )}
-                                    </div>
-                                    
-                                    <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
-                                      ✅ <strong>Availability:</strong> {deliveryOptions[artisanId]?.personalDelivery?.reason}
                                     </div>
                                   </div>
                                 )}

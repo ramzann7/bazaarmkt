@@ -110,6 +110,7 @@ export const deliveryService = {
     // Debug logging for delivery options
     console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan.artisanName);
     console.log('🔄 Raw delivery options:', options);
+    console.log('🔄 Professional delivery data:', artisan.professionalDelivery);
     console.log('🔄 Personal delivery availability check:', {
       delivery: options.delivery,
       deliveryRadius: options.deliveryRadius,

@@ -550,6 +550,13 @@ const Cart = () => {
           
           options[artisanId] = processedOptions;
           
+          console.log('🔄 Processed delivery options for artisan:', artisanId, {
+            pickup: processedOptions.pickup?.available,
+            personalDelivery: processedOptions.personalDelivery?.available,
+            professionalDelivery: processedOptions.professionalDelivery?.available,
+            professionalDeliveryData: processedOptions.professionalDelivery
+          });
+          
           // Set default delivery method
           if (processedOptions.pickup?.available) {
             methods[artisanId] = 'pickup';

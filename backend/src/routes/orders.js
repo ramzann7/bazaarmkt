@@ -295,7 +295,7 @@ router.post('/guest', async (req, res) => {
     console.log('🚀🚀🚀 GUEST ORDER ENDPOINT CALLED 🚀🚀🚀');
     console.log('Creating guest order with data:', req.body);
     
-    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentDetails, guestInfo } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentDetails, guestInfo, deliveryMethodDetails } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item' });
@@ -426,6 +426,10 @@ router.post('/guest', async (req, res) => {
         calculatedDeliveryFee = req.body.professionalDeliveryFee || 15; // Default fallback
       }
 
+      // Find delivery method details for this artisan
+      const artisanDeliveryDetails = deliveryMethodDetails?.find(detail => detail.artisanId === artisanId);
+      const methodSpecificInstructions = artisanDeliveryDetails?.instructions || '';
+
       const orderData = {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
@@ -436,7 +440,7 @@ router.post('/guest', async (req, res) => {
           state: 'Pickup Available',
           country: 'Canada'
         } : deliveryAddress,
-        deliveryInstructions: isPickupOrder ? 'Customer will pickup at artisan location' : deliveryInstructions,
+        deliveryInstructions: methodSpecificInstructions || (isPickupOrder ? 'Customer will pickup at artisan location' : deliveryInstructions),
         deliveryMethod: deliveryMethod || 'pickup',
         deliveryFee: calculatedDeliveryFee,
         pickupTimeWindow: pickupTimeWindows?.[artisanId] ? {
@@ -659,7 +663,7 @@ router.post('/', verifyToken, async (req, res) => {
       guestInfo: req.body.guestInfo
     });
     
-    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentMethodId, guestInfo } = req.body;
+    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentMethodId, guestInfo, deliveryMethodDetails } = req.body;
     
 
     if (!items || items.length === 0) {
@@ -783,12 +787,16 @@ router.post('/', verifyToken, async (req, res) => {
         calculatedDeliveryFee = req.body.professionalDeliveryFee || 15; // Default fallback
       }
       
+      // Find delivery method details for this artisan
+      const artisanDeliveryDetails = deliveryMethodDetails?.find(detail => detail.artisanId === artisanId);
+      const methodSpecificInstructions = artisanDeliveryDetails?.instructions || '';
+
       const orderData = {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
         totalAmount: artisanOrderData.totalAmount,
         deliveryAddress,
-        deliveryInstructions,
+        deliveryInstructions: methodSpecificInstructions || deliveryInstructions,
         deliveryMethod: deliveryMethod || 'pickup',
         deliveryFee: calculatedDeliveryFee,
         pickupTimeWindow: pickupTimeWindows?.[artisanId] ? {

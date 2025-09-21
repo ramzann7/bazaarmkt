@@ -1161,7 +1161,19 @@ const Cart = () => {
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
         pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
         paymentMethod: selectedPaymentMethod?.type || 'credit_card',
-        paymentMethodId: selectedPaymentMethod?._id
+        paymentMethodId: selectedPaymentMethod?._id,
+        // Include delivery method details with instructions for each artisan
+        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
+          artisanId,
+          method,
+          instructions: method === 'pickup' 
+            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
+            : method === 'personalDelivery'
+            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
+            : method === 'professionalDelivery'
+            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
+            : ''
+        }))
       };
 
       console.log('🚀🚀🚀 FRONTEND AUTHENTICATED ORDER CREATION 🚀🚀🚀');
@@ -1334,6 +1346,18 @@ const Cart = () => {
           cardholderName: guestPaymentForm.cardholderName,
           cardType: guestPaymentForm.paymentMethod === 'credit_card' ? 'credit' : 'debit'
         },
+        // Include delivery method details with instructions for each artisan
+        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
+          artisanId,
+          method,
+          instructions: method === 'pickup' 
+            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
+            : method === 'personalDelivery'
+            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
+            : method === 'professionalDelivery'
+            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
+            : ''
+        })),
         guestInfo: {
           firstName: deliveryForm.firstName || 'Guest',
           lastName: deliveryForm.lastName || 'User',
@@ -1861,6 +1885,11 @@ const Cart = () => {
                               <div>
                                 <span className="text-gray-900 font-medium">Visit the Artisan</span>
                                 <span className="text-green-600 text-sm ml-2">(Free)</span>
+                                {deliveryOptions[artisanId]?.pickup?.instructions && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    📋 {deliveryOptions[artisanId].pickup.instructions}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </label>
@@ -1950,6 +1979,11 @@ const Cart = () => {
                                     • {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
                                   </span>
                                 </div>
+                                {deliveryOptions[artisanId]?.personalDelivery?.instructions && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    📋 {deliveryOptions[artisanId].personalDelivery.instructions}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </label>
@@ -2011,6 +2045,17 @@ const Cart = () => {
                                     <span className="text-gray-500">Uber Direct - Quote on selection</span>
                                   )}
                                 </div>
+                                {(deliveryOptions[artisanId]?.professionalDelivery?.packaging || 
+                                  deliveryOptions[artisanId]?.professionalDelivery?.restrictions) && (
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    {deliveryOptions[artisanId]?.professionalDelivery?.packaging && (
+                                      <div>📦 {deliveryOptions[artisanId].professionalDelivery.packaging}</div>
+                                    )}
+                                    {deliveryOptions[artisanId]?.professionalDelivery?.restrictions && (
+                                      <div>⚠️ {deliveryOptions[artisanId].professionalDelivery.restrictions}</div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </label>

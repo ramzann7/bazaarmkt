@@ -123,49 +123,49 @@ export const profileService = {
 
   // Artisan-specific methods
   getArtisanProfile: async () => {
-    const response = await axios.get(`${API_URL}/artisan`, {
+    const response = await axios.get(`${API_URL}/profile/artisan`, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
   createArtisanProfile: async (artisanData) => {
-    const response = await axios.post(`${API_URL}/artisan`, artisanData, {
+    const response = await axios.post(`${API_URL}/profile/artisan`, artisanData, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
   updateArtisanProfile: async (artisanData) => {
-    const response = await axios.put(`${API_URL}/artisan`, artisanData, {
+    const response = await axios.put(`${API_URL}/profile/artisan`, artisanData, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
   updateArtisanOperations: async (operationsData) => {
-    const response = await axios.put(`${API_URL}/artisan/operations`, operationsData, {
+    const response = await axios.put(`${API_URL}/profile/artisan/operations`, operationsData, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
   updateArtisanPhotosContact: async (photosContactData) => {
-    const response = await axios.put(`${API_URL}/artisan/photos-contact`, photosContactData, {
+    const response = await axios.put(`${API_URL}/profile/artisan/photos-contact`, photosContactData, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
   updateArtisanHours: async (hoursData) => {
-    const response = await axios.put(`${API_URL}/artisan/hours`, { artisanHours: hoursData }, {
+    const response = await axios.put(`${API_URL}/profile/artisan/hours`, { artisanHours: hoursData }, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
   updateArtisanDelivery: async (deliveryData) => {
-    const response = await axios.put(`${API_URL}/artisan/delivery`, { deliveryOptions: deliveryData }, {
+    const response = await axios.put(`${API_URL}/profile/artisan/delivery`, { deliveryOptions: deliveryData }, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -197,7 +197,7 @@ export const profileService = {
 
   // Update delivery options
   updateDeliveryOptions: async (deliveryOptions) => {
-    const response = await axios.put(`${API_URL}/artisan/delivery`, { deliveryOptions }, {
+    const response = await axios.put(`${API_URL}/profile/artisan/delivery`, { deliveryOptions }, {
       headers: getAuthHeaders()
     });
     return response.data;

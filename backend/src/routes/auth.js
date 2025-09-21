@@ -5,10 +5,11 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 const verifyToken = require('../middleware/authMiddleware');
 const { validateUserRegistration, validateEmail } = require('../utils/validation');
+const { checkGeographicRestrictions } = require('../middleware/geographicRestrictions');
 // Quebec validation middleware removed - now using flexible geographic settings
 
 // Register user
-router.post('/register', async (req, res) => {
+router.post('/register', checkGeographicRestrictions, async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone, role = 'patron', artisanData } = req.body;
 

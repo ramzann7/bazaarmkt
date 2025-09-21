@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BuildingStorefrontIcon, HeartIcon } from '@heroicons/react/24/outline';
+import Logo from './Logo';
 
 export default function Footer() {
   return (
@@ -10,9 +11,7 @@ export default function Footer() {
           {/* Brand Section */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-[#E6B655] rounded-xl flex items-center justify-center">
-                <BuildingStorefrontIcon className="w-6 h-6 text-white" />
-              </div>
+              <Logo showText={false} className="w-20 h-20" />
               <span className="text-2xl font-bold font-serif tracking-wide">bazaarMKT</span>
             </div>
             <p className="text-gray-300 mb-4 max-w-md">

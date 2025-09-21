@@ -3,6 +3,7 @@ const router = express.Router();
 const geographicSettingsService = require('../services/geographicSettingsService');
 const authenticateToken = require('../middleware/authMiddleware');
 const requireAdmin = require('../middleware/adminAuth');
+const { logAdminAction } = require('../utils/adminAuditLogger');
 
 // Get current geographic settings (public endpoint for frontend)
 router.get('/current', async (req, res) => {
@@ -107,12 +108,31 @@ router.get('/', async (req, res) => {
 // Update geographic settings (admin only)
 router.put('/', async (req, res) => {
   try {
-    const userId = req.user.id;
+    const adminUser = req.user;
     const settingsData = req.body;
 
-    const result = await geographicSettingsService.updateSettings(settingsData, userId);
+    // Get current settings for audit trail
+    const currentSettings = await geographicSettingsService.getCurrentSettings();
+
+    const result = await geographicSettingsService.updateSettings(settingsData, adminUser._id);
     
     if (result.success) {
+      // Log admin action
+      await logAdminAction({
+        adminUser,
+        action: 'geographic_settings_updated',
+        targetType: 'geographic_settings',
+        targetId: result.data._id,
+        targetName: 'Geographic Settings',
+        changes: {
+          field: 'geographic_settings',
+          oldValue: currentSettings.data,
+          newValue: result.data
+        },
+        description: `Updated geographic settings - Restrictions: ${settingsData.restrictions?.type || 'none'}, Enabled: ${settingsData.isEnabled || false}`,
+        req
+      });
+
       res.json(result);
     } else {
       res.status(400).json(result);

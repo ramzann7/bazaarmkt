@@ -3,6 +3,7 @@ const Wallet = require('../models/wallet');
 const WalletTransaction = require('../models/walletTransaction');
 const Artisan = require('../models/artisan');
 const Order = require('../models/order');
+const PlatformSettingsService = require('./platformSettingsService');
 
 class WalletService {
   /**
@@ -35,10 +36,9 @@ class WalletService {
   /**
    * Credit wallet with revenue from order delivery
    * @param {string} orderId - The order ID
-   * @param {number} platformFeeRate - Platform fee rate (default 0.10 for 10%)
    * @returns {Promise<Object>} Transaction result
    */
-  static async creditOrderRevenue(orderId, platformFeeRate = 0.10) {
+  static async creditOrderRevenue(orderId) {
     try {
       console.log(`💰 Processing wallet credit for order ${orderId}`);
       
@@ -52,13 +52,38 @@ class WalletService {
         throw new Error('Order has no artisan information');
       }
 
-      // Calculate financial breakdown
-      const grossAmount = order.totalAmount;
-      const platformFee = grossAmount * platformFeeRate;
-      const netAmount = grossAmount - platformFee;
+      // Get platform fee percentage from settings
+      const platformFeePercentage = await PlatformSettingsService.getPlatformFeePercentage();
+      const platformFeeRate = platformFeePercentage / 100;
 
-      console.log(`  Gross amount: ${grossAmount} CAD`);
-      console.log(`  Platform fee (${platformFeeRate * 100}%): ${platformFee} CAD`);
+      // Calculate financial breakdown
+      // Platform fee only applies to products, NOT delivery fees
+      const productAmount = order.totalAmount; // This is just products
+      const deliveryFee = order.deliveryFee || 0; // Delivery fee is separate
+      const platformFee = productAmount * platformFeeRate; // Only on products
+      
+      // Calculate net amount for artisan:
+      // - Product revenue minus platform commission
+      // - Plus 100% of personal delivery fee (no platform commission on delivery)
+      let netAmount = productAmount - platformFee;
+      
+      let personalDeliveryFee = 0;
+      if (order.deliveryMethod === 'personalDelivery' && deliveryFee > 0) {
+        personalDeliveryFee = deliveryFee;
+        netAmount += personalDeliveryFee; // Artisan keeps 100% of personal delivery fee
+      }
+      
+      // Professional delivery fee goes to platform (to pay Uber), so artisan gets $0 from it
+      const grossAmount = productAmount + deliveryFee; // Total including delivery
+
+      console.log(`  Gross amount: ${grossAmount} CAD (${productAmount} products + ${deliveryFee} delivery)`);
+      console.log(`  Platform fee (${platformFeeRate * 100}% on products only): ${platformFee} CAD`);
+      if (personalDeliveryFee > 0) {
+        console.log(`  Personal delivery fee: ${personalDeliveryFee} CAD (100% to artisan, no platform fee)`);
+      }
+      if (order.deliveryMethod === 'professionalDelivery' && deliveryFee > 0) {
+        console.log(`  Professional delivery fee: ${deliveryFee} CAD (goes to platform to pay Uber)`);
+      }
       console.log(`  Net amount to artisan: ${netAmount} CAD`);
 
       // Get or create wallet using the user ID from artisan profile

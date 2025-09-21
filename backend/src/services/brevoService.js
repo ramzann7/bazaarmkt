@@ -329,6 +329,91 @@ const getStatusSpecificContent = (type, orderDetails) => {
         'You\'ll receive updates when it\'s out for delivery',
         'Please ensure someone is available to receive the order'
       ]
+    },
+    // New confirmation and dispute notification types
+    'pickup_confirmation': {
+      subject: `Pickup Confirmed - Please Confirm Receipt - ${orderNumber} - bazaarMKT`,
+      title: 'Pickup Confirmed by Artisan!',
+      message: `${artisanName} has confirmed that your order ${orderNumber} has been picked up. Please confirm that you have received your order within 24 hours.`,
+      currentStatus: 'Pickup Confirmed',
+      nextSteps: [
+        'Please confirm that you have received your order',
+        'You have 24 hours to confirm receipt',
+        'If you don\'t confirm, the order will be automatically completed',
+        'Contact support if you have any issues'
+      ]
+    },
+    'delivery_confirmation': {
+      subject: `Delivery Confirmed - Please Confirm Receipt - ${orderNumber} - bazaarMKT`,
+      title: 'Delivery Confirmed by Artisan!',
+      message: `${artisanName} has confirmed that your order ${orderNumber} has been delivered. Please confirm that you have received your order within 24 hours.`,
+      currentStatus: 'Delivery Confirmed',
+      nextSteps: [
+        'Please confirm that you have received your order',
+        'You have 24 hours to confirm receipt',
+        'If you don\'t confirm, the order will be automatically completed',
+        'Contact support if you have any issues'
+      ]
+    },
+    'dispute_reported': {
+      subject: `Dispute Reported - ${orderNumber} - bazaarMKT`,
+      title: 'New Dispute Reported',
+      message: `A dispute has been reported for order ${orderNumber}. Immediate attention required.`,
+      currentStatus: 'Dispute Reported',
+      nextSteps: [
+        'Review the dispute details and evidence',
+        'Contact both parties if necessary',
+        'Resolve the dispute according to platform policies',
+        'Update dispute status in admin dashboard'
+      ]
+    },
+    'dispute_status_update_buyer': {
+      subject: `Dispute Status Update - ${orderNumber} - bazaarMKT`,
+      title: 'Dispute Status Updated',
+      message: `The status of your dispute for order ${orderNumber} has been updated by our support team.`,
+      currentStatus: 'Dispute Status Updated',
+      nextSteps: [
+        'Review the status update and admin notes',
+        'Provide additional information if requested',
+        'Contact support if you have questions',
+        'Wait for final resolution'
+      ]
+    },
+    'dispute_status_update_artisan': {
+      subject: `Dispute Status Update - ${orderNumber} - bazaarMKT`,
+      title: 'Dispute Status Updated',
+      message: `The status of the dispute for order ${orderNumber} has been updated by our support team.`,
+      currentStatus: 'Dispute Status Updated',
+      nextSteps: [
+        'Review the status update and admin notes',
+        'Provide additional information if requested',
+        'Contact support if you have questions',
+        'Wait for final resolution'
+      ]
+    },
+    'dispute_resolved_buyer': {
+      subject: `Dispute Resolved - ${orderNumber} - bazaarMKT`,
+      title: 'Dispute Resolved',
+      message: `Your dispute for order ${orderNumber} has been resolved by our support team.`,
+      currentStatus: 'Dispute Resolved',
+      nextSteps: [
+        'Review the resolution details',
+        'Contact support if you have questions about the resolution',
+        'Rate your experience if applicable',
+        'Continue shopping on bazaarMKT'
+      ]
+    },
+    'dispute_resolved_artisan': {
+      subject: `Dispute Resolved - ${orderNumber} - bazaarMKT`,
+      title: 'Dispute Resolved',
+      message: `The dispute for order ${orderNumber} has been resolved by our support team.`,
+      currentStatus: 'Dispute Resolved',
+      nextSteps: [
+        'Review the resolution details',
+        'Contact support if you have questions about the resolution',
+        'Continue serving customers on bazaarMKT',
+        'Learn from the experience to improve service'
+      ]
     }
   };
 

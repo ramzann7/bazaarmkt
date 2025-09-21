@@ -473,6 +473,42 @@ router.post('/create', verifyToken, async (req, res) => {
         durationDays: durationDays
       }
     );
+
+    // Update promotional feature with payment details after successful wallet deduction
+    promotionalFeature.paymentStatus = 'paid';
+    promotionalFeature.paymentDate = new Date();
+    promotionalFeature.paymentMethod = 'wallet';
+    promotionalFeature.transactionId = debitResult.transactionId || `wallet_${Date.now()}`;
+    await promotionalFeature.save();
+
+    // Create revenue record for promotional feature purchase
+    const Revenue = require('../models/revenue');
+    const revenue = new Revenue({
+      type: 'promotional',
+      promotionalFeatureId: promotionalFeature._id,
+      artisanId: artisanProfile._id,
+      grossAmount: price,
+      platformCommission: price, // 100% of promotional revenue goes to platform
+      artisanEarnings: 0, // Artisans don't earn from their own promotional purchases
+      commissionRate: 1.0, // 100% commission rate for promotional features
+      platformFeePercentage: 100,
+      deliveryRevenue: {
+        personalDeliveryFee: 0,
+        professionalDeliveryFee: 0,
+        professionalDeliveryExpense: 0,
+        deliveryMethod: 'none',
+        deliveryProfit: 0
+      },
+      paymentProcessor: 'wallet',
+      status: 'completed',
+      paymentDate: new Date(),
+      settlementStatus: 'paid', // Already settled via wallet deduction
+      settlementDate: new Date(),
+      description: `Promotional feature: ${featureType} for ${durationDays} days`
+    });
+    await revenue.save();
+
+    console.log(`✅ Promotional feature revenue record created: ${price} CAD`);
     
     // Update the product with promotional feature information
     const updateData = {};

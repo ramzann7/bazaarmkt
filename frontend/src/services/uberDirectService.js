@@ -1,27 +1,53 @@
 // src/services/uberDirectService.js
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 export const uberDirectService = {
-  // Calculate Uber Direct delivery fee (simplified version)
-  // In a real implementation, this would call Uber's API
-  calculateDeliveryFee: (origin, destination, packageDetails = {}) => {
-    // This is a simplified calculation
-    // In production, you would integrate with Uber Direct API
+  // Get delivery quote from backend (which calls Uber Direct API)
+  async getDeliveryQuote(pickupLocation, dropoffLocation, packageDetails = {}) {
+    try {
+      const response = await axios.post(`${API_URL}/delivery/uber-direct/quote`, {
+        pickupLocation,
+        dropoffLocation,
+        packageDetails
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error getting Uber Direct quote:', error);
+      
+      // Fallback to local calculation if API fails
+      const distance = uberDirectService.calculateDistance(pickupLocation, dropoffLocation);
+      return {
+        success: false,
+        fallback: {
+          fee: uberDirectService.calculateFallbackFee(distance, packageDetails),
+          currency: 'CAD',
+          duration: Math.max(30, distance * 3),
+          pickup_eta: 15,
+          estimated: true
+        },
+        error: 'Unable to connect to delivery service'
+      };
+    }
+  },
+
+  // Calculate delivery fee (fallback when API is unavailable)
+  calculateFallbackFee: (distance, packageDetails = {}) => {
     const baseFee = 8; // Base delivery fee
     const perKmFee = 1.5; // Per kilometer fee
     
-    // Calculate distance (simplified)
-    const distance = uberDirectService.calculateDistance(origin, destination);
-    
     // Add package size/weight surcharge
     let surcharge = 0;
-    if (packageDetails.weight > 5) { // If package is over 5kg
+    if (packageDetails.weight > 5) {
       surcharge += 3;
     }
     if (packageDetails.dimensions?.length > 50 || packageDetails.dimensions?.width > 50) {
-      surcharge += 2; // Large package surcharge
+      surcharge += 2;
     }
     
-    return baseFee + (distance * perKmFee) + surcharge;
+    return Math.round((baseFee + (distance * perKmFee) + surcharge) * 100) / 100;
   },
 
   // Calculate distance between two coordinates
@@ -103,17 +129,69 @@ export const uberDirectService = {
     };
   },
 
-  // Create delivery request (placeholder for Uber Direct API integration)
-  createDeliveryRequest: async (deliveryDetails) => {
-    // This would integrate with Uber Direct API
-    // For now, we'll return a mock response
-    return {
-      success: true,
-      deliveryId: `uber_${Date.now()}`,
-      estimatedPickup: new Date(Date.now() + 15 * 60000).toISOString(), // 15 minutes from now
-      estimatedDelivery: new Date(Date.now() + 45 * 60000).toISOString(), // 45 minutes from now
-      fee: deliveryDetails.calculatedFee,
-      trackingUrl: `https://uber.com/track/${Date.now()}`
-    };
+  // Create delivery request
+  async createDeliveryRequest(quoteId, orderDetails, pickupLocation, dropoffLocation) {
+    try {
+      const response = await axios.post(`${API_URL}/delivery/uber-direct/create`, {
+        quoteId,
+        orderDetails,
+        pickupLocation,
+        dropoffLocation
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error creating Uber Direct delivery:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Failed to create delivery request'
+      };
+    }
+  },
+
+  // Get delivery tracking information
+  async getDeliveryTracking(deliveryId) {
+    try {
+      const response = await axios.get(`${API_URL}/delivery/uber-direct/tracking/${deliveryId}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error getting delivery tracking:', error);
+      return {
+        success: false,
+        error: 'Unable to get tracking information'
+      };
+    }
+  },
+
+  // Cancel delivery
+  async cancelDelivery(deliveryId, reason = 'Order cancelled') {
+    try {
+      const response = await axios.post(`${API_URL}/delivery/uber-direct/cancel/${deliveryId}`, {
+        reason
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error cancelling delivery:', error);
+      return {
+        success: false,
+        error: 'Failed to cancel delivery'
+      };
+    }
+  },
+
+  // Check availability in area
+  async checkAvailability(location) {
+    try {
+      const response = await axios.post(`${API_URL}/delivery/uber-direct/availability`, {
+        location
+      });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error checking availability:', error);
+      return {
+        available: false,
+        reason: 'Unable to check availability'
+      };
+    }
   }
 };

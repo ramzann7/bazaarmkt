@@ -89,19 +89,21 @@ router.get('/stats', requireAdmin, async (req, res) => {
     
     console.log('🔍 Stats query params:', { period, days, startDate });
 
-    // Get total revenue from promotional features
+    // Get total revenue from promotional features (from Revenue collection)
     console.log('🔍 Starting revenue stats aggregation...');
-    const revenueStats = await PromotionalFeature.aggregate([
+    const Revenue = require('../models/revenue');
+    const revenueStats = await Revenue.aggregate([
       {
         $match: {
-          paymentStatus: 'paid',
-          paymentDate: { $gte: startDate }
+          type: 'promotional',
+          paymentDate: { $gte: startDate },
+          status: 'completed'
         }
       },
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$price' },
+          totalRevenue: { $sum: '$grossAmount' },
           totalPromotions: { $sum: 1 }
         }
       }

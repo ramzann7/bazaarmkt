@@ -407,6 +407,25 @@ router.post('/guest', async (req, res) => {
     
     for (const [artisanId, artisanOrderData] of Object.entries(ordersByArtisan)) {
       
+      // Calculate delivery fee based on delivery method
+      let calculatedDeliveryFee = 0;
+      if (deliveryMethod === 'personalDelivery') {
+        // Get artisan's personal delivery settings
+        const artisan = await Artisan.findById(artisanOrderData.artisan);
+        if (artisan && artisan.deliveryOptions) {
+          calculatedDeliveryFee = artisan.deliveryOptions.deliveryFee || 0;
+          
+          // Check for free delivery threshold
+          if (artisan.deliveryOptions.freeDeliveryThreshold && 
+              artisanOrderData.totalAmount >= artisan.deliveryOptions.freeDeliveryThreshold) {
+            calculatedDeliveryFee = 0;
+          }
+        }
+      } else if (deliveryMethod === 'professionalDelivery') {
+        // For professional delivery, use the quote stored in the request or calculate fallback
+        calculatedDeliveryFee = req.body.professionalDeliveryFee || 15; // Default fallback
+      }
+
       const orderData = {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
@@ -419,6 +438,7 @@ router.post('/guest', async (req, res) => {
         } : deliveryAddress,
         deliveryInstructions: isPickupOrder ? 'Customer will pickup at artisan location' : deliveryInstructions,
         deliveryMethod: deliveryMethod || 'pickup',
+        deliveryFee: calculatedDeliveryFee,
         pickupTimeWindow: pickupTimeWindows?.[artisanId] ? {
           selectedDate: pickupTimeWindows[artisanId].date,
           selectedTimeSlot: pickupTimeWindows[artisanId].timeSlot?.value || pickupTimeWindows[artisanId].timeSlot,
@@ -744,6 +764,25 @@ router.post('/', verifyToken, async (req, res) => {
     
     for (const [artisanId, artisanOrderData] of Object.entries(ordersByArtisan)) {
       
+      // Calculate delivery fee based on delivery method
+      let calculatedDeliveryFee = 0;
+      if (deliveryMethod === 'personalDelivery') {
+        // Get artisan's personal delivery settings
+        const artisan = await Artisan.findById(artisanOrderData.artisan);
+        if (artisan && artisan.deliveryOptions) {
+          calculatedDeliveryFee = artisan.deliveryOptions.deliveryFee || 0;
+          
+          // Check for free delivery threshold
+          if (artisan.deliveryOptions.freeDeliveryThreshold && 
+              artisanOrderData.totalAmount >= artisan.deliveryOptions.freeDeliveryThreshold) {
+            calculatedDeliveryFee = 0;
+          }
+        }
+      } else if (deliveryMethod === 'professionalDelivery') {
+        // For professional delivery, use the quote stored in the request or calculate fallback
+        calculatedDeliveryFee = req.body.professionalDeliveryFee || 15; // Default fallback
+      }
+      
       const orderData = {
         artisan: artisanOrderData.artisan,
         items: artisanOrderData.items,
@@ -751,6 +790,7 @@ router.post('/', verifyToken, async (req, res) => {
         deliveryAddress,
         deliveryInstructions,
         deliveryMethod: deliveryMethod || 'pickup',
+        deliveryFee: calculatedDeliveryFee,
         pickupTimeWindow: pickupTimeWindows?.[artisanId] ? {
           selectedDate: pickupTimeWindows[artisanId].date,
           selectedTimeSlot: pickupTimeWindows[artisanId].timeSlot?.value || pickupTimeWindows[artisanId].timeSlot,
@@ -982,6 +1022,71 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
     if (status === 'delivered' || status === 'picked_up') {
       order.actualDeliveryTime = new Date();
     }
+    
+    // Create Uber Direct delivery when order is ready for delivery
+    if (status === 'ready_for_delivery' && order.deliveryMethod === 'professionalDelivery') {
+      try {
+        const uberDirectService = require('../services/uberDirectService');
+        
+        // Prepare pickup location (artisan)
+        const artisan = await Artisan.findById(order.artisan);
+        const pickupLocation = {
+          address: `${artisan.address?.street || ''}, ${artisan.address?.city || ''}, ${artisan.address?.state || ''}, ${artisan.address?.country || 'Canada'}`,
+          latitude: artisan.address?.latitude || artisan.coordinates?.latitude,
+          longitude: artisan.address?.longitude || artisan.coordinates?.longitude,
+          phone: artisan.phone || '',
+          contactName: artisan.artisanName,
+          instructions: `Order ${order.orderNumber || order._id} ready for pickup`
+        };
+        
+        // Prepare dropoff location (customer)
+        const dropoffLocation = {
+          address: `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country || 'Canada'}`,
+          latitude: null, // Will be geocoded by Uber
+          longitude: null,
+          phone: order.guestInfo?.phone || order.patron?.phone || '',
+          contactName: order.guestInfo ? `${order.guestInfo.firstName} ${order.guestInfo.lastName}` : 'Customer',
+          instructions: order.deliveryInstructions || ''
+        };
+        
+        // Prepare order details
+        const orderDetails = {
+          orderId: order._id,
+          orderNumber: order.orderNumber || `#${order._id.toString().slice(-8).toUpperCase()}`,
+          pickupReadyTime: new Date().toISOString(),
+          dropoffReadyTime: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutes from now
+        };
+        
+        // Create delivery request (use quote from order if available)
+        const quoteId = order.delivery?.quoteId || null;
+        const deliveryResult = await uberDirectService.createDelivery(
+          quoteId,
+          orderDetails,
+          pickupLocation,
+          dropoffLocation
+        );
+        
+        if (deliveryResult.success) {
+          // Update order with delivery information
+          order.delivery = {
+            ...order.delivery,
+            uberDirectId: deliveryResult.delivery.id,
+            status: 'requested',
+            trackingUrl: deliveryResult.delivery.tracking_url,
+            pickupEta: deliveryResult.delivery.pickup_eta,
+            dropoffEta: deliveryResult.delivery.dropoff_eta
+          };
+          
+          console.log('✅ Uber Direct delivery created:', deliveryResult.delivery.id);
+        } else {
+          console.error('❌ Failed to create Uber Direct delivery:', deliveryResult.error);
+          // Continue with normal order processing even if delivery creation fails
+        }
+      } catch (error) {
+        console.error('❌ Error creating Uber Direct delivery:', error);
+        // Continue with normal order processing
+      }
+    }
 
     // Update sold count when order is confirmed (inventory already updated when order was placed)
     if (status === 'confirmed' && currentStatus === 'pending') {
@@ -1094,9 +1199,9 @@ router.put('/:orderId/status', verifyToken, async (req, res) => {
         await RevenueService.calculateOrderRevenue(order._id);
         console.log(`✅ Revenue record created for order ${order._id}`);
         
-        // Then credit the wallet with order revenue (10% platform fee)
+        // Then credit the wallet with order revenue (using dynamic platform fee)
         const WalletService = require('../services/walletService');
-        const result = await WalletService.creditOrderRevenue(order._id, 0.10);
+        const result = await WalletService.creditOrderRevenue(order._id);
         
         console.log(`🎉 Successfully processed revenue recognition and wallet credit for order ${order._id} (${status}):`);
         console.log(`  Revenue Status: Completed`);

@@ -368,4 +368,81 @@ router.patch('/admin/promotional/:featureId', requireAdmin, async (req, res) => 
   }
 });
 
+// Get delivery revenue summary for artisan
+router.get('/delivery-summary/:artisanId', async (req, res) => {
+  try {
+    const { artisanId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const summary = await RevenueService.getDeliveryRevenueSummary(
+      artisanId,
+      startDate,
+      endDate
+    );
+
+    res.json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    console.error('Error getting delivery revenue summary:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get delivery revenue summary'
+    });
+  }
+});
+
+// Get platform delivery expense summary for admin
+router.get('/platform-delivery-expenses', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const summary = await RevenueService.getPlatformDeliveryExpenseSummary(
+      startDate,
+      endDate
+    );
+
+    res.json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    console.error('Error getting platform delivery expense summary:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get platform delivery expense summary'
+    });
+  }
+});
+
+// Update delivery expense with actual Uber charge (webhook endpoint)
+router.put('/delivery-expense/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { actualUberCharge, uberTransactionId } = req.body;
+
+    if (!actualUberCharge || actualUberCharge <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid actual Uber charge is required'
+      });
+    }
+
+    const result = await RevenueService.updateDeliveryExpense(
+      orderId,
+      actualUberCharge,
+      uberTransactionId
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error updating delivery expense:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update delivery expense'
+    });
+  }
+});
+
 module.exports = router;

@@ -21,6 +21,13 @@ class PlatformSettingsService {
   // Create default platform settings
   static async createDefaultSettings(adminUserId = null) {
     try {
+      // If no admin user ID is provided, try to find the first admin user
+      if (!adminUserId) {
+        const User = require('../models/user');
+        const adminUser = await User.findOne({ role: 'admin' });
+        adminUserId = adminUser ? adminUser._id : null;
+      }
+
       const defaultSettings = new PlatformSettings({
         platformFeePercentage: 10,
         currency: 'CAD',

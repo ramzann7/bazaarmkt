@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import OptimizedLink from "./OptimizedLink";
+import Logo from "./Logo";
 import { 
   ShoppingBagIcon, 
   UserIcon, 
@@ -358,11 +359,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <OptimizedLink to="/" className="flex items-center space-x-2 flex-shrink-0">
-            <div className="w-8 h-8 bg-[#E6B655] rounded-lg flex items-center justify-center shadow-lg">
-              <BuildingStorefrontIcon className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg sm:text-xl font-bold text-white font-serif tracking-wide">bazaarMKT</span>
+          <OptimizedLink to="/" className="flex items-center flex-shrink-0">
+            <Logo showText={true} className="w-16 h-16" textColor="text-white" />
           </OptimizedLink>
 
           {/* Desktop Navigation */}

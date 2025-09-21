@@ -27,6 +27,7 @@ import { guestService } from '../services/guestService';
 import { notificationService } from '../services/notificationService';
 import { locationService } from '../services/locationService';
 import { geocodingService } from '../services/geocodingService';
+import { uberDirectService } from '../services/uberDirectService';
 import ProductTypeBadge from './ProductTypeBadge';
 
 const Cart = () => {
@@ -171,11 +172,101 @@ const Cart = () => {
     return 0; // Pickup is free
   };
 
-  // Calculate Uber Direct delivery fee (placeholder implementation)
-  const calculateUberDirectFee = (artisanId) => {
-    // This would integrate with Uber Direct API
-    // For now, return a fixed fee
-    return 15;
+  // Calculate Uber Direct delivery fee using real API
+  const [uberDirectQuotes, setUberDirectQuotes] = useState({});
+  const [loadingUberQuotes, setLoadingUberQuotes] = useState(new Set());
+
+  const calculateUberDirectFee = async (artisanId) => {
+    // Check if we already have a quote for this artisan
+    if (uberDirectQuotes[artisanId]) {
+      return uberDirectQuotes[artisanId].fee;
+    }
+
+    // Check if we're already loading a quote for this artisan
+    if (loadingUberQuotes.has(artisanId)) {
+      return 15; // Return fallback while loading
+    }
+
+    try {
+      setLoadingUberQuotes(prev => new Set([...prev, artisanId]));
+
+      const artisanData = cartByArtisan[artisanId];
+      if (!artisanData) return 15;
+
+      // Get delivery address
+      const deliveryAddr = selectedAddress || deliveryForm;
+      if (!deliveryAddr.street) return 15;
+
+      // Prepare locations for Uber Direct API
+      const pickupLocation = {
+        address: `${artisanData.artisan.address?.street || ''}, ${artisanData.artisan.address?.city || ''}, ${artisanData.artisan.address?.state || ''}, ${artisanData.artisan.address?.country || 'Canada'}`,
+        latitude: artisanData.artisan.address?.latitude || artisanData.artisan.coordinates?.latitude,
+        longitude: artisanData.artisan.address?.longitude || artisanData.artisan.coordinates?.longitude,
+        phone: artisanData.artisan.phone || '',
+        contactName: artisanData.artisan.artisanName
+      };
+
+      const dropoffLocation = {
+        address: `${deliveryAddr.street}, ${deliveryAddr.city}, ${deliveryAddr.state}, ${deliveryAddr.country || 'Canada'}`,
+        latitude: null, // Will be geocoded by backend
+        longitude: null,
+        phone: deliveryAddr.phone || '',
+        contactName: `${deliveryAddr.firstName} ${deliveryAddr.lastName}`
+      };
+
+      // Calculate package details
+      const totalWeight = artisanData.items.reduce((sum, item) => sum + (item.weight || 1), 0);
+      const packageDetails = {
+        name: `Order from ${artisanData.artisan.artisanName}`,
+        quantity: artisanData.items.length,
+        weight: totalWeight,
+        price: artisanData.subtotal,
+        size: totalWeight > 5 ? 'large' : totalWeight > 2 ? 'medium' : 'small'
+      };
+
+      // Get quote from Uber Direct
+      const quote = await uberDirectService.getDeliveryQuote(
+        pickupLocation,
+        dropoffLocation,
+        packageDetails
+      );
+
+      if (quote.success) {
+        setUberDirectQuotes(prev => ({
+          ...prev,
+          [artisanId]: {
+            fee: quote.quote.fee,
+            duration: quote.quote.duration,
+            pickup_eta: quote.quote.pickup_eta,
+            dropoff_eta: quote.quote.dropoff_eta,
+            quote_id: quote.quote.id
+          }
+        }));
+        return quote.quote.fee;
+      } else if (quote.fallback) {
+        setUberDirectQuotes(prev => ({
+          ...prev,
+          [artisanId]: {
+            fee: quote.fallback.fee,
+            duration: quote.fallback.duration,
+            pickup_eta: quote.fallback.pickup_eta,
+            estimated: true
+          }
+        }));
+        return quote.fallback.fee;
+      }
+
+      return 15; // Final fallback
+    } catch (error) {
+      console.error('❌ Error calculating Uber Direct fee:', error);
+      return 15;
+    } finally {
+      setLoadingUberQuotes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(artisanId);
+        return newSet;
+      });
+    }
   };
 
   // Load user's payment methods
@@ -691,6 +782,15 @@ const Cart = () => {
           [artisanId]: validation.results?.[artisanId] || null
         }));
       }
+    }
+    
+    // Get Uber Direct quote if professional delivery is selected
+    if (method === 'professionalDelivery' && !uberDirectQuotes[artisanId]) {
+      const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
+      if (addressToValidate && addressToValidate.street) {
+        console.log('🚛 Getting Uber Direct quote for artisan:', artisanId);
+        await calculateUberDirectFee(artisanId);
+      }
     } else {
       // Clear validation results for this artisan if switching away from personal delivery
       setDeliveryValidationResults(prev => {
@@ -956,7 +1056,7 @@ const Cart = () => {
               // Show error for each invalid delivery
               Object.entries(validation.results || {}).forEach(([artisanId, result]) => {
                 if (!result.valid) {
-                  toast.error(`Delivery to ${result.artisanName} is outside the ${result.radius}km radius (${result.distance.toFixed(1)}km away)`);
+                  toast.error(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away, but their delivery radius is only ${result.radius}km. Please choose pickup or professional delivery.`);
                 }
               });
             }
@@ -1842,26 +1942,34 @@ const Cart = () => {
                                     ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
                                   }
                                 </span>
-                                <div className="text-xs text-green-600 mt-1">
-                                  {deliveryOptions[artisanId]?.personalDelivery?.reason}
+                                <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                  ✅ {deliveryOptions[artisanId]?.personalDelivery?.reason}
+                                  <span className="text-gray-500">
+                                    • {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           </label>
                         ) : (
-                          <div className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg bg-gray-50 opacity-60">
+                          <div className="flex items-center space-x-3 p-3 border border-red-200 rounded-lg bg-red-50 opacity-80">
                             <input
                               type="radio"
                               disabled
                               className="text-gray-400 w-4 h-4"
                             />
                             <div className="flex items-center gap-3">
-                              <TruckIcon className="w-5 h-5 text-gray-400" />
+                              <TruckIcon className="w-5 h-5 text-red-400" />
                               <div>
-                                <span className="text-gray-500 font-medium">Personal Delivery</span>
-                                <div className="text-xs text-red-600 mt-1">
-                                  {deliveryOptions[artisanId]?.personalDelivery?.reason || 'Not available'}
+                                <span className="text-red-600 font-medium">Personal Delivery</span>
+                                <div className="text-xs text-red-700 mt-1 font-medium">
+                                  ❌ {deliveryOptions[artisanId]?.personalDelivery?.reason || 'Not available'}
                                 </div>
+                                {deliveryOptions[artisanId]?.personalDelivery?.reason?.includes('Outside') && (
+                                  <div className="text-xs text-red-600 mt-1 italic">
+                                    💡 Try pickup or check if professional delivery is available
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1881,7 +1989,26 @@ const Cart = () => {
                               <ShieldCheckIcon className="w-5 h-5 text-purple-600" />
                               <div>
                                 <span className="text-gray-900 font-medium">Professional Delivery</span>
-                                <span className="text-gray-600 text-sm ml-2">(Uber Direct - $15)</span>
+                                <div className="text-sm text-gray-600 mt-1">
+                                  {loadingUberQuotes.has(artisanId) ? (
+                                    <span className="flex items-center gap-1">
+                                      <div className="w-3 h-3 border border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                                      Getting quote...
+                                    </span>
+                                  ) : uberDirectQuotes[artisanId] ? (
+                                    <span className="flex items-center gap-2">
+                                      🚛 ${uberDirectQuotes[artisanId].fee}
+                                      {uberDirectQuotes[artisanId].estimated && (
+                                        <span className="text-xs text-orange-600">(estimated)</span>
+                                      )}
+                                      {uberDirectQuotes[artisanId].duration && (
+                                        <span className="text-xs text-gray-500">• {uberDirectQuotes[artisanId].duration} min</span>
+                                      )}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-500">Uber Direct - Quote on selection</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </label>

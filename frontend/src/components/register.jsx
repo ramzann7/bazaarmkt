@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon, UserIcon } from "@heroicons/react/24/outline";
+import Logo from "./Logo";
 import { registerUser, getProfile } from "../services/authservice";
 import { onboardingService } from "../services/onboardingService";
 import toast from "react-hot-toast";
@@ -310,8 +311,8 @@ export default function Register() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto w-20 h-20 bg-[#D77A61] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-            <BuildingStorefrontIcon className="w-10 h-10 text-white" />
+          <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+            <Logo showText={false} className="w-20 h-20" />
           </div>
                       <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join bazaarMKT</h2>
           <p className="text-gray-600 text-lg">Create your account and start your journey</p>
@@ -346,7 +347,7 @@ export default function Register() {
                       : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
                   }`}
                 >
-                  <BuildingStorefrontIcon className="w-8 h-8 mx-auto mb-2" />
+                  <Logo showText={false} className="w-12 h-12 mx-auto mb-2" />
                   <div className="text-sm font-semibold">Artisan</div>
                   <div className="text-xs">Sell your products</div>
                 </button>

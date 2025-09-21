@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Revenue = require('../models/revenue');
 const Order = require('../models/order');
+const PlatformExpense = require('../models/platformExpense');
 const PromotionalFeature = require('../models/promotionalFeature');
 const ArtisanSpotlight = require('../models/artisanSpotlight');
 const User = require('../models/user');
@@ -21,9 +22,56 @@ class RevenueService {
 
       // Get platform fee percentage from settings
       const platformFeePercentage = await PlatformSettingsService.getPlatformFeePercentage();
-      const grossAmount = order.totalAmount;
-      const platformCommission = (grossAmount * platformFeePercentage) / 100;
-      const artisanEarnings = grossAmount - platformCommission;
+      
+      // Separate product amount from delivery fees
+      const productAmount = order.totalAmount; // Total amount is just products
+      const deliveryFee = order.deliveryFee || 0; // Delivery fee is separate
+      
+      // Platform commission only applies to products, NOT delivery fees
+      const platformCommission = (productAmount * platformFeePercentage) / 100;
+      
+      // Calculate delivery revenue based on delivery method
+      let deliveryRevenue = {
+        personalDeliveryFee: 0,
+        professionalDeliveryFee: 0,
+        professionalDeliveryExpense: 0,
+        deliveryMethod: order.deliveryMethod || 'pickup',
+        deliveryProfit: 0
+      };
+      
+      // For personal delivery, artisan keeps 100% of the delivery fee (no platform commission)
+      if (order.deliveryMethod === 'personalDelivery') {
+        deliveryRevenue.personalDeliveryFee = deliveryFee;
+      }
+      
+      // For professional delivery, track both fee charged and expense to Uber
+      if (order.deliveryMethod === 'professionalDelivery') {
+        deliveryRevenue.professionalDeliveryFee = deliveryFee;
+        deliveryRevenue.uberDirectId = order.delivery?.uberDirectId;
+        
+        // Professional delivery expense will be updated when we get Uber's charge
+        // For now, we'll estimate based on the quote or actual Uber charge
+        if (order.delivery?.actualUberCharge) {
+          deliveryRevenue.professionalDeliveryExpense = order.delivery.actualUberCharge;
+        } else {
+          // Use estimated charge (will be updated later)
+          deliveryRevenue.professionalDeliveryExpense = deliveryFee ? deliveryFee * 0.8 : 0; // Estimate 80% goes to Uber
+        }
+        
+        deliveryRevenue.deliveryProfit = deliveryRevenue.professionalDeliveryFee - deliveryRevenue.professionalDeliveryExpense;
+      }
+      
+      // Calculate artisan earnings:
+      // - Product revenue minus platform commission
+      // - Plus 100% of personal delivery fee (no commission on delivery)
+      // - Professional delivery fee goes to platform (to pay Uber), so artisan gets 0% of it
+      let artisanEarnings = productAmount - platformCommission;
+      if (order.deliveryMethod === 'personalDelivery') {
+        artisanEarnings += deliveryRevenue.personalDeliveryFee; // Artisan keeps 100% of personal delivery fee
+      }
+      
+      // Total gross amount includes both products and delivery fees
+      const grossAmount = productAmount + deliveryFee;
 
       // Create revenue record with 'completed' status since this is only called when order is delivered/picked up
       const revenueData = {
@@ -32,7 +80,9 @@ class RevenueService {
         grossAmount,
         platformCommission,
         artisanEarnings,
+        commissionRate: platformFeePercentage / 100, // Store as decimal (e.g., 0.10 for 10%)
         platformFeePercentage,
+        deliveryRevenue,
         paymentProcessor: 'stripe', // Default, can be updated
         status: 'completed', // Revenue is only recognized when order is completed
         paymentDate: new Date(), // Set payment date to now since order is completed
@@ -49,13 +99,41 @@ class RevenueService {
       const revenue = new Revenue(revenueData);
 
       await revenue.save();
+      
+      // Create platform expense record for professional delivery
+      if (order.deliveryMethod === 'professionalDelivery' && deliveryRevenue.professionalDeliveryExpense > 0) {
+        await PlatformExpense.createDeliveryExpense({
+          orderId: order._id,
+          revenueId: revenue._id,
+          artisanId: order.artisan,
+          amount: deliveryRevenue.professionalDeliveryExpense,
+          deliveryDetails: {
+            uberDirectId: order.delivery?.uberDirectId,
+            pickupAddress: order.artisan?.address ? 
+              `${order.artisan.address.street}, ${order.artisan.address.city}` : 'Artisan Location',
+            dropoffAddress: order.deliveryAddress ? 
+              `${order.deliveryAddress.street}, ${order.deliveryAddress.city}` : 'Customer Address',
+            distance: order.deliveryDistance || 0,
+            deliveryStatus: order.delivery?.status || 'delivered'
+          },
+          status: order.delivery?.actualUberCharge ? 'paid' : 'pending',
+          description: `Uber Direct delivery for order ${order.orderNumber || order._id}`,
+          paymentDate: order.delivery?.actualUberCharge ? new Date() : null
+        });
+        
+        console.log(`✅ Platform expense record created for professional delivery: ${deliveryRevenue.professionalDeliveryExpense} CAD`);
+      }
 
       // Update order with revenue information
+      const commissionRate = platformCommission / productAmount; // Commission rate only on products
       order.revenue = {
         grossAmount,
+        productAmount,
+        deliveryFee,
         platformCommission,
         artisanEarnings,
-        commissionRate
+        commissionRate,
+        deliveryRevenue
       };
       await order.save();
 
@@ -64,12 +142,18 @@ class RevenueService {
         revenue: {
           orderId: order._id,
           grossAmount,
+          productAmount,
+          deliveryFee,
           platformCommission,
           artisanEarnings,
           commissionRate,
+          deliveryRevenue,
           breakdown: {
-            platformPercentage: `${(commissionRate * 100).toFixed(1)}%`,
-            artisanPercentage: `${((1 - commissionRate) * 100).toFixed(1)}%`
+            productCommissionPercentage: `${(platformCommission / productAmount * 100).toFixed(1)}%`,
+            deliveryCommissionPercentage: '0%', // No commission on delivery fees
+            artisanProductEarnings: productAmount - platformCommission,
+            artisanDeliveryEarnings: deliveryRevenue.personalDeliveryFee || 0,
+            totalArtisanEarnings: artisanEarnings
           }
         }
       };
@@ -477,6 +561,163 @@ class RevenueService {
       };
     } catch (error) {
       console.error('Error getting spotlight revenue stats:', error);
+      throw error;
+    }
+  }
+
+  // Update professional delivery expense with actual Uber charge
+  static async updateDeliveryExpense(orderId, actualUberCharge, uberTransactionId = null) {
+    try {
+      console.log(`💰 Updating delivery expense for order ${orderId} with actual charge: ${actualUberCharge} CAD`);
+      
+      // Update the revenue record
+      const revenue = await Revenue.findOne({ orderId });
+      if (revenue && revenue.deliveryRevenue) {
+        revenue.deliveryRevenue.professionalDeliveryExpense = actualUberCharge;
+        revenue.deliveryRevenue.deliveryProfit = 
+          (revenue.deliveryRevenue.professionalDeliveryFee || 0) - actualUberCharge;
+        await revenue.save();
+        
+        console.log(`✅ Revenue record updated with actual delivery expense`);
+      }
+      
+      // Update the platform expense record
+      const expense = await PlatformExpense.findOne({ orderId, type: 'delivery' });
+      if (expense) {
+        expense.amount = actualUberCharge;
+        expense.status = 'paid';
+        expense.transactionId = uberTransactionId;
+        expense.paymentDate = new Date();
+        expense.settlementStatus = 'settled';
+        expense.settlementDate = new Date();
+        await expense.save();
+        
+        console.log(`✅ Platform expense record updated with actual charge`);
+      }
+      
+      // Update the order record
+      await Order.findByIdAndUpdate(orderId, {
+        'delivery.actualUberCharge': actualUberCharge,
+        'delivery.uberTransactionId': uberTransactionId,
+        updatedAt: Date.now()
+      });
+      
+      return {
+        success: true,
+        actualCharge: actualUberCharge,
+        deliveryProfit: revenue?.deliveryRevenue?.deliveryProfit || 0
+      };
+    } catch (error) {
+      console.error('❌ Error updating delivery expense:', error);
+      throw error;
+    }
+  }
+
+  // Get delivery revenue summary for artisan dashboard
+  static async getDeliveryRevenueSummary(artisanId, startDate = null, endDate = null) {
+    try {
+      const match = { 
+        artisanId: new mongoose.Types.ObjectId(artisanId),
+        status: 'completed'
+      };
+      
+      if (startDate || endDate) {
+        match.createdAt = {};
+        if (startDate) match.createdAt.$gte = new Date(startDate);
+        if (endDate) match.createdAt.$lte = new Date(endDate);
+      }
+      
+      const summary = await Revenue.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: '$deliveryRevenue.deliveryMethod',
+            totalRevenue: { $sum: '$grossAmount' },
+            totalDeliveryFee: { 
+              $sum: {
+                $add: [
+                  '$deliveryRevenue.personalDeliveryFee',
+                  '$deliveryRevenue.professionalDeliveryFee'
+                ]
+              }
+            },
+            personalDeliveryFee: { $sum: '$deliveryRevenue.personalDeliveryFee' },
+            professionalDeliveryFee: { $sum: '$deliveryRevenue.professionalDeliveryFee' },
+            orderCount: { $sum: 1 }
+          }
+        }
+      ]);
+      
+      return summary;
+    } catch (error) {
+      console.error('❌ Error getting delivery revenue summary:', error);
+      throw error;
+    }
+  }
+
+  // Get platform delivery expense summary for admin dashboard
+  static async getPlatformDeliveryExpenseSummary(startDate = null, endDate = null) {
+    try {
+      const match = { type: 'delivery' };
+      
+      if (startDate || endDate) {
+        match.createdAt = {};
+        if (startDate) match.createdAt.$gte = new Date(startDate);
+        if (endDate) match.createdAt.$lte = new Date(endDate);
+      }
+      
+      const summary = await PlatformExpense.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: '$subtype',
+            totalExpense: { $sum: '$amount' },
+            deliveryCount: { $sum: 1 },
+            averageExpense: { $avg: '$amount' },
+            byStatus: {
+              $push: {
+                status: '$status',
+                amount: '$amount'
+              }
+            }
+          }
+        }
+      ]);
+      
+      // Also get corresponding revenue for profit calculation
+      const revenueMatch = { 
+        'deliveryRevenue.deliveryMethod': 'professionalDelivery',
+        status: 'completed'
+      };
+      
+      if (startDate || endDate) {
+        revenueMatch.createdAt = {};
+        if (startDate) revenueMatch.createdAt.$gte = new Date(startDate);
+        if (endDate) revenueMatch.createdAt.$lte = new Date(endDate);
+      }
+      
+      const revenueData = await Revenue.aggregate([
+        { $match: revenueMatch },
+        {
+          $group: {
+            _id: null,
+            totalProfessionalDeliveryRevenue: { $sum: '$deliveryRevenue.professionalDeliveryFee' },
+            totalDeliveryProfit: { $sum: '$deliveryRevenue.deliveryProfit' },
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+      
+      return {
+        expenses: summary,
+        revenue: revenueData[0] || { 
+          totalProfessionalDeliveryRevenue: 0, 
+          totalDeliveryProfit: 0, 
+          count: 0 
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error getting platform delivery expense summary:', error);
       throw error;
     }
   }

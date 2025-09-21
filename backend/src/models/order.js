@@ -151,15 +151,45 @@ const orderSchema = new mongoose.Schema({
     country: String
   },
   deliveryInstructions: String,
+  deliveryFee: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   estimatedDeliveryTime: Date,
   actualDeliveryTime: Date,
   deliveryDistance: Number, // Distance in kilometers for artisan reference
+  
+  // Professional delivery (Uber Direct) details
+  delivery: {
+    uberDirectId: String, // Uber Direct delivery ID
+    status: String, // Uber Direct delivery status
+    trackingUrl: String, // Uber tracking URL
+    pickupEta: Date, // Estimated pickup time
+    dropoffEta: Date, // Estimated dropoff time
+    pickupTime: Date, // Actual pickup time
+    dropoffTime: Date, // Actual dropoff time
+    courier: {
+      name: String,
+      phone: String,
+      vehicle: String,
+      photo: String
+    },
+    liveLocation: {
+      latitude: Number,
+      longitude: Number,
+      bearing: Number
+    },
+    cancelledAt: Date,
+    cancelReason: String,
+    quoteId: String // Reference to the original quote
+  },
   specialRequests: String,
   
   // Payment Information
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'failed', 'refunded'],
+    enum: ['pending', 'paid', 'failed', 'refunded', 'held_in_dispute'],
     default: 'pending'
   },
   paymentMethod: {
@@ -175,7 +205,98 @@ const orderSchema = new mongoose.Schema({
     grossAmount: Number,
     platformCommission: Number,
     artisanEarnings: Number,
-    commissionRate: { type: Number, default: 0.10 }
+    commissionRate: { type: Number, default: null } // Will be set dynamically from platform settings
+  },
+
+  // Confirmation and Dispute Management
+  confirmation: {
+    // Pickup confirmation
+    pickup: {
+      artisanConfirmed: {
+        confirmed: { type: Boolean, default: false },
+        confirmedAt: Date,
+        notes: String
+      },
+      buyerConfirmed: {
+        confirmed: { type: Boolean, default: false },
+        confirmedAt: Date,
+        notes: String
+      },
+      autoCompletedAt: Date, // When order auto-completes after 24h
+      completionDeadline: Date // 24 hours from artisan confirmation
+    },
+    // Delivery confirmation
+    delivery: {
+      artisanConfirmed: {
+        confirmed: { type: Boolean, default: false },
+        confirmedAt: Date,
+        notes: String,
+        deliveryProof: [String] // Array of image URLs as proof
+      },
+      buyerConfirmed: {
+        confirmed: { type: Boolean, default: false },
+        confirmedAt: Date,
+        notes: String
+      },
+      autoCompletedAt: Date, // When order auto-completes after 24h
+      completionDeadline: Date // 24 hours from delivery
+    }
+  },
+
+  // Dispute Management
+  dispute: {
+    isDisputed: { type: Boolean, default: false },
+    disputeType: {
+      type: String,
+      enum: ['pickup_not_confirmed', 'delivery_not_received', 'item_not_as_described', 'payment_issue', 'other'],
+      required: function() { return this.dispute.isDisputed; }
+    },
+    disputeReason: {
+      type: String,
+      required: function() { return this.dispute.isDisputed; }
+    },
+    disputeDetails: String,
+    reportedBy: {
+      type: String,
+      enum: ['buyer', 'artisan'],
+      required: function() { return this.dispute.isDisputed; }
+    },
+    reportedAt: {
+      type: Date,
+      default: function() { return this.dispute.isDisputed ? Date.now() : undefined; }
+    },
+    status: {
+      type: String,
+      enum: ['open', 'under_review', 'resolved', 'closed'],
+      default: function() { return this.dispute.isDisputed ? 'open' : undefined; }
+    },
+    adminNotes: String,
+    resolution: {
+      type: String,
+      enum: ['buyer_refunded', 'artisan_paid', 'partial_refund', 'no_action_needed'],
+      default: null
+    },
+    resolutionNotes: String,
+    resolvedAt: Date,
+    resolvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    evidence: [{
+      type: {
+        type: String,
+        enum: ['image', 'document', 'message'],
+        required: true
+      },
+      url: { type: String, required: true },
+      description: String,
+      uploadedBy: {
+        type: String,
+        enum: ['buyer', 'artisan', 'admin'],
+        required: true
+      },
+      uploadedAt: { type: Date, default: Date.now }
+    }]
   },
   
   // Order Notes

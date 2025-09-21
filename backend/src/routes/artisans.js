@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Artisan = require('../models/artisan');
 const verifyToken = require('../middleware/authMiddleware');
+const { checkArtisanGeographicRestrictions } = require('../middleware/geographicRestrictions');
 
 // Get all artisans
 router.get('/', async (req, res) => {
@@ -115,7 +116,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new artisan (requires authentication)
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, checkArtisanGeographicRestrictions, async (req, res) => {
   try {
     const artisanData = {
       ...req.body,

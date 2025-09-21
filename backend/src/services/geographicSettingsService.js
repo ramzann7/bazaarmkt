@@ -39,6 +39,14 @@ class GeographicSettingsService {
         );
       }
 
+      // Ensure we have a valid user ID
+      if (!userId) {
+        return {
+          success: false,
+          error: 'User ID is required for creating geographic settings'
+        };
+      }
+
       // Create new settings
       const newSettings = new GeographicSettings({
         ...settingsData,

@@ -21,11 +21,18 @@ const revenueSchema = new mongoose.Schema({
       return this.type === 'spotlight';
     }
   },
+  promotionalFeatureId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PromotionalFeature',
+    required: function() {
+      return this.type === 'promotional';
+    }
+  },
   artisanId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Artisan',
     required: function() {
-      return this.type === 'order';
+      return this.type === 'order' || this.type === 'promotional';
     }
   },
   patronId: {
@@ -51,7 +58,7 @@ const revenueSchema = new mongoose.Schema({
     required: true,
     min: 0,
     default: function() {
-      return this.grossAmount * 0.10; // 10% platform commission
+      return this.grossAmount * (this.commissionRate || 0.10); // Dynamic platform commission
     }
   },
   artisanEarnings: {
@@ -63,20 +70,49 @@ const revenueSchema = new mongoose.Schema({
     }
   },
   
+  // Delivery-specific revenue tracking
+  deliveryRevenue: {
+    personalDeliveryFee: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    professionalDeliveryFee: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    professionalDeliveryExpense: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    deliveryMethod: {
+      type: String,
+      enum: ['pickup', 'personalDelivery', 'professionalDelivery', 'none'],
+      default: 'pickup'
+    },
+    uberDirectId: String, // Reference to Uber Direct delivery
+    deliveryProfit: {
+      type: Number,
+      default: 0 // professionalDeliveryFee - professionalDeliveryExpense
+    }
+  },
+  
   // Platform fee percentage (for transparency and future flexibility)
   platformFeePercentage: {
     type: Number,
     required: true,
     default: 10, // 10%
     min: 0,
-    max: 50
+    max: 100 // Allow 100% for promotional features
   },
   
   // Commission rate (for transparency and future flexibility)
   commissionRate: {
     type: Number,
     required: true,
-    default: 0.10, // 10%
+    default: 0.10, // Default 10%, will be overridden by platform settings
     min: 0,
     max: 1
   },
@@ -91,7 +127,7 @@ const revenueSchema = new mongoose.Schema({
   // Payment processing details
   paymentProcessor: {
     type: String,
-    enum: ['stripe', 'paypal', 'square', 'manual'],
+    enum: ['stripe', 'paypal', 'square', 'manual', 'wallet'],
     required: true
   },
   transactionId: String,
@@ -165,6 +201,16 @@ revenueSchema.pre('save', function(next) {
     this.platformCommission = this.grossAmount * this.commissionRate;
     this.artisanEarnings = this.grossAmount - this.platformCommission;
   }
+  
+  // Calculate delivery profit for professional delivery
+  if (this.deliveryRevenue && 
+      (this.isModified('deliveryRevenue.professionalDeliveryFee') || 
+       this.isModified('deliveryRevenue.professionalDeliveryExpense'))) {
+    this.deliveryRevenue.deliveryProfit = 
+      (this.deliveryRevenue.professionalDeliveryFee || 0) - 
+      (this.deliveryRevenue.professionalDeliveryExpense || 0);
+  }
+  
   next();
 });
 

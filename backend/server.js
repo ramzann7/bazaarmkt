@@ -113,6 +113,9 @@ const walletRoutes = require('./src/routes/wallet');
 const payoutRoutes = require('./src/routes/payouts');
 const communityRoutes = require('./src/routes/community');
 const geographicSettingsRoutes = require('./src/routes/geographicSettings');
+const deliveryRoutes = require('./src/routes/delivery');
+const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
+const disputeManagementRoutes = require('./src/routes/disputeManagement');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -134,6 +137,9 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/geographic-settings', geographicSettingsRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/order-confirmations', orderConfirmationRoutes);
+app.use('/api/disputes', disputeManagementRoutes);
 
 
 
@@ -224,5 +230,24 @@ app.listen(PORT, () => {
   }, 60 * 60 * 1000); // Run every hour (60 minutes * 60 seconds * 1000 milliseconds)
   
   console.log(`✅ Scheduled capacity restoration set up (runs every hour)`);
+  
+  // Set up scheduled order auto-completion
+  console.log(`⏰ Setting up scheduled order auto-completion...`);
+  const OrderConfirmationService = require('./src/services/orderConfirmationService');
+  
+  // Run order auto-completion every 30 minutes
+  setInterval(async () => {
+    try {
+      console.log(`🔄 Running scheduled order auto-completion...`);
+      const result = await OrderConfirmationService.autoCompleteOrders();
+      if (result.autoCompletedCount > 0) {
+        console.log(`✅ Auto-completed ${result.autoCompletedCount} orders`);
+      }
+    } catch (error) {
+      console.error(`❌ Error in scheduled order auto-completion:`, error.message);
+    }
+  }, 30 * 60 * 1000); // Run every 30 minutes
+  
+  console.log(`✅ Scheduled order auto-completion set up (runs every 30 minutes)`);
 });
 

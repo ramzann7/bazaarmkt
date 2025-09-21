@@ -25,8 +25,12 @@ const adminAuditSchema = new mongoose.Schema({
       'artisan_status_changed',
       'artisan_verification_changed',
       'settings_updated',
+      'platform_settings_updated',
+      'geographic_settings_updated',
       'user_deleted',
-      'artisan_deleted'
+      'artisan_deleted',
+      'dispute_status_updated',
+      'dispute_resolved'
     ]
   },
   
@@ -34,7 +38,7 @@ const adminAuditSchema = new mongoose.Schema({
   targetType: {
     type: String,
     required: true,
-    enum: ['user', 'product', 'artisan', 'settings']
+    enum: ['user', 'product', 'artisan', 'settings', 'platform_settings', 'geographic_settings']
   },
   targetId: {
     type: mongoose.Schema.Types.ObjectId,

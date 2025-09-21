@@ -412,40 +412,43 @@ router.get('/admin/revenue', authMiddleware, async (req, res) => {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Get revenue stats
-    const revenueStats = await ArtisanSpotlight.aggregate([
+    // Get revenue stats from Revenue collection
+    const Revenue = require('../models/revenue');
+    const revenueStats = await Revenue.aggregate([
       {
         $match: {
-          createdAt: { $gte: startDate },
-          status: { $ne: 'cancelled' }
+          type: 'spotlight',
+          paymentDate: { $gte: startDate },
+          status: 'completed'
         }
       },
       {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$amount' },
+          totalRevenue: { $sum: '$grossAmount' },
           totalSubscriptions: { $sum: 1 },
-          averageAmount: { $avg: '$amount' }
+          averageAmount: { $avg: '$grossAmount' }
         }
       }
     ]);
 
-    // Get daily revenue breakdown
-    const dailyRevenue = await ArtisanSpotlight.aggregate([
+    // Get daily revenue breakdown from Revenue collection
+    const dailyRevenue = await Revenue.aggregate([
       {
         $match: {
-          createdAt: { $gte: startDate },
-          status: { $ne: 'cancelled' }
+          type: 'spotlight',
+          paymentDate: { $gte: startDate },
+          status: 'completed'
         }
       },
       {
         $group: {
           _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' },
-            day: { $dayOfMonth: '$createdAt' }
+            year: { $year: '$paymentDate' },
+            month: { $month: '$paymentDate' },
+            day: { $dayOfMonth: '$paymentDate' }
           },
-          revenue: { $sum: '$amount' },
+          revenue: { $sum: '$grossAmount' },
           subscriptions: { $sum: 1 }
         }
       },

@@ -1,0 +1,42 @@
+# Production Environment Variables for bazaarmkt.ca
+# Copy this to your Vercel environment variables
+
+# Database
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/bazaarmkt?retryWrites=true&w=majority
+
+# JWT
+JWT_SECRET=your-super-secure-jwt-secret-for-production
+JWT_REFRESH_SECRET=your-super-secure-refresh-secret-for-production
+
+# Email (Brevo)
+BREVO_API_KEY=your-brevo-api-key
+
+# Admin Configuration
+ADMIN_EMAIL=admin@bazaarmkt.ca
+
+# Stripe (if using)
+STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+
+# Uber Direct (if using)
+UBER_DIRECT_CLIENT_ID=your_uber_client_id
+UBER_DIRECT_CLIENT_SECRET=your_uber_client_secret
+UBER_DIRECT_SANDBOX_TOKEN=your_uber_sandbox_token
+
+# Google Maps (if using)
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+
+# Redis (if using for caching)
+REDIS_URL=your_redis_url
+
+# Node Environment
+NODE_ENV=production
+PORT=3000
+
+# CORS
+CORS_ORIGIN=https://bazaarmkt.ca
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100

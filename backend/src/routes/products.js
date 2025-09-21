@@ -7,6 +7,7 @@ const mongoose = require('mongoose');
 const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
 const inventoryService = require('../services/inventoryService');
+const { checkProductGeographicRestrictions } = require('../middleware/geographicRestrictions');
 
 // Import category validation utilities
 const { normalizeCategoryKey, normalizeSubcategoryKey } = require('../scripts/migrateCategoryData');
@@ -1363,7 +1364,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new product (requires authentication)
-router.post('/', verifyToken, upload.single('image'), async (req, res) => {
+router.post('/', verifyToken, checkProductGeographicRestrictions, upload.single('image'), async (req, res) => {
   try {
     console.log('Creating product with data:', req.body);
     console.log('File:', req.file);

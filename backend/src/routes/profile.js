@@ -747,6 +747,13 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
 
     const { deliveryOptions } = req.body;
     
+    console.log('🔄 Received delivery options update request:', {
+      userId: req.user._id,
+      userEmail: req.user.email,
+      deliveryOptions: deliveryOptions,
+      professionalDelivery: deliveryOptions?.professionalDelivery
+    });
+    
     // Update delivery options
     if (deliveryOptions) {
       // Update main delivery options
@@ -786,6 +793,7 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
       
       // Update professional delivery options
       if (deliveryOptions.professionalDelivery) {
+        console.log('🔄 Updating professional delivery options:', deliveryOptions.professionalDelivery);
         artisan.professionalDelivery = {
           enabled: deliveryOptions.professionalDelivery.enabled || false,
           uberDirectEnabled: deliveryOptions.professionalDelivery.uberDirectEnabled || false,
@@ -794,6 +802,9 @@ router.put('/artisan/delivery', verifyToken, async (req, res) => {
           packaging: deliveryOptions.professionalDelivery.packaging || '',
           restrictions: deliveryOptions.professionalDelivery.restrictions || ''
         };
+        console.log('✅ Professional delivery options set to:', artisan.professionalDelivery);
+      } else {
+        console.log('⚠️ No professional delivery options in request');
       }
     }
     

@@ -260,7 +260,7 @@ const Cart = () => {
       return 15; // Final fallback
     } catch (error) {
       console.error('❌ Error calculating Uber Direct fee:', error);
-      return 15;
+    return 15;
     } finally {
       setLoadingUberQuotes(prev => {
         const newSet = new Set(prev);
@@ -512,7 +512,7 @@ const Cart = () => {
   };
 
   // Load delivery options - completely rebuilt
-  const loadDeliveryOptions = React.useCallback(async () => {
+  const loadDeliveryOptions = async () => {
     if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
       return;
     }
@@ -541,7 +541,7 @@ const Cart = () => {
         if (artisanData.artisan?.deliveryOptions || artisanData.artisan?.professionalDelivery) {
           // Use the delivery service to structure options with user location and artisan data
           const processedOptions = deliveryService.getDeliveryOptions(
-            artisanData.artisan, 
+            artisanData.artisan,
             userLocation,
             isGuestUser,
             isPatronUser,
@@ -586,7 +586,7 @@ const Cart = () => {
     } finally {
       setDeliveryOptionsLoading(false);
     }
-  }, [cartByArtisan, userLocation, userProfile, deliveryForm.street, deliveryForm.city, deliveryForm.state, deliveryForm.zipCode]);
+  };
 
   // Load user profile
   const loadUserProfile = async () => {
@@ -717,7 +717,7 @@ const Cart = () => {
   };
 
   // Load pickup time windows for artisans
-  const loadPickupTimeWindows = React.useCallback(async () => {
+  const loadPickupTimeWindows = async () => {
     if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
       return;
     }
@@ -777,7 +777,7 @@ const Cart = () => {
     } catch (error) {
       console.error('Error loading pickup time windows:', error);
     }
-  }, [cartByArtisan]);
+  };
 
   // Handle delivery method selection
   const handleDeliveryMethodChange = async (artisanId, method) => {
@@ -1468,7 +1468,7 @@ const Cart = () => {
       loadDeliveryOptions();
       loadPickupTimeWindows();
     }
-  }, [cartByArtisan, userLocation, loadDeliveryOptions, loadPickupTimeWindows]);
+  }, [cartByArtisan, userLocation]);
 
   // Load user profile immediately when user is authenticated
   useEffect(() => {

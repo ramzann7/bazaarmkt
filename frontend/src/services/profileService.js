@@ -3,7 +3,7 @@ import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 import { authToken } from './authservice';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/profile` : 'http://localhost:4000/api/profile';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`
@@ -12,7 +12,7 @@ const getAuthHeaders = () => ({
 export const profileService = {
   // Get user profile
   getProfile: async () => {
-    const response = await axios.get(API_URL, {
+    const response = await axios.get(`${API_URL}/auth/profile`, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -20,7 +20,7 @@ export const profileService = {
 
   // Update entire profile
   updateProfile: async (profileData) => {
-    const response = await axios.put(API_URL, profileData, {
+    const response = await axios.put(`${API_URL}/profile`, profileData, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -28,7 +28,7 @@ export const profileService = {
 
   // Update basic profile information
   updateBasicProfile: async (profileData) => {
-    const response = await axios.put(`${API_URL}/basic`, profileData, {
+    const response = await axios.put(`${API_URL}/profile`, profileData, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -36,7 +36,7 @@ export const profileService = {
 
   // Update addresses
   updateAddresses: async (addresses) => {
-    const response = await axios.put(`${API_URL}/addresses`, { addresses }, {
+    const response = await axios.put(`${API_URL}/profile/addresses`, { addresses }, {
       headers: getAuthHeaders()
     });
     
@@ -56,7 +56,7 @@ export const profileService = {
 
   // Add new address
   addAddress: async (address) => {
-    const response = await axios.post(`${API_URL}/addresses`, address, {
+    const response = await axios.post(`${API_URL}/profile/addresses`, address, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -64,7 +64,7 @@ export const profileService = {
 
   // Update notification preferences
   updateNotifications: async (notificationPreferences) => {
-    const response = await axios.put(`${API_URL}/notifications`, { notificationPreferences }, {
+    const response = await axios.put(`${API_URL}/profile`, { notificationPreferences }, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -72,7 +72,7 @@ export const profileService = {
 
   // Update account settings
   updateSettings: async (accountSettings) => {
-    const response = await axios.put(`${API_URL}/settings`, { accountSettings }, {
+    const response = await axios.put(`${API_URL}/profile`, { accountSettings }, {
       headers: getAuthHeaders()
     });
     return response.data;

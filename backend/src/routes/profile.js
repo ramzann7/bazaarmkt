@@ -616,7 +616,8 @@ router.get('/artisan', verifyToken, async (req, res) => {
       artisanName: artisan.artisanName,
       type: artisan.type,
       description: artisan.description,
-      user: artisan.user
+      user: artisan.user,
+      professionalDelivery: artisan.professionalDelivery
     });
     console.log('✅ Returning artisan profile for user:', req.user._id);
     res.json(artisan);

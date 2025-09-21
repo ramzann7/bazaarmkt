@@ -524,8 +524,8 @@ const Cart = () => {
       const methods = {};
       
       // Determine user type and delivery address status
-      const isGuestUser = !user || user.role === 'guest';
-      const isPatronUser = user && user.role === 'patron';
+      const isGuestUser = !userProfile || userProfile.role === 'guest';
+      const isPatronUser = userProfile && userProfile.role === 'patron';
       const hasDeliveryAddress = deliveryForm && (deliveryForm.street || deliveryForm.city);
       
       console.log('🔄 Loading delivery options with context:', {

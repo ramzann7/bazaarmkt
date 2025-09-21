@@ -540,6 +540,14 @@ export const cartService = {
                   deliveryFee: 0,
                   freeDeliveryThreshold: 0
                 },
+                professionalDelivery: latestArtisanData.professionalDelivery || {
+                  enabled: false,
+                  uberDirectEnabled: false,
+                  serviceRadius: 25,
+                  regions: [],
+                  packaging: '',
+                  restrictions: ''
+                },
                 address: latestArtisanData.address,
                 pickupLocation: latestArtisanData.pickupLocation,
                 pickupInstructions: latestArtisanData.pickupInstructions,
@@ -564,6 +572,14 @@ export const cartService = {
                   deliveryRadius: 0,
                   deliveryFee: 0,
                   freeDeliveryThreshold: 0
+                },
+                professionalDelivery: fallbackItem.artisan?.professionalDelivery || {
+                  enabled: false,
+                  uberDirectEnabled: false,
+                  serviceRadius: 25,
+                  regions: [],
+                  packaging: '',
+                  restrictions: ''
                 }
               },
               items: group.items,

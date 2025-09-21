@@ -1462,11 +1462,27 @@ const Cart = () => {
     }
   }, [userProfile]);
 
+  // Track if we've already loaded options for current cart state
+  const loadedOptionsRef = React.useRef(null);
+  
   // Load delivery options when cart data or user location changes
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
-      loadDeliveryOptions();
-      loadPickupTimeWindows();
+      // Create a key to track if we've already loaded for this cart state
+      const cartKey = JSON.stringify({
+        artisanIds: Object.keys(cartByArtisan),
+        userLocation: userLocation ? `${userLocation.latitude},${userLocation.longitude}` : 'no-location'
+      });
+      
+      // Only load if we haven't loaded for this exact cart state
+      if (loadedOptionsRef.current !== cartKey) {
+        console.log('🔄 Loading delivery options for new cart state');
+        loadedOptionsRef.current = cartKey;
+        loadDeliveryOptions();
+        loadPickupTimeWindows();
+      } else {
+        console.log('🔄 Skipping delivery options load - already loaded for this cart state');
+      }
     }
   }, [cartByArtisan, userLocation]);
 

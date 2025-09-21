@@ -386,7 +386,7 @@ const Cart = () => {
     }
   };
 
-  // Get total delivery fees across all artisans
+  // Get total delivery fees across all artisans (async version for API calls)
   const getTotalDeliveryFees = async () => {
     let totalFees = 0;
     
@@ -397,10 +397,32 @@ const Cart = () => {
     return totalFees;
   };
 
-  // Get total amount including delivery fees
+  // Get total delivery fees synchronously (for UI display)
+  const getTotalDeliveryFeesSync = () => {
+    return Object.entries(cartByArtisan).reduce((total, [artisanId, artisanData]) => {
+      const selectedMethod = selectedDeliveryMethods[artisanId];
+      if (selectedMethod === 'personalDelivery') {
+        const fee = deliveryOptions[artisanId]?.personalDelivery?.fee || 0;
+        const freeThreshold = deliveryOptions[artisanId]?.personalDelivery?.freeThreshold || 0;
+        return total + (artisanData.subtotal < freeThreshold ? fee : 0);
+      } else if (selectedMethod === 'professionalDelivery') {
+        return total + (uberDirectQuotes[artisanId]?.fee || 15);
+      }
+      return total;
+    }, 0);
+  };
+
+  // Get total amount including delivery fees (async version for API calls)
   const getTotalAmount = async () => {
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     const deliveryFees = await getTotalDeliveryFees();
+    return subtotal + deliveryFees;
+  };
+
+  // Get total amount synchronously (for UI display)
+  const getTotalAmountSync = () => {
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const deliveryFees = getTotalDeliveryFeesSync();
     return subtotal + deliveryFees;
   };
 
@@ -2584,12 +2606,12 @@ const Cart = () => {
                     </div>
                     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="text-gray-600">Delivery Fees:</span>
-                      <span className="font-semibold text-gray-900">{formatPrice(getTotalDeliveryFees())}</span>
+                      <span className="font-semibold text-gray-900">{formatPrice(getTotalDeliveryFeesSync())}</span>
                     </div>
                     <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-gray-800 text-lg">Total:</span>
-                        <span className="font-bold text-xl text-gray-900">{formatPrice(getTotalAmount())}</span>
+                        <span className="font-bold text-xl text-gray-900">{formatPrice(getTotalAmountSync())}</span>
                       </div>
                     </div>
                   </div>

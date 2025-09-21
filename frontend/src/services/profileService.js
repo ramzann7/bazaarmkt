@@ -123,7 +123,7 @@ export const profileService = {
 
   // Artisan-specific methods
   getArtisanProfile: async () => {
-    const response = await axios.get(`${API_URL}/profile/artisan`, {
+    const response = await axios.get(`${API_URL}/artisan`, {
       headers: getAuthHeaders()
     });
     return response.data;

@@ -244,9 +244,21 @@ export default function Profile() {
 
   // Load artisan profile when user is an artisan
   useEffect(() => {
+    console.log('🔄 Profile useEffect triggered:', {
+      hasProfile: !!profile,
+      profileRole: profile?.role,
+      profileId: profile?._id,
+      isArtisan: profile?.role === 'artisan'
+    });
+    
     if (profile && profile.role === 'artisan') {
       console.log('🔄 Loading artisan profile for user:', profile._id);
       loadArtisanProfile();
+    } else {
+      console.log('🔄 Not loading artisan profile - conditions not met:', {
+        hasProfile: !!profile,
+        isArtisan: profile?.role === 'artisan'
+      });
     }
   }, [profile, loadArtisanProfile]);
 

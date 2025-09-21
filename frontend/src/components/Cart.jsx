@@ -823,6 +823,36 @@ const Cart = () => {
           ...prev,
           [artisanId]: validation.results?.[artisanId] || null
         }));
+        
+        // If personal delivery is invalid, auto-switch to another option
+        if (validation.results?.[artisanId] && !validation.results[artisanId].valid) {
+          const result = validation.results[artisanId];
+          
+          // Switch to pickup if available, otherwise professional delivery
+          if (deliveryOptions[artisanId]?.pickup?.available) {
+            setSelectedDeliveryMethods(prev => ({
+              ...prev,
+              [artisanId]: 'pickup'
+            }));
+            console.log(`🔄 Switched ${result.artisanName} to pickup due to invalid personal delivery`);
+            toast.warning(`Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away (outside ${result.radius}km radius). Switched to pickup.`);
+          } else if (deliveryOptions[artisanId]?.professionalDelivery?.available) {
+            setSelectedDeliveryMethods(prev => ({
+              ...prev,
+              [artisanId]: 'professionalDelivery'
+            }));
+            console.log(`🔄 Switched ${result.artisanName} to professional delivery due to invalid personal delivery`);
+            toast.warning(`Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away (outside ${result.radius}km radius). Switched to professional delivery.`);
+          } else {
+            setSelectedDeliveryMethods(prev => {
+              const updated = { ...prev };
+              delete updated[artisanId];
+              return updated;
+            });
+            console.log(`🔄 Removed delivery method for ${result.artisanName} - no valid options available`);
+            toast.error(`Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away (outside ${result.radius}km radius). No other delivery options available.`);
+          }
+        }
       } else {
         // Clear validation results if no address provided
         setDeliveryValidationResults(prev => ({
@@ -908,51 +938,27 @@ const Cart = () => {
               artisanName: artisanData.artisan.artisanName
             };
             
-            // Update delivery options based on validation
+            // Keep personal delivery option visible but update validation status
+            // Don't modify the delivery options availability - let the UI handle the display
+            console.log(`📍 Address validation for ${artisanData.artisan.artisanName}:`, {
+              distance: distance.toFixed(1),
+              radius: deliveryRadius,
+              isValid: isValid,
+              address: `${geocodedAddress.lat}, ${geocodedAddress.lng}`
+            });
+            
             if (!isValid) {
               hasInvalidDelivery = true;
-              
-              // Disable personal delivery for this artisan
-              updatedDeliveryOptions[artisanId] = {
-                ...updatedDeliveryOptions[artisanId],
-                personalDelivery: {
-                  ...updatedDeliveryOptions[artisanId].personalDelivery,
-                  available: false,
-                  reason: `Outside ${deliveryRadius}km delivery radius (${distance.toFixed(1)}km away)`
-                }
-              };
-              
-              // If personal delivery was selected, switch to pickup if available
-              if (selectedDeliveryMethods[artisanId] === 'personalDelivery') {
-                if (updatedDeliveryOptions[artisanId].pickup?.available) {
-                  updatedSelectedMethods[artisanId] = 'pickup';
-                } else if (updatedDeliveryOptions[artisanId].professionalDelivery?.available) {
-                  updatedSelectedMethods[artisanId] = 'professionalDelivery';
-                } else {
-                  // No delivery options available, disable delivery for this artisan
-                  delete updatedSelectedMethods[artisanId];
-                }
-              }
+              console.log(`❌ Personal delivery not available for ${artisanData.artisan.artisanName}: ${distance.toFixed(1)}km > ${deliveryRadius}km`);
             } else {
-              // Enable personal delivery for this artisan
-              updatedDeliveryOptions[artisanId] = {
-                ...updatedDeliveryOptions[artisanId],
-                personalDelivery: {
-                  ...updatedDeliveryOptions[artisanId].personalDelivery,
-                  available: true,
-                  reason: `Available within ${deliveryRadius}km radius (${distance.toFixed(1)}km away)`
-                }
-              };
+              console.log(`✅ Personal delivery available for ${artisanData.artisan.artisanName}: ${distance.toFixed(1)}km <= ${deliveryRadius}km`);
             }
           }
         }
       });
 
-      // Update delivery options and selected methods if there were changes
-      if (hasInvalidDelivery || Object.keys(validationResults).length > 0) {
-        setDeliveryOptions(updatedDeliveryOptions);
-        setSelectedDeliveryMethods(updatedSelectedMethods);
-      }
+      // Don't automatically change delivery options or selected methods
+      // Let the user see the validation results and decide what to do
 
       return {
         valid: !hasInvalidDelivery,
@@ -1029,6 +1035,35 @@ const Cart = () => {
               
               const validation = await validateDeliveryAddress(updatedForm);
               setDeliveryValidationResults(validation.results || {});
+              
+              // If any personal delivery becomes invalid, auto-switch to pickup or professional delivery
+              if (validation.results) {
+                const updatedMethods = { ...selectedDeliveryMethods };
+                let methodsChanged = false;
+                
+                Object.entries(validation.results).forEach(([artisanId, result]) => {
+                  if (!result.valid && selectedDeliveryMethods[artisanId] === 'personalDelivery') {
+                    // Switch to pickup if available, otherwise professional delivery
+                    if (deliveryOptions[artisanId]?.pickup?.available) {
+                      updatedMethods[artisanId] = 'pickup';
+                      methodsChanged = true;
+                      console.log(`🔄 Switched ${result.artisanName} to pickup due to invalid personal delivery`);
+                    } else if (deliveryOptions[artisanId]?.professionalDelivery?.available) {
+                      updatedMethods[artisanId] = 'professionalDelivery';
+                      methodsChanged = true;
+                      console.log(`🔄 Switched ${result.artisanName} to professional delivery due to invalid personal delivery`);
+                    } else {
+                      delete updatedMethods[artisanId];
+                      methodsChanged = true;
+                      console.log(`🔄 Removed delivery method for ${result.artisanName} - no valid options available`);
+                    }
+                  }
+                });
+                
+                if (methodsChanged) {
+                  setSelectedDeliveryMethods(updatedMethods);
+                }
+              }
             }
           } catch (error) {
             console.error('❌ Error validating address:', error);
@@ -2083,7 +2118,11 @@ const Cart = () => {
                         )}
                         
                         {deliveryOptions[artisanId]?.personalDelivery?.available ? (
-                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 transition-colors cursor-pointer">
+                          <label className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors cursor-pointer ${
+                            deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid
+                              ? 'border-red-200 bg-red-50 hover:border-red-300'
+                              : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
+                          }`}>
                             <input
                               type="radio"
                               name={`delivery-${artisanId}`}
@@ -2091,12 +2130,21 @@ const Cart = () => {
                               checked={selectedDeliveryMethods[artisanId] === 'personalDelivery'}
                               onChange={() => handleDeliveryMethodChange(artisanId, 'personalDelivery')}
                               className="text-orange-600 w-4 h-4"
+                              disabled={deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid}
                             />
                             <div className="flex items-center gap-3">
-                              <TruckIcon className="w-5 h-5 text-orange-600" />
+                              <TruckIcon className={`w-5 h-5 ${
+                                deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid
+                                  ? 'text-red-400'
+                                  : 'text-orange-600'
+                              }`} />
                               <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                <span className="text-gray-900 font-medium">Personal Delivery</span>
+                                  <span className={`font-medium ${
+                                    deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid
+                                      ? 'text-red-700'
+                                      : 'text-gray-900'
+                                  }`}>Personal Delivery</span>
                                   <span className="text-gray-600 text-sm">
                                   ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
                                   {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 

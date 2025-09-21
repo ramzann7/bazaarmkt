@@ -1173,12 +1173,12 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
       instructions: profile.deliveryInstructions || ''
     },
     professionalDelivery: {
-      enabled: profile.deliveryOptions?.professionalDelivery?.enabled || false,
-      uberDirectEnabled: profile.deliveryOptions?.professionalDelivery?.uberDirectEnabled || false,
-      serviceRadius: profile.deliveryOptions?.professionalDelivery?.serviceRadius || 25,
-      regions: profile.deliveryOptions?.professionalDelivery?.regions || [],
-      packaging: profile.deliveryOptions?.professionalDelivery?.packaging || '',
-      restrictions: profile.deliveryOptions?.professionalDelivery?.restrictions || ''
+      enabled: profile.professionalDelivery?.enabled || false,
+      uberDirectEnabled: profile.professionalDelivery?.uberDirectEnabled || false,
+      serviceRadius: profile.professionalDelivery?.serviceRadius || 25,
+      regions: profile.professionalDelivery?.regions || [],
+      packaging: profile.professionalDelivery?.packaging || '',
+      restrictions: profile.professionalDelivery?.restrictions || ''
     }
   });
 
@@ -1221,12 +1221,12 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
           instructions: profile.deliveryInstructions || ''
         },
         professionalDelivery: {
-          enabled: profile.deliveryOptions?.professionalDelivery?.enabled || false,
-          uberDirectEnabled: profile.deliveryOptions?.professionalDelivery?.uberDirectEnabled || false,
-          serviceRadius: profile.deliveryOptions?.professionalDelivery?.serviceRadius || 25,
-          regions: profile.deliveryOptions?.professionalDelivery?.regions || [],
-          packaging: profile.deliveryOptions?.professionalDelivery?.packaging || '',
-          restrictions: profile.deliveryOptions?.professionalDelivery?.restrictions || ''
+          enabled: profile.professionalDelivery?.enabled || false,
+          uberDirectEnabled: profile.professionalDelivery?.uberDirectEnabled || false,
+          serviceRadius: profile.professionalDelivery?.serviceRadius || 25,
+          regions: profile.professionalDelivery?.regions || [],
+          packaging: profile.professionalDelivery?.packaging || '',
+          restrictions: profile.professionalDelivery?.restrictions || ''
         }
       });
     }

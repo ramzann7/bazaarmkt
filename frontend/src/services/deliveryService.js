@@ -202,15 +202,15 @@ export const deliveryService = {
         reason: personalDeliveryReason
       },
       professionalDelivery: {
-        available: options.professionalDelivery?.enabled || false,
+        available: artisan.professionalDelivery?.enabled || false,
         label: 'Professional Delivery',
         description: 'Professional delivery via Uber Direct',
         icon: '🚛',
-        uberDirectEnabled: options.professionalDelivery?.uberDirectEnabled || false,
-        serviceRadius: options.professionalDelivery?.serviceRadius || 25,
-        regions: options.professionalDelivery?.regions || [],
-        packaging: options.professionalDelivery?.packaging || '',
-        restrictions: options.professionalDelivery?.restrictions || ''
+        uberDirectEnabled: artisan.professionalDelivery?.uberDirectEnabled || false,
+        serviceRadius: artisan.professionalDelivery?.serviceRadius || 25,
+        regions: artisan.professionalDelivery?.regions || [],
+        packaging: artisan.professionalDelivery?.packaging || '',
+        restrictions: artisan.professionalDelivery?.restrictions || ''
       }
     };
   },

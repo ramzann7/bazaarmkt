@@ -166,7 +166,8 @@ const Cart = () => {
       return 0; // Free delivery
     } else if (selectedMethod === 'professionalDelivery' && artisanDeliveryOptions.professionalDelivery?.available) {
       // Calculate Uber Direct fee based on distance
-      return calculateUberDirectFee(artisanId);
+      const uberFee = await calculateUberDirectFee(artisanId);
+      return uberFee || 15; // Fallback fee if calculation fails
     }
     
     return 0; // Pickup is free
@@ -524,15 +525,13 @@ const Cart = () => {
       
       // Process each artisan's delivery options
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-        if (artisanData.artisan?.deliveryOptions) {
+        if (artisanData.artisan?.deliveryOptions || artisanData.artisan?.professionalDelivery) {
           // Use the delivery service to structure options with user location and artisan data
-          const processedOptions = deliveryService.structureDeliveryOptions(
-            artisanData.artisan.deliveryOptions, 
-            userLocation,
-            artisanData.artisan,
-            isGuest, // Pass guest status for proper validation
-            !isGuest && currentUserId // Pass patron status (authenticated but not guest)
+          const processedOptions = deliveryService.getDeliveryOptions(
+            artisanData.artisan, 
+            userLocation
           );
+          
           options[artisanId] = processedOptions;
           
           // Set default delivery method
@@ -541,7 +540,7 @@ const Cart = () => {
           } else if (processedOptions.personalDelivery?.available) {
             methods[artisanId] = 'personalDelivery';
           } else if (processedOptions.professionalDelivery?.available) {
-            methods[artisanId] = 'personalDelivery';
+            methods[artisanId] = 'professionalDelivery';
           }
         }
       });
@@ -880,6 +879,9 @@ const Cart = () => {
                   updatedSelectedMethods[artisanId] = 'pickup';
                 } else if (updatedDeliveryOptions[artisanId].professionalDelivery?.available) {
                   updatedSelectedMethods[artisanId] = 'professionalDelivery';
+                } else {
+                  // No delivery options available, disable delivery for this artisan
+                  delete updatedSelectedMethods[artisanId];
                 }
               }
             } else {

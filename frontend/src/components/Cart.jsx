@@ -557,29 +557,16 @@ const Cart = () => {
             professionalDeliveryData: processedOptions.professionalDelivery
           });
           
-          // Set default delivery method
-          if (processedOptions.pickup?.available) {
-            methods[artisanId] = 'pickup';
-          } else if (processedOptions.personalDelivery?.available) {
-            methods[artisanId] = 'personalDelivery';
-          } else if (processedOptions.professionalDelivery?.available) {
-            methods[artisanId] = 'professionalDelivery';
-          }
+          // Don't pre-select any delivery method - let user choose
+          // methods[artisanId] will remain undefined until user selects
         }
       });
       
       setDeliveryOptions(options);
       setSelectedDeliveryMethods(methods);
       
-      // Initialize pickup times for pickup orders
-      const initialPickupTimes = {};
-      Object.entries(methods).forEach(([artisanId, method]) => {
-        if (method === 'pickup') {
-          // Don't set a default pickup time, let user select
-          initialPickupTimes[artisanId] = null;
-        }
-      });
-      setSelectedPickupTimes(initialPickupTimes);
+      // Initialize pickup times - will be set when user selects pickup
+      setSelectedPickupTimes({});
       
     } catch (error) {
       console.error('❌ Error loading delivery options:', error);
@@ -1054,6 +1041,33 @@ const Cart = () => {
       console.log('🔍 Authenticated user proceeding to delivery');
       setCheckoutStep('delivery');
     } else if (checkoutStep === 'delivery') {
+      // Validate that delivery methods are selected for each artisan
+      const unselectedArtisans = [];
+      Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
+        if (!selectedDeliveryMethods[artisanId]) {
+          unselectedArtisans.push(artisanData.artisan?.artisanName || 'Unknown Artisan');
+        }
+      });
+      
+      if (unselectedArtisans.length > 0) {
+        toast.error(`Please select a delivery method for: ${unselectedArtisans.join(', ')}`);
+        return;
+      }
+      
+      // Validate pickup times for pickup orders
+      const missingPickupTimes = [];
+      Object.entries(selectedDeliveryMethods).forEach(([artisanId, method]) => {
+        if (method === 'pickup' && !selectedPickupTimes[artisanId]) {
+          const artisanName = cartByArtisan[artisanId]?.artisan?.artisanName || 'Unknown Artisan';
+          missingPickupTimes.push(artisanName);
+        }
+      });
+      
+      if (missingPickupTimes.length > 0) {
+        toast.error(`Please select a pickup time for: ${missingPickupTimes.join(', ')}`);
+        return;
+      }
+      
       if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
         toast.error('Please provide delivery address');
         return;
@@ -1464,7 +1478,7 @@ const Cart = () => {
 
   // Track if we've already loaded options for current cart state
   const loadedOptionsRef = React.useRef(null);
-  
+
   // Load delivery options when cart data or user location changes
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
@@ -1478,8 +1492,8 @@ const Cart = () => {
       if (loadedOptionsRef.current !== cartKey) {
         console.log('🔄 Loading delivery options for new cart state');
         loadedOptionsRef.current = cartKey;
-        loadDeliveryOptions();
-        loadPickupTimeWindows();
+      loadDeliveryOptions();
+      loadPickupTimeWindows();
       } else {
         console.log('🔄 Skipping delivery options load - already loaded for this cart state');
       }
@@ -1921,12 +1935,33 @@ const Cart = () => {
                             />
                             <div className="flex items-center gap-3">
                               <MapPinIcon className="w-5 h-5 text-green-600" />
-                              <div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
                                 <span className="text-gray-900 font-medium">Visit the Artisan</span>
-                                <span className="text-green-600 text-sm ml-2">(Free)</span>
-                                {deliveryOptions[artisanId]?.pickup?.instructions && (
-                                  <div className="text-xs text-gray-600 mt-1">
-                                    📋 {deliveryOptions[artisanId].pickup.instructions}
+                                  <span className="text-green-600 text-sm">(Free)</span>
+                                </div>
+                                
+                                {/* Show details only when selected */}
+                                {selectedDeliveryMethods[artisanId] === 'pickup' && (
+                                  <div className="mt-2 space-y-2">
+                                    {deliveryOptions[artisanId]?.pickup?.instructions && (
+                                      <div className="text-xs text-gray-600 bg-green-50 p-2 rounded">
+                                        📋 <strong>Pickup Instructions:</strong> {deliveryOptions[artisanId].pickup.instructions}
+                                      </div>
+                                    )}
+                                    {deliveryOptions[artisanId]?.pickup?.hours && (
+                                      <div className="text-xs text-gray-600 bg-green-50 p-2 rounded">
+                                        🕒 <strong>Pickup Hours:</strong> {deliveryOptions[artisanId].pickup.hours}
+                                      </div>
+                                    )}
+                                    {deliveryOptions[artisanId]?.pickup?.address && (
+                                      <div className="text-xs text-gray-600 bg-green-50 p-2 rounded">
+                                        📍 <strong>Pickup Location:</strong> {deliveryOptions[artisanId].pickup.address}
+                                      </div>
+                                    )}
+                                    <div className="text-xs text-green-700 bg-green-100 p-2 rounded border border-green-200">
+                                      ✅ <strong>No additional requirements needed</strong> - You can pickup at your convenience during business hours
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -2004,23 +2039,45 @@ const Cart = () => {
                             />
                             <div className="flex items-center gap-3">
                               <TruckIcon className="w-5 h-5 text-orange-600" />
-                              <div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
                                 <span className="text-gray-900 font-medium">Personal Delivery</span>
-                                <span className="text-gray-600 text-sm ml-2">
+                                  <span className="text-gray-600 text-sm">
                                   ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
                                   {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
                                     ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
                                   }
                                 </span>
-                                <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                                  ✅ {deliveryOptions[artisanId]?.personalDelivery?.reason}
-                                  <span className="text-gray-500">
-                                    • {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
-                                  </span>
                                 </div>
-                                {deliveryOptions[artisanId]?.personalDelivery?.instructions && (
-                                  <div className="text-xs text-gray-600 mt-1">
-                                    📋 {deliveryOptions[artisanId].personalDelivery.instructions}
+                                
+                                {/* Show details only when selected */}
+                                {selectedDeliveryMethods[artisanId] === 'personalDelivery' && (
+                                  <div className="mt-2 space-y-2">
+                                    <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
+                                      📍 <strong>Address Required:</strong> Enter your delivery address below to confirm availability within {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
+                                    </div>
+                                    
+                                    {deliveryOptions[artisanId]?.personalDelivery?.instructions && (
+                                      <div className="text-xs text-gray-600 bg-orange-50 p-2 rounded">
+                                        📋 <strong>Delivery Instructions:</strong> {deliveryOptions[artisanId].personalDelivery.instructions}
+                                      </div>
+                                    )}
+                                    
+                                    <div className="text-xs text-orange-700 bg-orange-50 p-2 rounded border border-orange-200">
+                                      💰 <strong>Delivery Fee:</strong> 
+                                      {deliveryOptions[artisanId]?.personalDelivery?.fee > 0 ? (
+                                        <> ${deliveryOptions[artisanId]?.personalDelivery?.fee} 
+                                        {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
+                                          <> (Free on orders over ${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})</>
+                                        }</>
+                                      ) : (
+                                        <> Free delivery</>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
+                                      ✅ <strong>Availability:</strong> {deliveryOptions[artisanId]?.personalDelivery?.reason}
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -2062,37 +2119,59 @@ const Cart = () => {
                             />
                             <div className="flex items-center gap-3">
                               <ShieldCheckIcon className="w-5 h-5 text-purple-600" />
-                              <div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
                                 <span className="text-gray-900 font-medium">Professional Delivery</span>
-                                <div className="text-sm text-gray-600 mt-1">
-                                  {loadingUberQuotes.has(artisanId) ? (
-                                    <span className="flex items-center gap-1">
-                                      <div className="w-3 h-3 border border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
-                                      Getting quote...
-                                    </span>
-                                  ) : uberDirectQuotes[artisanId] ? (
-                                    <span className="flex items-center gap-2">
-                                      🚛 ${uberDirectQuotes[artisanId].fee}
-                                      {uberDirectQuotes[artisanId].estimated && (
-                                        <span className="text-xs text-orange-600">(estimated)</span>
-                                      )}
-                                      {uberDirectQuotes[artisanId].duration && (
-                                        <span className="text-xs text-gray-500">• {uberDirectQuotes[artisanId].duration} min</span>
-                                      )}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-500">Uber Direct - Quote on selection</span>
-                                  )}
+                                  <span className="text-gray-500 text-sm">(Uber Direct)</span>
                                 </div>
-                                {(deliveryOptions[artisanId]?.professionalDelivery?.packaging || 
-                                  deliveryOptions[artisanId]?.professionalDelivery?.restrictions) && (
-                                  <div className="text-xs text-gray-600 mt-1">
-                                    {deliveryOptions[artisanId]?.professionalDelivery?.packaging && (
-                                      <div>📦 {deliveryOptions[artisanId].professionalDelivery.packaging}</div>
+                                
+                                {/* Show details only when selected */}
+                                {selectedDeliveryMethods[artisanId] === 'professionalDelivery' && (
+                                  <div className="mt-2 space-y-2">
+                                    <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
+                                      📍 <strong>Address Required:</strong> Enter your delivery address below to get an accurate quote and delivery time
+                                    </div>
+                                    
+                                    <div className="text-sm text-gray-600 bg-purple-50 p-2 rounded border border-purple-200">
+                                      {loadingUberQuotes.has(artisanId) ? (
+                                        <span className="flex items-center gap-2">
+                                          <div className="w-3 h-3 border border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
+                                          <span>Getting quote...</span>
+                                        </span>
+                                      ) : uberDirectQuotes[artisanId] ? (
+                                        <div className="flex items-center gap-2">
+                                          <span>🚛 <strong>${uberDirectQuotes[artisanId].fee}</strong></span>
+                                          {uberDirectQuotes[artisanId].estimated && (
+                                            <span className="text-xs text-orange-600">(estimated)</span>
+                                          )}
+                                          {uberDirectQuotes[artisanId].duration && (
+                                            <span className="text-xs text-gray-500">• {uberDirectQuotes[artisanId].duration} min</span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-600">Quote will be calculated after address entry</span>
+                                      )}
+                                    </div>
+                                    
+                                    {(deliveryOptions[artisanId]?.professionalDelivery?.packaging || 
+                                      deliveryOptions[artisanId]?.professionalDelivery?.restrictions) && (
+                                      <div className="space-y-1">
+                                        {deliveryOptions[artisanId]?.professionalDelivery?.packaging && (
+                                          <div className="text-xs text-gray-600 bg-purple-50 p-2 rounded">
+                                            📦 <strong>Packaging:</strong> {deliveryOptions[artisanId].professionalDelivery.packaging}
+                                          </div>
+                                        )}
+                                        {deliveryOptions[artisanId]?.professionalDelivery?.restrictions && (
+                                          <div className="text-xs text-gray-600 bg-purple-50 p-2 rounded">
+                                            ⚠️ <strong>Restrictions:</strong> {deliveryOptions[artisanId].professionalDelivery.restrictions}
+                                          </div>
+                                        )}
+                                      </div>
                                     )}
-                                    {deliveryOptions[artisanId]?.professionalDelivery?.restrictions && (
-                                      <div>⚠️ {deliveryOptions[artisanId].professionalDelivery.restrictions}</div>
-                                    )}
+                                    
+                                    <div className="text-xs text-purple-700 bg-purple-100 p-2 rounded border border-purple-200">
+                                      🚛 <strong>Professional Service:</strong> Reliable delivery with tracking and insurance coverage
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -2100,6 +2179,18 @@ const Cart = () => {
                           </label>
                         )}
                       </div>
+                      
+                      {/* Show selection status */}
+                      {!selectedDeliveryMethods[artisanId] && (
+                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600" />
+                            <span className="text-sm text-yellow-800 font-medium">
+                              Please select a delivery method above
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

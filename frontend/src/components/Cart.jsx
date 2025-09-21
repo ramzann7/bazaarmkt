@@ -512,7 +512,7 @@ const Cart = () => {
   };
 
   // Load delivery options - completely rebuilt
-  const loadDeliveryOptions = async () => {
+  const loadDeliveryOptions = React.useCallback(async () => {
     if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
       return;
     }
@@ -586,7 +586,7 @@ const Cart = () => {
     } finally {
       setDeliveryOptionsLoading(false);
     }
-  };
+  }, [cartByArtisan, userLocation, userProfile, deliveryForm.street, deliveryForm.city, deliveryForm.state, deliveryForm.zipCode]);
 
   // Load user profile
   const loadUserProfile = async () => {
@@ -717,7 +717,7 @@ const Cart = () => {
   };
 
   // Load pickup time windows for artisans
-  const loadPickupTimeWindows = async () => {
+  const loadPickupTimeWindows = React.useCallback(async () => {
     if (!cartByArtisan || Object.keys(cartByArtisan).length === 0) {
       return;
     }
@@ -777,7 +777,7 @@ const Cart = () => {
     } catch (error) {
       console.error('Error loading pickup time windows:', error);
     }
-  };
+  }, [cartByArtisan]);
 
   // Handle delivery method selection
   const handleDeliveryMethodChange = async (artisanId, method) => {
@@ -1468,15 +1468,7 @@ const Cart = () => {
       loadDeliveryOptions();
       loadPickupTimeWindows();
     }
-  }, [cartByArtisan, userLocation]);
-
-  // Re-validate delivery options when delivery address changes
-  useEffect(() => {
-    if (Object.keys(cartByArtisan).length > 0 && (deliveryForm.street || deliveryForm.city)) {
-      console.log('🔄 Delivery address changed, re-validating delivery options');
-      loadDeliveryOptions();
-    }
-  }, [deliveryForm.street, deliveryForm.city, deliveryForm.state, deliveryForm.zipCode]);
+  }, [cartByArtisan, userLocation, loadDeliveryOptions, loadPickupTimeWindows]);
 
   // Load user profile immediately when user is authenticated
   useEffect(() => {

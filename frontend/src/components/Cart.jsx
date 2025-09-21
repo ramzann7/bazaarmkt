@@ -145,7 +145,7 @@ const Cart = () => {
   };
 
   // Helper function to get delivery fee for a specific artisan
-  const getDeliveryFeeForArtisan = (artisanId) => {
+  const getDeliveryFeeForArtisan = async (artisanId) => {
     const selectedMethod = selectedDeliveryMethods[artisanId];
     const artisanDeliveryOptions = deliveryOptions[artisanId];
     
@@ -387,20 +387,20 @@ const Cart = () => {
   };
 
   // Get total delivery fees across all artisans
-  const getTotalDeliveryFees = () => {
+  const getTotalDeliveryFees = async () => {
     let totalFees = 0;
     
-    Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-      totalFees += getDeliveryFeeForArtisan(artisanId);
-    });
+    for (const [artisanId, artisanData] of Object.entries(cartByArtisan)) {
+      totalFees += await getDeliveryFeeForArtisan(artisanId);
+    }
     
     return totalFees;
   };
 
   // Get total amount including delivery fees
-  const getTotalAmount = () => {
+  const getTotalAmount = async () => {
     const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    const deliveryFees = getTotalDeliveryFees();
+    const deliveryFees = await getTotalDeliveryFees();
     return subtotal + deliveryFees;
   };
 
@@ -2392,8 +2392,13 @@ const Cart = () => {
                   </h3>
                   <div className="space-y-3">
                     {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
-                      const deliveryFee = getDeliveryFeeForArtisan(artisanId);
                       const selectedMethod = selectedDeliveryMethods[artisanId];
+                      // For display purposes, use synchronous calculation or cached values
+                      const deliveryFee = selectedMethod === 'personalDelivery' ? 
+                        (artisanData.subtotal >= (deliveryOptions[artisanId]?.personalDelivery?.freeThreshold || 0) ? 0 : 
+                         deliveryOptions[artisanId]?.personalDelivery?.fee || 0) : 
+                        selectedMethod === 'professionalDelivery' ? 
+                          (uberDirectQuotes[artisanId]?.fee || 15) : 0;
                       
                       return (
                         <div key={artisanId} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -2407,7 +2412,7 @@ const Cart = () => {
                             {selectedMethod === 'pickup' ? 'Free Pickup' : 
                              selectedMethod === 'personalDelivery' ? 
                                (deliveryFee > 0 ? `$${deliveryFee}` : 'Free Delivery') :
-                             selectedMethod === 'professionalDelivery' ? '$15' : 'Not Selected'
+                             selectedMethod === 'professionalDelivery' ? `$${uberDirectQuotes[artisanId]?.fee || 15}` : 'Not Selected'
                             }
                           </span>
                         </div>
@@ -2416,7 +2421,19 @@ const Cart = () => {
                     <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between items-center">
                         <span className="font-semibold text-gray-800">Total Delivery:</span>
-                        <span className="font-bold text-lg text-gray-900">{formatPrice(getTotalDeliveryFees())}</span>
+                        <span className="font-bold text-lg text-gray-900">{formatPrice(
+                          Object.entries(cartByArtisan).reduce((total, [artisanId, artisanData]) => {
+                            const selectedMethod = selectedDeliveryMethods[artisanId];
+                            if (selectedMethod === 'personalDelivery') {
+                              const fee = deliveryOptions[artisanId]?.personalDelivery?.fee || 0;
+                              const freeThreshold = deliveryOptions[artisanId]?.personalDelivery?.freeThreshold || 0;
+                              return total + (artisanData.subtotal < freeThreshold ? fee : 0);
+                            } else if (selectedMethod === 'professionalDelivery') {
+                              return total + (uberDirectQuotes[artisanId]?.fee || 15);
+                            }
+                            return total;
+                          }, 0)
+                        )}</span>
                       </div>
                     </div>
                   </div>

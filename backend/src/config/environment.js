@@ -129,6 +129,15 @@ export const config = {
     redis: {
       url: process.env.REDIS_URL || 'redis://localhost:6379',
       enabled: !!process.env.REDIS_URL
+    },
+    uberDirect: {
+      clientId: process.env.UBER_DIRECT_CLIENT_ID,
+      clientSecret: process.env.UBER_DIRECT_CLIENT_SECRET,
+      customerId: process.env.UBER_DIRECT_CUSTOMER_ID,
+      serverToken: process.env.UBER_DIRECT_SERVER_TOKEN,
+      baseURL: process.env.UBER_DIRECT_BASE_URL || 'https://api.uber.com',
+      sandboxURL: 'https://sandbox-api.uber.com',
+      enabled: !!(process.env.UBER_DIRECT_CLIENT_ID && process.env.UBER_DIRECT_CLIENT_SECRET && process.env.UBER_DIRECT_CUSTOMER_ID)
     }
   },
 

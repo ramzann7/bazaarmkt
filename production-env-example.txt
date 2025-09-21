@@ -20,9 +20,11 @@ STRIPE_PUBLISHABLE_KEY=pk_live_your_stripe_publishable_key
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 
 # Uber Direct (if using)
-UBER_DIRECT_CLIENT_ID=your_uber_client_id
-UBER_DIRECT_CLIENT_SECRET=your_uber_client_secret
-UBER_DIRECT_SANDBOX_TOKEN=your_uber_sandbox_token
+UBER_DIRECT_CLIENT_ID=YjCWnouSZ9vEKtMLLRx_EL0WPt8eOw85
+UBER_DIRECT_CLIENT_SECRET=YOUR_UBER_DIRECT_CLIENT_SECRET
+UBER_DIRECT_CUSTOMER_ID=26513d78-04aa-4ed7-8340-a21b36398b4d
+UBER_DIRECT_SERVER_TOKEN=YOUR_UBER_DIRECT_SERVER_TOKEN
+UBER_DIRECT_BASE_URL=https://api.uber.com
 
 # Google Maps (if using)
 GOOGLE_MAPS_API_KEY=your_google_maps_api_key

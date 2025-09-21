@@ -5,14 +5,23 @@ class UberDirectService {
   constructor() {
     this.baseURL = process.env.UBER_DIRECT_BASE_URL || 'https://api.uber.com';
     this.sandboxURL = 'https://sandbox-api.uber.com';
-    this.clientId = process.env.UBER_DIRECT_CLIENT_ID;
+    this.clientId = process.env.UBER_DIRECT_CLIENT_ID || 'YjCWnouSZ9vEKtMLLRx_EL0WPt8eOw85';
     this.clientSecret = process.env.UBER_DIRECT_CLIENT_SECRET;
-    this.customerId = process.env.UBER_DIRECT_CUSTOMER_ID;
+    this.customerId = process.env.UBER_DIRECT_CUSTOMER_ID || '26513d78-04aa-4ed7-8340-a21b36398b4d';
     this.serverToken = process.env.UBER_DIRECT_SERVER_TOKEN;
     this.environment = process.env.NODE_ENV === 'production' ? 'production' : 'sandbox';
     
     // Use sandbox URL for development
     this.apiURL = this.environment === 'production' ? this.baseURL : this.sandboxURL;
+    
+    console.log('🚛 Uber Direct Service initialized:', {
+      clientId: this.clientId,
+      customerId: this.customerId,
+      environment: this.environment,
+      apiURL: this.apiURL,
+      hasClientSecret: !!this.clientSecret,
+      hasServerToken: !!this.serverToken
+    });
   }
 
   /**

@@ -523,13 +523,29 @@ const Cart = () => {
       const options = {};
       const methods = {};
       
+      // Determine user type and delivery address status
+      const isGuestUser = !user || user.role === 'guest';
+      const isPatronUser = user && user.role === 'patron';
+      const hasDeliveryAddress = deliveryForm && (deliveryForm.street || deliveryForm.city);
+      
+      console.log('🔄 Loading delivery options with context:', {
+        isGuestUser,
+        isPatronUser,
+        hasDeliveryAddress,
+        userLocation,
+        deliveryForm
+      });
+      
       // Process each artisan's delivery options
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
         if (artisanData.artisan?.deliveryOptions || artisanData.artisan?.professionalDelivery) {
           // Use the delivery service to structure options with user location and artisan data
           const processedOptions = deliveryService.getDeliveryOptions(
             artisanData.artisan, 
-            userLocation
+            userLocation,
+            isGuestUser,
+            isPatronUser,
+            hasDeliveryAddress
           );
           
           options[artisanId] = processedOptions;
@@ -1446,6 +1462,14 @@ const Cart = () => {
       loadPickupTimeWindows();
     }
   }, [cartByArtisan, userLocation]);
+
+  // Re-validate delivery options when delivery address changes
+  useEffect(() => {
+    if (Object.keys(cartByArtisan).length > 0 && (deliveryForm.street || deliveryForm.city)) {
+      console.log('🔄 Delivery address changed, re-validating delivery options');
+      loadDeliveryOptions();
+    }
+  }, [deliveryForm.street, deliveryForm.city, deliveryForm.state, deliveryForm.zipCode]);
 
   // Load user profile immediately when user is authenticated
   useEffect(() => {

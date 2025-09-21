@@ -83,10 +83,13 @@ export const deliveryService = {
   },
 
   // Get delivery options for an artisan
-  getDeliveryOptions: (artisan, userLocation = null) => {
+  getDeliveryOptions: (artisan, userLocation = null, isGuestUser = false, isPatronUser = false, hasDeliveryAddress = false) => {
     console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan);
     console.log('🔄 Artisan deliveryOptions:', artisan.deliveryOptions);
     console.log('🔄 User location:', userLocation);
+    console.log('🔄 Is guest user:', isGuestUser);
+    console.log('🔄 Is patron user:', isPatronUser);
+    console.log('🔄 Has delivery address:', hasDeliveryAddress);
     
     const options = artisan.deliveryOptions || {
       pickup: true,
@@ -164,6 +167,17 @@ export const deliveryService = {
         } else {
           personalDeliveryAvailable = false;
           personalDeliveryReason = 'Artisan location not available for distance calculation';
+        }
+      } else if (isGuestUser || isPatronUser) {
+        // For guest users and patrons, show personal delivery as available but pending address validation
+        if (hasDeliveryAddress) {
+          // If they have a delivery address but no location, we need to geocode it
+          personalDeliveryAvailable = true;
+          personalDeliveryReason = `Available within ${options.deliveryRadius}km radius (address validation required)`;
+        } else {
+          // Show as available initially, will be validated when address is provided
+          personalDeliveryAvailable = true;
+          personalDeliveryReason = `Available within ${options.deliveryRadius}km radius`;
         }
       } else {
         personalDeliveryAvailable = false;

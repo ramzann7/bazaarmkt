@@ -240,8 +240,11 @@ Great news! Your order ${orderNumber} has been confirmed and is being prepared b
 ORDER DETAILS:
 • Order Number: ${orderNumber}
 • Order Date: ${orderDate}
+• Product Total: $${(orderDetails?.orderTotal - (orderDetails?.deliveryFee || 0)).toFixed(2)}
+${orderDetails?.deliveryFee && orderDetails.deliveryFee > 0 ? `• Delivery Fee: $${orderDetails.deliveryFee.toFixed(2)}` : ''}
 • Total Amount: ${orderTotal}
 • Artisan: ${artisanName}
+• Delivery Method: ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : orderDetails?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 'Professional Delivery'}
 • Estimated Delivery: ${estimatedDelivery}
 
 ORDER ITEMS:

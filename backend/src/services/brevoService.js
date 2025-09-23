@@ -132,10 +132,12 @@ const generateOrderEmailContent = (type, orderDetails, orderId) => {
           <ul style="margin: 0; padding-left: 20px;">
             <li><strong>Order Number:</strong> ${orderNumber}</li>
             <li><strong>Order Date:</strong> ${orderDate}</li>
+            <li><strong>Product Total:</strong> $${(orderTotal - (orderDetails?.deliveryFee || 0)).toFixed(2)}</li>
+            ${orderDetails?.deliveryFee && orderDetails.deliveryFee > 0 ? `<li><strong>Delivery Fee:</strong> $${orderDetails.deliveryFee.toFixed(2)}</li>` : ''}
             <li><strong>Total Amount:</strong> $${orderTotal}</li>
             <li><strong>Artisan:</strong> ${artisanName}</li>
             <li><strong>Current Status:</strong> ${statusContent.currentStatus}</li>
-            <li><strong>Delivery Method:</strong> ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : 'Delivery'}</li>
+            <li><strong>Delivery Method:</strong> ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : orderDetails?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 'Professional Delivery'}</li>
             ${orderDetails?.deliveryInstructions ? `<li><strong>Delivery Instructions:</strong> ${orderDetails.deliveryInstructions}</li>` : ''}
             ${orderDetails?.deliveryAddress ? `
               <li><strong>Delivery Address:</strong><br>
@@ -184,10 +186,12 @@ ${statusContent.message}
 ORDER DETAILS:
 • Order Number: ${orderNumber}
 • Order Date: ${orderDate}
+• Product Total: $${(orderTotal - (orderDetails?.deliveryFee || 0)).toFixed(2)}
+${orderDetails?.deliveryFee && orderDetails.deliveryFee > 0 ? `• Delivery Fee: $${orderDetails.deliveryFee.toFixed(2)}` : ''}
 • Total Amount: $${orderTotal}
 • Artisan: ${artisanName}
 • Current Status: ${statusContent.currentStatus}
-• Delivery Method: ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : 'Delivery'}
+• Delivery Method: ${orderDetails?.deliveryMethod === 'pickup' || orderDetails?.deliveryMethod === 'pickupOrder' ? 'Pickup' : orderDetails?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 'Professional Delivery'}
 ${orderDetails?.deliveryInstructions ? `• Delivery Instructions: ${orderDetails.deliveryInstructions}` : ''}
 ${orderDetails?.deliveryAddress ? `• Delivery Address: ${orderDetails.deliveryAddress.street}, ${orderDetails.deliveryAddress.city}, ${orderDetails.deliveryAddress.state} ${orderDetails.deliveryAddress.zipCode}, ${orderDetails.deliveryAddress.country}` : ''}
 

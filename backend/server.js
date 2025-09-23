@@ -116,6 +116,7 @@ const geographicSettingsRoutes = require('./src/routes/geographicSettings');
 const deliveryRoutes = require('./src/routes/delivery');
 const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
 const disputeManagementRoutes = require('./src/routes/disputeManagement');
+const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
 
 // Route middleware
 app.use('/api/auth', authRoutes);
@@ -140,6 +141,7 @@ app.use('/api/geographic-settings', geographicSettingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/order-confirmations', orderConfirmationRoutes);
 app.use('/api/disputes', disputeManagementRoutes);
+app.use('/api/delivery-revenue', deliveryRevenueRoutes);
 
 
 

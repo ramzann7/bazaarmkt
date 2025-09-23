@@ -101,9 +101,32 @@ export default function DashboardFixed() {
           order.status === 'delivered' || order.status === 'completed' || order.status === 'picked_up'
         );
         
+        // Calculate revenue breakdown
+        const productRevenue = completedOrders.reduce((sum, order) => {
+          const productAmount = (order.totalAmount || 0) - (order.deliveryFee || 0);
+          return sum + productAmount;
+        }, 0);
+        
+        const deliveryRevenue = completedOrders.reduce((sum, order) => {
+          // Only count personal delivery fees as revenue for artisan
+          if (order.deliveryMethod === 'personalDelivery' && order.deliveryFee > 0) {
+            return sum + order.deliveryFee;
+          }
+          return sum;
+        }, 0);
+        
+        const totalRevenue = productRevenue + deliveryRevenue;
+        
+        // Calculate earnings (product revenue after platform fee + 100% delivery revenue)
+        const platformFeeRate = 0.1; // 10% platform fee on products only
+        const totalEarnings = (productRevenue * (1 - platformFeeRate)) + deliveryRevenue;
+
         const stats = {
           totalOrders: ordersArray.length,
-          totalRevenue: completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
+          totalRevenue: totalRevenue,
+          productRevenue: productRevenue,
+          deliveryRevenue: deliveryRevenue,
+          totalEarnings: totalEarnings,
           totalProducts: 0,
           averageRating: ordersArray.length > 0 ? 
             ordersArray.reduce((sum, order) => sum + (order.rating || 0), 0) / ordersArray.length : 0,
@@ -382,25 +405,37 @@ export default function DashboardFixed() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Revenue & Earnings</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Total Revenue */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Product Revenue */}
             <div className="text-center p-6 bg-gray-50 rounded-xl">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
               </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(artisanStats.totalRevenue)}</p>
-              <p className="text-xs text-gray-500">From all orders</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">Product Revenue</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(artisanStats.productRevenue || 0)}</p>
+              <p className="text-xs text-gray-500">From product sales</p>
             </div>
             
-            {/* Your Earnings */}
+            {/* Delivery Revenue */}
+            <div className="text-center p-6 bg-gray-50 rounded-xl">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Delivery Revenue</p>
+              <p className="text-2xl font-bold text-orange-600">{formatCurrency(artisanStats.deliveryRevenue || 0)}</p>
+              <p className="text-xs text-gray-500">From personal delivery</p>
+            </div>
+            
+            {/* Total Earnings */}
             <div className="text-center p-6 bg-gray-50 rounded-xl">
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <CurrencyDollarIcon className="w-6 h-6 text-emerald-600" />
               </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Your Earnings</p>
-              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(artisanStats.totalRevenue * 0.9)}</p>
-              <p className="text-xs text-gray-500">90% after platform fees</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Earnings</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(artisanStats.totalEarnings || 0)}</p>
+              <p className="text-xs text-gray-500">After platform fees</p>
             </div>
 
             {/* Your Wallet */}
@@ -423,6 +458,64 @@ export default function DashboardFixed() {
             </div>
           </div>
         </div>
+
+        {/* Delivery Revenue Section */}
+        {artisanStats.deliveryRevenue > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Delivery Revenue</h2>
+              <Link
+                to="/delivery-revenue"
+                className="inline-flex items-center text-sm text-orange-600 hover:text-orange-700 font-medium"
+              >
+                View detailed analytics
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Personal Delivery Revenue */}
+              <div className="text-center p-6 bg-orange-50 rounded-xl">
+                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Personal Delivery</p>
+                <p className="text-2xl font-bold text-orange-600">{formatCurrency(artisanStats.deliveryRevenue)}</p>
+                <p className="text-xs text-gray-500">100% to your wallet</p>
+              </div>
+              
+              {/* Professional Delivery Revenue */}
+              <div className="text-center p-6 bg-blue-50 rounded-xl">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Professional Delivery</p>
+                <p className="text-2xl font-bold text-blue-600">$0.00</p>
+                <p className="text-xs text-gray-500">Goes to platform for Uber</p>
+              </div>
+              
+              {/* Delivery Insights */}
+              <div className="text-center p-6 bg-gray-50 rounded-xl">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Delivery Insights</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {artisanStats.deliveryRevenue > 0 ? 'Active' : 'No deliveries yet'}
+                </p>
+                <p className="text-xs text-gray-500">Track your delivery earnings</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

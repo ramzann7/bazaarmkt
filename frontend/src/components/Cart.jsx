@@ -1180,14 +1180,37 @@ const Cart = () => {
           const validation = await validateDeliveryAddress(addressToValidate);
           setDeliveryValidationResults(validation.results || {});
           
-          if (!validation.valid) {
+        console.log('🔍 Address validation results:', {
+          validation,
+          selectedDeliveryMethods,
+          validationResults: validation.results
+        });
+        
+        // Check if there are any invalid personal deliveries
+        const hasInvalidPersonalDeliveries = Object.entries(validation.results || {}).some(([artisanId, result]) => {
+          const selectedMethod = selectedDeliveryMethods[artisanId];
+          const isInvalid = selectedMethod === 'personalDelivery' && !result.valid;
+          console.log(`🔍 Checking artisan ${artisanId}:`, {
+            selectedMethod,
+            resultValid: result.valid,
+            isInvalid,
+            distance: result.distance,
+            radius: result.radius
+          });
+          return isInvalid;
+        });
+        
+        console.log('🔍 Has invalid personal deliveries:', hasInvalidPersonalDeliveries);
+        
+        if (!validation.valid || hasInvalidPersonalDeliveries) {
             // Check if it's a geocoding error
             if (validation.error) {
               toast.error(validation.error);
             } else {
               // Show error for each invalid delivery
               Object.entries(validation.results || {}).forEach(([artisanId, result]) => {
-                if (!result.valid) {
+              const selectedMethod = selectedDeliveryMethods[artisanId];
+              if (selectedMethod === 'personalDelivery' && !result.valid) {
                 toast.error(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away, but their delivery radius is only ${result.radius}km. Please choose pickup or professional delivery.`);
                 }
               });

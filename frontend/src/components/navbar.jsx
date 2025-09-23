@@ -360,7 +360,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <OptimizedLink to="/" className="flex items-center flex-shrink-0">
-            <Logo showText={true} className="w-16 h-16" textColor="text-white" />
+            <Logo showText={true} className="w-10 h-10" textColor="text-white" />
           </OptimizedLink>
 
           {/* Desktop Navigation */}

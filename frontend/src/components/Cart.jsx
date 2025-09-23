@@ -917,7 +917,10 @@ const Cart = () => {
 
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
         const artisanDeliveryOptions = deliveryOptions[artisanId];
-        if (artisanDeliveryOptions?.personalDelivery?.available) {
+        const selectedMethod = selectedDeliveryMethods[artisanId];
+        
+        // Only validate if personal delivery is selected for this artisan
+        if (selectedMethod === 'personalDelivery' && artisanDeliveryOptions?.personalDelivery?.available) {
           
           const artisanLat = artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
           const artisanLng = artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
@@ -946,7 +949,8 @@ const Cart = () => {
               distance: distance.toFixed(1),
               radius: deliveryRadius,
               isValid: isValid,
-              address: `${geocodedAddress.lat}, ${geocodedAddress.lng}`
+              address: `${geocodedAddress.lat}, ${geocodedAddress.lng}`,
+              selectedMethod: selectedMethod
             });
             
             if (!isValid) {
@@ -955,7 +959,11 @@ const Cart = () => {
             } else {
               console.log(`✅ Personal delivery available for ${artisanData.artisan.artisanName}: ${distance.toFixed(1)}km <= ${deliveryRadius}km`);
             }
-          }
+          } else {
+            console.log(`⚠️ No coordinates found for artisan ${artisanData.artisan.artisanName}`);
+              }
+            } else {
+          console.log(`🔍 Skipping validation for artisan ${artisanData.artisan.artisanName}: selectedMethod=${selectedMethod}, personalDeliveryAvailable=${artisanDeliveryOptions?.personalDelivery?.available}`);
         }
       });
 
@@ -1185,6 +1193,22 @@ const Cart = () => {
           selectedDeliveryMethods,
           validationResults: validation.results
         });
+        
+        // Debug: Log each validation result in detail
+        if (validation.results) {
+          Object.entries(validation.results).forEach(([artisanId, result]) => {
+            console.log(`🔍 Validation result for artisan ${artisanId}:`, {
+              result,
+              selectedMethod: selectedDeliveryMethods[artisanId],
+              isValid: result.valid,
+              distance: result.distance,
+              radius: result.radius,
+              artisanName: result.artisanName
+            });
+          });
+        } else {
+          console.log('🔍 No validation results found');
+        }
         
         // Check if there are any invalid personal deliveries
         const hasInvalidPersonalDeliveries = Object.entries(validation.results || {}).some(([artisanId, result]) => {

@@ -594,7 +594,7 @@ router.post('/guest', async (req, res) => {
         'Follow your favorite artisans for updates'
       ],
       contactInfo: {
-        supportEmail: 'support@bazaarmkt.ca',
+        supportEmail: 'support@bazaar.ca',
         supportPhone: '+1-800-BAZAR-MKT',
         helpCenter: 'https://help.bazaarmkt.ca'
       }
@@ -636,7 +636,7 @@ router.post('/guest', async (req, res) => {
       },
       followUpInfo,
       accountCreation: {
-        message: '🌟 Ready to unlock the full bazaarMKT experience?',
+        message: '🌟 Ready to unlock the full bazaar experience?',
         benefits: followUpInfo.benefits,
         cta: 'Create your free account now and start earning rewards!',
         registrationUrl: '/register',

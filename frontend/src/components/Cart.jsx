@@ -938,14 +938,19 @@ const Cart = () => {
           // Convert to numbers and validate
           const artisanLatNum = parseFloat(artisanLat);
           const artisanLngNum = parseFloat(artisanLng);
-          const geocodedLatNum = parseFloat(geocodedAddress.lat);
-          const geocodedLngNum = parseFloat(geocodedAddress.lng);
+          const geocodedLatNum = parseFloat(geocodedAddress.latitude || geocodedAddress.lat);
+          const geocodedLngNum = parseFloat(geocodedAddress.longitude || geocodedAddress.lng);
           
           if (artisanLat && artisanLng && !isNaN(artisanLatNum) && !isNaN(artisanLngNum) && !isNaN(geocodedLatNum) && !isNaN(geocodedLngNum)) {
             console.log(`🔍 Distance calculation inputs:`, {
-              geocodedAddress: { lat: geocodedAddress.lat, lng: geocodedAddress.lng },
+              geocodedAddress: { 
+                lat: geocodedAddress.lat, 
+                lng: geocodedAddress.lng,
+                latitude: geocodedAddress.latitude,
+                longitude: geocodedAddress.longitude
+              },
               artisanCoords: { lat: artisanLat, lng: artisanLng },
-              geocodedAddressType: typeof geocodedAddress.lat,
+              geocodedAddressType: typeof geocodedAddress.latitude,
               artisanLatType: typeof artisanLat,
               artisanLngType: typeof artisanLng,
               convertedCoords: { 
@@ -1018,8 +1023,9 @@ const Cart = () => {
             console.log(`⚠️ Invalid coordinates for artisan ${artisanData.artisan.artisanName}:`, {
               artisanLat,
               artisanLng,
-              geocodedLat: geocodedAddress.lat,
-              geocodedLng: geocodedAddress.lng,
+              geocodedLat: geocodedAddress.latitude || geocodedAddress.lat,
+              geocodedLng: geocodedAddress.longitude || geocodedAddress.lng,
+              geocodedAddressFull: geocodedAddress,
               artisanLatNum,
               artisanLngNum,
               geocodedLatNum,

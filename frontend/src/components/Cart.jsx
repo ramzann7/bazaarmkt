@@ -1133,14 +1133,20 @@ const Cart = () => {
                       updatedMethods[artisanId] = 'pickup';
                       methodsChanged = true;
                       console.log(`🔄 Switched ${result.artisanName} to pickup due to invalid personal delivery`);
+                      const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
+                      toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`);
                     } else if (deliveryOptions[artisanId]?.professionalDelivery?.available) {
                       updatedMethods[artisanId] = 'professionalDelivery';
                       methodsChanged = true;
                       console.log(`🔄 Switched ${result.artisanName} to professional delivery due to invalid personal delivery`);
+                      const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
+                      toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`);
                     } else {
                       delete updatedMethods[artisanId];
                       methodsChanged = true;
                       console.log(`🔄 Removed delivery method for ${result.artisanName} - no valid options available`);
+                      const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
+                      toast.error(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). No other delivery options available.`);
                     }
                   }
                 });

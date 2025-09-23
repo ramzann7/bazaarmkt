@@ -959,7 +959,15 @@ export const cartService = {
       });
       
       if (response.ok) {
-        return await response.json();
+        const artisanData = await response.json();
+        console.log('🔍 Fetched artisan data from backend:', {
+          artisanId,
+          artisanName: artisanData.artisanName,
+          address: artisanData.address,
+          coordinates: artisanData.coordinates,
+          fullData: artisanData
+        });
+        return artisanData;
       }
       
       if (response.status === 404) {

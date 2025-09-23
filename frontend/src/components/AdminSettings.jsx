@@ -28,7 +28,7 @@ export default function AdminSettings() {
 
   // Settings state
   const [platformSettings, setPlatformSettings] = useState({
-    siteName: 'BazaarMKT',
+    siteName: 'Bazaar',
     siteDescription: 'Connecting local artisans with customers',
     maintenanceMode: false,
     registrationEnabled: true,

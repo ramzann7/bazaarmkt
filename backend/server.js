@@ -147,7 +147,7 @@ app.use('/api/disputes', disputeManagementRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    message: 'bazaarMKT API is running',
+    message: 'bazaar API is running',
     timestamp: new Date().toISOString()
   });
 });

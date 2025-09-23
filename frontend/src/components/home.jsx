@@ -1060,7 +1060,7 @@ export default function Home() {
       <section className="py-16 bg-amber-50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose BazaarMKT?</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose Bazaar?</h2>
             <p className="text-lg text-gray-600">Supporting local artisans and bringing you authentic, quality products</p>
           </div>
           

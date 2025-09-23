@@ -2020,7 +2020,7 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
       </div>
       
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h4 className="font-medium text-blue-900 mb-2">Welcome to BazaarMKT!</h4>
+        <h4 className="font-medium text-blue-900 mb-2">Welcome to Bazaar!</h4>
         <p className="text-blue-700 mb-4">
           {isArtisan 
             ? "Complete your profile setup to start selling your products. Please fill in the following sections:"

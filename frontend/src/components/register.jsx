@@ -314,7 +314,7 @@ export default function Register() {
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <Logo showText={false} className="w-20 h-20" />
           </div>
-                      <h2 className="text-4xl font-bold text-gray-900 mb-2">Join BazaarMKT</h2>
+                      <h2 className="text-4xl font-bold text-gray-900 mb-2">Join Bazaar</h2>
           <p className="text-gray-600 text-lg">Create your account and start your journey</p>
         </div>
 
@@ -573,7 +573,7 @@ export default function Register() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> BazaarMKT is currently available in Canada. 
+                  <strong>Note:</strong> Bazaar is currently available in Canada. 
                   Please provide a complete and accurate Canadian address to register.
                 </p>
               </div>
@@ -727,7 +727,7 @@ export default function Register() {
           {/* Business Benefits */}
           {formData.role === 'artisan' && (
             <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-amber-200">
-              <h4 className="font-semibold text-stone-800 mb-2">Why sell on BazaarMKT?</h4>
+              <h4 className="font-semibold text-stone-800 mb-2">Why sell on Bazaar?</h4>
               <ul className="text-sm text-stone-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>

@@ -23,9 +23,9 @@ const Logo = ({ className = 'w-8 h-8', showText = true, textColor = 'text-white'
         <circle cx="165" cy="155" r="6" fill="#FFD37A"/>
         
         {/* Wordmark */}
-        <text x="150" y="245" textAnchor="middle" fontFamily="Inter, Arial, sans-serif" fontSize="26" fill="#3A3A3A" fontWeight="700">BazaarMKT</text>
+        <text x="150" y="245" textAnchor="middle" fontFamily="Inter, Arial, sans-serif" fontSize="26" fill="#3A3A3A" fontWeight="700">Bazaar</text>
       </svg>
-      {showText && <span className={`text-lg sm:text-xl font-bold tracking-wide ${textColor}`}>BazaarMKT</span>}
+      {showText && <span className={`text-lg sm:text-xl font-bold tracking-wide ${textColor}`}>Bazaar</span>}
     </div>
   );
 };

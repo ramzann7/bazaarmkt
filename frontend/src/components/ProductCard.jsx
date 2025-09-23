@@ -107,16 +107,16 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`group relative bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-gray-300'} ${className}`}
+        className={`group relative rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${className}`}
         onClick={handleProductClick}
         title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : "Select this artisan product"}
       >
-        {/* Image container */}
-        <div className="relative aspect-square overflow-hidden bg-gray-50">
+        {/* Product Image */}
+        <div className="relative w-full h-56 overflow-hidden">
           <img
             src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
             alt={product.name}
-            className={`w-full h-full object-cover transition-transform duration-200 group-hover:scale-105 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
             loading="lazy"
             onError={(e) => {
               e.target.style.display = 'none';

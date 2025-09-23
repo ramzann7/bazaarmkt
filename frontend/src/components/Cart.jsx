@@ -831,7 +831,13 @@ const Cart = () => {
             }));
             console.log(`🔄 Switched ${result.artisanName} to pickup due to invalid personal delivery`);
             const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-            toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`);
+            toast(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`, {
+              icon: '⚠️',
+              style: {
+                background: '#fef3c7',
+                color: '#92400e',
+              },
+            });
           } else if (deliveryOptions[artisanId]?.professionalDelivery?.available) {
             setSelectedDeliveryMethods(prev => ({
               ...prev,
@@ -839,7 +845,13 @@ const Cart = () => {
             }));
             console.log(`🔄 Switched ${result.artisanName} to professional delivery due to invalid personal delivery`);
             const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-            toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`);
+            toast(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`, {
+              icon: '⚠️',
+              style: {
+                background: '#fef3c7',
+                color: '#92400e',
+              },
+            });
           } else {
             setSelectedDeliveryMethods(prev => {
               const updated = { ...prev };
@@ -1134,13 +1146,25 @@ const Cart = () => {
                       methodsChanged = true;
                       console.log(`🔄 Switched ${result.artisanName} to pickup due to invalid personal delivery`);
                       const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-                      toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`);
+                      toast(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`, {
+                        icon: '⚠️',
+                        style: {
+                          background: '#fef3c7',
+                          color: '#92400e',
+                        },
+                      });
                     } else if (deliveryOptions[artisanId]?.professionalDelivery?.available) {
                       updatedMethods[artisanId] = 'professionalDelivery';
                       methodsChanged = true;
                       console.log(`🔄 Switched ${result.artisanName} to professional delivery due to invalid personal delivery`);
                       const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-                      toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`);
+                      toast(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`, {
+                        icon: '⚠️',
+                        style: {
+                          background: '#fef3c7',
+                          color: '#92400e',
+                        },
+                      });
                     } else {
                       delete updatedMethods[artisanId];
                       methodsChanged = true;

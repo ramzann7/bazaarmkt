@@ -929,8 +929,8 @@ const Cart = () => {
             fullArtisanData: artisanData.artisan
           });
           
-          const artisanLat = artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
-          const artisanLng = artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
+          const artisanLat = artisanData.artisan?.address?.lat || artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
+          const artisanLng = artisanData.artisan?.address?.lng || artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
           
           if (artisanLat && artisanLng) {
             const distance = deliveryService.calculateDistance(

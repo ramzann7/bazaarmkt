@@ -922,6 +922,13 @@ const Cart = () => {
         // Only validate if personal delivery is selected for this artisan
         if (selectedMethod === 'personalDelivery' && artisanDeliveryOptions?.personalDelivery?.available) {
           
+          console.log(`🔍 Artisan data for ${artisanData.artisan.artisanName}:`, {
+            artisan: artisanData.artisan,
+            address: artisanData.artisan?.address,
+            coordinates: artisanData.artisan?.coordinates,
+            fullArtisanData: artisanData.artisan
+          });
+          
           const artisanLat = artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
           const artisanLng = artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
           

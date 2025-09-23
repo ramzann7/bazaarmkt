@@ -549,6 +549,7 @@ export const cartService = {
                   restrictions: ''
                 },
                 address: latestArtisanData.address,
+                coordinates: latestArtisanData.coordinates,
                 pickupLocation: latestArtisanData.pickupLocation,
                 pickupInstructions: latestArtisanData.pickupInstructions,
                 pickupHours: latestArtisanData.pickupHours,
@@ -580,7 +581,9 @@ export const cartService = {
                   regions: [],
                   packaging: '',
                   restrictions: ''
-                }
+                },
+                address: fallbackItem.artisan?.address,
+                coordinates: fallbackItem.artisan?.coordinates
               },
               items: group.items,
               subtotal: group.items.reduce((total, item) => total + (parseFloat(item.price) * parseInt(item.quantity)), 0)

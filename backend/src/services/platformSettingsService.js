@@ -39,7 +39,7 @@ class PlatformSettingsService {
           payoutDelay: 7
         },
         platformInfo: {
-          name: 'bazaarMKT',
+          name: 'bazaar',
           supportEmail: 'support@thebazaar.com'
         },
         features: {

@@ -29,7 +29,7 @@ const sendTransactionalEmail = async (emailData) => {
 
     const payload = {
       sender: {
-        name: 'bazaarMKT',
+        name: 'bazaar',
         email: 'noreply@bazaarmkt.ca'
       },
       to: [
@@ -47,7 +47,7 @@ const sendTransactionalEmail = async (emailData) => {
     if (emailData.replyTo) {
       payload.replyTo = {
         email: emailData.replyTo,
-        name: 'bazaarMKT Support'
+        name: 'bazaar Support'
       };
     }
 
@@ -116,7 +116,7 @@ const generateOrderEmailContent = (type, orderDetails, orderId) => {
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h1 style="color: #007bff; margin: 0 0 10px 0;">bazaarMKT</h1>
+        <h1 style="color: #007bff; margin: 0 0 10px 0;">bazaar</h1>
         <p style="margin: 0; color: #666;">Supporting Local Artisans</p>
       </div>
       
@@ -161,9 +161,9 @@ const generateOrderEmailContent = (type, orderDetails, orderId) => {
           </ul>
         </div>
         
-        <p>Thank you for choosing bazaarMKT and supporting local artisans!</p>
+        <p>Thank you for choosing bazaar and supporting local artisans!</p>
         
-        <p>Best regards,<br>The bazaarMKT Team</p>
+        <p>Best regards,<br>The bazaar Team</p>
       </div>
       
       <div style="text-align: center; margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
@@ -196,10 +196,10 @@ ${itemsList}
 
 ${statusContent.nextSteps.map(step => `• ${step}`).join('\n')}
 
-Thank you for choosing bazaarMKT and supporting local artisans!
+Thank you for choosing bazaar and supporting local artisans!
 
 Best regards,
-The bazaarMKT Team
+The bazaar Team
 
 ---
 This is an automated notification. Please do not reply to this email.
@@ -222,7 +222,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
   
   const statusMap = {
     'order_confirmed': {
-      subject: `Order Confirmed - ${orderNumber} - bazaarMKT`,
+      subject: `Order Confirmed - ${orderNumber} - bazaar`,
       title: 'Order Confirmed!',
       message: `Great news! Your order ${orderNumber} has been confirmed and is being prepared by ${artisanName}.`,
       currentStatus: 'Confirmed',
@@ -233,7 +233,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_preparing': {
-      subject: `Order Being Prepared - ${orderNumber} - bazaarMKT`,
+      subject: `Order Being Prepared - ${orderNumber} - bazaar`,
       title: 'Order Being Prepared',
       message: `Your order ${orderNumber} is now being prepared by ${artisanName}.`,
       currentStatus: 'Preparing',
@@ -244,7 +244,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_ready_for_pickup': {
-      subject: `Order Ready for Pickup - ${orderNumber} - bazaarMKT`,
+      subject: `Order Ready for Pickup - ${orderNumber} - bazaar`,
       title: 'Order Ready for Pickup!',
       message: `Your order ${orderNumber} is ready for pickup! Please come to collect your order from ${artisanName}.`,
       currentStatus: 'Ready for Pickup',
@@ -255,7 +255,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_ready_for_delivery': {
-      subject: `Order Ready for Delivery - ${orderNumber} - bazaarMKT`,
+      subject: `Order Ready for Delivery - ${orderNumber} - bazaar`,
       title: 'Order Ready for Delivery!',
       message: `Your order ${orderNumber} is ready for delivery! ${artisanName} will deliver it to you soon.${orderDetails?.travelTimeInfo ? ` Estimated travel time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       currentStatus: 'Ready for Delivery',
@@ -268,7 +268,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_out_for_delivery': {
-      subject: `Order Out for Delivery - ${orderNumber} - bazaarMKT`,
+      subject: `Order Out for Delivery - ${orderNumber} - bazaar`,
       title: 'Order Out for Delivery!',
       message: `Your order ${orderNumber} is out for delivery and on its way to you! ${artisanName} is bringing your order.${orderDetails?.travelTimeInfo ? ` Estimated travel time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       currentStatus: 'Out for Delivery',
@@ -281,7 +281,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_delivering': {
-      subject: `Order Being Delivered - ${orderNumber} - bazaarMKT`,
+      subject: `Order Being Delivered - ${orderNumber} - bazaar`,
       title: 'Order Being Delivered!',
       message: `Your order ${orderNumber} is currently being delivered by ${artisanName}.${orderDetails?.travelTimeInfo ? ` Estimated travel time: ${orderDetails.travelTimeInfo.estimatedTravelTime}.` : ' You should expect your product soon.'}`,
       currentStatus: 'Being Delivered',
@@ -294,7 +294,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_delivered': {
-      subject: `Order Delivered - ${orderNumber} - bazaarMKT`,
+      subject: `Order Delivered - ${orderNumber} - bazaar`,
       title: 'Order Delivered!',
       message: `Your order ${orderNumber} has been delivered successfully by ${artisanName}. Thank you for your order!`,
       currentStatus: 'Delivered',
@@ -305,7 +305,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_picked_up': {
-      subject: `Order Picked Up - ${orderNumber} - bazaarMKT`,
+      subject: `Order Picked Up - ${orderNumber} - bazaar`,
       title: 'Order Picked Up!',
       message: `Your order ${orderNumber} has been picked up successfully from ${artisanName}. Thank you for your order!`,
       currentStatus: 'Picked Up',
@@ -316,7 +316,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'order_ready': {
-      subject: `Order Ready - ${orderNumber} - bazaarMKT`,
+      subject: `Order Ready - ${orderNumber} - bazaar`,
       title: 'Order Ready!',
       message: `Your order ${orderNumber} is ready! ${isPickup ? 'Please come to pick it up from ' + artisanName : artisanName + ' will deliver it to you soon'}.`,
       currentStatus: 'Ready',
@@ -332,7 +332,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
     },
     // New confirmation and dispute notification types
     'pickup_confirmation': {
-      subject: `Pickup Confirmed - Please Confirm Receipt - ${orderNumber} - bazaarMKT`,
+      subject: `Pickup Confirmed - Please Confirm Receipt - ${orderNumber} - bazaar`,
       title: 'Pickup Confirmed by Artisan!',
       message: `${artisanName} has confirmed that your order ${orderNumber} has been picked up. Please confirm that you have received your order within 24 hours.`,
       currentStatus: 'Pickup Confirmed',
@@ -344,7 +344,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'delivery_confirmation': {
-      subject: `Delivery Confirmed - Please Confirm Receipt - ${orderNumber} - bazaarMKT`,
+      subject: `Delivery Confirmed - Please Confirm Receipt - ${orderNumber} - bazaar`,
       title: 'Delivery Confirmed by Artisan!',
       message: `${artisanName} has confirmed that your order ${orderNumber} has been delivered. Please confirm that you have received your order within 24 hours.`,
       currentStatus: 'Delivery Confirmed',
@@ -356,7 +356,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'dispute_reported': {
-      subject: `Dispute Reported - ${orderNumber} - bazaarMKT`,
+      subject: `Dispute Reported - ${orderNumber} - bazaar`,
       title: 'New Dispute Reported',
       message: `A dispute has been reported for order ${orderNumber}. Immediate attention required.`,
       currentStatus: 'Dispute Reported',
@@ -368,7 +368,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'dispute_status_update_buyer': {
-      subject: `Dispute Status Update - ${orderNumber} - bazaarMKT`,
+      subject: `Dispute Status Update - ${orderNumber} - bazaar`,
       title: 'Dispute Status Updated',
       message: `The status of your dispute for order ${orderNumber} has been updated by our support team.`,
       currentStatus: 'Dispute Status Updated',
@@ -380,7 +380,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'dispute_status_update_artisan': {
-      subject: `Dispute Status Update - ${orderNumber} - bazaarMKT`,
+      subject: `Dispute Status Update - ${orderNumber} - bazaar`,
       title: 'Dispute Status Updated',
       message: `The status of the dispute for order ${orderNumber} has been updated by our support team.`,
       currentStatus: 'Dispute Status Updated',
@@ -392,7 +392,7 @@ const getStatusSpecificContent = (type, orderDetails) => {
       ]
     },
     'dispute_resolved_buyer': {
-      subject: `Dispute Resolved - ${orderNumber} - bazaarMKT`,
+      subject: `Dispute Resolved - ${orderNumber} - bazaar`,
       title: 'Dispute Resolved',
       message: `Your dispute for order ${orderNumber} has been resolved by our support team.`,
       currentStatus: 'Dispute Resolved',
@@ -400,25 +400,25 @@ const getStatusSpecificContent = (type, orderDetails) => {
         'Review the resolution details',
         'Contact support if you have questions about the resolution',
         'Rate your experience if applicable',
-        'Continue shopping on bazaarMKT'
+        'Continue shopping on bazaar'
       ]
     },
     'dispute_resolved_artisan': {
-      subject: `Dispute Resolved - ${orderNumber} - bazaarMKT`,
+      subject: `Dispute Resolved - ${orderNumber} - bazaar`,
       title: 'Dispute Resolved',
       message: `The dispute for order ${orderNumber} has been resolved by our support team.`,
       currentStatus: 'Dispute Resolved',
       nextSteps: [
         'Review the resolution details',
         'Contact support if you have questions about the resolution',
-        'Continue serving customers on bazaarMKT',
+        'Continue serving customers on bazaar',
         'Learn from the experience to improve service'
       ]
     }
   };
 
   return statusMap[type] || {
-    subject: `Order Update - ${orderNumber} - bazaarMKT`,
+    subject: `Order Update - ${orderNumber} - bazaar`,
     title: 'Order Update',
     message: `Your order ${orderNumber} status has been updated.`,
     currentStatus: 'Updated',

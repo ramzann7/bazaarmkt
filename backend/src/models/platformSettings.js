@@ -57,7 +57,7 @@ const platformSettingsSchema = new mongoose.Schema({
   platformInfo: {
     name: {
       type: String,
-      default: 'bazaarMKT'
+      default: 'bazaar'
     },
     supportEmail: {
       type: String,

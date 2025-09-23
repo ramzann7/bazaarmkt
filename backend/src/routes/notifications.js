@@ -254,10 +254,10 @@ WHAT HAPPENS NEXT:
 • You'll receive updates as your order progresses
 • We'll notify you when it's ready for pickup/delivery
 
-Thank you for choosing bazaarMKT and supporting local artisans!
+Thank you for choosing bazaar and supporting local artisans!
 
 Best regards,
-The bazaarMKT Team
+The bazaar Team
 
 ---
 This is an automated notification. Please do not reply to this email.
@@ -371,10 +371,10 @@ ${timeline}
 WHAT HAPPENS NEXT:
 ${nextStepsList}
 
-Thank you for choosing bazaarMKT and supporting local artisans!
+Thank you for choosing bazaar and supporting local artisans!
 
 Best regards,
-The bazaarMKT Team
+The bazaar Team
 
 ---
 This is an automated notification. Please do not reply to this email.
@@ -421,10 +421,10 @@ WHAT HAPPENS NEXT:
 
 This notification serves as a record of your decline action. Keep this for your records.
 
-Thank you for using bazaarMKT.
+Thank you for using bazaar.
 
 Best regards,
-The bazaarMKT Team
+The bazaar Team
 
 ---
 This is an automated confirmation. Please do not reply to this email.
@@ -470,10 +470,10 @@ WHAT HAPPENS NEXT:
 
 We apologize for any inconvenience this may cause. We encourage you to explore other artisans on our platform who may be able to fulfill your order.
 
-Thank you for choosing bazaarMKT.
+Thank you for choosing bazaar.
 
 Best regards,
-The bazaarMKT Team
+The bazaar Team
 
 ---
 This is an automated notification. Please do not reply to this email.
@@ -504,7 +504,7 @@ function generateOrderDeclinedSMSBody(orderDetails, orderId) {
   const declineReason = orderDetails?.declineReason || 'No specific reason provided';
   
   // Keep SMS concise due to character limits
-  return `bazaarMKT: Your order ${orderNumber} was declined by ${artisanName}. Reason: ${declineReason}. Payment will be refunded. Contact support if needed.`;
+  return `bazaar: Your order ${orderNumber} was declined by ${artisanName}. Reason: ${declineReason}. Payment will be refunded. Contact support if needed.`;
 }
 
 // Helper function to generate order decline confirmation SMS body for artisan
@@ -513,7 +513,7 @@ function generateOrderDeclineConfirmationSMSBody(orderDetails, orderId) {
   const customerName = orderDetails?.customerName || 'Customer';
   
   // Keep SMS concise due to character limits
-  return `bazaarMKT: Order ${orderNumber} from ${customerName} has been declined successfully. Customer has been notified. Keep this for your records.`;
+  return `bazaar: Order ${orderNumber} from ${customerName} has been declined successfully. Customer has been notified. Keep this for your records.`;
 }
 
 // Helper function to send SMS notifications
@@ -525,21 +525,21 @@ async function sendSMSNotification(type, phone, orderDetails, orderId) {
     'order_declined': generateOrderDeclinedSMSBody(orderDetails, orderId),
     'order_decline_confirmation': generateOrderDeclineConfirmationSMSBody(orderDetails, orderId),
     'pickup_order_with_time': `New pickup order #${orderId} from ${orderDetails?.customerName || 'Customer'}. Pickup: ${orderDetails?.pickupTime || 'Not specified'}`,
-    'order_completion': `Your bazaarMKT order #${orderId} has been confirmed and is being prepared.`,
-    'order_confirmed': `Your bazaarMKT order #${orderId} has been confirmed by ${orderDetails?.artisanName || 'your artisan'}.`,
-    'order_preparing': `Your bazaarMKT order #${orderId} is being prepared by ${orderDetails?.artisanName || 'your artisan'}.`,
-    'order_ready': `Your bazaarMKT order #${orderId} is ready! Please check your delivery method for next steps.`,
-    'order_ready_for_pickup': `Your bazaarMKT order #${orderId} is ready for pickup! Please come to collect your order.`,
-    'order_ready_for_delivery': `Your bazaarMKT order #${orderId} is ready for delivery! It will be delivered soon.`,
-    'order_out_for_delivery': `Your bazaarMKT order #${orderId} is out for delivery and on its way to you!`,
-    'order_delivering': `Your bazaarMKT order #${orderId} is being delivered to you right now!`,
-    'order_picked_up': `Your bazaarMKT order #${orderId} has been picked up successfully. Thank you!`,
-    'order_shipped': `Your bazaarMKT order #${orderId} has been shipped and is on its way to you.`,
-    'order_delivered': `Your bazaarMKT order #${orderId} has been delivered. Thank you for your order!`,
-    'order_cancelled': `Your bazaarMKT order #${orderId} has been cancelled. Payment will be refunded if applicable.`
+    'order_completion': `Your bazaar order #${orderId} has been confirmed and is being prepared.`,
+    'order_confirmed': `Your bazaar order #${orderId} has been confirmed by ${orderDetails?.artisanName || 'your artisan'}.`,
+    'order_preparing': `Your bazaar order #${orderId} is being prepared by ${orderDetails?.artisanName || 'your artisan'}.`,
+    'order_ready': `Your bazaar order #${orderId} is ready! Please check your delivery method for next steps.`,
+    'order_ready_for_pickup': `Your bazaar order #${orderId} is ready for pickup! Please come to collect your order.`,
+    'order_ready_for_delivery': `Your bazaar order #${orderId} is ready for delivery! It will be delivered soon.`,
+    'order_out_for_delivery': `Your bazaar order #${orderId} is out for delivery and on its way to you!`,
+    'order_delivering': `Your bazaar order #${orderId} is being delivered to you right now!`,
+    'order_picked_up': `Your bazaar order #${orderId} has been picked up successfully. Thank you!`,
+    'order_shipped': `Your bazaar order #${orderId} has been shipped and is on its way to you.`,
+    'order_delivered': `Your bazaar order #${orderId} has been delivered. Thank you for your order!`,
+    'order_cancelled': `Your bazaar order #${orderId} has been cancelled. Payment will be refunded if applicable.`
   };
   
-  const message = smsTemplates[type] || `bazaarMKT notification for order #${orderId}`;
+  const message = smsTemplates[type] || `bazaar notification for order #${orderId}`;
   
   console.log('📱 SMS notification prepared:', {
     to: phone,

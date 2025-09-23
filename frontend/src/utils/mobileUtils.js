@@ -1,5 +1,5 @@
 /**
- * Mobile optimization utilities for bazaarMKT
+ * Mobile optimization utilities for bazaar
  */
 
 // Common responsive class patterns

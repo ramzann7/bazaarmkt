@@ -200,7 +200,7 @@ export default function Register() {
 
     // Check if the site is available for the selected country/province
     if (formData.country !== 'Canada') {
-      toast.error('Sorry, bazaarMKT is currently only available in Canada. We\'re working on expanding to other regions soon!');
+      toast.error('Sorry, bazaar is currently only available in Canada. We\'re working on expanding to other regions soon!');
       return;
     }
 
@@ -221,7 +221,7 @@ export default function Register() {
           error.toLowerCase().includes('not supported') ||
           error.toLowerCase().includes('restricted')
         )) {
-          toast.error('Sorry, bazaarMKT is not yet available in your province. We\'re working on expanding to all Canadian provinces soon!');
+          toast.error('Sorry, bazaar is not yet available in your province. We\'re working on expanding to all Canadian provinces soon!');
         } else {
           toast.error(addressValidation.errors.join(', '));
         }

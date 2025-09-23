@@ -147,7 +147,7 @@ export const sendOrderCompletionEmail = async (orderData, recipientEmail, recipi
     
     const emailData = {
       sender: {
-        name: 'bazaarMKT',
+        name: 'bazaar',
         email: 'noreply@bazaarmkt.ca'
       },
       to: [
@@ -176,7 +176,7 @@ export const sendOrderUpdateEmail = async (orderData, recipientEmail, recipientN
   try {
     const emailData = {
       sender: {
-        name: 'bazaarMKT',
+        name: 'bazaar',
         email: 'noreply@bazaarmkt.ca'
       },
       to: [
@@ -262,7 +262,7 @@ const generateOrderCompletionHTML = (orderData, recipientName) => {
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-          <p style="color: #666; font-size: 14px;">Thank you for choosing bazaarMKT!</p>
+          <p style="color: #666; font-size: 14px;">Thank you for choosing bazaar!</p>
           <p style="color: #666; font-size: 14px;">Support: support@bazaarmkt.ca</p>
         </div>
       </div>
@@ -304,7 +304,7 @@ What Happens Next?
 3. You'll receive updates on your order status
 4. ${isPickupOrder ? 'Visit the artisan to collect your order' : 'Your order will be delivered to your address'}
 
-Thank you for choosing bazaarMKT!
+Thank you for choosing bazaar!
 Support: support@bazaarmkt.ca
   `;
 };
@@ -349,7 +349,7 @@ const generateOrderUpdateHTML = (orderData, recipientName, updateType, updateDet
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-          <p style="color: #666; font-size: 14px;">Thank you for choosing bazaarMKT!</p>
+          <p style="color: #666; font-size: 14px;">Thank you for choosing bazaar!</p>
         </div>
       </div>
     </body>
@@ -382,7 +382,7 @@ ${updateMessages[updateType] || updateMessages.custom}
 Need Help?
 If you have any questions about this update, please contact us at support@bazaarmkt.ca
 
-Thank you for choosing bazaarMKT!
+Thank you for choosing bazaar!
   `;
 };
 

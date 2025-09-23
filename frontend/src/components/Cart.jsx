@@ -810,14 +810,9 @@ const Cart = () => {
     // Validate delivery address if personal delivery is selected
     if (method === 'personalDelivery') {
       const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
-      if (addressToValidate && addressToValidate.street) {
-        // First try to get user location for distance calculation
-        let userLocationForValidation = userLocation;
-        if (!userLocationForValidation) {
-          console.log('📍 No user location available, attempting to load...');
-          userLocationForValidation = await loadUserLocation();
-        }
-        
+      const hasCompleteAddress = addressToValidate && addressToValidate.street && addressToValidate.city && addressToValidate.state && addressToValidate.zipCode && addressToValidate.country;
+      
+      if (hasCompleteAddress) {
         const validation = await validateDeliveryAddress(addressToValidate);
         setDeliveryValidationResults(prev => ({
           ...prev,
@@ -890,8 +885,15 @@ const Cart = () => {
 
   // Validate delivery address for both guest users and patrons
   const validateDeliveryAddress = async (address) => {
-    if (!address.street || !address.city) {
-      return { valid: true }; // Skip validation for incomplete addresses
+    // Check if we have a complete address
+    const hasCompleteAddress = address.street && address.city && address.state && address.zipCode && address.country;
+    
+    if (!hasCompleteAddress) {
+      return { 
+        valid: true, 
+        incomplete: true,
+        message: 'Please complete all address fields to validate delivery availability'
+      };
     }
 
     try {
@@ -903,7 +905,7 @@ const Cart = () => {
       if (!geocodedAddress) {
         return { 
           valid: false, 
-          error: 'Could not validate delivery address. Please check if the address is correct and try again, or contact support if the issue persists.' 
+          error: 'Could not verify this address. Please check if the address is correct and try again, or contact support if the issue persists.' 
         };
       }
 
@@ -1015,10 +1017,12 @@ const Cart = () => {
       window.addressValidationTimeout = setTimeout(async () => {
         const updatedForm = { ...deliveryForm, [field]: value };
         
-        // Only validate if we have enough address information and personal delivery is selected
-        if (updatedForm.street && updatedForm.city && updatedForm.state) {
+        // Only validate if we have complete address information and personal delivery is selected
+        const hasCompleteAddress = updatedForm.street && updatedForm.city && updatedForm.state && updatedForm.zipCode && updatedForm.country;
+        
+        if (hasCompleteAddress) {
           try {
-            console.log('🔍 Validating address for delivery options update:', updatedForm);
+            console.log('🔍 Validating complete address for delivery options update:', updatedForm);
             
             // Check if any artisan has personal delivery selected
             const hasPersonalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
@@ -1026,13 +1030,6 @@ const Cart = () => {
             );
             
             if (hasPersonalDeliverySelected) {
-              // First try to get user location for distance calculation
-              let userLocationForValidation = userLocation;
-              if (!userLocationForValidation) {
-                console.log('📍 No user location available for address validation, attempting to load...');
-                userLocationForValidation = await loadUserLocation();
-              }
-              
               const validation = await validateDeliveryAddress(updatedForm);
               setDeliveryValidationResults(validation.results || {});
               
@@ -1173,7 +1170,13 @@ const Cart = () => {
       // Validate delivery address for both guests and patrons
       if (isAddressRequired()) {
         const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
-        if (addressToValidate.street) {
+        const hasCompleteAddress = addressToValidate && addressToValidate.street && addressToValidate.city && addressToValidate.state && addressToValidate.zipCode && addressToValidate.country;
+        
+        if (!hasCompleteAddress) {
+          toast.error('Please complete all address fields (street, city, state, postal code) to proceed with delivery.');
+          return;
+        }
+        
           const validation = await validateDeliveryAddress(addressToValidate);
           setDeliveryValidationResults(validation.results || {});
           
@@ -1185,12 +1188,11 @@ const Cart = () => {
               // Show error for each invalid delivery
               Object.entries(validation.results || {}).forEach(([artisanId, result]) => {
                 if (!result.valid) {
-                  toast.error(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away, but their delivery radius is only ${result.radius}km. Please choose pickup or professional delivery.`);
+                toast.error(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${result.distance.toFixed(1)}km away, but their delivery radius is only ${result.radius}km. Please choose pickup or professional delivery.`);
                 }
               });
             }
             return;
-          }
         }
       }
       setCheckoutStep('payment');
@@ -2164,12 +2166,12 @@ const Cart = () => {
                                         </div>
                                       ) : (
                                         <div className="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200">
-                                          ❌ <strong>Not Available:</strong> Your address is {deliveryValidationResults[artisanId].distance.toFixed(1)}km away (outside {deliveryValidationResults[artisanId].radius}km radius)
+                                          ❌ <strong>Not Available:</strong> Your address is {deliveryValidationResults[artisanId].distance.toFixed(1)}km away (outside {deliveryValidationResults[artisanId].radius}km radius). Please choose pickup or professional delivery.
                                         </div>
                                       )
                                     ) : (
                                       <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
-                                        📍 <strong>Address Required:</strong> Enter your delivery address below to confirm availability within {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
+                                        📍 <strong>Complete Address Required:</strong> Please enter your complete delivery address (street, city, state, postal code) to verify availability within {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
                                       </div>
                                     )}
                                     

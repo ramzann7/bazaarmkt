@@ -935,20 +935,32 @@ const Cart = () => {
           const artisanLat = artisanData.artisan?.address?.lat || artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
           const artisanLng = artisanData.artisan?.address?.lng || artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
           
-          if (artisanLat && artisanLng) {
+          // Convert to numbers and validate
+          const artisanLatNum = parseFloat(artisanLat);
+          const artisanLngNum = parseFloat(artisanLng);
+          const geocodedLatNum = parseFloat(geocodedAddress.lat);
+          const geocodedLngNum = parseFloat(geocodedAddress.lng);
+          
+          if (artisanLat && artisanLng && !isNaN(artisanLatNum) && !isNaN(artisanLngNum) && !isNaN(geocodedLatNum) && !isNaN(geocodedLngNum)) {
             console.log(`🔍 Distance calculation inputs:`, {
               geocodedAddress: { lat: geocodedAddress.lat, lng: geocodedAddress.lng },
               artisanCoords: { lat: artisanLat, lng: artisanLng },
               geocodedAddressType: typeof geocodedAddress.lat,
               artisanLatType: typeof artisanLat,
-              artisanLngType: typeof artisanLng
+              artisanLngType: typeof artisanLng,
+              convertedCoords: { 
+                geocodedLat: geocodedLatNum, 
+                geocodedLng: geocodedLngNum, 
+                artisanLat: artisanLatNum, 
+                artisanLng: artisanLngNum 
+              }
             });
             
             const distance = deliveryService.calculateDistance(
-              geocodedAddress.lat,
-              geocodedAddress.lng,
-              artisanLat,
-              artisanLng
+              geocodedLatNum,
+              geocodedLngNum,
+              artisanLatNum,
+              artisanLngNum
             );
             
             console.log(`🔍 Calculated distance:`, distance, typeof distance);
@@ -1003,9 +1015,28 @@ const Cart = () => {
                 }
               }
             } else {
-            console.log(`⚠️ No coordinates found for artisan ${artisanData.artisan.artisanName}`);
-              }
-            } else {
+            console.log(`⚠️ Invalid coordinates for artisan ${artisanData.artisan.artisanName}:`, {
+              artisanLat,
+              artisanLng,
+              geocodedLat: geocodedAddress.lat,
+              geocodedLng: geocodedAddress.lng,
+              artisanLatNum,
+              artisanLngNum,
+              geocodedLatNum,
+              geocodedLngNum
+            });
+            
+            // Mark as invalid if coordinates are missing or invalid
+            validationResults[artisanId] = {
+              valid: false,
+              distance: 0,
+              radius: artisanData.artisan.deliveryOptions?.deliveryRadius || 0,
+              artisanName: artisanData.artisan.artisanName,
+              error: 'Invalid coordinates'
+            };
+            hasInvalidDelivery = true;
+          }
+        } else {
           console.log(`🔍 Skipping validation for artisan ${artisanData.artisan.artisanName}: selectedMethod=${selectedMethod}, personalDeliveryAvailable=${artisanDeliveryOptions?.personalDelivery?.available}`);
         }
       });

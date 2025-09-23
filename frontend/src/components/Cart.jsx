@@ -831,7 +831,7 @@ const Cart = () => {
             }));
             console.log(`🔄 Switched ${result.artisanName} to pickup due to invalid personal delivery`);
             const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-            toast.warning(`Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`);
+            toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to pickup.`);
           } else if (deliveryOptions[artisanId]?.professionalDelivery?.available) {
             setSelectedDeliveryMethods(prev => ({
               ...prev,
@@ -839,7 +839,7 @@ const Cart = () => {
             }));
             console.log(`🔄 Switched ${result.artisanName} to professional delivery due to invalid personal delivery`);
             const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-            toast.warning(`Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`);
+            toast.warning(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). Switched to professional delivery.`);
           } else {
             setSelectedDeliveryMethods(prev => {
               const updated = { ...prev };
@@ -848,7 +848,7 @@ const Cart = () => {
             });
             console.log(`🔄 Removed delivery method for ${result.artisanName} - no valid options available`);
             const distanceText = result.error ? 'distance calculation failed' : `${result.distance.toFixed(1)}km away`;
-            toast.error(`Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). No other delivery options available.`);
+            toast.error(`🚚 Personal delivery to ${result.artisanName} is not available - your address is ${distanceText} (outside ${result.radius}km radius). No other delivery options available.`);
           }
         }
       } else {
@@ -1009,7 +1009,7 @@ const Cart = () => {
                 distance: distance.toFixed(1),
                 radius: deliveryRadius,
                 isValid: validationResults[artisanId].valid,
-                address: `${geocodedAddress.lat}, ${geocodedAddress.lng}`,
+                address: `${geocodedLatNum}, ${geocodedLngNum}`,
                 selectedMethod: selectedMethod
               });
               
@@ -2343,7 +2343,7 @@ const Cart = () => {
                                 <div className="text-xs text-red-600 mt-1">
                                     {deliveryValidationResults[artisanId].error 
                                       ? '⚠️ Distance calculation failed - please verify your address'
-                                      : `📍 Your address is ${deliveryValidationResults[artisanId].distance.toFixed(1)}km away (${deliveryValidationResults[artisanId].radius}km radius)`
+                                      : `🚚 Too far for personal delivery: ${deliveryValidationResults[artisanId].distance.toFixed(1)}km away (${deliveryValidationResults[artisanId].radius}km radius)`
                                     }
                                 </div>
                                 )}

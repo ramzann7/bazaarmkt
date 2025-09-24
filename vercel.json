@@ -39,6 +39,7 @@
     "VITE_BASE_URL": "https://www.bazaarmkt.ca",
     "VITE_UPLOADS_URL": "https://www.bazaarmkt.ca/uploads",
     "VITE_NODE_ENV": "production",
+    "API_URL": "https://www.bazaarmkt.ca",
     "MONGODB_URI": "mongodb+srv://bazaar:v2SpCIZRLgEpwvhW@cluster0.c8vyia3.mongodb.net/bazaarmkt-prod?retryWrites=true&w=majority&appName=Cluster0",
     "CORS_ORIGIN": "https://www.bazaarmkt.ca",
     "JWT_SECRET": "your-super-secure-jwt-secret-key-here-minimum-32-characters",

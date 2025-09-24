@@ -1,23 +1,10 @@
 // Individual serverless function for popular products
-const mongoose = require('mongoose');
+const connectToDatabase = require('../lib/mongodb');
 
 module.exports = async (req, res) => {
   try {
-    // Ensure database connection
-    if (mongoose.connection.readyState !== 1) {
-      console.log('🔄 Connecting to MongoDB...');
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 15000,
-        connectTimeoutMS: 10000,
-        maxPoolSize: 1,
-        minPoolSize: 0,
-        maxIdleTimeMS: 1000,
-        bufferMaxEntries: 0,
-        bufferCommands: false,
-      });
-      console.log('✅ MongoDB connected');
-    }
+    // Connect to database using proper serverless pattern
+    await connectToDatabase();
 
     const Product = require('../../src/models/product');
     

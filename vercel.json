@@ -33,13 +33,6 @@
       "dest": "frontend/$1"
     }
   ],
-  "redirects": [
-    {
-      "source": "https://bazaarmkt.ca/(.*)",
-      "destination": "https://www.bazaarmkt.ca/$1",
-      "permanent": true
-    }
-  ],
   "env": {
     "NODE_ENV": "production",
     "VITE_API_URL": "https://www.bazaarmkt.ca/api",

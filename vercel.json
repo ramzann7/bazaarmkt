@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/server-gradual-build.js",
+      "src": "backend/server-minimal-routes.js",
       "use": "@vercel/node",
       "config": {
         "maxLambdaSize": "50mb",
@@ -23,7 +23,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/server-gradual-build.js"
+      "dest": "backend/server-minimal-routes.js"
     },
     {
       "src": "/assets/(.*)",
@@ -35,7 +35,7 @@
     }
   ],
   "functions": {
-    "backend/server-gradual-build.js": {
+    "backend/server-minimal-routes.js": {
       "maxDuration": 30,
       "memory": 1024
     }

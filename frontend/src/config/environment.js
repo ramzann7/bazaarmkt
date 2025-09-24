@@ -11,9 +11,10 @@ const environment = {
   },
   
   production: {
-    API_URL: 'https://bazaarmkt.ca/api',
-    BASE_URL: 'https://bazaarmkt.ca',
-    UPLOADS_URL: 'https://bazaarmkt.ca/uploads',
+    // Use Vercel environment variables if available, otherwise fallback to hardcoded values
+    API_URL: import.meta.env.VITE_API_URL || 'https://bazaarmkt.ca/api',
+    BASE_URL: import.meta.env.VITE_BASE_URL || 'https://bazaarmkt.ca',
+    UPLOADS_URL: import.meta.env.VITE_UPLOADS_URL || 'https://bazaarmkt.ca/uploads',
     STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
     GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',
@@ -24,7 +25,8 @@ const environment = {
 // Determine current environment
 const isProduction = import.meta.env.MODE === 'production' || 
                      import.meta.env.VITE_NODE_ENV === 'production' ||
-                     window.location.hostname === 'bazaarmkt.ca';
+                     import.meta.env.NODE_ENV === 'production' ||
+                     (typeof window !== 'undefined' && window.location.hostname === 'bazaarmkt.ca');
 
 const config = isProduction ? environment.production : environment.development;
 

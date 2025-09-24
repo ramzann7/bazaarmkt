@@ -12,8 +12,22 @@ const app = express();
 
 // Middleware
 app.use(compression()); // Enable gzip compression
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:5180',
+  'http://localhost:3000', 
+  'http://localhost:5173',
+  'https://bazaarmkt.ca',
+  'https://www.bazaarmkt.ca'
+];
+
+// Add production origin from environment variable if provided
+if (process.env.CORS_ORIGIN) {
+  allowedOrigins.push(process.env.CORS_ORIGIN);
+}
+
 app.use(cors({
-  origin: ['http://localhost:5180', 'http://localhost:3000', 'http://localhost:5173'],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

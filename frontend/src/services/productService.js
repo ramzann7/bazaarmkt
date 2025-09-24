@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { normalizeProductData, logCategoryUsage } from '../utils/categoryUtils';
+import config from '../config/environment.js';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : 'http://localhost:4000/api/products';
+const API_URL = `${config.API_URL}/products`;
 
 // Simple in-memory cache
 const cache = new Map();

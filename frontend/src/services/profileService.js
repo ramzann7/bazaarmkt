@@ -2,8 +2,9 @@
 import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 import { authToken } from './authservice';
+import config from '../config/environment.js';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = config.API_URL;
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`
@@ -223,7 +224,7 @@ export const getProfileFast = async () => {
   return cacheService.getOrSet(
     cacheKey,
     async () => {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/auth/profile`, {
+      const response = await axios.get(`${config.API_URL}/auth/profile`, {
         headers: getAuthHeaders()
       });
       return response.data.user;
@@ -242,7 +243,7 @@ export const preloadProfileFast = () => {
   // Only preload if not already cached
   if (!cacheService.getFast(cacheKey)) {
     cacheService.preload(cacheKey, async () => {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/auth/profile`, {
+      const response = await axios.get(`${config.API_URL}/auth/profile`, {
         headers: getAuthHeaders()
       });
       return response.data.user;

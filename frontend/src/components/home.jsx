@@ -1,5 +1,6 @@
 // src/components/Home.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import config from '../config/environment.js';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -832,16 +833,16 @@ export default function Home() {
     
     // Handle relative paths (already have /uploads prefix)
     if (imagePath.startsWith('/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      return `${config.BASE_URL}${imagePath}`;
     }
     
     // Handle paths that need /uploads prefix
     if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      return `${config.BASE_URL}${imagePath}`;
     }
     
     // Handle paths without leading slash
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+    return `${config.BASE_URL}/${imagePath}`;
   };
 
   const formatPrice = (price) => {

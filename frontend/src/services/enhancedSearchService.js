@@ -2,8 +2,9 @@ import axios from 'axios';
 import { authToken } from './authservice';
 import { geocodingService } from './geocodingService';
 import { normalizeSearchFilters, logCategoryUsage } from '../utils/categoryUtils';
+import config from '../config/environment.js';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : 'http://localhost:4000/api/products';
+const API_URL = `${config.API_URL}/products`;
 
 // Enhanced search service with sophisticated ranking
 class EnhancedSearchService {

@@ -110,7 +110,7 @@ export default function Community() {
     try {
       const token = authToken.getToken();
       if (token) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}/auth/profile`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://bazaarmkt.ca/api'}/auth/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

@@ -1,11 +1,8 @@
 import { authToken } from './authservice';
+import config from '../config/environment.js';
 
-// Use Vite proxy for API calls
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
-// Debug logging
-console.log('🔧 PromotionalService - VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('🔧 PromotionalService - API_BASE_URL:', API_BASE_URL);
+// Use environment-based API URL
+const API_BASE_URL = config.API_URL;
 
 class PromotionalService {
   constructor() {

@@ -157,5 +157,38 @@ try {
   console.error('❌ Error loading geographic settings routes:', error.message);
 }
 
+// Try to load additional routes
+try {
+  const profileRoutes = require('./src/routes/profile');
+  app.use('/api/profile', profileRoutes);
+  console.log('✅ Profile routes loaded');
+} catch (error) {
+  console.error('❌ Error loading profile routes:', error.message);
+}
+
+try {
+  const uploadRoutes = require('./src/routes/upload');
+  app.use('/api/upload', uploadRoutes);
+  console.log('✅ Upload routes loaded');
+} catch (error) {
+  console.error('❌ Error loading upload routes:', error.message);
+}
+
+try {
+  const adminRoutes = require('./src/routes/admin');
+  app.use('/api/admin', adminRoutes);
+  console.log('✅ Admin routes loaded');
+} catch (error) {
+  console.error('❌ Error loading admin routes:', error.message);
+}
+
+try {
+  const favoritesRoutes = require('./src/routes/favorites');
+  app.use('/api/favorites', favoritesRoutes);
+  console.log('✅ Favorites routes loaded');
+} catch (error) {
+  console.error('❌ Error loading favorites routes:', error.message);
+}
+
 // Export for Vercel
 module.exports = app;

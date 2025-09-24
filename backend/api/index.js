@@ -82,6 +82,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test endpoint to verify serverless function is working
+app.get('/api/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Serverless function is working',
+    timestamp: new Date().toISOString(),
+    routes: 'Routes will be loaded after this'
+  });
+});
+
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
@@ -131,6 +141,8 @@ app.get('/api/debug', async (req, res) => {
 
 // Load routes conditionally to prevent crashes
 const loadRoutes = async () => {
+  console.log('🔄 Loading routes...');
+  
   try {
     // Core routes
     app.use('/api/auth', require('../src/routes/auth'));

@@ -3,12 +3,7 @@
   "builds": [
     {
       "src": "backend/api/**/*.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb",
-        "memory": 1024,
-        "timeout": 30
-      }
+      "use": "@vercel/node"
     },
     {
       "src": "frontend/package.json",

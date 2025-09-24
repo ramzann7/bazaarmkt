@@ -11,19 +11,20 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(compression()); // Enable gzip compression
+app.use(compression());
+app.use(express.json({ limit: '4.5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '4.5mb' }));
+
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:5180',
-  'http://localhost:3000', 
+  'http://localhost:3000',
   'http://localhost:5173',
   'https://bazaarmkt.ca',
   'https://www.bazaarmkt.ca',
-  // Allow all Vercel preview URLs
   /^https:\/\/bazaarmkt-.*\.vercel\.app$/
 ];
 
-// Add production origin from environment variable if provided
 if (process.env.CORS_ORIGIN) {
   allowedOrigins.push(process.env.CORS_ORIGIN);
 }
@@ -34,8 +35,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(express.json({ limit: '4.5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '4.5mb' }));
 
 // Serve static files for uploads with proper headers
 const staticFileHandler = (req, res, next) => {
@@ -115,7 +114,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Load routes conditionally to avoid crashes - using proven working structure
+// Load routes conditionally - using proven working structure
 try {
   const authRoutes = require('./src/routes/auth');
   app.use('/api/auth', authRoutes);

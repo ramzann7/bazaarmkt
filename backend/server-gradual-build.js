@@ -36,14 +36,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Serve static files for uploads with proper headers
-const staticFileHandler = (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  express.static(path.join(__dirname, 'public/uploads'))(req, res, next);
-};
-app.use('/uploads', staticFileHandler);
+// Note: Static file serving removed for serverless - using Vercel Blob instead
 
 // Request logging
 app.use((req, res, next) => {
@@ -53,32 +46,38 @@ app.use((req, res, next) => {
 
 // Remove database connection middleware - let routes handle their own connections
 
-// Database connection
-if (!process.env.MONGODB_URI) {
-  console.error('❌ MONGODB_URI environment variable is required');
-  if (!process.env.VERCEL) {
-    process.exit(1);
+// Per-request database connection middleware for serverless
+app.use(async (req, res, next) => {
+  // Skip database check for health endpoint
+  if (req.path === '/api/health') {
+    return next();
   }
-} else {
-  // Initialize database connection optimized for serverless
-  mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000, // 5 seconds
-    socketTimeoutMS: 10000, // 10 seconds
-    connectTimeoutMS: 5000, // 5 seconds
-    maxPoolSize: 1, // Single connection for serverless
-    minPoolSize: 0, // No minimum pool
-    maxIdleTimeMS: 1000, // Close connections very quickly
-    bufferMaxEntries: 0, // Disable mongoose buffering
-    bufferCommands: false, // Disable mongoose buffering
-  })
-    .then(() => {
-      console.log('✅ MongoDB Atlas connected successfully');
-      console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);
-    })
-    .catch(err => {
-      console.error('❌ MongoDB Atlas connection error:', err.message);
-    });
-}
+  
+  // Ensure database connection for API routes
+  if (req.path.startsWith('/api/')) {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        console.log('🔄 Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGODB_URI, {
+          serverSelectionTimeoutMS: 5000,
+          socketTimeoutMS: 10000,
+          connectTimeoutMS: 5000,
+          maxPoolSize: 1,
+          minPoolSize: 0,
+          maxIdleTimeMS: 1000,
+          bufferMaxEntries: 0,
+          bufferCommands: false,
+        });
+        console.log('✅ MongoDB connected');
+      }
+    } catch (error) {
+      console.error('❌ MongoDB connection error:', error.message);
+      return res.status(500).json({ message: 'Database connection failed' });
+    }
+  }
+  
+  next();
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

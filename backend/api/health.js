@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
 
   res.json({
     status: 'OK',
-    message: 'bazaar API is running',
+    message: 'bazaar API is running - optimized for serverless',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     databaseConnection: dbStatus

@@ -146,6 +146,15 @@ app.get('/api/simple-test', (req, res) => {
   });
 });
 
+// Simple test route
+app.get('/api/simple-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Simple test route is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Load only essential routes
 console.log('🔄 Loading essential routes...');
 

@@ -92,7 +92,7 @@ if (!process.env.MONGODB_URI) {
   console.error('❌ MONGODB_URI environment variable is required');
   console.error('❌ Please ensure your .env file contains the Atlas connection string');
   // Don't exit in serverless environment
-  if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  if (!process.env.VERCEL) {
     process.exit(1);
   }
 } else {
@@ -104,7 +104,7 @@ if (!process.env.MONGODB_URI) {
     .catch(err => {
       console.error('❌ MongoDB Atlas connection error:', err);
       // Don't exit in serverless environment - let the function handle the error
-      if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+      if (!process.env.VERCEL) {
         process.exit(1);
       }
     });
@@ -270,7 +270,7 @@ const inventoryService = require('./src/services/inventoryService');
 
 // For Vercel serverless deployment, export the app directly
 // For local development, start the server
-if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);

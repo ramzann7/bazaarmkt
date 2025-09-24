@@ -11,6 +11,7 @@ console.log('VITE_API_URL:', process.env.VITE_API_URL);
 console.log('VITE_BASE_URL:', process.env.VITE_BASE_URL);
 console.log('VITE_UPLOADS_URL:', process.env.VITE_UPLOADS_URL);
 console.log('VITE_NODE_ENV:', process.env.VITE_NODE_ENV);
+console.log('🚀 Build timestamp:', new Date().toISOString());
 
 // Import and run the Vite build
 import { build } from 'vite';

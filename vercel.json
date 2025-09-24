@@ -10,6 +10,10 @@
       "use": "@vercel/node"
     },
     {
+      "src": "backend/api/simple.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "backend/api/index.js",
       "use": "@vercel/node",
       "config": {
@@ -36,6 +40,14 @@
     {
       "src": "/api/test",
       "dest": "backend/api/test.js"
+    },
+    {
+      "src": "/api/simple-test",
+      "dest": "backend/api/simple.js"
+    },
+    {
+      "src": "/api/simple-health",
+      "dest": "backend/api/simple.js"
     },
     {
       "src": "/api/(.*)",

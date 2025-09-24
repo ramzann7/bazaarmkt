@@ -95,7 +95,16 @@ if (!process.env.MONGODB_URI) {
     process.exit(1);
   }
 } else {
-  mongoose.connect(process.env.MONGODB_URI)
+  mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 30000, // 30 seconds
+    socketTimeoutMS: 45000, // 45 seconds
+    connectTimeoutMS: 30000, // 30 seconds
+    maxPoolSize: 10, // Maintain up to 10 socket connections
+    minPoolSize: 5, // Maintain a minimum of 5 socket connections
+    maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+    bufferMaxEntries: 0, // Disable mongoose buffering
+    bufferCommands: false, // Disable mongoose buffering
+  })
     .then(() => {
       console.log('✅ MongoDB Atlas connected successfully');
       console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);

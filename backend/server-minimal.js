@@ -65,18 +65,39 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
-// Test model import
+// Test model import step by step
 app.get('/api/test-models', async (req, res) => {
   try {
-    const User = require('./src/models/user');
-    const Product = require('./src/models/product');
+    // Test User model first
+    let userModel = null;
+    let userError = null;
+    try {
+      userModel = require('./src/models/user');
+    } catch (error) {
+      userError = error.message;
+    }
+    
+    // Test Product model
+    let productModel = null;
+    let productError = null;
+    try {
+      productModel = require('./src/models/product');
+    } catch (error) {
+      productError = error.message;
+    }
     
     res.json({
       success: true,
-      message: 'Model imports successful',
-      models: {
-        User: !!User,
-        Product: !!Product
+      message: 'Model import test completed',
+      results: {
+        user: {
+          success: !!userModel,
+          error: userError
+        },
+        product: {
+          success: !!productModel,
+          error: productError
+        }
       },
       timestamp: new Date().toISOString()
     });

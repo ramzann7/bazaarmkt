@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/server-minimal.js",
+      "src": "backend/server-simple.js",
       "use": "@vercel/node"
     },
     {
@@ -18,11 +18,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/server-minimal.js"
+      "dest": "backend/server-simple.js"
     },
     {
       "src": "/uploads/(.*)",
-      "dest": "backend/server-minimal.js"
+      "dest": "backend/server-simple.js"
     },
     {
       "src": "/assets/(.*)",

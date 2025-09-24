@@ -115,55 +115,98 @@ app.use((req, res, next) => {
   next();
 });
 
-// Import routes
-const authRoutes = require('./src/routes/auth');
-const artisanRoutes = require('./src/routes/artisans');
-const profileRoutes = require('./src/routes/profile');
-const productRoutes = require('./src/routes/products');
-const orderRoutes = require('./src/routes/orders');
-const uploadRoutes = require('./src/routes/upload');
-const adminRoutes = require('./src/routes/admin');
-const reviewRoutes = require('./src/routes/reviews');
-const favoritesRoutes = require('./src/routes/favorites');
-const userStatsRoutes = require('./src/routes/userStats');
-const revenueRoutes = require('./src/routes/revenue');
-const promotionalRoutes = require('./src/routes/promotional');
-const geocodingRoutes = require('./src/routes/geocoding');
-const notificationRoutes = require('./src/routes/notifications');
-const spotlightRoutes = require('./src/routes/spotlight');
-const walletRoutes = require('./src/routes/wallet');
-const payoutRoutes = require('./src/routes/payouts');
-const communityRoutes = require('./src/routes/community');
-const geographicSettingsRoutes = require('./src/routes/geographicSettings');
-const deliveryRoutes = require('./src/routes/delivery');
-const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
-const disputeManagementRoutes = require('./src/routes/disputeManagement');
-const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
+// Load routes conditionally to avoid crashes
+try {
+  // Core routes that we know work
+  const authRoutes = require('./src/routes/auth');
+  const productRoutes = require('./src/routes/products');
+  const artisanRoutes = require('./src/routes/artisans');
+  const orderRoutes = require('./src/routes/orders');
+  const reviewRoutes = require('./src/routes/reviews');
+  const promotionalRoutes = require('./src/routes/promotional');
+  const geographicSettingsRoutes = require('./src/routes/geographicSettings');
 
-// Route middleware
-app.use('/api/auth', authRoutes);
-app.use('/api/artisans', artisanRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/favorites', favoritesRoutes);
-app.use('/api/user', userStatsRoutes);
-app.use('/api/revenue', revenueRoutes);
-app.use('/api/promotional', promotionalRoutes);
-app.use('/api/geocoding', geocodingRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/spotlight', spotlightRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/payouts', payoutRoutes);
-app.use('/api/community', communityRoutes);
-app.use('/api/geographic-settings', geographicSettingsRoutes);
-app.use('/api/delivery', deliveryRoutes);
-app.use('/api/order-confirmations', orderConfirmationRoutes);
-app.use('/api/disputes', disputeManagementRoutes);
-app.use('/api/delivery-revenue', deliveryRevenueRoutes);
+  // Use core routes
+  app.use('/api/auth', authRoutes);
+  app.use('/api/products', productRoutes);
+  app.use('/api/artisans', artisanRoutes);
+  app.use('/api/orders', orderRoutes);
+  app.use('/api/reviews', reviewRoutes);
+  app.use('/api/promotional', promotionalRoutes);
+  app.use('/api/geographic-settings', geographicSettingsRoutes);
+
+  console.log('✅ Core routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading core routes:', error.message);
+}
+
+// Try to load additional routes
+try {
+  const profileRoutes = require('./src/routes/profile');
+  const uploadRoutes = require('./src/routes/upload');
+  const adminRoutes = require('./src/routes/admin');
+  const favoritesRoutes = require('./src/routes/favorites');
+
+  app.use('/api/profile', profileRoutes);
+  app.use('/api/upload', uploadRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/favorites', favoritesRoutes);
+
+  console.log('✅ Additional routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading additional routes:', error.message);
+}
+
+// Try to load more routes
+try {
+  const userStatsRoutes = require('./src/routes/userStats');
+  const revenueRoutes = require('./src/routes/revenue');
+  const geocodingRoutes = require('./src/routes/geocoding');
+  const notificationRoutes = require('./src/routes/notifications');
+
+  app.use('/api/user', userStatsRoutes);
+  app.use('/api/revenue', revenueRoutes);
+  app.use('/api/geocoding', geocodingRoutes);
+  app.use('/api/notifications', notificationRoutes);
+
+  console.log('✅ More routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading more routes:', error.message);
+}
+
+// Try to load remaining routes
+try {
+  const spotlightRoutes = require('./src/routes/spotlight');
+  const walletRoutes = require('./src/routes/wallet');
+  const payoutRoutes = require('./src/routes/payouts');
+  const communityRoutes = require('./src/routes/community');
+
+  app.use('/api/spotlight', spotlightRoutes);
+  app.use('/api/wallet', walletRoutes);
+  app.use('/api/payouts', payoutRoutes);
+  app.use('/api/community', communityRoutes);
+
+  console.log('✅ Remaining routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading remaining routes:', error.message);
+}
+
+// Try to load final routes
+try {
+  const deliveryRoutes = require('./src/routes/delivery');
+  const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
+  const disputeManagementRoutes = require('./src/routes/disputeManagement');
+  const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
+
+  app.use('/api/delivery', deliveryRoutes);
+  app.use('/api/order-confirmations', orderConfirmationRoutes);
+  app.use('/api/disputes', disputeManagementRoutes);
+  app.use('/api/delivery-revenue', deliveryRevenueRoutes);
+
+  console.log('✅ Final routes loaded successfully');
+} catch (error) {
+  console.error('❌ Error loading final routes:', error.message);
+}
 
 
 

@@ -115,97 +115,189 @@ app.use((req, res, next) => {
   next();
 });
 
-// Load routes conditionally to avoid crashes
+// Load routes conditionally to avoid crashes - using proven working structure
 try {
-  // Core routes that we know work
   const authRoutes = require('./src/routes/auth');
-  const productRoutes = require('./src/routes/products');
-  const artisanRoutes = require('./src/routes/artisans');
-  const orderRoutes = require('./src/routes/orders');
-  const reviewRoutes = require('./src/routes/reviews');
-  const promotionalRoutes = require('./src/routes/promotional');
-  const geographicSettingsRoutes = require('./src/routes/geographicSettings');
-
-  // Use core routes
   app.use('/api/auth', authRoutes);
-  app.use('/api/products', productRoutes);
-  app.use('/api/artisans', artisanRoutes);
-  app.use('/api/orders', orderRoutes);
-  app.use('/api/reviews', reviewRoutes);
-  app.use('/api/promotional', promotionalRoutes);
-  app.use('/api/geographic-settings', geographicSettingsRoutes);
-
-  console.log('✅ Core routes loaded successfully - v2');
+  console.log('✅ Auth routes loaded');
 } catch (error) {
-  console.error('❌ Error loading core routes:', error.message);
+  console.error('❌ Error loading auth routes:', error.message);
 }
 
-// Try to load additional routes
+try {
+  const productRoutes = require('./src/routes/products');
+  app.use('/api/products', productRoutes);
+  console.log('✅ Product routes loaded');
+} catch (error) {
+  console.error('❌ Error loading product routes:', error.message);
+}
+
+try {
+  const artisanRoutes = require('./src/routes/artisans');
+  app.use('/api/artisans', artisanRoutes);
+  console.log('✅ Artisan routes loaded');
+} catch (error) {
+  console.error('❌ Error loading artisan routes:', error.message);
+}
+
+try {
+  const orderRoutes = require('./src/routes/orders');
+  app.use('/api/orders', orderRoutes);
+  console.log('✅ Order routes loaded');
+} catch (error) {
+  console.error('❌ Error loading order routes:', error.message);
+}
+
+try {
+  const reviewRoutes = require('./src/routes/reviews');
+  app.use('/api/reviews', reviewRoutes);
+  console.log('✅ Review routes loaded');
+} catch (error) {
+  console.error('❌ Error loading review routes:', error.message);
+}
+
+try {
+  const promotionalRoutes = require('./src/routes/promotional');
+  app.use('/api/promotional', promotionalRoutes);
+  console.log('✅ Promotional routes loaded');
+} catch (error) {
+  console.error('❌ Error loading promotional routes:', error.message);
+}
+
+try {
+  const geographicSettingsRoutes = require('./src/routes/geographicSettings');
+  app.use('/api/geographic-settings', geographicSettingsRoutes);
+  console.log('✅ Geographic settings routes loaded');
+} catch (error) {
+  console.error('❌ Error loading geographic settings routes:', error.message);
+}
+
 try {
   const profileRoutes = require('./src/routes/profile');
-  const uploadRoutes = require('./src/routes/upload');
-  const adminRoutes = require('./src/routes/admin');
-  const favoritesRoutes = require('./src/routes/favorites');
-
   app.use('/api/profile', profileRoutes);
-  app.use('/api/upload', uploadRoutes);
-  app.use('/api/admin', adminRoutes);
-  app.use('/api/favorites', favoritesRoutes);
-
-  console.log('✅ Additional routes loaded successfully');
+  console.log('✅ Profile routes loaded');
 } catch (error) {
-  console.error('❌ Error loading additional routes:', error.message);
+  console.error('❌ Error loading profile routes:', error.message);
 }
 
-// Try to load more routes
+try {
+  const uploadRoutes = require('./src/routes/upload');
+  app.use('/api/upload', uploadRoutes);
+  console.log('✅ Upload routes loaded');
+} catch (error) {
+  console.error('❌ Error loading upload routes:', error.message);
+}
+
+try {
+  const adminRoutes = require('./src/routes/admin');
+  app.use('/api/admin', adminRoutes);
+  console.log('✅ Admin routes loaded');
+} catch (error) {
+  console.error('❌ Error loading admin routes:', error.message);
+}
+
+try {
+  const favoritesRoutes = require('./src/routes/favorites');
+  app.use('/api/favorites', favoritesRoutes);
+  console.log('✅ Favorites routes loaded');
+} catch (error) {
+  console.error('❌ Error loading favorites routes:', error.message);
+}
+
 try {
   const userStatsRoutes = require('./src/routes/userStats');
-  const revenueRoutes = require('./src/routes/revenue');
-  const geocodingRoutes = require('./src/routes/geocoding');
-  const notificationRoutes = require('./src/routes/notifications');
-
   app.use('/api/user', userStatsRoutes);
-  app.use('/api/revenue', revenueRoutes);
-  app.use('/api/geocoding', geocodingRoutes);
-  app.use('/api/notifications', notificationRoutes);
-
-  console.log('✅ More routes loaded successfully');
+  console.log('✅ User stats routes loaded');
 } catch (error) {
-  console.error('❌ Error loading more routes:', error.message);
+  console.error('❌ Error loading user stats routes:', error.message);
 }
 
-// Try to load remaining routes
+try {
+  const revenueRoutes = require('./src/routes/revenue');
+  app.use('/api/revenue', revenueRoutes);
+  console.log('✅ Revenue routes loaded');
+} catch (error) {
+  console.error('❌ Error loading revenue routes:', error.message);
+}
+
+try {
+  const geocodingRoutes = require('./src/routes/geocoding');
+  app.use('/api/geocoding', geocodingRoutes);
+  console.log('✅ Geocoding routes loaded');
+} catch (error) {
+  console.error('❌ Error loading geocoding routes:', error.message);
+}
+
+try {
+  const notificationRoutes = require('./src/routes/notifications');
+  app.use('/api/notifications', notificationRoutes);
+  console.log('✅ Notification routes loaded');
+} catch (error) {
+  console.error('❌ Error loading notification routes:', error.message);
+}
+
 try {
   const spotlightRoutes = require('./src/routes/spotlight');
-  const walletRoutes = require('./src/routes/wallet');
-  const payoutRoutes = require('./src/routes/payouts');
-  const communityRoutes = require('./src/routes/community');
-
   app.use('/api/spotlight', spotlightRoutes);
-  app.use('/api/wallet', walletRoutes);
-  app.use('/api/payouts', payoutRoutes);
-  app.use('/api/community', communityRoutes);
-
-  console.log('✅ Remaining routes loaded successfully');
+  console.log('✅ Spotlight routes loaded');
 } catch (error) {
-  console.error('❌ Error loading remaining routes:', error.message);
+  console.error('❌ Error loading spotlight routes:', error.message);
 }
 
-// Try to load final routes
+try {
+  const walletRoutes = require('./src/routes/wallet');
+  app.use('/api/wallet', walletRoutes);
+  console.log('✅ Wallet routes loaded');
+} catch (error) {
+  console.error('❌ Error loading wallet routes:', error.message);
+}
+
+try {
+  const payoutRoutes = require('./src/routes/payouts');
+  app.use('/api/payouts', payoutRoutes);
+  console.log('✅ Payout routes loaded');
+} catch (error) {
+  console.error('❌ Error loading payout routes:', error.message);
+}
+
+try {
+  const communityRoutes = require('./src/routes/community');
+  app.use('/api/community', communityRoutes);
+  console.log('✅ Community routes loaded');
+} catch (error) {
+  console.error('❌ Error loading community routes:', error.message);
+}
+
 try {
   const deliveryRoutes = require('./src/routes/delivery');
-  const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
-  const disputeManagementRoutes = require('./src/routes/disputeManagement');
-  const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
-
   app.use('/api/delivery', deliveryRoutes);
-  app.use('/api/order-confirmations', orderConfirmationRoutes);
-  app.use('/api/disputes', disputeManagementRoutes);
-  app.use('/api/delivery-revenue', deliveryRevenueRoutes);
-
-  console.log('✅ Final routes loaded successfully');
+  console.log('✅ Delivery routes loaded');
 } catch (error) {
-  console.error('❌ Error loading final routes:', error.message);
+  console.error('❌ Error loading delivery routes:', error.message);
+}
+
+try {
+  const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
+  app.use('/api/order-confirmations', orderConfirmationRoutes);
+  console.log('✅ Order confirmation routes loaded');
+} catch (error) {
+  console.error('❌ Error loading order confirmation routes:', error.message);
+}
+
+try {
+  const disputeManagementRoutes = require('./src/routes/disputeManagement');
+  app.use('/api/disputes', disputeManagementRoutes);
+  console.log('✅ Dispute management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading dispute management routes:', error.message);
+}
+
+try {
+  const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
+  app.use('/api/delivery-revenue', deliveryRevenueRoutes);
+  console.log('✅ Delivery revenue routes loaded');
+} catch (error) {
+  console.error('❌ Error loading delivery revenue routes:', error.message);
 }
 
 

@@ -149,10 +149,16 @@ app.get('/api/debug', async (req, res) => {
 
     try {
       if (process.env.MONGODB_URI) {
-        const User = require('./src/models/user');
-        const userCount = await User.countDocuments();
-        envInfo.databaseConnection = 'connected';
-        envInfo.userCount = userCount;
+        // Wait for mongoose connection to be ready
+        if (mongoose.connection.readyState === 1) {
+          const User = require('./src/models/user');
+          const userCount = await User.countDocuments();
+          envInfo.databaseConnection = 'connected';
+          envInfo.userCount = userCount;
+        } else {
+          envInfo.databaseConnection = 'connecting';
+          envInfo.connectionState = mongoose.connection.readyState;
+        }
       } else {
         envInfo.databaseConnection = 'no_uri';
       }

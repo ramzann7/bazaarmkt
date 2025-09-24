@@ -62,10 +62,11 @@ app.use(async (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     try {
       if (mongoose.connection.readyState !== 1) {
-        console.log('Database not connected, attempting to connect...');
-        const connected = await connectDB();
-        if (!connected) {
-          return res.status(500).json({ message: 'Database connection failed' });
+        console.log('Database not connected, waiting for connection...');
+        // Wait a bit for connection to establish
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (mongoose.connection.readyState !== 1) {
+          return res.status(500).json({ message: 'Database connection not ready' });
         }
       }
     } catch (error) {
@@ -84,37 +85,24 @@ if (!process.env.MONGODB_URI) {
     process.exit(1);
   }
 } else {
-  // Initialize database connection
-  const connectDB = async () => {
-    try {
-      // Check if already connected
-      if (mongoose.connection.readyState === 1) {
-        console.log('✅ MongoDB already connected');
-        return true;
-      }
-      
-      console.log('🔄 Attempting to connect to MongoDB...');
-      await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 15000, // 15 seconds
-        socketTimeoutMS: 30000, // 30 seconds
-        connectTimeoutMS: 15000, // 15 seconds
-        maxPoolSize: 5, // Reduce pool size for serverless
-        minPoolSize: 1, // Minimum pool size
-        maxIdleTimeMS: 10000, // Close connections after 10 seconds
-        bufferMaxEntries: 0, // Disable mongoose buffering
-        bufferCommands: false, // Disable mongoose buffering
-      });
+  // Initialize database connection with traditional approach
+  mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000, // 10 seconds
+    socketTimeoutMS: 20000, // 20 seconds
+    connectTimeoutMS: 10000, // 10 seconds
+    maxPoolSize: 3, // Small pool for serverless
+    minPoolSize: 0, // No minimum pool
+    maxIdleTimeMS: 5000, // Close connections quickly
+    bufferMaxEntries: 0, // Disable mongoose buffering
+    bufferCommands: false, // Disable mongoose buffering
+  })
+    .then(() => {
       console.log('✅ MongoDB Atlas connected successfully');
       console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);
-      return true;
-    } catch (err) {
+    })
+    .catch(err => {
       console.error('❌ MongoDB Atlas connection error:', err.message);
-      return false;
-    }
-  };
-  
-  // Connect to database immediately
-  connectDB();
+    });
 }
 
 // Health check endpoint

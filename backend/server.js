@@ -18,7 +18,9 @@ const allowedOrigins = [
   'http://localhost:3000', 
   'http://localhost:5173',
   'https://bazaarmkt.ca',
-  'https://www.bazaarmkt.ca'
+  'https://www.bazaarmkt.ca',
+  // Allow all Vercel preview URLs
+  /^https:\/\/bazaarmkt-.*\.vercel\.app$/
 ];
 
 // Add production origin from environment variable if provided

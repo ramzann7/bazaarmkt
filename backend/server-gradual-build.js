@@ -48,13 +48,17 @@ app.use((req, res, next) => {
 
 // Per-request database connection middleware for serverless
 app.use(async (req, res, next) => {
+  console.log(`🔍 Middleware: ${req.method} ${req.path}`);
+  
   // Skip database check for health endpoint
   if (req.path === '/api/health') {
+    console.log('⏭️ Skipping DB check for health endpoint');
     return next();
   }
   
   // Ensure database connection for API routes
   if (req.path.startsWith('/api/')) {
+    console.log('🔍 API route detected, checking DB connection...');
     try {
       if (mongoose.connection.readyState !== 1) {
         console.log('🔄 Connecting to MongoDB...');
@@ -69,6 +73,8 @@ app.use(async (req, res, next) => {
           bufferCommands: false,
         });
         console.log('✅ MongoDB connected');
+      } else {
+        console.log('✅ MongoDB already connected');
       }
     } catch (error) {
       console.error('❌ MongoDB connection error:', error.message);

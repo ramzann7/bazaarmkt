@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/server-gradual.js",
+      "src": "backend/server-db-test.js",
       "use": "@vercel/node"
     },
     {
@@ -18,11 +18,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/server-gradual.js"
+      "dest": "backend/server-db-test.js"
     },
     {
       "src": "/uploads/(.*)",
-      "dest": "backend/server-gradual.js"
+      "dest": "backend/server-db-test.js"
     },
     {
       "src": "/assets/(.*)",

@@ -65,5 +65,55 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+// Test model import
+app.get('/api/test-models', async (req, res) => {
+  try {
+    const User = require('./src/models/user');
+    const Product = require('./src/models/product');
+    
+    res.json({
+      success: true,
+      message: 'Model imports successful',
+      models: {
+        User: !!User,
+        Product: !!Product
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Test route imports
+app.get('/api/test-routes', async (req, res) => {
+  try {
+    const authRoutes = require('./src/routes/auth');
+    const productRoutes = require('./src/routes/products');
+    
+    res.json({
+      success: true,
+      message: 'Route imports successful',
+      routes: {
+        auth: !!authRoutes,
+        products: !!productRoutes
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Export for Vercel
 module.exports = app;

@@ -36,8 +36,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Serve static files
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+// Serve static files for uploads with proper headers
+const staticFileHandler = (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  express.static(path.join(__dirname, 'public/uploads'))(req, res, next);
+};
+app.use('/uploads', staticFileHandler);
 
 // Request logging
 app.use((req, res, next) => {
@@ -72,6 +78,46 @@ app.get('/api/health', (req, res) => {
     message: 'bazaar API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Debug endpoint to check uploads directory
+app.get('/api/debug-uploads', (req, res) => {
+  const fs = require('fs');
+  const uploadsPath = path.join(__dirname, 'public/uploads');
+  
+  try {
+    if (!fs.existsSync(uploadsPath)) {
+      return res.json({
+        success: false,
+        error: 'Uploads directory does not exist',
+        path: uploadsPath
+      });
+    }
+    
+    const productsPath = path.join(uploadsPath, 'products');
+    if (!fs.existsSync(productsPath)) {
+      return res.json({
+        success: false,
+        error: 'Products directory does not exist',
+        path: productsPath
+      });
+    }
+    
+    const files = fs.readdirSync(productsPath);
+    res.json({
+      success: true,
+      uploadsPath: uploadsPath,
+      productsPath: productsPath,
+      fileCount: files.length,
+      files: files.slice(0, 10) // Show first 10 files
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      path: uploadsPath
+    });
+  }
 });
 
 // Debug endpoint

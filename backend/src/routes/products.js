@@ -8,7 +8,7 @@ const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
 const inventoryService = require('../services/inventoryService');
 const { checkProductGeographicRestrictions } = require('../middleware/geographicRestrictions');
-// const blobStorage = require('../services/blobStorage');
+const blobStorage = require('../services/blobStorage');
 
 // Import category validation utilities
 const { normalizeCategoryKey, normalizeSubcategoryKey } = require('../scripts/migrateCategoryData');
@@ -1440,10 +1440,18 @@ router.post('/', verifyToken, checkProductGeographicRestrictions, upload.single(
     // Handle image upload
     let imageUrl = null;
     if (req.file) {
-      // Temporary: Use local storage until blob storage is configured
+      // Generate unique filename
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
       const filename = `image-${uniqueSuffix}${path.extname(req.file.originalname)}`;
-      imageUrl = `/uploads/products/${filename}`;
+
+      // Upload to Vercel Blob Storage
+      const blobResult = await blobStorage.uploadFile(
+        req.file.buffer,
+        filename,
+        req.file.mimetype
+      );
+      
+      imageUrl = blobResult.url;
     }
     
     // Parse tags if it's a string
@@ -1700,10 +1708,18 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     
     // Handle image upload
     if (req.file) {
-      // Temporary: Use local storage until blob storage is configured
+      // Generate unique filename
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
       const filename = `image-${uniqueSuffix}${path.extname(req.file.originalname)}`;
-      product.image = `/uploads/products/${filename}`;
+
+      // Upload to Vercel Blob Storage
+      const blobResult = await blobStorage.uploadFile(
+        req.file.buffer,
+        filename,
+        req.file.mimetype
+      );
+      
+      product.image = blobResult.url;
     }
     
     await product.save();

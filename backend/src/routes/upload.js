@@ -4,24 +4,10 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const verifyToken = require('../middleware/authMiddleware');
-// const blobStorage = require('../services/blobStorage');
+const blobStorage = require('../services/blobStorage');
 
-// Configure multer for file uploads (temporary local storage)
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = 'public/uploads/products';
-    // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Generate unique filename
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer for memory storage (for blob upload)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   // Accept only image files
@@ -47,37 +33,66 @@ router.post('/photo', verifyToken, upload.single('photo'), async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Generate URL for the uploaded file
-    const fileUrl = `/uploads/products/${req.file.filename}`;
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = `image-${uniqueSuffix}${path.extname(req.file.originalname)}`;
+
+    // Upload to Vercel Blob Storage
+    const blobResult = await blobStorage.uploadFile(
+      req.file.buffer,
+      filename,
+      req.file.mimetype
+    );
     
     res.json({
       message: 'Photo uploaded successfully',
-      url: fileUrl,
-      filename: req.file.filename,
+      url: blobResult.url,
+      filename: filename,
       originalName: req.file.originalname,
-      size: req.file.size
+      size: req.file.size,
+      blobPathname: blobResult.pathname
     });
   } catch (error) {
     console.error('Error uploading photo:', error);
-    res.status(500).json({ message: 'Error uploading photo' });
+    res.status(500).json({ 
+      message: 'Error uploading photo',
+      error: error.message 
+    });
   }
 });
 
 // Delete uploaded photo
-router.delete('/photo/:filename', verifyToken, async (req, res) => {
+router.delete('/photo/:url', verifyToken, async (req, res) => {
   try {
-    const filename = req.params.filename;
-    const filepath = path.join('public/uploads/products', filename);
+    const blobUrl = decodeURIComponent(req.params.url);
     
-    if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
+    const success = await blobStorage.deleteFile(blobUrl);
+    
+    if (success) {
       res.json({ message: 'Photo deleted successfully' });
     } else {
-      res.status(404).json({ message: 'File not found' });
+      res.status(404).json({ message: 'File not found or could not be deleted' });
     }
   } catch (error) {
     console.error('Error deleting photo:', error);
-    res.status(500).json({ message: 'Error deleting photo' });
+    res.status(500).json({ 
+      message: 'Error deleting photo',
+      error: error.message 
+    });
+  }
+});
+
+// Get blob storage status
+router.get('/status', verifyToken, async (req, res) => {
+  try {
+    const status = blobStorage.getStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Error getting blob status:', error);
+    res.status(500).json({ 
+      message: 'Error getting blob status',
+      error: error.message 
+    });
   }
 });
 

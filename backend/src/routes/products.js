@@ -8,7 +8,7 @@ const Product = require('../models/product');
 const verifyToken = require('../middleware/authMiddleware');
 const inventoryService = require('../services/inventoryService');
 const { checkProductGeographicRestrictions } = require('../middleware/geographicRestrictions');
-const blobStorage = require('../services/blobStorage');
+// const blobStorage = require('../services/blobStorage');
 
 // Import category validation utilities
 const { normalizeCategoryKey, normalizeSubcategoryKey } = require('../scripts/migrateCategoryData');
@@ -286,8 +286,22 @@ function deg2rad(deg) {
   return deg * (Math.PI/180);
 }
 
-// Configure multer for memory storage (for blob upload)
-const storage = multer.memoryStorage();
+// Configure multer for file uploads (temporary local storage)
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'public/uploads/products';
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
 
 const fileFilter = (req, file, cb) => {
   // Accept only image files
@@ -1440,18 +1454,8 @@ router.post('/', verifyToken, checkProductGeographicRestrictions, upload.single(
     // Handle image upload
     let imageUrl = null;
     if (req.file) {
-      // Generate unique filename
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const filename = `image-${uniqueSuffix}${path.extname(req.file.originalname)}`;
-
-      // Upload to Vercel Blob Storage
-      const blobResult = await blobStorage.uploadFile(
-        req.file.buffer,
-        filename,
-        req.file.mimetype
-      );
-      
-      imageUrl = blobResult.url;
+      // Generate URL for the uploaded file
+      imageUrl = `/uploads/products/${req.file.filename}`;
     }
     
     // Parse tags if it's a string
@@ -1708,10 +1712,8 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
     
     // Handle image upload
     if (req.file) {
-      // Temporary: Use local storage until blob storage is working
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const filename = `image-${uniqueSuffix}${path.extname(req.file.originalname)}`;
-      product.image = `/uploads/products/${filename}`;
+      // Generate URL for the uploaded file
+      product.image = `/uploads/products/${req.file.filename}`;
     }
     
     await product.save();

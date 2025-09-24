@@ -42,9 +42,9 @@
   ],
   "env": {
     "NODE_ENV": "production",
-    "VITE_API_URL": "https://bazaarmkt.ca/api",
-    "VITE_BASE_URL": "https://bazaarmkt.ca",
-    "VITE_UPLOADS_URL": "https://bazaarmkt.ca/uploads",
+    "VITE_API_URL": "https://www.bazaarmkt.ca/api",
+    "VITE_BASE_URL": "https://www.bazaarmkt.ca",
+    "VITE_UPLOADS_URL": "https://www.bazaarmkt.ca/uploads",
     "VITE_NODE_ENV": "production",
     "MONGODB_URI": "mongodb+srv://bazaar:v2SpCIZRLgEpwvhW@cluster0.c8vyia3.mongodb.net/bazaarmkt-prod?retryWrites=true&w=majority&appName=Cluster0",
     "CORS_ORIGIN": "https://www.bazaarmkt.ca",

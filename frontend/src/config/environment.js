@@ -12,9 +12,9 @@ const environment = {
   
   production: {
     // Use Vercel environment variables if available, otherwise fallback to hardcoded values
-    API_URL: import.meta.env.VITE_API_URL || 'https://bazaarmkt.ca/api',
-    BASE_URL: import.meta.env.VITE_BASE_URL || 'https://bazaarmkt.ca',
-    UPLOADS_URL: import.meta.env.VITE_UPLOADS_URL || 'https://bazaarmkt.ca/uploads',
+    API_URL: import.meta.env.VITE_API_URL || 'https://www.bazaarmkt.ca/api',
+    BASE_URL: import.meta.env.VITE_BASE_URL || 'https://www.bazaarmkt.ca',
+    UPLOADS_URL: import.meta.env.VITE_UPLOADS_URL || 'https://www.bazaarmkt.ca/uploads',
     STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
     GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',
@@ -26,7 +26,7 @@ const environment = {
 const isProduction = import.meta.env.MODE === 'production' || 
                      import.meta.env.VITE_NODE_ENV === 'production' ||
                      import.meta.env.NODE_ENV === 'production' ||
-                     (typeof window !== 'undefined' && window.location.hostname === 'bazaarmkt.ca');
+                     (typeof window !== 'undefined' && (window.location.hostname === 'bazaarmkt.ca' || window.location.hostname === 'www.bazaarmkt.ca'));
 
 const config = isProduction ? environment.production : environment.development;
 

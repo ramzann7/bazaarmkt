@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 // Set environment variables for production build
-process.env.VITE_API_URL = 'https://bazaarmkt.ca/api';
-process.env.VITE_BASE_URL = 'https://bazaarmkt.ca';
-process.env.VITE_UPLOADS_URL = 'https://bazaarmkt.ca/uploads';
+process.env.VITE_API_URL = 'https://www.bazaarmkt.ca/api';
+process.env.VITE_BASE_URL = 'https://www.bazaarmkt.ca';
+process.env.VITE_UPLOADS_URL = 'https://www.bazaarmkt.ca/uploads';
 process.env.VITE_NODE_ENV = 'production';
 
 console.log('🔧 Setting environment variables for production build:');

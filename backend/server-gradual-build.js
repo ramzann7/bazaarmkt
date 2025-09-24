@@ -63,7 +63,10 @@ app.use(async (req, res, next) => {
     try {
       if (mongoose.connection.readyState !== 1) {
         console.log('Database not connected, attempting to connect...');
-        await connectDB();
+        const connected = await connectDB();
+        if (!connected) {
+          return res.status(500).json({ message: 'Database connection failed' });
+        }
       }
     } catch (error) {
       console.error('Database connection error in middleware:', error);
@@ -87,26 +90,26 @@ if (!process.env.MONGODB_URI) {
       // Check if already connected
       if (mongoose.connection.readyState === 1) {
         console.log('✅ MongoDB already connected');
-        return;
+        return true;
       }
       
+      console.log('🔄 Attempting to connect to MongoDB...');
       await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 30000, // 30 seconds
-        socketTimeoutMS: 45000, // 45 seconds
-        connectTimeoutMS: 30000, // 30 seconds
-        maxPoolSize: 10, // Maintain up to 10 socket connections
-        minPoolSize: 5, // Maintain a minimum of 5 socket connections
-        maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+        serverSelectionTimeoutMS: 15000, // 15 seconds
+        socketTimeoutMS: 30000, // 30 seconds
+        connectTimeoutMS: 15000, // 15 seconds
+        maxPoolSize: 5, // Reduce pool size for serverless
+        minPoolSize: 1, // Minimum pool size
+        maxIdleTimeMS: 10000, // Close connections after 10 seconds
         bufferMaxEntries: 0, // Disable mongoose buffering
         bufferCommands: false, // Disable mongoose buffering
       });
       console.log('✅ MongoDB Atlas connected successfully');
       console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);
+      return true;
     } catch (err) {
-      console.error('❌ MongoDB Atlas connection error:', err);
-      if (!process.env.VERCEL) {
-        process.exit(1);
-      }
+      console.error('❌ MongoDB Atlas connection error:', err.message);
+      return false;
     }
   };
   

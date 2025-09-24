@@ -303,9 +303,37 @@ try {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'bazaar API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Debug endpoint to check loaded routes
+app.get('/api/debug-routes', (req, res) => {
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      middleware.regexp.toString().split('|').forEach((path) => {
+        if (path.includes('/api/')) {
+          routes.push({
+            path: path.replace(/\\/g, '/').replace(/[()]/g, ''),
+            methods: ['*']
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({
+    success: true,
+    routes: routes,
     timestamp: new Date().toISOString()
   });
 });

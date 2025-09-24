@@ -182,6 +182,52 @@ app.get('/api/debug', async (req, res) => {
   }
 });
 
+// Database connection test endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    console.log('🧪 Testing database connection...');
+    
+    // Force a new connection
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+    
+    console.log('🔄 Attempting to connect to MongoDB...');
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 15000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 1,
+      minPoolSize: 0,
+      maxIdleTimeMS: 1000,
+      bufferMaxEntries: 0,
+      bufferCommands: false,
+    });
+    
+    console.log('✅ Connected to MongoDB');
+    
+    // Test a simple query
+    const User = require('./src/models/user');
+    const userCount = await User.countDocuments();
+    
+    res.json({
+      success: true,
+      message: 'Database connection test successful',
+      userCount: userCount,
+      connectionState: mongoose.connection.readyState,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Database connection test failed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database connection test failed',
+      error: error.message,
+      connectionState: mongoose.connection.readyState
+    });
+  }
+});
+
 // Load routes conditionally - using proven working structure
 try {
   const authRoutes = require('./src/routes/auth');

@@ -272,15 +272,6 @@ app.get('/api/route-status', (req, res) => {
   }
 });
 
-// Simple test route
-app.get('/api/simple-test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Simple test route is working',
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Load routes conditionally - using proven working structure
 console.log('🔄 Starting route loading...');
 
@@ -471,6 +462,17 @@ try {
 } catch (error) {
   console.error('❌ Error loading delivery revenue routes:', error.message);
 }
+
+// Simple test route
+app.get('/api/simple-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Simple test route is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+console.log('✅ All routes loaded, server ready');
 
 // Export for Vercel
 module.exports = app;

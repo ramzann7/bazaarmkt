@@ -223,5 +223,71 @@ try {
   console.error('❌ Error loading notification routes:', error.message);
 }
 
+// Try to load remaining routes
+try {
+  const spotlightRoutes = require('./src/routes/spotlight');
+  app.use('/api/spotlight', spotlightRoutes);
+  console.log('✅ Spotlight routes loaded');
+} catch (error) {
+  console.error('❌ Error loading spotlight routes:', error.message);
+}
+
+try {
+  const walletRoutes = require('./src/routes/wallet');
+  app.use('/api/wallet', walletRoutes);
+  console.log('✅ Wallet routes loaded');
+} catch (error) {
+  console.error('❌ Error loading wallet routes:', error.message);
+}
+
+try {
+  const payoutRoutes = require('./src/routes/payouts');
+  app.use('/api/payouts', payoutRoutes);
+  console.log('✅ Payout routes loaded');
+} catch (error) {
+  console.error('❌ Error loading payout routes:', error.message);
+}
+
+try {
+  const communityRoutes = require('./src/routes/community');
+  app.use('/api/community', communityRoutes);
+  console.log('✅ Community routes loaded');
+} catch (error) {
+  console.error('❌ Error loading community routes:', error.message);
+}
+
+// Try to load final routes
+try {
+  const deliveryRoutes = require('./src/routes/delivery');
+  app.use('/api/delivery', deliveryRoutes);
+  console.log('✅ Delivery routes loaded');
+} catch (error) {
+  console.error('❌ Error loading delivery routes:', error.message);
+}
+
+try {
+  const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
+  app.use('/api/order-confirmations', orderConfirmationRoutes);
+  console.log('✅ Order confirmation routes loaded');
+} catch (error) {
+  console.error('❌ Error loading order confirmation routes:', error.message);
+}
+
+try {
+  const disputeManagementRoutes = require('./src/routes/disputeManagement');
+  app.use('/api/disputes', disputeManagementRoutes);
+  console.log('✅ Dispute management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading dispute management routes:', error.message);
+}
+
+try {
+  const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
+  app.use('/api/delivery-revenue', deliveryRevenueRoutes);
+  console.log('✅ Delivery revenue routes loaded');
+} catch (error) {
+  console.error('❌ Error loading delivery revenue routes:', error.message);
+}
+
 // Export for Vercel
 module.exports = app;

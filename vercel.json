@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/server-ultra-minimal.js",
+      "src": "backend/server-gradual-build.js",
       "use": "@vercel/node"
     },
     {
@@ -18,11 +18,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/server-ultra-minimal.js"
+      "dest": "backend/server-gradual-build.js"
     },
     {
       "src": "/uploads/(.*)",
-      "dest": "backend/server-ultra-minimal.js"
+      "dest": "backend/server-gradual-build.js"
     },
     {
       "src": "/assets/(.*)",

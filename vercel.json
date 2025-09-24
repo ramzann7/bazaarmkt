@@ -1,20 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "backend/api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist",
-        "buildCommand": "VITE_API_URL=https://www.bazaarmkt.ca/api VITE_BASE_URL=https://www.bazaarmkt.ca VITE_UPLOADS_URL=https://www.bazaarmkt.ca/api/upload VITE_NODE_ENV=production npm run build:prod",
-        "installCommand": "npm install"
-      }
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",
@@ -28,27 +13,5 @@
       "src": "/(.*)",
       "dest": "frontend/$1"
     }
-  ],
-  "functions": {
-    "backend/api/**/*.js": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
-  },
-  "env": {
-    "NODE_ENV": "production",
-    "VITE_API_URL": "https://www.bazaarmkt.ca/api",
-    "VITE_BASE_URL": "https://www.bazaarmkt.ca",
-    "VITE_UPLOADS_URL": "https://www.bazaarmkt.ca/api/upload",
-    "VITE_NODE_ENV": "production",
-    "API_URL": "https://www.bazaarmkt.ca",
-    "MONGODB_URI": "mongodb+srv://bazaar:v2SpCIZRLgEpwvhW@cluster0.c8vyia3.mongodb.net/bazaarmkt-prod?retryWrites=true&w=majority&appName=Cluster0",
-    "CORS_ORIGIN": "https://www.bazaarmkt.ca",
-    "JWT_SECRET": "your-super-secure-jwt-secret-key-here-minimum-32-characters",
-    "JWT_EXPIRES_IN": "7d",
-    "JWT_REFRESH_SECRET": "your-super-secure-refresh-secret-key-here",
-    "JWT_REFRESH_EXPIRES_IN": "30d",
-    "BREVO_API_KEY": "xkeys-your-brevo-api-key-here",
-    "BLOB_READ_WRITE_TOKEN": "vercel_blob_rw_pKNiy0pR3GIlfqMD_Zzs9LzGgErkQbNk5ctK2zFXuDS2G3H"
-  }
+  ]
 }

@@ -5,16 +5,18 @@ module.exports = async (req, res) => {
   try {
     // Ensure database connection
     if (mongoose.connection.readyState !== 1) {
+      console.log('🔄 Connecting to MongoDB...');
       await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 10000,
-        connectTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 15000,
+        connectTimeoutMS: 10000,
         maxPoolSize: 1,
         minPoolSize: 0,
         maxIdleTimeMS: 1000,
         bufferMaxEntries: 0,
         bufferCommands: false,
       });
+      console.log('✅ MongoDB connected');
     }
 
     const Product = require('../../src/models/product');
@@ -33,10 +35,12 @@ module.exports = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching popular products:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error fetching popular products',
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

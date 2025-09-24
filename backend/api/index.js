@@ -92,6 +92,36 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Route status endpoint
+app.get('/api/route-status', (req, res) => {
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      // This is a router middleware
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push({
+            path: handler.route.path,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({
+    success: true,
+    message: 'Route status',
+    totalRoutes: routes.length,
+    routes: routes
+  });
+});
+
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
@@ -202,7 +232,11 @@ const loadRoutes = async () => {
 };
 
 // Load routes
-loadRoutes();
+loadRoutes().then(() => {
+  console.log('✅ All routes loaded successfully');
+}).catch((error) => {
+  console.error('❌ Error loading routes:', error);
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

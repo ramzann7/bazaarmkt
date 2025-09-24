@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/test-orders-route.js",
+      "src": "backend/server-working.js",
       "use": "@vercel/node"
     },
     {
@@ -18,11 +18,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/test-orders-route.js"
+      "dest": "backend/server-working.js"
     },
     {
       "src": "/uploads/(.*)",
-      "dest": "backend/test-orders-route.js"
+      "dest": "backend/server-working.js"
     },
     {
       "src": "/assets/(.*)",

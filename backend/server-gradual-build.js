@@ -228,6 +228,50 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+// Route status endpoint
+app.get('/api/route-status', (req, res) => {
+  try {
+    const routes = [];
+    
+    // Get all registered routes
+    app._router.stack.forEach((middleware) => {
+      if (middleware.route) {
+        // Direct route
+        routes.push({
+          path: middleware.route.path,
+          methods: Object.keys(middleware.route.methods),
+          type: 'direct'
+        });
+      } else if (middleware.name === 'router') {
+        // Router middleware
+        middleware.handle.stack.forEach((handler) => {
+          if (handler.route) {
+            routes.push({
+              path: handler.route.path,
+              methods: Object.keys(handler.route.methods),
+              type: 'router'
+            });
+          }
+        });
+      }
+    });
+    
+    res.json({
+      success: true,
+      message: 'Route status',
+      totalRoutes: routes.length,
+      routes: routes,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error getting route status',
+      error: error.message
+    });
+  }
+});
+
 // Load routes conditionally - using proven working structure
 try {
   const authRoutes = require('./src/routes/auth');

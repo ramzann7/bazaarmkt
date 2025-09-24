@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "backend/server-ultra-simple.js",
+      "src": "backend/api/**/*.js",
       "use": "@vercel/node",
       "config": {
         "maxLambdaSize": "50mb",
@@ -22,10 +22,6 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "backend/server-ultra-simple.js"
-    },
-    {
       "src": "/assets/(.*)",
       "dest": "frontend/assets/$1"
     },
@@ -35,7 +31,7 @@
     }
   ],
   "functions": {
-    "backend/server-ultra-simple.js": {
+    "backend/api/**/*.js": {
       "maxDuration": 30,
       "memory": 1024
     }

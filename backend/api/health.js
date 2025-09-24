@@ -1,4 +1,4 @@
-// Simple health check serverless function
+// Individual serverless function for health endpoint
 module.exports = (req, res) => {
   res.json({
     status: 'OK',

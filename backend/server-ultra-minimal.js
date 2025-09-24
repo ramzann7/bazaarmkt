@@ -63,5 +63,48 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
+// Test model imports
+app.get('/api/test-models', async (req, res) => {
+  try {
+    const results = {};
+    
+    // Test User model
+    try {
+      const User = require('./src/models/user');
+      results.user = 'OK';
+    } catch (error) {
+      results.user = error.message;
+    }
+    
+    // Test Product model
+    try {
+      const Product = require('./src/models/product');
+      results.product = 'OK';
+    } catch (error) {
+      results.product = error.message;
+    }
+    
+    // Test Artisan model
+    try {
+      const Artisan = require('./src/models/artisan');
+      results.artisan = 'OK';
+    } catch (error) {
+      results.artisan = error.message;
+    }
+    
+    // Test Order model
+    try {
+      const Order = require('./src/models/order');
+      results.order = 'OK';
+    } catch (error) {
+      results.order = error.message;
+    }
+    
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Export for Vercel
 module.exports = app;

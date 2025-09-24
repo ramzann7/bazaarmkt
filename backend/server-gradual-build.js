@@ -51,6 +51,29 @@ app.use((req, res, next) => {
   next();
 });
 
+// Database connection middleware
+app.use(async (req, res, next) => {
+  // Skip database check for health and debug endpoints
+  if (req.path === '/api/health' || req.path === '/api/debug') {
+    return next();
+  }
+  
+  // Ensure database connection for API routes
+  if (req.path.startsWith('/api/')) {
+    try {
+      if (mongoose.connection.readyState !== 1) {
+        console.log('Database not connected, attempting to connect...');
+        await connectDB();
+      }
+    } catch (error) {
+      console.error('Database connection error in middleware:', error);
+      return res.status(500).json({ message: 'Database connection error' });
+    }
+  }
+  
+  next();
+});
+
 // Database connection
 if (!process.env.MONGODB_URI) {
   console.error('❌ MONGODB_URI environment variable is required');
@@ -61,6 +84,12 @@ if (!process.env.MONGODB_URI) {
   // Initialize database connection
   const connectDB = async () => {
     try {
+      // Check if already connected
+      if (mongoose.connection.readyState === 1) {
+        console.log('✅ MongoDB already connected');
+        return;
+      }
+      
       await mongoose.connect(process.env.MONGODB_URI, {
         serverSelectionTimeoutMS: 30000, // 30 seconds
         socketTimeoutMS: 45000, // 45 seconds
@@ -81,7 +110,7 @@ if (!process.env.MONGODB_URI) {
     }
   };
   
-  // Connect to database
+  // Connect to database immediately
   connectDB();
 }
 

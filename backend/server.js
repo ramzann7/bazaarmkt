@@ -34,8 +34,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.json({ limit: '4.5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '4.5mb' }));
 
 // Serve static files for uploads with proper headers
 const staticFileHandler = (req, res, next) => {
@@ -280,44 +280,10 @@ if (!process.env.VERCEL) {
     console.log(`🖼️ Static files served from: ${path.join(__dirname, 'public/uploads')}`);
     console.log(`🔗 Test image endpoint: http://localhost:${PORT}/api/test-image/image-1755916231829-653071106.jpg`);
     
-    // Set up scheduled capacity restoration
-    console.log(`⏰ Setting up scheduled capacity restoration...`);
-    
-    // Run capacity restoration every hour
-    setInterval(async () => {
-      try {
-        console.log(`🔄 Running scheduled capacity restoration...`);
-        const updates = await inventoryService.checkAndRestoreInventory();
-        if (updates.length > 0) {
-          console.log(`✅ Capacity restoration completed: ${updates.length} products updated`);
-        } else {
-          console.log(`ℹ️ No capacity restoration needed`);
-        }
-      } catch (error) {
-        console.error(`❌ Error in scheduled capacity restoration:`, error.message);
-      }
-    }, 60 * 60 * 1000); // Run every hour (60 minutes * 60 seconds * 1000 milliseconds)
-    
-    console.log(`✅ Scheduled capacity restoration set up (runs every hour)`);
-    
-    // Set up scheduled order auto-completion
-    console.log(`⏰ Setting up scheduled order auto-completion...`);
-    const OrderConfirmationService = require('./src/services/orderConfirmationService');
-    
-    // Run order auto-completion every 30 minutes
-    setInterval(async () => {
-      try {
-        console.log(`🔄 Running scheduled order auto-completion...`);
-        const result = await OrderConfirmationService.autoCompleteOrders();
-        if (result.autoCompletedCount > 0) {
-          console.log(`✅ Auto-completed ${result.autoCompletedCount} orders`);
-        }
-      } catch (error) {
-        console.error(`❌ Error in scheduled order auto-completion:`, error.message);
-      }
-    }, 30 * 60 * 1000); // Run every 30 minutes
-    
-    console.log(`✅ Scheduled order auto-completion set up (runs every 30 minutes)`);
+    // Note: Scheduled tasks removed for serverless deployment
+    // Use Vercel Cron Jobs for scheduled tasks instead
+    console.log(`ℹ️ Scheduled tasks disabled for serverless deployment`);
+    console.log(`💡 Use Vercel Cron Jobs for capacity restoration and order auto-completion`);
   });
 }
 

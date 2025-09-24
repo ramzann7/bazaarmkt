@@ -135,7 +135,7 @@ try {
   app.use('/api/promotional', promotionalRoutes);
   app.use('/api/geographic-settings', geographicSettingsRoutes);
 
-  console.log('✅ Core routes loaded successfully');
+  console.log('✅ Core routes loaded successfully - v2');
 } catch (error) {
   console.error('❌ Error loading core routes:', error.message);
 }

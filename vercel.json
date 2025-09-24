@@ -10,7 +10,7 @@
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist",
-        "buildCommand": "npm run build:prod",
+        "buildCommand": "VITE_API_URL=https://www.bazaarmkt.ca/api VITE_BASE_URL=https://www.bazaarmkt.ca VITE_UPLOADS_URL=https://www.bazaarmkt.ca/uploads VITE_NODE_ENV=production npm run build:prod",
         "installCommand": "npm install"
       }
     }

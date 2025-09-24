@@ -170,6 +170,48 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Debug endpoint to check environment and database status
+app.get('/api/debug', async (req, res) => {
+  try {
+    const envInfo = {
+      NODE_ENV: process.env.NODE_ENV,
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+      API_URL: process.env.API_URL,
+      CORS_ORIGIN: process.env.CORS_ORIGIN,
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET',
+      databaseConnection: 'unknown'
+    };
+
+    // Test database connection
+    try {
+      if (process.env.MONGODB_URI) {
+        const User = require('./src/models/user');
+        const userCount = await User.countDocuments();
+        envInfo.databaseConnection = 'connected';
+        envInfo.userCount = userCount;
+      } else {
+        envInfo.databaseConnection = 'no_uri';
+      }
+    } catch (dbError) {
+      envInfo.databaseConnection = 'error';
+      envInfo.databaseError = dbError.message;
+    }
+
+    res.json({
+      success: true,
+      message: 'Debug endpoint working',
+      environment: envInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Test image serving endpoint
 app.get('/api/test-image/:filename', (req, res) => {
   const filename = req.params.filename;

@@ -190,5 +190,38 @@ try {
   console.error('❌ Error loading favorites routes:', error.message);
 }
 
+// Try to load more routes
+try {
+  const userStatsRoutes = require('./src/routes/userStats');
+  app.use('/api/user', userStatsRoutes);
+  console.log('✅ User stats routes loaded');
+} catch (error) {
+  console.error('❌ Error loading user stats routes:', error.message);
+}
+
+try {
+  const revenueRoutes = require('./src/routes/revenue');
+  app.use('/api/revenue', revenueRoutes);
+  console.log('✅ Revenue routes loaded');
+} catch (error) {
+  console.error('❌ Error loading revenue routes:', error.message);
+}
+
+try {
+  const geocodingRoutes = require('./src/routes/geocoding');
+  app.use('/api/geocoding', geocodingRoutes);
+  console.log('✅ Geocoding routes loaded');
+} catch (error) {
+  console.error('❌ Error loading geocoding routes:', error.message);
+}
+
+try {
+  const notificationRoutes = require('./src/routes/notifications');
+  app.use('/api/notifications', notificationRoutes);
+  console.log('✅ Notification routes loaded');
+} catch (error) {
+  console.error('❌ Error loading notification routes:', error.message);
+}
+
 // Export for Vercel
 module.exports = app;

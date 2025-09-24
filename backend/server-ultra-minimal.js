@@ -106,5 +106,48 @@ app.get('/api/test-models', async (req, res) => {
   }
 });
 
+// Test route imports
+app.get('/api/test-routes', async (req, res) => {
+  try {
+    const results = {};
+    
+    // Test auth routes
+    try {
+      const authRoutes = require('./src/routes/auth');
+      results.auth = 'OK';
+    } catch (error) {
+      results.auth = error.message;
+    }
+    
+    // Test product routes
+    try {
+      const productRoutes = require('./src/routes/products');
+      results.products = 'OK';
+    } catch (error) {
+      results.products = error.message;
+    }
+    
+    // Test artisan routes
+    try {
+      const artisanRoutes = require('./src/routes/artisans');
+      results.artisans = 'OK';
+    } catch (error) {
+      results.artisans = error.message;
+    }
+    
+    // Test order routes
+    try {
+      const orderRoutes = require('./src/routes/orders');
+      results.orders = 'OK';
+    } catch (error) {
+      results.orders = error.message;
+    }
+    
+    res.json({ success: true, results });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Export for Vercel
 module.exports = app;

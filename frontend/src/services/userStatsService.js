@@ -1,8 +1,9 @@
 // src/services/userStatsService.js
+import config from '../config/environment.js';
 import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = config.API_URL;
 
 export const userStatsService = {
   // Get user statistics

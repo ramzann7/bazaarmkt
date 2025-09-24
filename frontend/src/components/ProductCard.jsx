@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import config from '../config/environment.js';
 import { 
   BuildingStorefrontIcon, 
   HeartIcon,
@@ -32,7 +33,7 @@ const ProductCard = ({
     
     // Handle relative paths
     if (imagePath.startsWith('/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000/api'}${imagePath}`;
+      return `${config.API_URL}${imagePath}`;
     }
     
     // Handle full URLs

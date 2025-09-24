@@ -1,6 +1,7 @@
 import axios from 'axios';
+import config from '../config/environment.js';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = config.API_URL;
 
 // Get financial dashboard data
 export const getFinancialDashboardData = async (timeRange = '30d') => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import config from '../config/environment.js';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 

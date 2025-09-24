@@ -1,4 +1,5 @@
 import axios from 'axios';
+import config from '../config/environment.js';
 import { authToken } from './authservice';
 import { cartService } from './cartService';
 import { orderService } from './orderService';

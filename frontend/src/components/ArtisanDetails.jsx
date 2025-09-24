@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../config/environment.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   MapPinIcon, 

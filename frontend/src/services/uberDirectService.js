@@ -1,7 +1,8 @@
 // src/services/uberDirectService.js
 import axios from 'axios';
+import config from '../config/environment.js';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = config.API_URL;
 
 export const uberDirectService = {
   // Get delivery quote from backend (which calls Uber Direct API)

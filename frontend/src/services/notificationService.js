@@ -1,4 +1,5 @@
 import axios from 'axios';
+import config from '../config/environment.js';
 import { 
   sendOrderCompletionEmail as sendBrevoOrderCompletionEmail,
   sendOrderUpdateEmail as sendBrevoOrderUpdateEmail,
@@ -8,7 +9,7 @@ import {
   initializeBrevo
 } from './brevoService';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL = config.API_URL;
 
 // Initialize Brevo service (call this when you have the API key)
 export const initializeNotificationService = (brevoApiKey) => {

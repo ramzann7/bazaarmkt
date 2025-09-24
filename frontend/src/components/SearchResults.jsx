@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import config from '../config/environment.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   MagnifyingGlassIcon, 

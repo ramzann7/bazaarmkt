@@ -91,18 +91,24 @@ app.use((req, res, next) => {
 if (!process.env.MONGODB_URI) {
   console.error('❌ MONGODB_URI environment variable is required');
   console.error('❌ Please ensure your .env file contains the Atlas connection string');
-  process.exit(1);
-}
-
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('✅ MongoDB Atlas connected successfully');
-    console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);
-  })
-  .catch(err => {
-    console.error('❌ MongoDB Atlas connection error:', err);
+  // Don't exit in serverless environment
+  if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
     process.exit(1);
-  });
+  }
+} else {
+  mongoose.connect(process.env.MONGODB_URI)
+    .then(() => {
+      console.log('✅ MongoDB Atlas connected successfully');
+      console.log('🔗 Database:', process.env.MONGODB_URI.split('/').pop().split('?')[0]);
+    })
+    .catch(err => {
+      console.error('❌ MongoDB Atlas connection error:', err);
+      // Don't exit in serverless environment - let the function handle the error
+      if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+        process.exit(1);
+      }
+    });
+}
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
@@ -262,52 +268,59 @@ app.use((error, req, res, next) => {
 // Import inventory service for scheduled capacity restoration
 const inventoryService = require('./src/services/inventoryService');
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 API available at http://localhost:${PORT}/api`);
-  console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
-  console.log(`📦 Payload limit: 100MB`);
-  console.log(`🖼️ Static files served from: ${path.join(__dirname, 'public/uploads')}`);
-  console.log(`🔗 Test image endpoint: http://localhost:${PORT}/api/test-image/image-1755916231829-653071106.jpg`);
-  
-  // Set up scheduled capacity restoration
-  console.log(`⏰ Setting up scheduled capacity restoration...`);
-  
-  // Run capacity restoration every hour
-  setInterval(async () => {
-    try {
-      console.log(`🔄 Running scheduled capacity restoration...`);
-      const updates = await inventoryService.checkAndRestoreInventory();
-      if (updates.length > 0) {
-        console.log(`✅ Capacity restoration completed: ${updates.length} products updated`);
-      } else {
-        console.log(`ℹ️ No capacity restoration needed`);
+// For Vercel serverless deployment, export the app directly
+// For local development, start the server
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📡 API available at http://localhost:${PORT}/api`);
+    console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
+    console.log(`📦 Payload limit: 100MB`);
+    console.log(`🖼️ Static files served from: ${path.join(__dirname, 'public/uploads')}`);
+    console.log(`🔗 Test image endpoint: http://localhost:${PORT}/api/test-image/image-1755916231829-653071106.jpg`);
+    
+    // Set up scheduled capacity restoration
+    console.log(`⏰ Setting up scheduled capacity restoration...`);
+    
+    // Run capacity restoration every hour
+    setInterval(async () => {
+      try {
+        console.log(`🔄 Running scheduled capacity restoration...`);
+        const updates = await inventoryService.checkAndRestoreInventory();
+        if (updates.length > 0) {
+          console.log(`✅ Capacity restoration completed: ${updates.length} products updated`);
+        } else {
+          console.log(`ℹ️ No capacity restoration needed`);
+        }
+      } catch (error) {
+        console.error(`❌ Error in scheduled capacity restoration:`, error.message);
       }
-    } catch (error) {
-      console.error(`❌ Error in scheduled capacity restoration:`, error.message);
-    }
-  }, 60 * 60 * 1000); // Run every hour (60 minutes * 60 seconds * 1000 milliseconds)
-  
-  console.log(`✅ Scheduled capacity restoration set up (runs every hour)`);
-  
-  // Set up scheduled order auto-completion
-  console.log(`⏰ Setting up scheduled order auto-completion...`);
-  const OrderConfirmationService = require('./src/services/orderConfirmationService');
-  
-  // Run order auto-completion every 30 minutes
-  setInterval(async () => {
-    try {
-      console.log(`🔄 Running scheduled order auto-completion...`);
-      const result = await OrderConfirmationService.autoCompleteOrders();
-      if (result.autoCompletedCount > 0) {
-        console.log(`✅ Auto-completed ${result.autoCompletedCount} orders`);
+    }, 60 * 60 * 1000); // Run every hour (60 minutes * 60 seconds * 1000 milliseconds)
+    
+    console.log(`✅ Scheduled capacity restoration set up (runs every hour)`);
+    
+    // Set up scheduled order auto-completion
+    console.log(`⏰ Setting up scheduled order auto-completion...`);
+    const OrderConfirmationService = require('./src/services/orderConfirmationService');
+    
+    // Run order auto-completion every 30 minutes
+    setInterval(async () => {
+      try {
+        console.log(`🔄 Running scheduled order auto-completion...`);
+        const result = await OrderConfirmationService.autoCompleteOrders();
+        if (result.autoCompletedCount > 0) {
+          console.log(`✅ Auto-completed ${result.autoCompletedCount} orders`);
+        }
+      } catch (error) {
+        console.error(`❌ Error in scheduled order auto-completion:`, error.message);
       }
-    } catch (error) {
-      console.error(`❌ Error in scheduled order auto-completion:`, error.message);
-    }
-  }, 30 * 60 * 1000); // Run every 30 minutes
-  
-  console.log(`✅ Scheduled order auto-completion set up (runs every 30 minutes)`);
-});
+    }, 30 * 60 * 1000); // Run every 30 minutes
+    
+    console.log(`✅ Scheduled order auto-completion set up (runs every 30 minutes)`);
+  });
+}
+
+// Export the app for Vercel serverless functions
+module.exports = app;
 

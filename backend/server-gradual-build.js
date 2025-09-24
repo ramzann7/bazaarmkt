@@ -272,21 +272,36 @@ app.get('/api/route-status', (req, res) => {
   }
 });
 
+// Simple test route
+app.get('/api/simple-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Simple test route is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Load routes conditionally - using proven working structure
+console.log('🔄 Starting route loading...');
+
 try {
+  console.log('🔄 Loading auth routes...');
   const authRoutes = require('./src/routes/auth');
   app.use('/api/auth', authRoutes);
   console.log('✅ Auth routes loaded');
 } catch (error) {
   console.error('❌ Error loading auth routes:', error.message);
+  console.error('❌ Full error:', error);
 }
 
 try {
+  console.log('🔄 Loading product routes...');
   const productRoutes = require('./src/routes/products');
   app.use('/api/products', productRoutes);
   console.log('✅ Product routes loaded');
 } catch (error) {
   console.error('❌ Error loading product routes:', error.message);
+  console.error('❌ Full error:', error);
 }
 
 try {

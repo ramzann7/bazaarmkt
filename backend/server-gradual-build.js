@@ -51,32 +51,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database connection middleware
-app.use(async (req, res, next) => {
-  // Skip database check for health and debug endpoints
-  if (req.path === '/api/health' || req.path === '/api/debug') {
-    return next();
-  }
-  
-  // Ensure database connection for API routes
-  if (req.path.startsWith('/api/')) {
-    try {
-      if (mongoose.connection.readyState !== 1) {
-        console.log('Database not connected, waiting for connection...');
-        // Wait a bit for connection to establish
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (mongoose.connection.readyState !== 1) {
-          return res.status(500).json({ message: 'Database connection not ready' });
-        }
-      }
-    } catch (error) {
-      console.error('Database connection error in middleware:', error);
-      return res.status(500).json({ message: 'Database connection error' });
-    }
-  }
-  
-  next();
-});
+// Remove database connection middleware - let routes handle their own connections
 
 // Database connection
 if (!process.env.MONGODB_URI) {
@@ -85,14 +60,14 @@ if (!process.env.MONGODB_URI) {
     process.exit(1);
   }
 } else {
-  // Initialize database connection with traditional approach
+  // Initialize database connection optimized for serverless
   mongoose.connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 10000, // 10 seconds
-    socketTimeoutMS: 20000, // 20 seconds
-    connectTimeoutMS: 10000, // 10 seconds
-    maxPoolSize: 3, // Small pool for serverless
+    serverSelectionTimeoutMS: 5000, // 5 seconds
+    socketTimeoutMS: 10000, // 10 seconds
+    connectTimeoutMS: 5000, // 5 seconds
+    maxPoolSize: 1, // Single connection for serverless
     minPoolSize: 0, // No minimum pool
-    maxIdleTimeMS: 5000, // Close connections quickly
+    maxIdleTimeMS: 1000, // Close connections very quickly
     bufferMaxEntries: 0, // Disable mongoose buffering
     bufferCommands: false, // Disable mongoose buffering
   })

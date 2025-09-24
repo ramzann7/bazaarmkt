@@ -173,5 +173,133 @@ try {
   console.error('❌ Error loading geographic settings routes:', error.message);
 }
 
+try {
+  const profileRoutes = require('./src/routes/profile');
+  app.use('/api/profile', profileRoutes);
+  console.log('✅ Profile routes loaded');
+} catch (error) {
+  console.error('❌ Error loading profile routes:', error.message);
+}
+
+try {
+  const uploadRoutes = require('./src/routes/upload');
+  app.use('/api/upload', uploadRoutes);
+  console.log('✅ Upload routes loaded');
+} catch (error) {
+  console.error('❌ Error loading upload routes:', error.message);
+}
+
+try {
+  const adminRoutes = require('./src/routes/admin');
+  app.use('/api/admin', adminRoutes);
+  console.log('✅ Admin routes loaded');
+} catch (error) {
+  console.error('❌ Error loading admin routes:', error.message);
+}
+
+try {
+  const favoritesRoutes = require('./src/routes/favorites');
+  app.use('/api/favorites', favoritesRoutes);
+  console.log('✅ Favorites routes loaded');
+} catch (error) {
+  console.error('❌ Error loading favorites routes:', error.message);
+}
+
+try {
+  const userStatsRoutes = require('./src/routes/userStats');
+  app.use('/api/user', userStatsRoutes);
+  console.log('✅ User stats routes loaded');
+} catch (error) {
+  console.error('❌ Error loading user stats routes:', error.message);
+}
+
+try {
+  const revenueRoutes = require('./src/routes/revenue');
+  app.use('/api/revenue', revenueRoutes);
+  console.log('✅ Revenue routes loaded');
+} catch (error) {
+  console.error('❌ Error loading revenue routes:', error.message);
+}
+
+try {
+  const geocodingRoutes = require('./src/routes/geocoding');
+  app.use('/api/geocoding', geocodingRoutes);
+  console.log('✅ Geocoding routes loaded');
+} catch (error) {
+  console.error('❌ Error loading geocoding routes:', error.message);
+}
+
+try {
+  const notificationRoutes = require('./src/routes/notifications');
+  app.use('/api/notifications', notificationRoutes);
+  console.log('✅ Notification routes loaded');
+} catch (error) {
+  console.error('❌ Error loading notification routes:', error.message);
+}
+
+try {
+  const spotlightRoutes = require('./src/routes/spotlight');
+  app.use('/api/spotlight', spotlightRoutes);
+  console.log('✅ Spotlight routes loaded');
+} catch (error) {
+  console.error('❌ Error loading spotlight routes:', error.message);
+}
+
+try {
+  const walletRoutes = require('./src/routes/wallet');
+  app.use('/api/wallet', walletRoutes);
+  console.log('✅ Wallet routes loaded');
+} catch (error) {
+  console.error('❌ Error loading wallet routes:', error.message);
+}
+
+try {
+  const payoutRoutes = require('./src/routes/payouts');
+  app.use('/api/payouts', payoutRoutes);
+  console.log('✅ Payout routes loaded');
+} catch (error) {
+  console.error('❌ Error loading payout routes:', error.message);
+}
+
+try {
+  const communityRoutes = require('./src/routes/community');
+  app.use('/api/community', communityRoutes);
+  console.log('✅ Community routes loaded');
+} catch (error) {
+  console.error('❌ Error loading community routes:', error.message);
+}
+
+try {
+  const deliveryRoutes = require('./src/routes/delivery');
+  app.use('/api/delivery', deliveryRoutes);
+  console.log('✅ Delivery routes loaded');
+} catch (error) {
+  console.error('❌ Error loading delivery routes:', error.message);
+}
+
+try {
+  const orderConfirmationRoutes = require('./src/routes/orderConfirmations');
+  app.use('/api/order-confirmations', orderConfirmationRoutes);
+  console.log('✅ Order confirmation routes loaded');
+} catch (error) {
+  console.error('❌ Error loading order confirmation routes:', error.message);
+}
+
+try {
+  const disputeManagementRoutes = require('./src/routes/disputeManagement');
+  app.use('/api/disputes', disputeManagementRoutes);
+  console.log('✅ Dispute management routes loaded');
+} catch (error) {
+  console.error('❌ Error loading dispute management routes:', error.message);
+}
+
+try {
+  const deliveryRevenueRoutes = require('./src/routes/deliveryRevenue');
+  app.use('/api/delivery-revenue', deliveryRevenueRoutes);
+  console.log('✅ Delivery revenue routes loaded');
+} catch (error) {
+  console.error('❌ Error loading delivery revenue routes:', error.message);
+}
+
 // Export for Vercel
 module.exports = app;

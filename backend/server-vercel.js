@@ -1585,6 +1585,9 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
 const reviewsFeatures = require('./missing-features/reviews');
 const favoritesFeatures = require('./missing-features/favorites');
 const notificationsFeatures = require('./missing-features/notifications');
+const communityFeatures = require('./missing-features/community');
+const profileFeatures = require('./missing-features/profile-management');
+const additionalFeatures = require('./missing-features/additional-services');
 
 // ============================================================================
 // REVIEWS ENDPOINTS
@@ -1644,8 +1647,120 @@ app.delete('/api/notifications/:notificationId', notificationsFeatures.deleteNot
 app.post('/api/notifications/send', notificationsFeatures.sendNotification);
 
 // ============================================================================
+// COMMUNITY ENDPOINTS
+// ============================================================================
+
+// Community posts
+app.get('/api/community/posts', communityFeatures.getPosts);
+app.post('/api/community/posts', communityFeatures.createPost);
+app.put('/api/community/posts/:postId', communityFeatures.updatePost);
+app.delete('/api/community/posts/:postId', communityFeatures.deletePost);
+app.post('/api/community/posts/:postId/like', communityFeatures.likePost);
+app.delete('/api/community/posts/:postId/like', communityFeatures.likePost); // Same handler toggles
+
+// Community comments
+app.get('/api/community/posts/:postId/comments', communityFeatures.getComments);
+app.post('/api/community/posts/:postId/comments', communityFeatures.createComment);
+
+// Community stats and leaderboards
+app.get('/api/community/stats', communityFeatures.getCommunityStats);
+app.get('/api/community/leaderboard', communityFeatures.getEngagementLeaderboard);
+app.get('/api/community/leaderboard/engagement', communityFeatures.getEngagementLeaderboard);
+
+// ============================================================================
+// PROFILE MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Profile updates
+app.put('/api/profile', profileFeatures.updateProfile);
+app.put('/api/profile/addresses', profileFeatures.updateAddresses);
+app.post('/api/profile/addresses', profileFeatures.addAddress);
+
+// Guest user management
+app.get('/api/auth/check-email/:email', profileFeatures.checkEmail);
+app.post('/api/auth/guest', profileFeatures.createGuestProfile);
+app.get('/api/auth/guest/:guestId', profileFeatures.getGuestProfile);
+app.put('/api/auth/guest/:guestId', profileFeatures.updateGuestProfile);
+app.post('/api/auth/guest/:guestId/convert', profileFeatures.convertGuestToUser);
+
+// Order management
+app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
+app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
+app.post('/api/orders/guest', profileFeatures.createGuestOrder);
+
+// ============================================================================
+// ADDITIONAL SERVICES ENDPOINTS
+// ============================================================================
+
+// Spotlight
+app.get('/api/spotlight/status', additionalFeatures.getSpotlightStatus);
+
+// Wallet
+app.get('/api/wallet/balance', additionalFeatures.getWalletBalance);
+app.get('/api/wallet/transactions', additionalFeatures.getWalletTransactions);
+
+// Geocoding
+app.post('/api/geocoding/address', additionalFeatures.geocodeAddress);
+
+// Revenue
+app.get('/api/revenue/artisan', additionalFeatures.getArtisanRevenue);
+
+// Admin
+app.get('/api/admin/stats', additionalFeatures.getAdminStats);
+
+// Enhanced search
+app.get('/api/search/enhanced', additionalFeatures.enhancedSearch);
+
+// Business analytics
+app.get('/api/analytics/business', additionalFeatures.getBusinessAnalytics);
+
+// ============================================================================
 // ADDITIONAL MISSING ENDPOINTS
 // ============================================================================
+
+// Get user orders (alias for compatibility)
+app.get('/api/user/orders', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const limit = parseInt(req.query.limit) || 20;
+
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    
+    const orders = await ordersCollection
+      .find({ userId: new ObjectId(decoded.userId) })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      orders: orders,
+      count: orders.length
+    });
+  } catch (error) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user orders',
+      error: error.message
+    });
+  }
+});
 
 // Get user statistics
 app.get('/api/user/stats', async (req, res) => {

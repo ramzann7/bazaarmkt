@@ -453,7 +453,11 @@ app.get('/api/products/enhanced-search', async (req, res) => {
     for (let product of products) {
       if (product.artisan) {
         try {
-          const artisan = await db.collection('artisans').findOne({ _id: product.artisan });
+          // Convert string to ObjectId if needed
+          const { ObjectId } = require('mongodb');
+          const artisanId = typeof product.artisan === 'string' ? new ObjectId(product.artisan) : product.artisan;
+          
+          const artisan = await db.collection('artisans').findOne({ _id: artisanId });
           if (artisan) {
             product.artisan = {
               _id: artisan._id,
@@ -462,9 +466,17 @@ app.get('/api/products/enhanced-search', async (req, res) => {
               address: artisan.address,
               rating: artisan.rating || 0
             };
+          } else {
+            product.artisan = {
+              _id: product.artisan,
+              artisanName: 'Unknown Artisan',
+              type: 'other',
+              address: null,
+              rating: 0
+            };
           }
         } catch (err) {
-          console.log('Error fetching artisan for product:', product._id);
+          console.log('Error fetching artisan for product:', product._id, err.message);
           product.artisan = {
             _id: product.artisan,
             artisanName: 'Unknown Artisan',

@@ -126,9 +126,12 @@ bazaarMKT/
 │   │   ├── data/              # Static data
 │   │   └── utils/             # Utility functions
 │   └── public/                # Public assets
-├── documentation/             # Project documentation
-├── SERVERLESS_ARCHITECTURE.md # Serverless migration guide
-└── scripts/               # Utility scripts
+├── documentation/             # 📚 Complete project documentation
+│   ├── README.md              # Documentation index
+│   ├── architecture/          # Architecture & design docs
+│   ├── migration/             # Migration & deployment docs
+│   └── development/           # Development & testing docs
+└── scripts/                   # Utility scripts
 ```
 
 ## 🚀 Serverless Architecture
@@ -155,7 +158,16 @@ This project has been migrated to a **serverless architecture** for better perfo
 - ✅ Dashboard Statistics
 - ✅ User & Artisan Analytics
 
-📖 **Full documentation**: See [SERVERLESS_ARCHITECTURE.md](./SERVERLESS_ARCHITECTURE.md)
+📖 **Full documentation**: See [Documentation Index](./documentation/README.md)
+
+## 📚 Documentation Quick Links
+
+- **🏗️ Architecture Guide**: [Understanding Serverless Architecture](./documentation/architecture/ARCHITECTURE_GUIDE.md)
+- **🚀 Serverless Details**: [Complete Technical Overview](./documentation/architecture/SERVERLESS_ARCHITECTURE.md)
+- **🔄 Migration Summary**: [What Changed and Why](./documentation/migration/MIGRATION_SUMMARY.md)
+- **🛠️ Development Guide**: [Development Tools & Testing](./documentation/development/DEV_UTILS.md)
+- **🧪 Testing Strategy**: [API Testing Approach](./documentation/development/TESTING_STRATEGY.md)
+- **🗄️ Database Documentation**: [Database Schema & Operations](./documentation/DATABASE_DOCUMENTATION.md)
 
 ## 🔧 API Endpoints
 

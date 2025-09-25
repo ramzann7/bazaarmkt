@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:prod": "vite build",
+    "build:prod": "node build-production.js",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",

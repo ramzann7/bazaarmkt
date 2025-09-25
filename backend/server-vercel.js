@@ -527,6 +527,871 @@ app.get('/api/products/categories/list', async (req, res) => {
 
 
 // ============================================================================
+// AUTHENTICATION ENDPOINTS
+// ============================================================================
+
+// User registration
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    
+    const { email, password, firstName, lastName, phone, userType = 'customer' } = req.body;
+    
+    if (!email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, password, first name, and last name are required'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+    
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    // Create user
+    const user = {
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      firstName,
+      lastName,
+      phone: phone || '',
+      userType,
+      isActive: true,
+      isVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await usersCollection.insertOne(user);
+    const userId = result.insertedId;
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: userId.toString(), email: user.email, userType: user.userType },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    await client.close();
+    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: {
+        user: {
+          _id: userId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          userType: user.userType,
+          isActive: user.isActive,
+          isVerified: user.isVerified
+        },
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed',
+      error: error.message
+    });
+  }
+});
+
+// User login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const usersCollection = db.collection('users');
+    
+    // Find user
+    const user = await usersCollection.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      await client.close();
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    // Check if user is active
+    if (!user.isActive) {
+      await client.close();
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+    
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      await client.close();
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id.toString(), email: user.email, userType: user.userType },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          userType: user.userType,
+          isActive: user.isActive,
+          isVerified: user.isVerified
+        },
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed',
+      error: error.message
+    });
+  }
+});
+
+// Get user profile
+app.get('/api/auth/profile', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const usersCollection = db.collection('users');
+    
+    const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+    if (!user) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          userType: user.userType,
+          isActive: user.isActive,
+          isVerified: user.isVerified,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Profile error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile',
+      error: error.message
+    });
+  }
+});
+
+// Update user profile
+app.put('/api/auth/profile', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { firstName, lastName, phone } = req.body;
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const usersCollection = db.collection('users');
+    
+    const updateData = {
+      updatedAt: new Date()
+    };
+    
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone;
+    
+    const result = await usersCollection.updateOne(
+      { _id: new (require('mongodb')).ObjectId(decoded.userId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    const updatedUser = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          _id: updatedUser._id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          phone: updatedUser.phone,
+          userType: updatedUser.userType,
+          isActive: updatedUser.isActive,
+          isVerified: updatedUser.isVerified,
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// ORDER MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Create new order
+app.post('/api/orders', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { items, shippingAddress, paymentMethod, notes } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order items are required'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    
+    // Calculate total and validate items
+    let totalAmount = 0;
+    const validatedItems = [];
+    
+    for (const item of items) {
+      const product = await productsCollection.findOne({ 
+        _id: new (require('mongodb')).ObjectId(item.productId),
+        status: 'active'
+      });
+      
+      if (!product) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: `Product ${item.productId} not found or inactive`
+        });
+      }
+      
+      if (product.availableQuantity < item.quantity) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient quantity for product ${product.name}`
+        });
+      }
+      
+      const itemTotal = product.price * item.quantity;
+      totalAmount += itemTotal;
+      
+      validatedItems.push({
+        productId: product._id,
+        productName: product.name,
+        productPrice: product.price,
+        quantity: item.quantity,
+        itemTotal: itemTotal,
+        artisanId: product.artisan
+      });
+    }
+    
+    // Create order
+    const order = {
+      userId: new (require('mongodb')).ObjectId(decoded.userId),
+      items: validatedItems,
+      totalAmount,
+      status: 'pending',
+      shippingAddress: shippingAddress || {},
+      paymentMethod: paymentMethod || 'cash',
+      notes: notes || '',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await ordersCollection.insertOne(order);
+    const orderId = result.insertedId;
+    
+    // Update product quantities
+    for (const item of validatedItems) {
+      await productsCollection.updateOne(
+        { _id: item.productId },
+        { 
+          $inc: { 
+            availableQuantity: -item.quantity,
+            soldCount: item.quantity
+          }
+        }
+      );
+    }
+    
+    await client.close();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Order created successfully',
+      data: {
+        order: {
+          _id: orderId,
+          ...order,
+          totalAmount
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Order creation error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create order',
+      error: error.message
+    });
+  }
+});
+
+// Get user orders
+app.get('/api/orders', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    
+    const orders = await ordersCollection
+      .find({ userId: new (require('mongodb')).ObjectId(decoded.userId) })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        orders,
+        count: orders.length
+      }
+    });
+  } catch (error) {
+    console.error('Get orders error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get orders',
+      error: error.message
+    });
+  }
+});
+
+// Get single order
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id),
+      userId: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    if (!order) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: { order }
+    });
+  } catch (error) {
+    console.error('Get order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order',
+      error: error.message
+    });
+  }
+});
+
+// Update order status (for artisans/admin)
+app.put('/api/orders/:id/status', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { status } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+    
+    const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
+    }
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    
+    const result = await ordersCollection.updateOne(
+      { _id: new (require('mongodb')).ObjectId(req.params.id) },
+      { 
+        $set: { 
+          status,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    const updatedOrder = await ordersCollection.findOne({ 
+      _id: new (require('mongodb')).ObjectId(req.params.id) 
+    });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      data: { order: updatedOrder }
+    });
+  } catch (error) {
+    console.error('Update order status error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update order status',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// FILE UPLOAD ENDPOINTS
+// ============================================================================
+
+// Upload image (using Vercel Blob)
+app.post('/api/upload', async (req, res) => {
+  try {
+    const { put } = require('@vercel/blob');
+    const multer = require('multer');
+    
+    // Configure multer for memory storage
+    const upload = multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+      },
+      fileFilter: (req, file, cb) => {
+        // Check file type
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      }
+    });
+    
+    // Use multer middleware
+    upload.single('image')(req, res, async (err) => {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded'
+        });
+      }
+      
+      try {
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const fileExtension = req.file.originalname.split('.').pop();
+        const filename = `image-${timestamp}-${randomString}.${fileExtension}`;
+        
+        // Upload to Vercel Blob
+        const blob = await put(filename, req.file.buffer, {
+          access: 'public',
+          contentType: req.file.mimetype
+        });
+        
+        res.json({
+          success: true,
+          message: 'File uploaded successfully',
+          data: {
+            url: blob.url,
+            filename: filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+          }
+        });
+      } catch (uploadError) {
+        console.error('Blob upload error:', uploadError);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to upload file',
+          error: uploadError.message
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Upload endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Upload failed',
+      error: error.message
+    });
+  }
+});
+
+// Upload multiple images
+app.post('/api/upload/multiple', async (req, res) => {
+  try {
+    const { put } = require('@vercel/blob');
+    const multer = require('multer');
+    
+    // Configure multer for memory storage
+    const upload = multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit per file
+        files: 10 // Maximum 10 files
+      },
+      fileFilter: (req, file, cb) => {
+        // Check file type
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      }
+    });
+    
+    // Use multer middleware
+    upload.array('images', 10)(req, res, async (err) => {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+      
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No files uploaded'
+        });
+      }
+      
+      try {
+        const uploadPromises = req.files.map(async (file) => {
+          // Generate unique filename
+          const timestamp = Date.now();
+          const randomString = Math.random().toString(36).substring(2, 15);
+          const fileExtension = file.originalname.split('.').pop();
+          const filename = `image-${timestamp}-${randomString}.${fileExtension}`;
+          
+          // Upload to Vercel Blob
+          const blob = await put(filename, file.buffer, {
+            access: 'public',
+            contentType: file.mimetype
+          });
+          
+          return {
+            url: blob.url,
+            filename: filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            originalName: file.originalname
+          };
+        });
+        
+        const uploadedFiles = await Promise.all(uploadPromises);
+        
+        res.json({
+          success: true,
+          message: 'Files uploaded successfully',
+          data: {
+            files: uploadedFiles,
+            count: uploadedFiles.length
+          }
+        });
+      } catch (uploadError) {
+        console.error('Blob upload error:', uploadError);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to upload files',
+          error: uploadError.message
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Upload endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Upload failed',
+      error: error.message
+    });
+  }
+});
+
+// Delete uploaded file
+app.delete('/api/upload/:filename', async (req, res) => {
+  try {
+    const { del } = require('@vercel/blob');
+    
+    const { filename } = req.params;
+    if (!filename) {
+      return res.status(400).json({
+        success: false,
+        message: 'Filename is required'
+      });
+    }
+    
+    // Delete from Vercel Blob
+    await del(filename);
+    
+    res.json({
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete file error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete file',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
 // ARTISAN ENDPOINTS
 // ============================================================================
 

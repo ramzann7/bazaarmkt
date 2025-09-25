@@ -40,25 +40,36 @@ const connectDB = async () => {
   }
 
   try {
-    console.log('🔗 Attempting MongoDB connection...');
+    console.log('🔗 Attempting Mongoose connection...');
     console.log('🔗 Connection string exists:', !!process.env.MONGODB_URI);
     console.log('🔗 Connection string preview:', process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'NOT SET');
     
+    // Disconnect any existing connection first
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+    
     await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000, // 5 seconds for serverless
-      socketTimeoutMS: 10000, // 10 seconds
-      connectTimeoutMS: 5000, // 5 seconds
+      serverSelectionTimeoutMS: 10000, // 10 seconds for serverless
+      socketTimeoutMS: 15000, // 15 seconds
+      connectTimeoutMS: 10000, // 10 seconds
       maxPoolSize: 1, // Single connection for serverless
       minPoolSize: 0, // No minimum connections
-      maxIdleTimeMS: 10000, // Close connections after 10 seconds
+      maxIdleTimeMS: 15000, // Close connections after 15 seconds
       bufferMaxEntries: 0, // Disable mongoose buffering
       bufferCommands: false, // Disable mongoose buffering
+      retryWrites: true,
+      w: 'majority'
     });
+    
     isConnected = true;
-    console.log('✅ MongoDB connected for serverless');
+    console.log('✅ Mongoose connected for serverless');
+    console.log('✅ Connection state:', mongoose.connection.readyState);
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error.message);
+    console.error('❌ Mongoose connection failed:', error.message);
     console.error('❌ Error details:', error);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error name:', error.name);
     isConnected = false;
   }
 };

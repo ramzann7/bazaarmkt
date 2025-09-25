@@ -14,7 +14,7 @@ const environment = {
     // Use Vercel environment variables if available, otherwise fallback to hardcoded values
     API_URL: import.meta.env.VITE_API_URL || 'https://www.bazaarmkt.ca/api',
     BASE_URL: import.meta.env.VITE_BASE_URL || 'https://www.bazaarmkt.ca',
-    UPLOADS_URL: import.meta.env.VITE_UPLOADS_URL || 'https://www.bazaarmkt.ca/uploads',
+    UPLOADS_URL: import.meta.env.VITE_UPLOADS_URL || 'https://www.bazaarmkt.ca/api/upload',
     STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
     GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',

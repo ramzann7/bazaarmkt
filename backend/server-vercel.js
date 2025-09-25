@@ -1577,38 +1577,7 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
   }
 });
 
-// Load routes conditionally (these may fail due to Mongoose issues)
-try {
-  const authRoutes = require('./src/routes/auth');
-  app.use('/api/auth', authRoutes);
-  console.log('✅ Auth routes loaded');
-} catch (error) {
-  console.error('❌ Error loading auth routes:', error.message);
-}
-
-try {
-  const productRoutes = require('./src/routes/products');
-  app.use('/api/products', productRoutes);
-  console.log('✅ Product routes loaded');
-} catch (error) {
-  console.error('❌ Error loading product routes:', error.message);
-}
-
-try {
-  const artisanRoutes = require('./src/routes/artisans');
-  app.use('/api/artisans', artisanRoutes);
-  console.log('✅ Artisan routes loaded');
-} catch (error) {
-  console.error('❌ Error loading artisan routes:', error.message);
-}
-
-try {
-  const promotionalRoutes = require('./src/routes/promotional');
-  app.use('/api/promotional', promotionalRoutes);
-  console.log('✅ Promotional routes loaded');
-} catch (error) {
-  console.error('❌ Error loading promotional routes:', error.message);
-}
+// All routes are now implemented directly in this file
 
 // Error handling middleware
 app.use((error, req, res, next) => {

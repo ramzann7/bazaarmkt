@@ -359,6 +359,15 @@ app.get('/api/products/:id', async (req, res) => {
     const db = client.db();
     const productsCollection = db.collection('products');
     
+    // Validate ObjectId before using it
+    if (!ObjectId.isValid(req.params.id)) {
+      await client.close();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid product ID format' 
+      });
+    }
+    
     const product = await productsCollection.findOne({ 
       _id: new ObjectId(req.params.id),
       status: 'active'
@@ -455,7 +464,18 @@ app.get('/api/products/enhanced-search', async (req, res) => {
         try {
           // Convert string to ObjectId if needed
           const { ObjectId } = require('mongodb');
-          const artisanId = typeof product.artisan === 'string' ? new ObjectId(product.artisan) : product.artisan;
+          let artisanId;
+          if (typeof product.artisan === 'string') {
+            if (ObjectId.isValid(product.artisan)) {
+              artisanId = new ObjectId(product.artisan);
+            } else {
+              console.log('Invalid ObjectId string for artisan:', product.artisan);
+              product.artisan = { _id: product.artisan, artisanName: 'Unknown Artisan', type: 'other', address: null, rating: 0 };
+              continue;
+            }
+          } else {
+            artisanId = product.artisan;
+          }
           
           const artisan = await db.collection('artisans').findOne({ _id: artisanId });
           if (artisan) {
@@ -568,6 +588,15 @@ app.get('/api/artisans/:id', async (req, res) => {
     const db = client.db();
     const artisansCollection = db.collection('artisans');
     const productsCollection = db.collection('products');
+    
+    // Validate ObjectId before using it
+    if (!ObjectId.isValid(req.params.id)) {
+      await client.close();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid artisan ID format' 
+      });
+    }
     
     const artisan = await artisansCollection.findOne({ 
       _id: new ObjectId(req.params.id),

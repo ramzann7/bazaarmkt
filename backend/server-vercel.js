@@ -119,28 +119,27 @@ app.get('/api/test-db', async (req, res) => {
   try {
     console.log('🧪 Testing database connection...');
     
-    // Force a new connection attempt
-    isConnected = false;
-    await connectDB();
+    // Use native MongoDB client instead of Mongoose
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 10000,
+    });
     
-    if (isConnected) {
-      // Try a simple query
-      const User = require('./src/models/user');
-      const userCount = await User.countDocuments();
-      
-      res.json({
-        success: true,
-        message: 'Database connection successful',
-        userCount: userCount,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Database connection failed - connection not established',
-        timestamp: new Date().toISOString()
-      });
-    }
+    await client.connect();
+    const db = client.db();
+    const usersCollection = db.collection('users');
+    const userCount = await usersCollection.countDocuments();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Database connection successful (using native client)',
+      userCount: userCount,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('🧪 Database test error:', error);
     res.status(500).json({

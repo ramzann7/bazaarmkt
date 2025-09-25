@@ -271,7 +271,7 @@ app.get('/api/products/featured', async (req, res) => {
     
     // Get featured products
     const featuredProducts = await productsCollection
-      .find({ status: 'active', featured: true })
+      .find({ status: 'active', isFeatured: true })
       .limit(6)
       .toArray();
     
@@ -303,7 +303,7 @@ app.get('/api/promotional/products/featured', async (req, res) => {
     
     // Get promotional featured products
     const featuredProducts = await productsCollection
-      .find({ status: 'active', featured: true })
+      .find({ status: 'active', isFeatured: true })
       .limit(6)
       .toArray();
     

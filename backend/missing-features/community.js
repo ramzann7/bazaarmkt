@@ -49,7 +49,7 @@ const getPosts = async (req, res) => {
       });
       pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
       
-      // Populate artisan information if available
+      // Populate artisan information directly from artisans collection
       pipeline.push({
         $lookup: {
           from: 'artisans',
@@ -57,7 +57,20 @@ const getPosts = async (req, res) => {
           foreignField: '_id',
           as: 'artisanData',
           pipeline: [
-            { $project: { artisanName: 1, businessName: 1, profileImage: 1, type: 1 } }
+            { $project: { artisanName: 1, businessName: 1, type: 1, profileImage: 1, user: 1 } },
+            // Also get the artisan's user data
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'user',
+                foreignField: '_id',
+                as: 'userInfo',
+                pipeline: [
+                  { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+                ]
+              }
+            },
+            { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } }
           ]
         }
       });
@@ -144,10 +157,16 @@ const createPost = async (req, res) => {
     await client.connect();
     const db = client.db();
     const postsCollection = db.collection('communityposts');
+    const artisansCollection = db.collection('artisans');
+
+    // Check if user is an artisan to set artisan field
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
 
     const post = {
       author: new ObjectId(decoded.userId),
-      artisan: null, // Will be populated if user is artisan
+      artisan: artisan ? artisan._id : null, // Set artisan ID if user is artisan
       title: postData.title,
       content: postData.content,
       type: postData.type || 'story',
@@ -155,9 +174,15 @@ const createPost = async (req, res) => {
       tags: postData.tags || [],
       images: postData.images || [],
       comments: [], // Array of comment ObjectIds
+      likes: [], // Embedded likes array
       isPinned: false,
       isFeatured: false,
-      views: 0,
+      visibility: 'public',
+      engagement: {
+        views: 0,
+        shares: 0,
+        saves: 0
+      },
       status: 'published',
       moderation: {
         isModerated: false
@@ -503,11 +528,17 @@ const createComment = async (req, res) => {
     const db = client.db();
     const commentsCollection = db.collection('communitycomments');
     const postsCollection = db.collection('communityposts');
+    const artisansCollection = db.collection('artisans');
+
+    // Check if user is an artisan
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
 
     const comment = {
       post: new ObjectId(postId),
       author: new ObjectId(decoded.userId),
-      artisan: null, // Will be populated if user is artisan
+      artisan: artisan ? artisan._id : null, // Set artisan ID if user is artisan
       content: content.trim(),
       parentComment: null,
       replies: [],
@@ -563,30 +594,35 @@ const getEngagementLeaderboard = async (req, res) => {
     await client.connect();
     const db = client.db();
 
-    // Calculate engagement scores based on posts, likes, and comments
+    // Calculate engagement scores for ARTISANS based on their posts, likes, and comments
     const pipeline = [
+      // Start with artisans collection
       {
         $lookup: {
           from: 'communityposts',
           localField: '_id',
-          foreignField: 'authorId',
+          foreignField: 'artisan', // Posts reference artisan directly
           as: 'posts'
-        }
-      },
-      {
-        $lookup: {
-          from: 'community_likes',
-          localField: '_id',
-          foreignField: 'userId',
-          as: 'likes'
         }
       },
       {
         $lookup: {
           from: 'communitycomments',
           localField: '_id',
-          foreignField: 'authorId',
+          foreignField: 'artisan', // Comments reference artisan directly
           as: 'comments'
+        }
+      },
+      // Calculate likes from posts (likes are embedded in posts)
+      {
+        $addFields: {
+          totalLikes: {
+            $reduce: {
+              input: '$posts',
+              initialValue: 0,
+              in: { $add: ['$$value', { $size: { $ifNull: ['$$this.likes', []] } }] }
+            }
+          }
         }
       },
       {
@@ -594,18 +630,18 @@ const getEngagementLeaderboard = async (req, res) => {
           engagementScore: {
             $add: [
               { $multiply: [{ $size: '$posts' }, 10] }, // Posts worth 10 points
-              { $multiply: [{ $size: '$likes' }, 2] },  // Likes worth 2 points
+              { $multiply: ['$totalLikes', 2] },        // Likes worth 2 points
               { $multiply: [{ $size: '$comments' }, 5] } // Comments worth 5 points
             ]
           },
           postsCount: { $size: '$posts' },
-          likesCount: { $size: '$likes' },
+          likesCount: '$totalLikes',
           commentsCount: { $size: '$comments' }
         }
       },
       {
         $match: {
-          engagementScore: { $gt: 0 } // Only include users with some engagement
+          engagementScore: { $gt: 0 } // Only include artisans with some engagement
         }
       },
       {
@@ -614,34 +650,35 @@ const getEngagementLeaderboard = async (req, res) => {
       {
         $limit: parseInt(limit)
       },
+      // Populate user information for artisan
       {
         $lookup: {
-          from: 'artisans',
-          localField: '_id',
-          foreignField: 'user',
-          as: 'artisan',
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userData',
           pipeline: [
-            { $project: { artisanName: 1, businessName: 1, profileImage: 1 } }
+            { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
           ]
         }
       },
-      {
-        $unwind: { path: '$artisan', preserveNullAndEmptyArrays: true }
-      },
+      { $unwind: { path: '$userData', preserveNullAndEmptyArrays: true } },
       {
         $project: {
-          firstName: 1,
-          lastName: 1,
+          artisanName: 1,
+          businessName: 1,
+          type: 1,
+          profileImage: 1,
+          user: '$userData',
           engagementScore: 1,
           postsCount: 1,
           likesCount: 1,
-          commentsCount: 1,
-          artisan: 1
+          commentsCount: 1
         }
       }
     ];
 
-    const leaderboard = await db.collection('users').aggregate(pipeline).toArray();
+    const leaderboard = await db.collection('artisans').aggregate(pipeline).toArray();
     await client.close();
 
     res.json({

@@ -226,7 +226,105 @@ app.get('/api/env-check', (req, res) => {
   }
 });
 
-// Load routes conditionally
+// Working API endpoints using native MongoDB client
+app.get('/api/products/popular', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get popular products (you can adjust the query as needed)
+    const popularProducts = await productsCollection
+      .find({ status: 'active' })
+      .sort({ views: -1 })
+      .limit(8)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: popularProducts,
+      count: popularProducts.length
+    });
+  } catch (error) {
+    console.error('Error fetching popular products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching popular products',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/products/featured', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get featured products
+    const featuredProducts = await productsCollection
+      .find({ status: 'active', featured: true })
+      .limit(6)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: featuredProducts,
+      count: featuredProducts.length
+    });
+  } catch (error) {
+    console.error('Error fetching featured products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching featured products',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/promotional/products/featured', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get promotional featured products
+    const featuredProducts = await productsCollection
+      .find({ status: 'active', featured: true })
+      .limit(6)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: featuredProducts,
+      count: featuredProducts.length
+    });
+  } catch (error) {
+    console.error('Error fetching promotional featured products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching promotional featured products',
+      error: error.message
+    });
+  }
+});
+
+// Load routes conditionally (these may fail due to Mongoose issues)
 try {
   const authRoutes = require('./src/routes/auth');
   app.use('/api/auth', authRoutes);

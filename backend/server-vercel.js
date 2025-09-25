@@ -226,7 +226,63 @@ app.get('/api/env-check', (req, res) => {
   }
 });
 
-// Working API endpoints using native MongoDB client
+// ============================================================================
+// PRODUCT ENDPOINTS
+// ============================================================================
+
+// Get all products with optional filters
+app.get('/api/products', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Build query from filters
+    const query = { status: 'active' };
+    
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+    if (req.query.subcategory) {
+      query.subcategory = req.query.subcategory;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { name: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    if (req.query.artisan) {
+      query.artisan = req.query.artisan;
+    }
+    
+    const products = await productsCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      products: products,
+      count: products.length
+    });
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching products',
+      error: error.message
+    });
+  }
+});
+
+// Get popular products
 app.get('/api/products/popular', async (req, res) => {
   try {
     const { MongoClient } = require('mongodb');
@@ -236,10 +292,10 @@ app.get('/api/products/popular', async (req, res) => {
     const db = client.db();
     const productsCollection = db.collection('products');
     
-    // Get popular products (you can adjust the query as needed)
+    // Get popular products (sorted by soldCount or views)
     const popularProducts = await productsCollection
       .find({ status: 'active' })
-      .sort({ views: -1 })
+      .sort({ soldCount: -1, views: -1 })
       .limit(8)
       .toArray();
     
@@ -260,6 +316,7 @@ app.get('/api/products/popular', async (req, res) => {
   }
 });
 
+// Get featured products
 app.get('/api/products/featured', async (req, res) => {
   try {
     const { MongoClient } = require('mongodb');
@@ -292,6 +349,248 @@ app.get('/api/products/featured', async (req, res) => {
   }
 });
 
+// Get single product by ID
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    const product = await productsCollection.findOne({ 
+      _id: new ObjectId(req.params.id),
+      status: 'active'
+    });
+    
+    await client.close();
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product',
+      error: error.message
+    });
+  }
+});
+
+// Get product categories
+app.get('/api/products/categories/list', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get unique categories
+    const categories = await productsCollection.distinct('category', { status: 'active' });
+    const subcategories = await productsCollection.distinct('subcategory', { status: 'active' });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        categories: categories,
+        subcategories: subcategories
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching categories',
+      error: error.message
+    });
+  }
+});
+
+// Enhanced search endpoint with location-based filtering
+app.get('/api/products/enhanced-search', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Build query
+    const query = { status: 'active' };
+    
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { name: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    
+    // Get products with artisan data
+    const products = await productsCollection
+      .aggregate([
+        { $match: query },
+        {
+          $lookup: {
+            from: 'artisans',
+            localField: 'artisan',
+            foreignField: '_id',
+            as: 'artisanData'
+          }
+        },
+        {
+          $addFields: {
+            artisan: { $arrayElemAt: ['$artisanData', 0] }
+          }
+        },
+        { $limit: parseInt(req.query.limit) || 20 }
+      ])
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      products: products,
+      count: products.length
+    });
+  } catch (error) {
+    console.error('Error in enhanced search:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error in enhanced search',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// ARTISAN ENDPOINTS
+// ============================================================================
+
+// Get all artisans
+app.get('/api/artisans', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    
+    // Build query
+    const query = { status: 'active' };
+    
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+    if (req.query.type) {
+      query.type = req.query.type;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { artisanName: { $regex: req.query.search, $options: 'i' } },
+        { businessName: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    
+    const artisans = await artisansCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: artisans,
+      count: artisans.length
+    });
+  } catch (error) {
+    console.error('Error fetching artisans:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching artisans',
+      error: error.message
+    });
+  }
+});
+
+// Get single artisan by ID
+app.get('/api/artisans/:id', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    const productsCollection = db.collection('products');
+    
+    const artisan = await artisansCollection.findOne({ 
+      _id: new ObjectId(req.params.id),
+      status: 'active'
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan not found'
+      });
+    }
+    
+    // Get artisan's products if requested
+    if (req.query.includeProducts === 'true') {
+      const products = await productsCollection
+        .find({ 
+          artisan: new ObjectId(req.params.id),
+          status: 'active'
+        })
+        .toArray();
+      artisan.products = products;
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: artisan
+    });
+  } catch (error) {
+    console.error('Error fetching artisan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching artisan',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// PROMOTIONAL ENDPOINTS
+// ============================================================================
+
+// Get promotional featured products
 app.get('/api/promotional/products/featured', async (req, res) => {
   try {
     const { MongoClient } = require('mongodb');
@@ -304,7 +603,7 @@ app.get('/api/promotional/products/featured', async (req, res) => {
     // Get promotional featured products
     const featuredProducts = await productsCollection
       .find({ status: 'active', isFeatured: true })
-      .limit(6)
+      .limit(parseInt(req.query.limit) || 6)
       .toArray();
     
     await client.close();
@@ -319,6 +618,42 @@ app.get('/api/promotional/products/featured', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching promotional featured products',
+      error: error.message
+    });
+  }
+});
+
+// Get promotional sponsored products
+app.get('/api/promotional/products/sponsored', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get sponsored products (products with promotional features)
+    const sponsoredProducts = await productsCollection
+      .find({ 
+        status: 'active',
+        'promotionalFeatures.0': { $exists: true }
+      })
+      .limit(parseInt(req.query.limit) || 3)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: sponsoredProducts,
+      count: sponsoredProducts.length
+    });
+  } catch (error) {
+    console.error('Error fetching sponsored products:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching sponsored products',
       error: error.message
     });
   }

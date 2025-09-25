@@ -259,11 +259,41 @@ app.get('/api/products', async (req, res) => {
       query.artisan = req.query.artisan;
     }
     
-    const products = await productsCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .limit(parseInt(req.query.limit) || 50)
-      .toArray();
+    // Get products with artisan population
+    const products = await productsCollection.aggregate([
+      { $match: query },
+      { $sort: { createdAt: -1 } },
+      { $limit: parseInt(req.query.limit) || 50 },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: 'artisanInfo' }
+    ]).toArray();
     
     await client.close();
     
@@ -292,12 +322,41 @@ app.get('/api/products/popular', async (req, res) => {
     const db = client.db();
     const productsCollection = db.collection('products');
     
-    // Get popular products (sorted by soldCount or views)
-    const popularProducts = await productsCollection
-      .find({ status: 'active' })
-      .sort({ soldCount: -1, views: -1 })
-      .limit(8)
-      .toArray();
+    // Get popular products with artisan population
+    const popularProducts = await productsCollection.aggregate([
+      { $match: { status: 'active' } },
+      { $sort: { soldCount: -1, views: -1 } },
+      { $limit: 8 },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: 'artisanInfo' }
+    ]).toArray();
     
     await client.close();
     
@@ -327,11 +386,40 @@ app.get('/api/products/featured', async (req, res) => {
     const db = client.db();
     const productsCollection = db.collection('products');
     
-    // Get featured products
-    const featuredProducts = await productsCollection
-      .find({ status: 'active', isFeatured: true })
-      .limit(6)
-      .toArray();
+    // Get featured products with artisan population
+    const featuredProducts = await productsCollection.aggregate([
+      { $match: { status: 'active', isFeatured: true } },
+      { $limit: 6 },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: 'artisanInfo' }
+    ]).toArray();
     
     await client.close();
     
@@ -374,61 +462,40 @@ app.get('/api/products/enhanced-search', async (req, res) => {
       ];
     }
     
-    // Get products (simplified without aggregation for now)
-    const products = await productsCollection
-      .find(query)
-      .limit(parseInt(req.query.limit) || 20)
-      .toArray();
-    
-    // Add basic artisan info (simplified)
-    for (let product of products) {
-      if (product.artisan) {
-        try {
-          // Convert string to ObjectId if needed
-          const { ObjectId } = require('mongodb');
-          let artisanId;
-          if (typeof product.artisan === 'string') {
-            if (ObjectId.isValid(product.artisan)) {
-              artisanId = new ObjectId(product.artisan);
-            } else {
-              console.log('Invalid ObjectId string for artisan:', product.artisan);
-              product.artisan = { _id: product.artisan, artisanName: 'Unknown Artisan', type: 'other', address: null, rating: 0 };
-              continue;
-            }
-          } else {
-            artisanId = product.artisan;
-          }
-          
-          const artisan = await db.collection('artisans').findOne({ _id: artisanId });
-          if (artisan) {
-            product.artisan = {
-              _id: artisan._id,
-              artisanName: artisan.artisanName || artisan.businessName,
-              type: artisan.type,
-              address: artisan.address,
-              rating: artisan.rating || 0
-            };
-          } else {
-            product.artisan = {
-              _id: product.artisan,
-              artisanName: 'Unknown Artisan',
-              type: 'other',
-              address: null,
-              rating: 0
-            };
-          }
-        } catch (err) {
-          console.log('Error fetching artisan for product:', product._id, err.message);
-          product.artisan = {
-            _id: product.artisan,
-            artisanName: 'Unknown Artisan',
-            type: 'other',
-            address: null,
-            rating: 0
-          };
+    // Get products with artisan population using aggregation
+    const products = await productsCollection.aggregate([
+      { $match: query },
+      { $limit: parseInt(req.query.limit) || 20 },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
         }
-      }
-    }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: 'artisanInfo' }
+    ]).toArray();
     
     await client.close();
     
@@ -466,14 +533,43 @@ app.get('/api/products/:id', async (req, res) => {
       });
     }
     
-    const product = await productsCollection.findOne({ 
-      _id: new ObjectId(req.params.id),
-      status: 'active'
-    });
+    // Get product with artisan population
+    const products = await productsCollection.aggregate([
+      { $match: { _id: new ObjectId(req.params.id), status: 'active' } },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: 'artisanInfo' }
+    ]).toArray();
     
     await client.close();
     
-    if (!product) {
+    if (!products || products.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
@@ -482,7 +578,7 @@ app.get('/api/products/:id', async (req, res) => {
     
     res.json({
       success: true,
-      data: product
+      data: products[0]
     });
   } catch (error) {
     console.error('Error fetching product:', error);

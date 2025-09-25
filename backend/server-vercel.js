@@ -304,6 +304,7 @@ app.get('/api/products/popular', async (req, res) => {
     res.json({
       success: true,
       data: popularProducts,
+      products: popularProducts, // Frontend compatibility
       count: popularProducts.length
     });
   } catch (error) {
@@ -337,6 +338,7 @@ app.get('/api/products/featured', async (req, res) => {
     res.json({
       success: true,
       data: featuredProducts,
+      products: featuredProducts, // Frontend compatibility
       count: featuredProducts.length
     });
   } catch (error) {
@@ -1529,6 +1531,7 @@ app.get('/api/promotional/products/featured', async (req, res) => {
     res.json({
       success: true,
       data: featuredProducts,
+      products: featuredProducts, // Frontend compatibility
       count: featuredProducts.length
     });
   } catch (error) {

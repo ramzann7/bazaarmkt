@@ -18,7 +18,7 @@ const getPosts = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const postsCollection = db.collection('community_posts');
+    const postsCollection = db.collection('communityposts');
 
     // Build query
     const query = { status: 'published' };
@@ -69,7 +69,7 @@ const getPosts = async (req, res) => {
     if (populate && populate.includes('comments')) {
       pipeline.push({
         $lookup: {
-          from: 'community_comments',
+          from: 'communitycomments',
           localField: '_id',
           foreignField: 'postId',
           as: 'comments',
@@ -121,7 +121,7 @@ const createPost = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const postsCollection = db.collection('community_posts');
+    const postsCollection = db.collection('communityposts');
 
     const post = {
       authorId: new ObjectId(decoded.userId),
@@ -199,7 +199,7 @@ const updatePost = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const postsCollection = db.collection('community_posts');
+    const postsCollection = db.collection('communityposts');
 
     const update = {
       ...updateData,
@@ -262,7 +262,7 @@ const deletePost = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const postsCollection = db.collection('community_posts');
+    const postsCollection = db.collection('communityposts');
 
     const result = await postsCollection.deleteOne({
       _id: new ObjectId(postId),
@@ -279,7 +279,7 @@ const deletePost = async (req, res) => {
 
     // Also delete related likes and comments
     await db.collection('community_likes').deleteMany({ postId: new ObjectId(postId) });
-    await db.collection('community_comments').deleteMany({ postId: new ObjectId(postId) });
+    await db.collection('communitycomments').deleteMany({ postId: new ObjectId(postId) });
 
     await client.close();
 
@@ -322,7 +322,7 @@ const likePost = async (req, res) => {
     await client.connect();
     const db = client.db();
     const likesCollection = db.collection('community_likes');
-    const postsCollection = db.collection('community_posts');
+    const postsCollection = db.collection('communityposts');
 
     // Check if already liked
     const existingLike = await likesCollection.findOne({
@@ -393,7 +393,7 @@ const getComments = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const commentsCollection = db.collection('community_comments');
+    const commentsCollection = db.collection('communitycomments');
 
     const comments = await commentsCollection.aggregate([
       { $match: { postId: new ObjectId(postId) } },
@@ -463,8 +463,8 @@ const createComment = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const commentsCollection = db.collection('community_comments');
-    const postsCollection = db.collection('community_posts');
+    const commentsCollection = db.collection('communitycomments');
+    const postsCollection = db.collection('communityposts');
 
     const comment = {
       postId: new ObjectId(postId),
@@ -519,7 +519,7 @@ const getEngagementLeaderboard = async (req, res) => {
     const pipeline = [
       {
         $lookup: {
-          from: 'community_posts',
+          from: 'communityposts',
           localField: '_id',
           foreignField: 'authorId',
           as: 'posts'
@@ -535,7 +535,7 @@ const getEngagementLeaderboard = async (req, res) => {
       },
       {
         $lookup: {
-          from: 'community_comments',
+          from: 'communitycomments',
           localField: '_id',
           foreignField: 'authorId',
           as: 'comments'
@@ -619,10 +619,10 @@ const getCommunityStats = async (req, res) => {
     const db = client.db();
 
     const [postsCount, commentsCount, likesCount, activeUsers] = await Promise.all([
-      db.collection('community_posts').countDocuments({ status: 'published' }),
-      db.collection('community_comments').countDocuments(),
+      db.collection('communityposts').countDocuments({ status: 'published' }),
+      db.collection('communitycomments').countDocuments(),
       db.collection('community_likes').countDocuments(),
-      db.collection('community_posts').distinct('authorId').then(ids => ids.length)
+      db.collection('communityposts').distinct('authorId').then(ids => ids.length)
     ]);
 
     await client.close();

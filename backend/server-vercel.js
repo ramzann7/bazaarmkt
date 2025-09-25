@@ -40,6 +40,10 @@ const connectDB = async () => {
   }
 
   try {
+    console.log('🔗 Attempting MongoDB connection...');
+    console.log('🔗 Connection string exists:', !!process.env.MONGODB_URI);
+    console.log('🔗 Connection string preview:', process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'NOT SET');
+    
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000, // 5 seconds for serverless
       socketTimeoutMS: 10000, // 10 seconds
@@ -54,6 +58,7 @@ const connectDB = async () => {
     console.log('✅ MongoDB connected for serverless');
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error.message);
+    console.error('❌ Error details:', error);
     isConnected = false;
   }
 };
@@ -127,6 +132,36 @@ app.get('/api/test-db', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Database test failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Environment check endpoint
+app.get('/api/env-check', (req, res) => {
+  try {
+    const envVars = {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL: process.env.VERCEL,
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET (length: ' + process.env.MONGODB_URI.length + ')' : 'NOT SET',
+      MONGODB_URI_PREVIEW: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 30) + '...' : 'NOT SET',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET',
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ? 'SET' : 'NOT SET',
+      BREVO_API_KEY: process.env.BREVO_API_KEY ? 'SET' : 'NOT SET',
+      GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY ? 'SET' : 'NOT SET'
+    };
+    
+    res.json({
+      success: true,
+      message: 'Environment variables check',
+      environment: envVars,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Environment check failed',
       error: error.message,
       timestamp: new Date().toISOString()
     });

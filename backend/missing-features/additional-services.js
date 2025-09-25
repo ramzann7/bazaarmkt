@@ -74,17 +74,40 @@ const getWalletBalance = async (req, res) => {
     const db = client.db();
     const walletsCollection = db.collection('wallets');
 
-    let wallet = await walletsCollection.findOne({
-      userId: new ObjectId(decoded.userId)
+    // First check if user is an artisan to get their wallet
+    const artisan = await db.collection('artisans').findOne({
+      user: new ObjectId(decoded.userId)
     });
 
+    let wallet = null;
+    if (artisan) {
+      wallet = await walletsCollection.findOne({
+        artisanId: artisan._id
+      });
+    }
+
     // Create wallet if it doesn't exist
-    if (!wallet) {
+    if (!wallet && artisan) {
       wallet = {
-        userId: new ObjectId(decoded.userId),
+        artisanId: artisan._id,
         balance: 0,
         currency: 'CAD',
-        transactions: [],
+        isActive: true,
+        stripeCustomerId: null,
+        stripeAccountId: null,
+        payoutSettings: {
+          enabled: false,
+          schedule: 'weekly',
+          minimumPayout: 50,
+          lastPayoutDate: null,
+          nextPayoutDate: null
+        },
+        metadata: {
+          totalEarnings: 0,
+          totalSpent: 0,
+          totalPayouts: 0,
+          platformFees: 0
+        },
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -131,12 +154,17 @@ const getWalletTransactions = async (req, res) => {
     const db = client.db();
     const transactionsCollection = db.collection('wallet_transactions');
 
-    const transactions = await transactionsCollection
-      .find({ userId: new ObjectId(decoded.userId) })
+    // Get artisan first to find their transactions
+    const artisan = await db.collection('artisans').findOne({
+      user: new ObjectId(decoded.userId)
+    });
+
+    const transactions = artisan ? await transactionsCollection
+      .find({ artisanId: artisan._id })
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit)
-      .toArray();
+      .toArray() : [];
 
     await client.close();
 
@@ -254,29 +282,21 @@ const getArtisanRevenue = async (req, res) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // Aggregate revenue data
+    // Aggregate revenue data - orders have direct artisan field
     const revenueData = await ordersCollection.aggregate([
       {
         $match: {
-          'items.artisanId': artisan._id,
+          artisan: artisan._id,
           createdAt: { $gte: startDate },
           status: { $in: ['confirmed', 'preparing', 'ready', 'delivered'] }
         }
       },
       {
-        $unwind: '$items'
-      },
-      {
-        $match: {
-          'items.artisanId': artisan._id
-        }
-      },
-      {
         $group: {
           _id: null,
-          totalRevenue: { $sum: '$items.itemTotal' },
+          totalRevenue: { $sum: '$totalAmount' },
           orderCount: { $sum: 1 },
-          avgOrderValue: { $avg: '$items.itemTotal' }
+          avgOrderValue: { $avg: '$totalAmount' }
         }
       }
     ]).toArray();
@@ -472,24 +492,14 @@ const getBusinessAnalytics = async (req, res) => {
 
     // Get analytics data
     const [topProducts, recentOrders, monthlyStats] = await Promise.all([
-      // Top selling products
-      ordersCollection.aggregate([
-        { $unwind: '$items' },
-        { $match: { 'items.artisanId': artisan._id } },
-        {
-          $group: {
-            _id: '$items.productId',
-            productName: { $first: '$items.productName' },
-            totalSold: { $sum: '$items.quantity' },
-            totalRevenue: { $sum: '$items.itemTotal' }
-          }
-        },
-        { $sort: { totalSold: -1 } },
-        { $limit: 5 }
-      ]).toArray(),
+      // Top selling products - using simplified approach since orders have direct artisan field
+      productsCollection.find({ artisan: artisan._id, status: 'active' })
+        .sort({ soldCount: -1 })
+        .limit(5)
+        .toArray(),
 
       // Recent orders
-      ordersCollection.find({ 'items.artisanId': artisan._id })
+      ordersCollection.find({ artisan: artisan._id })
         .sort({ createdAt: -1 })
         .limit(10)
         .toArray(),
@@ -498,20 +508,18 @@ const getBusinessAnalytics = async (req, res) => {
       ordersCollection.aggregate([
         {
           $match: {
-            'items.artisanId': artisan._id,
+            artisan: artisan._id,
             createdAt: {
               $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
             }
           }
         },
-        { $unwind: '$items' },
-        { $match: { 'items.artisanId': artisan._id } },
         {
           $group: {
             _id: null,
             totalOrders: { $sum: 1 },
-            totalRevenue: { $sum: '$items.itemTotal' },
-            avgOrderValue: { $avg: '$items.itemTotal' }
+            totalRevenue: { $sum: '$totalAmount' },
+            avgOrderValue: { $avg: '$totalAmount' }
           }
         }
       ]).toArray()

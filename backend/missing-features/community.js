@@ -55,13 +55,13 @@ const getPosts = async (req, res) => {
           from: 'community_likes',
           localField: '_id',
           foreignField: 'postId',
-          as: 'likes'
+          as: 'likesData'
         }
       });
       pipeline.push({
         $addFields: {
-          likesCount: { $size: '$likes' },
-          likes: { $map: { input: '$likes', as: 'like', in: '$$like.userId' } }
+          likesCount: { $size: '$likesData' },
+          likes: { $map: { input: '$likesData', as: 'like', in: '$$like.userId' } }
         }
       });
     }
@@ -70,9 +70,9 @@ const getPosts = async (req, res) => {
       pipeline.push({
         $lookup: {
           from: 'communitycomments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
+          localField: 'comments',
+          foreignField: '_id',
+          as: 'commentsData',
           pipeline: [
             { $sort: { createdAt: -1 } },
             { $limit: 3 } // Only get latest 3 comments for preview
@@ -81,7 +81,8 @@ const getPosts = async (req, res) => {
       });
       pipeline.push({
         $addFields: {
-          commentsCount: { $size: '$comments' }
+          commentsCount: { $size: '$comments' },
+          commentsData: '$commentsData'
         }
       });
     }
@@ -124,18 +125,22 @@ const createPost = async (req, res) => {
     const postsCollection = db.collection('communityposts');
 
     const post = {
-      authorId: new ObjectId(decoded.userId),
+      author: new ObjectId(decoded.userId),
+      artisan: null, // Will be populated if user is artisan
       title: postData.title,
       content: postData.content,
       type: postData.type || 'story',
-      category: postData.category || 'general',
+      category: postData.category || 'community',
       tags: postData.tags || [],
       images: postData.images || [],
-      status: 'published',
+      comments: [], // Array of comment ObjectIds
       isPinned: false,
-      likesCount: 0,
-      commentsCount: 0,
-      viewsCount: 0,
+      isFeatured: false,
+      views: 0,
+      status: 'published',
+      moderation: {
+        isModerated: false
+      },
       
       // Type-specific fields
       recipe: postData.recipe || null,
@@ -209,7 +214,7 @@ const updatePost = async (req, res) => {
     const result = await postsCollection.updateOne(
       {
         _id: new ObjectId(postId),
-        authorId: new ObjectId(decoded.userId)
+        author: new ObjectId(decoded.userId)
       },
       { $set: update }
     );
@@ -266,7 +271,7 @@ const deletePost = async (req, res) => {
 
     const result = await postsCollection.deleteOne({
       _id: new ObjectId(postId),
-      authorId: new ObjectId(decoded.userId)
+      author: new ObjectId(decoded.userId)
     });
 
     if (result.deletedCount === 0) {
@@ -333,10 +338,6 @@ const likePost = async (req, res) => {
     if (existingLike) {
       // Unlike
       await likesCollection.deleteOne({ _id: existingLike._id });
-      await postsCollection.updateOne(
-        { _id: new ObjectId(postId) },
-        { $inc: { likesCount: -1 } }
-      );
       
       await client.close();
       return res.json({
@@ -351,10 +352,6 @@ const likePost = async (req, res) => {
         userId: new ObjectId(decoded.userId),
         createdAt: new Date()
       });
-      await postsCollection.updateOne(
-        { _id: new ObjectId(postId) },
-        { $inc: { likesCount: 1 } }
-      );
       
       await client.close();
       return res.json({
@@ -396,22 +393,22 @@ const getComments = async (req, res) => {
     const commentsCollection = db.collection('communitycomments');
 
     const comments = await commentsCollection.aggregate([
-      { $match: { postId: new ObjectId(postId) } },
+      { $match: { post: new ObjectId(postId) } },
       { $sort: { createdAt: -1 } },
       { $skip: parseInt(offset) },
       { $limit: parseInt(limit) },
       {
         $lookup: {
           from: 'users',
-          localField: 'authorId',
+          localField: 'author',
           foreignField: '_id',
-          as: 'author',
+          as: 'authorData',
           pipeline: [
             { $project: { firstName: 1, lastName: 1, profileImage: 1 } }
           ]
         }
       },
-      { $unwind: '$author' }
+      { $unwind: '$authorData' }
     ]).toArray();
 
     await client.close();
@@ -467,19 +464,29 @@ const createComment = async (req, res) => {
     const postsCollection = db.collection('communityposts');
 
     const comment = {
-      postId: new ObjectId(postId),
-      authorId: new ObjectId(decoded.userId),
+      post: new ObjectId(postId),
+      author: new ObjectId(decoded.userId),
+      artisan: null, // Will be populated if user is artisan
       content: content.trim(),
+      parentComment: null,
+      replies: [],
+      mentions: [],
+      isEdited: false,
+      status: 'active',
+      moderation: {
+        isModerated: false
+      },
+      likes: [],
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
     const result = await commentsCollection.insertOne(comment);
     
-    // Update post comment count
+    // Add comment ID to post's comments array
     await postsCollection.updateOne(
       { _id: new ObjectId(postId) },
-      { $inc: { commentsCount: 1 } }
+      { $push: { comments: result.insertedId } }
     );
 
     await client.close();

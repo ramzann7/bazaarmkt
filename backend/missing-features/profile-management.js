@@ -569,9 +569,9 @@ const getArtisanOrders = async (req, res) => {
       });
     }
 
-    // Get orders containing items from this artisan
+    // Get orders for this artisan (orders have direct artisan field)
     const orders = await ordersCollection
-      .find({ 'items.artisanId': artisan._id })
+      .find({ artisan: artisan._id })
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray();

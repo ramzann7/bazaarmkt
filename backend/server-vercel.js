@@ -574,7 +574,7 @@ app.post('/api/auth/register', async (req, res) => {
       firstName,
       lastName,
       phone: phone || '',
-      userType,
+      role: userType, // Database uses 'role' field
       isActive: true,
       isVerified: false,
       createdAt: new Date(),
@@ -586,7 +586,7 @@ app.post('/api/auth/register', async (req, res) => {
     
     // Generate JWT token
     const token = jwt.sign(
-      { userId: userId.toString(), email: user.email, userType: user.userType },
+      { userId: userId.toString(), email: user.email, userType: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -603,7 +603,7 @@ app.post('/api/auth/register', async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           phone: user.phone,
-          userType: user.userType,
+          userType: user.role, // Frontend expects userType
           isActive: user.isActive,
           isVerified: user.isVerified
         },
@@ -672,7 +672,7 @@ app.post('/api/auth/login', async (req, res) => {
     
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email, userType: user.userType },
+      { userId: user._id.toString(), email: user.email, userType: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -689,7 +689,7 @@ app.post('/api/auth/login', async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           phone: user.phone,
-          userType: user.userType,
+          userType: user.role, // Frontend expects userType
           isActive: user.isActive,
           isVerified: user.isVerified
         },
@@ -747,7 +747,7 @@ app.get('/api/auth/profile', async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           phone: user.phone,
-          userType: user.userType,
+          userType: user.role, // Frontend expects userType
           isActive: user.isActive,
           isVerified: user.isVerified,
           createdAt: user.createdAt,
@@ -827,7 +827,7 @@ app.put('/api/auth/profile', async (req, res) => {
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           phone: updatedUser.phone,
-          userType: updatedUser.userType,
+          userType: updatedUser.role, // Frontend expects userType
           isActive: updatedUser.isActive,
           isVerified: updatedUser.isVerified,
           createdAt: updatedUser.createdAt,
@@ -1854,11 +1854,11 @@ app.get('/api/artisan/dashboard', async (req, res) => {
     });
     
     const ordersCount = await db.collection('orders').countDocuments({
-      'items.artisanId': artisan._id
+      artisan: artisan._id
     });
     
     const reviewsStats = await db.collection('reviews').aggregate([
-      { $match: { artisanId: artisan._id } },
+      { $match: { artisan: artisan._id } },
       {
         $group: {
           _id: null,

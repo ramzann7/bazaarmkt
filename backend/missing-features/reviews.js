@@ -38,10 +38,10 @@ const createReview = async (req, res) => {
     const db = client.db();
     const reviewsCollection = db.collection('reviews');
 
-    // Check if user already reviewed this product
+    // Check if user already reviewed this artisan (reviews are for artisans, not products)
     const existingReview = await reviewsCollection.findOne({
-      userId: new ObjectId(decoded.userId),
-      productId: new ObjectId(productId)
+      user: new ObjectId(decoded.userId),
+      artisan: new ObjectId(artisanId)
     });
 
     if (existingReview) {
@@ -53,11 +53,13 @@ const createReview = async (req, res) => {
     }
 
     const review = {
-      userId: new ObjectId(decoded.userId),
-      productId: new ObjectId(productId),
-      artisanId: artisanId ? new ObjectId(artisanId) : null,
+      user: new ObjectId(decoded.userId),
+      artisan: artisanId ? new ObjectId(artisanId) : null,
       rating: parseInt(rating),
+      title: '', // Based on schema, reviews have title field
       comment: comment || '',
+      helpful: [],
+      images: [],
       createdAt: new Date(),
       updatedAt: new Date()
     };

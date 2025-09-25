@@ -265,9 +265,14 @@ app.get('/api/products', async (req, res) => {
       { $sort: { createdAt: -1 } },
       { $limit: parseInt(req.query.limit) || 50 },
       {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisan',
+          localField: 'artisanObjectId',
           foreignField: '_id',
           as: 'artisanInfo',
           pipeline: [
@@ -292,7 +297,7 @@ app.get('/api/products', async (req, res) => {
           artisan: { $arrayElemAt: ['$artisanInfo', 0] }
         }
       },
-      { $unset: 'artisanInfo' }
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
     ]).toArray();
     
     await client.close();
@@ -328,9 +333,14 @@ app.get('/api/products/popular', async (req, res) => {
       { $sort: { soldCount: -1, views: -1 } },
       { $limit: 8 },
       {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisan',
+          localField: 'artisanObjectId',
           foreignField: '_id',
           as: 'artisanInfo',
           pipeline: [
@@ -355,7 +365,7 @@ app.get('/api/products/popular', async (req, res) => {
           artisan: { $arrayElemAt: ['$artisanInfo', 0] }
         }
       },
-      { $unset: 'artisanInfo' }
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
     ]).toArray();
     
     await client.close();
@@ -391,9 +401,14 @@ app.get('/api/products/featured', async (req, res) => {
       { $match: { status: 'active', isFeatured: true } },
       { $limit: 6 },
       {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisan',
+          localField: 'artisanObjectId',
           foreignField: '_id',
           as: 'artisanInfo',
           pipeline: [
@@ -418,7 +433,7 @@ app.get('/api/products/featured', async (req, res) => {
           artisan: { $arrayElemAt: ['$artisanInfo', 0] }
         }
       },
-      { $unset: 'artisanInfo' }
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
     ]).toArray();
     
     await client.close();
@@ -467,9 +482,14 @@ app.get('/api/products/enhanced-search', async (req, res) => {
       { $match: query },
       { $limit: parseInt(req.query.limit) || 20 },
       {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisan',
+          localField: 'artisanObjectId',
           foreignField: '_id',
           as: 'artisanInfo',
           pipeline: [
@@ -494,7 +514,7 @@ app.get('/api/products/enhanced-search', async (req, res) => {
           artisan: { $arrayElemAt: ['$artisanInfo', 0] }
         }
       },
-      { $unset: 'artisanInfo' }
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
     ]).toArray();
     
     await client.close();
@@ -537,9 +557,14 @@ app.get('/api/products/:id', async (req, res) => {
     const products = await productsCollection.aggregate([
       { $match: { _id: new ObjectId(req.params.id), status: 'active' } },
       {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisan',
+          localField: 'artisanObjectId',
           foreignField: '_id',
           as: 'artisanInfo',
           pipeline: [
@@ -564,7 +589,7 @@ app.get('/api/products/:id', async (req, res) => {
           artisan: { $arrayElemAt: ['$artisanInfo', 0] }
         }
       },
-      { $unset: 'artisanInfo' }
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
     ]).toArray();
     
     await client.close();

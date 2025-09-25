@@ -1672,35 +1672,32 @@ app.get('/api/community/posts', async (req, res) => {
       { $limit: parseInt(limit) }
     ];
 
-    // Always populate author
+    // Always populate artisan information (this is the post author)
     pipeline.push({
       $lookup: {
-        from: 'users',
-        localField: 'author',
+        from: 'artisans',
+        localField: 'artisan',
         foreignField: '_id',
-        as: 'authorData',
+        as: 'artisanInfo',
         pipeline: [
-          { $project: { firstName: 1, lastName: 1, role: 1, profilePicture: 1 } }
+          { $project: { artisanName: 1, businessName: 1, type: 1, profileImage: 1, user: 1 } },
+          // Get the user info for the artisan
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'userInfo',
+              pipeline: [
+                { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+              ]
+            }
+          },
+          { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } }
         ]
       }
     });
-    pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
-
-    // Populate artisan if requested
-    if (populate && populate.includes('artisan')) {
-      pipeline.push({
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisan',
-          foreignField: '_id',
-          as: 'artisanData',
-          pipeline: [
-            { $project: { artisanName: 1, businessName: 1, type: 1 } }
-          ]
-        }
-      });
-      pipeline.push({ $unwind: { path: '$artisanData', preserveNullAndEmptyArrays: true } });
-    }
+    pipeline.push({ $unwind: { path: '$artisanInfo', preserveNullAndEmptyArrays: true } });
 
     // Add likes count
     if (populate && populate.includes('likes')) {
@@ -1747,11 +1744,13 @@ app.get('/api/community/posts', async (req, res) => {
 
     const posts = await postsCollection.aggregate(pipeline).toArray();
     
-    // Transform for frontend
+    // Transform for frontend - artisan IS the post author
     const transformedPosts = posts.map((post) => ({
       ...post,
-      author: post.authorData || post.author,
-      artisan: post.artisanData || post.artisan,
+      // Frontend expects artisan info in the artisan field
+      artisan: post.artisanInfo || post.artisan,
+      // Also provide author info for any components that might need it
+      author: post.artisanInfo || post.artisan,
       comments: post.commentsData || post.comments,
       likes: post.likes || []
     }));

@@ -519,8 +519,8 @@ app.get('/api/artisans', async (req, res) => {
     const db = client.db();
     const artisansCollection = db.collection('artisans');
     
-    // Build query
-    const query = { status: 'active' };
+    // Build query - remove status filter to see all artisans
+    const query = {};
     
     if (req.query.category) {
       query.category = req.query.category;

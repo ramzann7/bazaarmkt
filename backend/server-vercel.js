@@ -1653,8 +1653,125 @@ app.post('/api/notifications/send', notificationsFeatures.sendNotification);
 // COMMUNITY ENDPOINTS
 // ============================================================================
 
-// Community posts
-app.get('/api/community/posts', communityFeatures.getPosts);
+// Community posts - Direct implementation for reliability
+app.get('/api/community/posts', async (req, res) => {
+  try {
+    const { type, category, limit = 20, offset = 0, populate } = req.query;
+    
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const postsCollection = db.collection('communityposts');
+
+    // Build pipeline
+    const pipeline = [
+      { $match: { status: 'published' } },
+      { $sort: { createdAt: -1, isPinned: -1 } },
+      { $skip: parseInt(offset) },
+      { $limit: parseInt(limit) }
+    ];
+
+    // Always populate author
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'author',
+        foreignField: '_id',
+        as: 'authorData',
+        pipeline: [
+          { $project: { firstName: 1, lastName: 1, role: 1, profilePicture: 1 } }
+        ]
+      }
+    });
+    pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
+
+    // Populate artisan if requested
+    if (populate && populate.includes('artisan')) {
+      pipeline.push({
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanData',
+          pipeline: [
+            { $project: { artisanName: 1, businessName: 1, type: 1 } }
+          ]
+        }
+      });
+      pipeline.push({ $unwind: { path: '$artisanData', preserveNullAndEmptyArrays: true } });
+    }
+
+    // Add likes count
+    if (populate && populate.includes('likes')) {
+      pipeline.push({
+        $addFields: {
+          likesCount: { $size: '$likes' }
+        }
+      });
+    }
+
+    // Populate comments if requested
+    if (populate && populate.includes('comments')) {
+      pipeline.push({
+        $lookup: {
+          from: 'communitycomments',
+          localField: 'comments',
+          foreignField: '_id',
+          as: 'commentsData',
+          pipeline: [
+            { $sort: { createdAt: -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'author',
+                foreignField: '_id',
+                as: 'authorInfo',
+                pipeline: [
+                  { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+                ]
+              }
+            },
+            { $unwind: { path: '$authorInfo', preserveNullAndEmptyArrays: true } },
+            { $addFields: { author: '$authorInfo' } }
+          ]
+        }
+      });
+      pipeline.push({
+        $addFields: {
+          commentsCount: { $size: '$comments' }
+        }
+      });
+    }
+
+    const posts = await postsCollection.aggregate(pipeline).toArray();
+    
+    // Transform for frontend
+    const transformedPosts = posts.map((post) => ({
+      ...post,
+      author: post.authorData || post.author,
+      artisan: post.artisanData || post.artisan,
+      comments: post.commentsData || post.comments,
+      likes: post.likes || []
+    }));
+    
+    await client.close();
+
+    res.json({
+      success: true,
+      data: transformedPosts,
+      count: transformedPosts.length
+    });
+  } catch (error) {
+    console.error('Get posts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get posts',
+      error: error.message
+    });
+  }
+});
 app.post('/api/community/posts', communityFeatures.createPost);
 app.put('/api/community/posts/:postId', communityFeatures.updatePost);
 app.delete('/api/community/posts/:postId', communityFeatures.deletePost);
@@ -1903,6 +2020,8 @@ app.get('/api/community/posts-debug', async (req, res) => {
     // Simple aggregation to test author population
     const posts = await db.collection('communityposts').aggregate([
       { $limit: 1 },
+      // Debug: Test author population
+      { $addFields: { debugAuthor: '$author' } },
       {
         $lookup: {
           from: 'users',

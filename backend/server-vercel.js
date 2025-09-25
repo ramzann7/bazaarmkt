@@ -98,6 +98,41 @@ app.get('/api/debug', async (req, res) => {
   }
 });
 
+// Test database connection endpoint
+app.get('/api/test-db', async (req, res) => {
+  try {
+    if (!isConnected) {
+      await connectDB();
+    }
+    
+    if (isConnected) {
+      // Try a simple query
+      const User = require('./src/models/user');
+      const userCount = await User.countDocuments();
+      
+      res.json({
+        success: true,
+        message: 'Database connection successful',
+        userCount: userCount,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Database connection failed',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database test failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Load routes conditionally
 try {
   const authRoutes = require('./src/routes/auth');

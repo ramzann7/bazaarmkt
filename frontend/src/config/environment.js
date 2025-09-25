@@ -18,7 +18,7 @@ const environment = {
     STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
     GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',
-    NODE_ENV: 'production'
+    NODE_ENV: import.meta.env.VITE_NODE_ENV || 'production'
   }
 };
 

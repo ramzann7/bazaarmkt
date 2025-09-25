@@ -349,86 +349,6 @@ app.get('/api/products/featured', async (req, res) => {
   }
 });
 
-// Get single product by ID
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    
-    // Validate ObjectId before using it
-    if (!ObjectId.isValid(req.params.id)) {
-      await client.close();
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid product ID format' 
-      });
-    }
-    
-    const product = await productsCollection.findOne({ 
-      _id: new ObjectId(req.params.id),
-      status: 'active'
-    });
-    
-    await client.close();
-    
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: product
-    });
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching product',
-      error: error.message
-    });
-  }
-});
-
-// Get product categories
-app.get('/api/products/categories/list', async (req, res) => {
-  try {
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    
-    // Get unique categories
-    const categories = await productsCollection.distinct('category', { status: 'active' });
-    const subcategories = await productsCollection.distinct('subcategory', { status: 'active' });
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      data: {
-        categories: categories,
-        subcategories: subcategories
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching categories',
-      error: error.message
-    });
-  }
-});
-
 // Enhanced search endpoint with location-based filtering
 app.get('/api/products/enhanced-search', async (req, res) => {
   try {
@@ -524,6 +444,87 @@ app.get('/api/products/enhanced-search', async (req, res) => {
     });
   }
 });
+
+// Get single product by ID
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Validate ObjectId before using it
+    if (!ObjectId.isValid(req.params.id)) {
+      await client.close();
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid product ID format' 
+      });
+    }
+    
+    const product = await productsCollection.findOne({ 
+      _id: new ObjectId(req.params.id),
+      status: 'active'
+    });
+    
+    await client.close();
+    
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: product
+    });
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching product',
+      error: error.message
+    });
+  }
+});
+
+// Get product categories
+app.get('/api/products/categories/list', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get unique categories
+    const categories = await productsCollection.distinct('category', { status: 'active' });
+    const subcategories = await productsCollection.distinct('subcategory', { status: 'active' });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        categories: categories,
+        subcategories: subcategories
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching categories',
+      error: error.message
+    });
+  }
+});
+
 
 // ============================================================================
 // ARTISAN ENDPOINTS

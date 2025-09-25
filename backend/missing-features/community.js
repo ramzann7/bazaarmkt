@@ -35,38 +35,47 @@ const getPosts = async (req, res) => {
 
     // Add population stages if requested
     if (populate && populate.includes('artisan')) {
+      // Populate author (user) information
       pipeline.push({
         $lookup: {
-          from: 'artisans',
-          localField: 'authorId',
+          from: 'users',
+          localField: 'author',
           foreignField: '_id',
-          as: 'author',
+          as: 'authorData',
           pipeline: [
-            { $project: { artisanName: 1, businessName: 1, profileImage: 1 } }
+            { $project: { firstName: 1, lastName: 1, role: 1, profilePicture: 1 } }
           ]
         }
       });
-      pipeline.push({ $unwind: { path: '$author', preserveNullAndEmptyArrays: true } });
+      pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
+      
+      // Populate artisan information if available
+      pipeline.push({
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanData',
+          pipeline: [
+            { $project: { artisanName: 1, businessName: 1, profileImage: 1, type: 1 } }
+          ]
+        }
+      });
+      pipeline.push({ $unwind: { path: '$artisanData', preserveNullAndEmptyArrays: true } });
     }
 
     if (populate && populate.includes('likes')) {
-      pipeline.push({
-        $lookup: {
-          from: 'community_likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likesData'
-        }
-      });
+      // Likes are embedded in posts, just add count
       pipeline.push({
         $addFields: {
-          likesCount: { $size: '$likesData' },
-          likes: { $map: { input: '$likesData', as: 'like', in: '$$like.userId' } }
+          likesCount: { $size: '$likes' },
+          likesData: '$likes'
         }
       });
     }
 
     if (populate && populate.includes('comments')) {
+      // Comments are referenced by ObjectId array - populate them
       pipeline.push({
         $lookup: {
           from: 'communitycomments',
@@ -75,14 +84,26 @@ const getPosts = async (req, res) => {
           as: 'commentsData',
           pipeline: [
             { $sort: { createdAt: -1 } },
-            { $limit: 3 } // Only get latest 3 comments for preview
+            { $limit: 3 }, // Only get latest 3 comments for preview
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'author',
+                foreignField: '_id',
+                as: 'authorInfo',
+                pipeline: [
+                  { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+                ]
+              }
+            },
+            { $unwind: { path: '$authorInfo', preserveNullAndEmptyArrays: true } }
           ]
         }
       });
       pipeline.push({
         $addFields: {
           commentsCount: { $size: '$comments' },
-          commentsData: '$commentsData'
+          commentsPreview: '$commentsData'
         }
       });
     }
@@ -326,18 +347,30 @@ const likePost = async (req, res) => {
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const likesCollection = db.collection('community_likes');
     const postsCollection = db.collection('communityposts');
 
-    // Check if already liked
-    const existingLike = await likesCollection.findOne({
-      postId: new ObjectId(postId),
-      userId: new ObjectId(decoded.userId)
-    });
+    // Check if user already liked this post (likes are embedded in post)
+    const post = await postsCollection.findOne({ _id: new ObjectId(postId) });
+    
+    if (!post) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
 
-    if (existingLike) {
-      // Unlike
-      await likesCollection.deleteOne({ _id: existingLike._id });
+    const userLike = post.likes?.find(like => like.user.toString() === decoded.userId);
+
+    if (userLike) {
+      // Unlike - remove from embedded likes array
+      await postsCollection.updateOne(
+        { _id: new ObjectId(postId) },
+        { 
+          $pull: { likes: { user: new ObjectId(decoded.userId) } },
+          $set: { updatedAt: new Date() }
+        }
+      );
       
       await client.close();
       return res.json({
@@ -346,12 +379,20 @@ const likePost = async (req, res) => {
         liked: false
       });
     } else {
-      // Like
-      await likesCollection.insertOne({
-        postId: new ObjectId(postId),
-        userId: new ObjectId(decoded.userId),
-        createdAt: new Date()
-      });
+      // Like - add to embedded likes array
+      const newLike = {
+        user: new ObjectId(decoded.userId),
+        _id: new ObjectId(),
+        likedAt: new Date()
+      };
+      
+      await postsCollection.updateOne(
+        { _id: new ObjectId(postId) },
+        { 
+          $push: { likes: newLike },
+          $set: { updatedAt: new Date() }
+        }
+      );
       
       await client.close();
       return res.json({

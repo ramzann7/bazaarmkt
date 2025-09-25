@@ -33,21 +33,22 @@ const getPosts = async (req, res) => {
       { $limit: parseInt(limit) }
     ];
 
+    // Always populate author (user) information
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'author',
+        foreignField: '_id',
+        as: 'authorData',
+        pipeline: [
+          { $project: { firstName: 1, lastName: 1, role: 1, profilePicture: 1 } }
+        ]
+      }
+    });
+    pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
+
     // Add population stages if requested
     if (populate && populate.includes('artisan')) {
-      // Populate author (user) information
-      pipeline.push({
-        $lookup: {
-          from: 'users',
-          localField: 'author',
-          foreignField: '_id',
-          as: 'authorData',
-          pipeline: [
-            { $project: { firstName: 1, lastName: 1, role: 1, profilePicture: 1 } }
-          ]
-        }
-      });
-      pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
       
       // Populate artisan information directly from artisans collection
       pipeline.push({
@@ -78,7 +79,7 @@ const getPosts = async (req, res) => {
     }
 
     if (populate && populate.includes('likes')) {
-      // Likes are embedded in posts, just add count
+      // Likes are embedded in posts, just add count and data
       pipeline.push({
         $addFields: {
           likesCount: { $size: '$likes' },

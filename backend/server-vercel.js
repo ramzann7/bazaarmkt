@@ -599,8 +599,8 @@ app.get('/api/artisans/:id', async (req, res) => {
     }
     
     const artisan = await artisansCollection.findOne({ 
-      _id: new ObjectId(req.params.id),
-      status: 'active'
+      _id: new ObjectId(req.params.id)
+      // Removed status filter since artisans have status: null
     });
     
     if (!artisan) {

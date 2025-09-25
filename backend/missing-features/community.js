@@ -122,12 +122,23 @@ const getPosts = async (req, res) => {
     }
 
     const posts = await postsCollection.aggregate(pipeline).toArray();
+    
+    // Transform posts to match frontend expectations
+    const transformedPosts = posts.map(post => ({
+      ...post,
+      // Frontend expects populated data directly in these fields
+      author: post.authorData || post.author,
+      artisan: post.artisanData || post.artisan,
+      comments: post.commentsPreview || post.commentsData || post.comments,
+      likes: post.likesData || post.likes
+    }));
+    
     await client.close();
 
     res.json({
       success: true,
-      data: posts,
-      count: posts.length
+      data: transformedPosts,
+      count: transformedPosts.length
     });
   } catch (error) {
     console.error('Get posts error:', error);

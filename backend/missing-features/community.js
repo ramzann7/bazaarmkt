@@ -88,7 +88,7 @@ const getPosts = async (req, res) => {
     }
 
     if (populate && populate.includes('comments')) {
-      // Comments are referenced by ObjectId array - populate them
+      // Comments are referenced by ObjectId array - populate them with full author data
       pipeline.push({
         $lookup: {
           from: 'communitycomments',
@@ -97,7 +97,7 @@ const getPosts = async (req, res) => {
           as: 'commentsData',
           pipeline: [
             { $sort: { createdAt: -1 } },
-            { $limit: 3 }, // Only get latest 3 comments for preview
+            { $limit: 10 }, // Get more comments for full display
             {
               $lookup: {
                 from: 'users',
@@ -105,11 +105,16 @@ const getPosts = async (req, res) => {
                 foreignField: '_id',
                 as: 'authorInfo',
                 pipeline: [
-                  { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+                  { $project: { firstName: 1, lastName: 1, profilePicture: 1, role: 1 } }
                 ]
               }
             },
-            { $unwind: { path: '$authorInfo', preserveNullAndEmptyArrays: true } }
+            { $unwind: { path: '$authorInfo', preserveNullAndEmptyArrays: true } },
+            {
+              $addFields: {
+                author: '$authorInfo' // Replace author ObjectId with author object
+              }
+            }
           ]
         }
       });
@@ -124,13 +129,13 @@ const getPosts = async (req, res) => {
     const posts = await postsCollection.aggregate(pipeline).toArray();
     
     // Transform posts to match frontend expectations
-    const transformedPosts = posts.map(post => ({
+    const transformedPosts = posts.map((post) => ({
       ...post,
       // Frontend expects populated data directly in these fields
       author: post.authorData || post.author,
       artisan: post.artisanData || post.artisan,
-      comments: post.commentsPreview || post.commentsData || post.comments,
-      likes: post.likesData || post.likes
+      comments: post.commentsData || post.commentsPreview || post.comments,
+      likes: post.likesData || post.likes || []
     }));
     
     await client.close();

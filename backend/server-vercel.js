@@ -106,9 +106,11 @@ app.get('/api/debug', async (req, res) => {
 // Test database connection endpoint
 app.get('/api/test-db', async (req, res) => {
   try {
-    if (!isConnected) {
-      await connectDB();
-    }
+    console.log('🧪 Testing database connection...');
+    
+    // Force a new connection attempt
+    isConnected = false;
+    await connectDB();
     
     if (isConnected) {
       // Try a simple query
@@ -124,15 +126,61 @@ app.get('/api/test-db', async (req, res) => {
     } else {
       res.status(500).json({
         success: false,
-        message: 'Database connection failed',
+        message: 'Database connection failed - connection not established',
         timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
+    console.error('🧪 Database test error:', error);
     res.status(500).json({
       success: false,
       message: 'Database test failed',
       error: error.message,
+      errorType: error.name,
+      errorCode: error.code,
+      fullError: process.env.NODE_ENV === 'development' ? error.toString() : 'Error details hidden in production',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Direct MongoDB connection test
+app.get('/api/test-mongo', async (req, res) => {
+  try {
+    console.log('🧪 Direct MongoDB connection test...');
+    
+    // Test connection without mongoose
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 10000,
+    });
+    
+    await client.connect();
+    console.log('✅ Direct MongoDB connection successful');
+    
+    // Test a simple operation
+    const db = client.db();
+    const collections = await db.listCollections().toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Direct MongoDB connection successful',
+      collections: collections.map(c => c.name),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('🧪 Direct MongoDB test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Direct MongoDB connection failed',
+      error: error.message,
+      errorType: error.name,
+      errorCode: error.code,
+      fullError: process.env.NODE_ENV === 'development' ? error.toString() : 'Error details hidden in production',
       timestamp: new Date().toISOString()
     });
   }

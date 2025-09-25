@@ -1891,6 +1891,61 @@ app.get('/api/artisan/dashboard', async (req, res) => {
   }
 });
 
+// Test endpoint for debugging community posts
+app.get('/api/community/posts-debug', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    
+    // Simple aggregation to test author population
+    const posts = await db.collection('communityposts').aggregate([
+      { $limit: 1 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'author',
+          foreignField: '_id',
+          as: 'authorData',
+          pipeline: [
+            { $project: { firstName: 1, lastName: 1, role: 1 } }
+          ]
+        }
+      },
+      { $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'artisans', 
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanData',
+          pipeline: [
+            { $project: { artisanName: 1, type: 1 } }
+          ]
+        }
+      },
+      { $unwind: { path: '$artisanData', preserveNullAndEmptyArrays: true } }
+    ]).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      debug: true,
+      data: posts,
+      message: 'Debug endpoint for community posts population'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Debug endpoint error',
+      error: error.message
+    });
+  }
+});
+
 // All routes are now implemented directly in this file
 
 // Error handling middleware

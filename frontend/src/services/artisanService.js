@@ -86,7 +86,11 @@ export const artisanService = {
         throw new Error(`Failed to fetch artisans: ${response.status}`);
       }
 
-      const data = await response.json();
+      const result = await response.json();
+      console.log('Artisans API response:', result);
+      
+      // Handle both direct array and wrapped response formats
+      const data = result.data || result;
       console.log('Artisans fetched successfully:', data.length, 'artisans');
       
       setCache(cacheKey, data);
@@ -106,7 +110,8 @@ export const artisanService = {
         throw new Error('Artisan not found');
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || result;
     } catch (error) {
       console.error('Error fetching artisan:', error);
       throw error;
@@ -129,7 +134,8 @@ export const artisanService = {
           throw new Error('Failed to create artisan');
         }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || result;
     } catch (error) {
       console.error('Error creating artisan:', error);
       throw error;
@@ -152,7 +158,8 @@ export const artisanService = {
           throw new Error('Failed to update artisan');
         }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || result;
     } catch (error) {
       console.error('Error updating artisan:', error);
       throw error;
@@ -168,7 +175,8 @@ export const artisanService = {
         throw new Error('Failed to fetch artisans by type');
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || result;
     } catch (error) {
       console.error('Error fetching artisans by type:', error);
       throw error;
@@ -184,7 +192,8 @@ export const artisanService = {
         throw new Error('Failed to fetch artisans by category');
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || result;
     } catch (error) {
       console.error('Error fetching artisans by category:', error);
       throw error;
@@ -200,7 +209,8 @@ export const artisanService = {
         throw new Error('Failed to search artisans');
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || result;
     } catch (error) {
       console.error('Error searching artisans:', error);
       throw error;

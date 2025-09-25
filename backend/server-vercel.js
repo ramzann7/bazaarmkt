@@ -1577,6 +1577,202 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
   }
 });
 
+// ============================================================================
+// MISSING FEATURES - RESTORED
+// ============================================================================
+
+// Import missing feature modules
+const reviewsFeatures = require('./missing-features/reviews');
+const favoritesFeatures = require('./missing-features/favorites');
+const notificationsFeatures = require('./missing-features/notifications');
+
+// ============================================================================
+// REVIEWS ENDPOINTS
+// ============================================================================
+
+// Create a review
+app.post('/api/reviews', reviewsFeatures.createReview);
+
+// Get reviews for a product
+app.get('/api/reviews/product/:productId', reviewsFeatures.getProductReviews);
+
+// Get reviews for an artisan
+app.get('/api/reviews/artisan/:artisanId', reviewsFeatures.getArtisanReviews);
+
+// Update a review
+app.put('/api/reviews/:reviewId', reviewsFeatures.updateReview);
+
+// Delete a review
+app.delete('/api/reviews/:reviewId', reviewsFeatures.deleteReview);
+
+// ============================================================================
+// FAVORITES ENDPOINTS
+// ============================================================================
+
+// Add to favorites
+app.post('/api/favorites', favoritesFeatures.addToFavorites);
+
+// Remove from favorites
+app.delete('/api/favorites/:productId', favoritesFeatures.removeFromFavorites);
+
+// Get user favorites
+app.get('/api/favorites', favoritesFeatures.getUserFavorites);
+
+// Check favorite status
+app.get('/api/favorites/status/:productId', favoritesFeatures.checkFavoriteStatus);
+
+// Get favorites with filters
+app.get('/api/favorites/filtered', favoritesFeatures.getFavoritesWithFilters);
+
+// ============================================================================
+// NOTIFICATIONS ENDPOINTS
+// ============================================================================
+
+// Get user notifications
+app.get('/api/notifications', notificationsFeatures.getUserNotifications);
+
+// Mark notification as read
+app.put('/api/notifications/:notificationId/read', notificationsFeatures.markAsRead);
+
+// Mark all notifications as read
+app.put('/api/notifications/read-all', notificationsFeatures.markAllAsRead);
+
+// Delete notification
+app.delete('/api/notifications/:notificationId', notificationsFeatures.deleteNotification);
+
+// Send notification (admin/system use)
+app.post('/api/notifications/send', notificationsFeatures.sendNotification);
+
+// ============================================================================
+// ADDITIONAL MISSING ENDPOINTS
+// ============================================================================
+
+// Get user statistics
+app.get('/api/user/stats', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    
+    // Get user stats
+    const ordersCount = await db.collection('orders').countDocuments({
+      userId: new ObjectId(decoded.userId)
+    });
+    
+    const favoritesCount = await db.collection('favorites').countDocuments({
+      userId: new ObjectId(decoded.userId)
+    });
+    
+    const reviewsCount = await db.collection('reviews').countDocuments({
+      userId: new ObjectId(decoded.userId)
+    });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        ordersCount,
+        favoritesCount,
+        reviewsCount
+      }
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user statistics',
+      error: error.message
+    });
+  }
+});
+
+// Get artisan dashboard stats
+app.get('/api/artisan/dashboard', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    
+    // Get artisan profile
+    const artisan = await db.collection('artisans').findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Get stats
+    const productsCount = await db.collection('products').countDocuments({
+      artisan: artisan._id,
+      status: 'active'
+    });
+    
+    const ordersCount = await db.collection('orders').countDocuments({
+      'items.artisanId': artisan._id
+    });
+    
+    const reviewsStats = await db.collection('reviews').aggregate([
+      { $match: { artisanId: artisan._id } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+    
+    const reviews = reviewsStats.length > 0 ? reviewsStats[0] : { averageRating: 0, totalReviews: 0 };
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        productsCount,
+        ordersCount,
+        averageRating: Math.round(reviews.averageRating * 10) / 10,
+        totalReviews: reviews.totalReviews
+      }
+    });
+  } catch (error) {
+    console.error('Get artisan dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get artisan dashboard',
+      error: error.message
+    });
+  }
+});
+
 // All routes are now implemented directly in this file
 
 // Error handling middleware

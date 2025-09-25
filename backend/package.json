@@ -43,15 +43,19 @@
   "jest": {
     "testEnvironment": "node",
     "collectCoverageFrom": [
-      "src/**/*.js",
-      "!src/**/*.test.js",
-      "!src/**/*.spec.js"
+      "server-vercel.js",
+      "dev-utils/**/*.js",
+      "middleware/**/*.js",
+      "!**/*.test.js",
+      "!**/*.spec.js"
     ],
     "coverageDirectory": "coverage",
     "coverageReporters": [
       "text",
       "lcov",
       "html"
-    ]
+    ],
+    "testTimeout": 30000,
+    "setupFilesAfterEnv": ["./tests/setup.js"]
   }
 }

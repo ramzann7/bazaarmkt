@@ -1,8 +1,16 @@
 const request = require('supertest');
-const app = require('../server');
-const User = require('../src/models/user');
 
 describe('Authentication API', () => {
+  let app;
+  
+  beforeAll(async () => {
+    // Set test environment variables
+    global.testUtils.setTestEnvironment();
+    
+    // Import app after setting environment
+    app = require('../server-vercel');
+  });
+
   describe('POST /api/auth/register', () => {
     it('should register a new user successfully', async () => {
       const userData = {
@@ -10,7 +18,7 @@ describe('Authentication API', () => {
         password: 'password123',
         firstName: 'John',
         lastName: 'Doe',
-        role: 'artisan'
+        userType: 'customer'
       };
 
       const response = await request(app)
@@ -18,9 +26,10 @@ describe('Authentication API', () => {
         .send(userData)
         .expect(201);
 
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe(userData.email);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data).toHaveProperty('user');
+      expect(response.body.data.user.email).toBe(userData.email);
     });
 
     it('should not register user with existing email', async () => {
@@ -29,7 +38,7 @@ describe('Authentication API', () => {
         password: 'password123',
         firstName: 'John',
         lastName: 'Doe',
-        role: 'artisan'
+        userType: 'customer'
       };
 
       // Create user first
@@ -40,6 +49,7 @@ describe('Authentication API', () => {
         .send(userData)
         .expect(400);
 
+      expect(response.body.success).toBe(false);
       expect(response.body).toHaveProperty('message');
     });
 
@@ -49,6 +59,7 @@ describe('Authentication API', () => {
         .send({})
         .expect(400);
 
+      expect(response.body.success).toBe(false);
       expect(response.body).toHaveProperty('message');
     });
   });
@@ -72,8 +83,9 @@ describe('Authentication API', () => {
         .send(loginData)
         .expect(200);
 
-      expect(response.body).toHaveProperty('token');
-      expect(response.body).toHaveProperty('user');
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data).toHaveProperty('user');
     });
 
     it('should not login with invalid credentials', async () => {
@@ -87,6 +99,7 @@ describe('Authentication API', () => {
         .send(loginData)
         .expect(401);
 
+      expect(response.body.success).toBe(false);
       expect(response.body).toHaveProperty('message');
     });
   });
@@ -101,8 +114,9 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('_id');
-      expect(response.body.email).toBe(user.email);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.user).toHaveProperty('_id');
+      expect(response.body.data.user.email).toBe(user.email);
     });
 
     it('should not get profile without token', async () => {
@@ -110,6 +124,7 @@ describe('Authentication API', () => {
         .get('/api/auth/profile')
         .expect(401);
 
+      expect(response.body.success).toBe(false);
       expect(response.body).toHaveProperty('message');
     });
   });

@@ -194,3 +194,4 @@ async function setupProductionCollections() {
 // Run the setup
 setupProductionCollections().catch(console.error);
 
+

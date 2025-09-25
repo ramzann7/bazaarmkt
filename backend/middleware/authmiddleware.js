@@ -1,6 +1,6 @@
-// src/middleware/authMiddleware.js
+// middleware/authMiddleware.js - Serverless compatible
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const { MongoClient, ObjectId } = require("mongodb");
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -10,7 +10,20 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("-password"); // exclude password
+    
+    // Use native MongoDB client instead of Mongoose
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const usersCollection = db.collection('users');
+    
+    const user = await usersCollection.findOne(
+      { _id: new ObjectId(decoded.userId) },
+      { projection: { password: 0 } } // exclude password
+    );
+    
+    await client.close();
+    
     if (!user) return res.status(404).json({ message: "User not found" });
 
     req.user = user; // attach user to request

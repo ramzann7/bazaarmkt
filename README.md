@@ -102,28 +102,60 @@ A modern marketplace platform connecting local artisans, food makers, and custom
 ## 📁 Project Structure
 
 ```
-food-finder-app/
-├── backend/                 # Backend server
+bazaarMKT/
+├── backend/                    # Backend serverless architecture
+│   ├── server.js              # Development server (imports serverless app)
+│   ├── server-vercel.js       # Main serverless implementation
+│   ├── middleware/            # Serverless-compatible middleware
+│   ├── missing-features/      # Modular feature implementations
+│   │   ├── reviews.js
+│   │   ├── favorites.js
+│   │   └── notifications.js
+│   ├── dev-utils/             # Development utilities
+│   │   ├── endpoint-template.js
+│   │   ├── validators/
+│   │   ├── middleware/
+│   │   └── test-helpers/
+│   ├── tests/                 # Serverless testing suite
+│   └── public/uploads/        # Static file storage
+├── frontend/                  # React application
 │   ├── src/
-│   │   ├── config/         # Configuration files
-│   │   ├── controllers/    # Route controllers
-│   │   ├── middleware/     # Custom middleware
-│   │   ├── models/         # Database models
-│   │   ├── routes/         # API routes
-│   │   └── services/       # Business logic
-│   ├── public/             # Static files
-│   └── server.js           # Main server file
-├── frontend/               # React application
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── services/       # API services
-│   │   ├── data/           # Static data
-│   │   └── utils/          # Utility functions
-│   └── public/             # Public assets
-├── documentation/          # Project documentation
+│   │   ├── components/        # React components
+│   │   ├── pages/             # Page components
+│   │   ├── services/          # API services
+│   │   ├── data/              # Static data
+│   │   └── utils/             # Utility functions
+│   └── public/                # Public assets
+├── documentation/             # Project documentation
+├── SERVERLESS_ARCHITECTURE.md # Serverless migration guide
 └── scripts/               # Utility scripts
 ```
+
+## 🚀 Serverless Architecture
+
+This project has been migrated to a **serverless architecture** for better performance, scalability, and development consistency.
+
+### Key Features
+- ✅ **Native MongoDB** client (no Mongoose dependencies)
+- ✅ **Stateless operations** optimized for serverless
+- ✅ **Development parity** with production
+- ✅ **Comprehensive testing** with MongoDB Memory Server
+- ✅ **Modular features** for easy development
+
+### Architecture Benefits
+- **Performance**: Faster cold starts and reduced memory usage
+- **Scalability**: Automatic scaling with Vercel serverless functions
+- **Consistency**: Same implementation for development and production
+- **Maintainability**: Single source of truth with modular features
+
+### Restored Features
+- ✅ Reviews & Ratings System
+- ✅ Favorites/Wishlist Management
+- ✅ Notifications System
+- ✅ Dashboard Statistics
+- ✅ User & Artisan Analytics
+
+📖 **Full documentation**: See [SERVERLESS_ARCHITECTURE.md](./SERVERLESS_ARCHITECTURE.md)
 
 ## 🔧 API Endpoints
 

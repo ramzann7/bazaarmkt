@@ -429,7 +429,6 @@ app.get('/api/products/enhanced-search', async (req, res) => {
     await client.connect();
     const db = client.db();
     const productsCollection = db.collection('products');
-    const artisansCollection = db.collection('artisans');
     
     // Build query
     const query = { status: 'active' };
@@ -444,26 +443,38 @@ app.get('/api/products/enhanced-search', async (req, res) => {
       ];
     }
     
-    // Get products with artisan data
+    // Get products (simplified without aggregation for now)
     const products = await productsCollection
-      .aggregate([
-        { $match: query },
-        {
-          $lookup: {
-            from: 'artisans',
-            localField: 'artisan',
-            foreignField: '_id',
-            as: 'artisanData'
-          }
-        },
-        {
-          $addFields: {
-            artisan: { $arrayElemAt: ['$artisanData', 0] }
-          }
-        },
-        { $limit: parseInt(req.query.limit) || 20 }
-      ])
+      .find(query)
+      .limit(parseInt(req.query.limit) || 20)
       .toArray();
+    
+    // Add basic artisan info (simplified)
+    for (let product of products) {
+      if (product.artisan) {
+        try {
+          const artisan = await db.collection('artisans').findOne({ _id: product.artisan });
+          if (artisan) {
+            product.artisan = {
+              _id: artisan._id,
+              artisanName: artisan.artisanName || artisan.businessName,
+              type: artisan.type,
+              address: artisan.address,
+              rating: artisan.rating || 0
+            };
+          }
+        } catch (err) {
+          console.log('Error fetching artisan for product:', product._id);
+          product.artisan = {
+            _id: product.artisan,
+            artisanName: 'Unknown Artisan',
+            type: 'other',
+            address: null,
+            rating: 0
+          };
+        }
+      }
+    }
     
     await client.close();
     

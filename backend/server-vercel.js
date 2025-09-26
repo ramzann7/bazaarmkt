@@ -1207,13 +1207,7 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// SPECIFIC ORDER ROUTES (must come before /:id route)
-// Order management - specific routes first
-app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
-app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
-app.post('/api/orders/guest', profileFeatures.createGuestOrder);
-
-// Get single order (must come after specific routes)
+// Get single order
 app.get('/api/orders/:id', async (req, res) => {
   try {
     const { MongoClient } = require('mongodb');
@@ -1770,6 +1764,15 @@ const notificationsFeatures = require('./missing-features/notifications');
 const communityFeatures = require('./missing-features/community');
 const profileFeatures = require('./missing-features/profile-management');
 const additionalFeatures = require('./missing-features/additional-services');
+
+// ============================================================================
+// ORDER MANAGEMENT ROUTES (moved here to fix route precedence)
+// ============================================================================
+
+// Order management - specific routes (must come before /:id route)
+app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
+app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
+app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 
 // ============================================================================
 // REVIEWS ENDPOINTS

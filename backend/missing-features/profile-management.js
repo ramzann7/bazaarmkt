@@ -563,7 +563,19 @@ const getArtisanOrders = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
 
     // Validate userId format
-    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+    console.log('🔍 getArtisanOrders: User ID from token:', decoded.userId);
+    console.log('🔍 getArtisanOrders: User ID type:', typeof decoded.userId);
+    console.log('🔍 getArtisanOrders: User ID valid ObjectId:', ObjectId.isValid(decoded.userId));
+    
+    if (!decoded.userId) {
+      console.log('❌ getArtisanOrders: No user ID in token');
+      return res.status(400).json({
+        success: false,
+        message: 'No user ID in token'
+      });
+    }
+    
+    if (!ObjectId.isValid(decoded.userId)) {
       console.log('❌ getArtisanOrders: Invalid user ID format:', decoded.userId);
       return res.status(400).json({
         success: false,
@@ -580,17 +592,35 @@ const getArtisanOrders = async (req, res) => {
 
     // Get artisan profile
     console.log('🔍 getArtisanOrders: Looking for artisan with user ID:', decoded.userId);
-    const artisan = await artisansCollection.findOne({
-      user: new ObjectId(decoded.userId)
-    });
+    console.log('🔍 getArtisanOrders: Converting to ObjectId:', new ObjectId(decoded.userId));
+    
+    let artisan;
+    try {
+      artisan = await artisansCollection.findOne({
+        user: new ObjectId(decoded.userId)
+      });
 
-    console.log('🔍 getArtisanOrders: Found artisan:', artisan ? 'Yes' : 'No');
-    if (!artisan) {
-      console.log('❌ getArtisanOrders: Artisan profile not found');
+      console.log('🔍 getArtisanOrders: Found artisan:', artisan ? 'Yes' : 'No');
+      if (artisan) {
+        console.log('🔍 getArtisanOrders: Artisan ID:', artisan._id);
+        console.log('🔍 getArtisanOrders: Artisan name:', artisan.artisanName);
+      }
+      
+      if (!artisan) {
+        console.log('❌ getArtisanOrders: Artisan profile not found');
+        await client.close();
+        return res.status(404).json({
+          success: false,
+          message: 'Artisan profile not found'
+        });
+      }
+    } catch (dbError) {
+      console.error('❌ getArtisanOrders: Database error:', dbError);
       await client.close();
-      return res.status(404).json({
+      return res.status(500).json({
         success: false,
-        message: 'Artisan profile not found'
+        message: 'Database error',
+        error: dbError.message
       });
     }
 

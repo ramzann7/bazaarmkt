@@ -31,13 +31,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// IMMEDIATE DEBUG - Test if routes register at all
-app.get('/api/debug/immediate', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Immediate debug endpoint working - routes are registering'
-  });
-});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -49,25 +42,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Debug endpoint
-app.get('/api/debug', async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      message: 'Debug endpoint working',
-      environment: {
-        NODE_ENV: process.env.NODE_ENV,
-        MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET'
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 // Test database connection endpoint
 app.get('/api/test-db', async (req, res) => {
@@ -2463,6 +2437,7 @@ app.get('/api/community/leaderboard/engagement', communityFeatures.getEngagement
 // ============================================================================
 
 // Profile updates
+app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.put('/api/profile', profileFeatures.updateProfile);
 app.put('/api/profile/addresses', profileFeatures.updateAddresses);
 app.post('/api/profile/addresses', profileFeatures.addAddress);
@@ -2487,749 +2462,14 @@ app.get('/api/test/orders-artisan', (req, res) => {
   });
 });
 
-// Debug endpoint to check artisan data structure
-app.get('/api/debug/artisan-structure', async (req, res) => {
+// ============================================================================
+// INVENTORY MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Update product inventory (stock)
+app.put('/api/products/:id/inventory', async (req, res) => {
   try {
     const { MongoClient, ObjectId } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const artisansCollection = db.collection('artisans');
-    
-    // Get a sample artisan document to see the structure
-    const sampleArtisan = await artisansCollection.findOne({});
-    
-    await client.close();
-    
-    if (!sampleArtisan) {
-      return res.json({
-        success: false,
-        message: 'No artisans found in database'
-      });
-    }
-    
-    // Return the structure without sensitive data
-    const structure = {
-      _id: sampleArtisan._id,
-      user: sampleArtisan.user,
-      artisanName: sampleArtisan.artisanName,
-      businessImage: sampleArtisan.businessImage ? 'Present' : 'Missing',
-      description: sampleArtisan.description,
-      category: sampleArtisan.category,
-      specialties: sampleArtisan.specialties,
-      address: sampleArtisan.address,
-      contactInfo: sampleArtisan.contactInfo,
-      phone: sampleArtisan.phone,
-      email: sampleArtisan.email,
-      type: sampleArtisan.type,
-      // Show all top-level fields
-      allFields: Object.keys(sampleArtisan)
-    };
-    
-    res.json({
-      success: true,
-      message: 'Artisan data structure',
-      data: structure
-    });
-  } catch (error) {
-    console.error('Debug artisan structure error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get artisan structure',
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint to test complete artisan data flow
-app.get('/api/debug/artisan-flow', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const artisansCollection = db.collection('artisans');
-    const productsCollection = db.collection('products');
-    const ordersCollection = db.collection('orders');
-    
-    // Get a sample artisan
-    const artisan = await artisansCollection.findOne({});
-    
-    if (!artisan) {
-      await client.close();
-      return res.json({
-        success: false,
-        message: 'No artisans found'
-      });
-    }
-    
-    // Test the relationships
-    const products = await productsCollection.find({ 
-      artisan: artisan._id 
-    }).limit(3).toArray();
-    
-    const orders = await ordersCollection.find({ 
-      artisan: artisan._id 
-    }).limit(3).toArray();
-    
-    // Also check all orders to see their structure
-    const allOrders = await ordersCollection.find({}).limit(5).toArray();
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      message: 'Artisan data flow test',
-      data: {
-        artisan: {
-          _id: artisan._id,
-          user: artisan.user,
-          artisanName: artisan.artisanName,
-          type: artisan.type
-        },
-        products: {
-          count: products.length,
-          sample: products.map(p => ({
-            _id: p._id,
-            name: p.name,
-            artisan: p.artisan
-          }))
-        },
-        orders: {
-          count: orders.length,
-          sample: orders.map(o => ({
-            _id: o._id,
-            items: o.items?.map(item => ({
-              productId: item.productId,
-              artisanId: item.artisanId
-            }))
-          }))
-        },
-        allOrders: {
-          count: allOrders.length,
-          sample: allOrders.map(o => ({
-            _id: o._id,
-            status: o.status,
-            totalAmount: o.totalAmount,
-            items: o.items?.map(item => ({
-              productId: item.productId,
-              artisanId: item.artisanId,
-              artisanIdType: typeof item.artisanId
-            }))
-          }))
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Debug artisan flow error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to test artisan flow',
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint to check JWT token and authentication
-app.get('/api/debug/token-debug', async (req, res) => {
-  try {
-    const jwt = require('jsonwebtoken');
-    const { ObjectId } = require('mongodb');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.json({
-        success: false,
-        message: 'No token provided',
-        debug: {
-          hasAuthHeader: !!req.headers.authorization,
-          authHeader: req.headers.authorization
-        }
-      });
-    }
-    
-    // Decode token without verification first
-    const decoded = jwt.decode(token, { complete: true });
-    
-    // Try to verify the token
-    let verified;
-    try {
-      verified = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (verifyError) {
-      return res.json({
-        success: false,
-        message: 'Token verification failed',
-        debug: {
-          token: token.substring(0, 50) + '...',
-          decoded: decoded,
-          verifyError: verifyError.message,
-          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
-        }
-      });
-    }
-    
-    // Check ObjectId validation
-    const isUserIdValid = ObjectId.isValid(verified.userId);
-    
-    res.json({
-      success: true,
-      message: 'Token debug successful',
-      debug: {
-        token: token.substring(0, 50) + '...',
-        decoded: decoded,
-        verified: verified,
-        userId: verified.userId,
-        userIdType: typeof verified.userId,
-        userIdLength: verified.userId?.length,
-        isUserIdValid: isUserIdValid,
-        jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
-      }
-    });
-  } catch (error) {
-    console.error('Token debug error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Token debug failed',
-      error: error.message
-    });
-  }
-});
-
-// Debug endpoint to check order structure without authentication
-app.get('/api/debug/order-structure', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const ordersCollection = db.collection('orders');
-    const artisansCollection = db.collection('artisans');
-    
-    // Get a sample artisan
-    const artisan = await artisansCollection.findOne({});
-    
-    if (!artisan) {
-      await client.close();
-      return res.json({
-        success: false,
-        message: 'No artisans found'
-      });
-    }
-    
-    // Get all orders to see their structure
-    const allOrders = await ordersCollection.find({}).limit(3).toArray();
-    
-    // Try different query approaches
-    const orders1 = await ordersCollection.find({ 
-      'items.artisanId': artisan._id 
-    }).toArray();
-    
-    const orders2 = await ordersCollection.find({ 
-      artisan: artisan._id 
-    }).toArray();
-    
-    const orders3 = await ordersCollection.find({ 
-      artisan: artisan._id.toString() 
-    }).toArray();
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      message: 'Order structure debug',
-      debug: {
-        artisan: {
-          _id: artisan._id,
-          artisanName: artisan.artisanName
-        },
-        allOrdersSample: allOrders.map(o => ({
-          _id: o._id,
-          artisan: o.artisan,
-          artisanType: typeof o.artisan,
-          items: o.items?.map(item => ({
-            productId: item.productId,
-            artisanId: item.artisanId,
-            artisanIdType: typeof item.artisanId
-          }))
-        })),
-        queryResults: {
-          itemsArtisanId: orders1.length,
-          artisanObjectId: orders2.length,
-          artisanString: orders3.length
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Order structure debug error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Order structure debug failed',
-      error: error.message
-    });
-  }
-});
-
-// Test endpoint to simulate artisan orders without authentication
-app.get('/api/debug/test-artisan-orders', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const ordersCollection = db.collection('orders');
-    const artisansCollection = db.collection('artisans');
-    
-    // Get a sample artisan
-    const artisan = await artisansCollection.findOne({});
-    
-    if (!artisan) {
-      await client.close();
-      return res.json({
-        success: false,
-        message: 'No artisans found'
-      });
-    }
-    
-    // Test the exact same query that getArtisanOrders uses
-    const orders = await ordersCollection
-      .find({ 
-        artisan: artisan._id 
-      })
-      .sort({ createdAt: -1 })
-      .limit(20)
-      .toArray();
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      message: 'Test artisan orders successful',
-      data: {
-        artisan: {
-          _id: artisan._id,
-          artisanName: artisan.artisanName
-        },
-        orders: orders.map(o => ({
-          _id: o._id,
-          status: o.status,
-          totalAmount: o.totalAmount,
-          createdAt: o.createdAt
-        })),
-        count: orders.length
-      }
-    });
-  } catch (error) {
-    console.error('Test artisan orders error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Test artisan orders failed',
-      error: error.message
-    });
-  }
-});
-
-// Test endpoint to check token validation
-app.get('/api/debug/test-token', async (req, res) => {
-  try {
-    const jwt = require('jsonwebtoken');
-    const { ObjectId } = require('mongodb');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.json({
-        success: false,
-        message: 'No token provided',
-        debug: {
-          hasAuthHeader: !!req.headers.authorization,
-          authHeader: req.headers.authorization
-        }
-      });
-    }
-    
-    // Decode token without verification first
-    const decoded = jwt.decode(token, { complete: true });
-    
-    // Try to verify the token
-    let verified;
-    try {
-      verified = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (verifyError) {
-      return res.json({
-        success: false,
-        message: 'Token verification failed',
-        debug: {
-          token: token.substring(0, 50) + '...',
-          decoded: decoded,
-          verifyError: verifyError.message,
-          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
-        }
-      });
-    }
-    
-    // Check ObjectId validation
-    const isUserIdValid = ObjectId.isValid(verified.userId);
-    
-    res.json({
-      success: true,
-      message: 'Token validation successful',
-      debug: {
-        token: token.substring(0, 50) + '...',
-        decoded: decoded,
-        verified: verified,
-        userId: verified.userId,
-        userIdType: typeof verified.userId,
-        userIdLength: verified.userId?.length,
-        isUserIdValid: isUserIdValid,
-        jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
-      }
-    });
-  } catch (error) {
-    console.error('Token test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Token test failed',
-      error: error.message
-    });
-  }
-});
-
-// Comprehensive debug endpoint for artisan orders
-app.get('/api/debug/artisan-orders-comprehensive', async (req, res) => {
-  try {
-    const jwt = require('jsonwebtoken');
-    const { MongoClient, ObjectId } = require('mongodb');
-    
-    console.log('🔍 COMPREHENSIVE DEBUG: Starting artisan orders debug');
-    console.log('🔍 COMPREHENSIVE DEBUG: Headers:', JSON.stringify(req.headers, null, 2));
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.json({
-        success: false,
-        message: 'No token provided',
-        debug: {
-          hasAuthHeader: !!req.headers.authorization,
-          authHeader: req.headers.authorization,
-          allHeaders: req.headers
-        }
-      });
-    }
-    
-    console.log('🔍 COMPREHENSIVE DEBUG: Token found, length:', token.length);
-    console.log('🔍 COMPREHENSIVE DEBUG: Token preview:', token.substring(0, 50) + '...');
-    
-    // Step 1: Decode token without verification
-    let decoded;
-    try {
-      decoded = jwt.decode(token, { complete: true });
-      console.log('🔍 COMPREHENSIVE DEBUG: Token decoded successfully');
-    } catch (decodeError) {
-      console.log('❌ COMPREHENSIVE DEBUG: Token decode failed:', decodeError.message);
-      return res.json({
-        success: false,
-        message: 'Token decode failed',
-        debug: {
-          decodeError: decodeError.message,
-          token: token.substring(0, 50) + '...'
-        }
-      });
-    }
-    
-    // Step 2: Verify token
-    let verified;
-    try {
-      verified = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('🔍 COMPREHENSIVE DEBUG: Token verified successfully');
-    } catch (verifyError) {
-      console.log('❌ COMPREHENSIVE DEBUG: Token verification failed:', verifyError.message);
-      return res.json({
-        success: false,
-        message: 'Token verification failed',
-        debug: {
-          verifyError: verifyError.message,
-          token: token.substring(0, 50) + '...',
-          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
-        }
-      });
-    }
-    
-    // Step 3: Validate userId
-    if (!verified.userId) {
-      console.log('❌ COMPREHENSIVE DEBUG: No user ID in token');
-      return res.json({
-        success: false,
-        message: 'No user ID in token',
-        debug: {
-          verified: verified
-        }
-      });
-    }
-    
-    // Step 4: Create ObjectId
-    let userObjectId;
-    try {
-      userObjectId = new ObjectId(verified.userId);
-      console.log('🔍 COMPREHENSIVE DEBUG: ObjectId created successfully');
-    } catch (objectIdError) {
-      console.log('❌ COMPREHENSIVE DEBUG: ObjectId creation failed:', objectIdError.message);
-      return res.json({
-        success: false,
-        message: 'Invalid user ID format',
-        debug: {
-          userId: verified.userId,
-          type: typeof verified.userId,
-          length: verified.userId?.length,
-          objectIdError: objectIdError.message
-        }
-      });
-    }
-    
-    // Step 5: Connect to database and find artisan
-    console.log('🔍 COMPREHENSIVE DEBUG: Connecting to database...');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const artisansCollection = db.collection('artisans');
-    
-    const artisan = await artisansCollection.findOne({
-      user: userObjectId
-    });
-    
-    if (!artisan) {
-      console.log('❌ COMPREHENSIVE DEBUG: Artisan profile not found');
-      await client.close();
-      return res.json({
-        success: false,
-        message: 'Artisan profile not found',
-        debug: {
-          userId: verified.userId,
-          userObjectId: userObjectId,
-          searchedFor: userObjectId
-        }
-      });
-    }
-    
-    console.log('🔍 COMPREHENSIVE DEBUG: Artisan found:', artisan.artisanName);
-    
-    // Step 6: Query orders
-    const ordersCollection = db.collection('orders');
-    const orders = await ordersCollection
-      .find({ 
-        artisan: artisan._id 
-      })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .toArray();
-    
-    console.log('🔍 COMPREHENSIVE DEBUG: Found orders:', orders.length);
-    await client.close();
-    
-    res.json({
-      success: true,
-      message: 'Comprehensive debug successful',
-      debug: {
-        token: {
-          length: token.length,
-          preview: token.substring(0, 50) + '...',
-          decoded: decoded,
-          verified: verified
-        },
-        user: {
-          userId: verified.userId,
-          userObjectId: userObjectId,
-          isValid: ObjectId.isValid(verified.userId)
-        },
-        artisan: {
-          _id: artisan._id,
-          artisanName: artisan.artisanName,
-          user: artisan.user
-        },
-        orders: {
-          count: orders.length,
-          sample: orders.map(o => ({
-            _id: o._id,
-            status: o.status,
-            totalAmount: o.totalAmount,
-            createdAt: o.createdAt
-          }))
-        }
-      }
-    });
-  } catch (error) {
-    console.error('❌ COMPREHENSIVE DEBUG: Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Comprehensive debug failed',
-      error: error.message,
-      debug: {
-        errorName: error.name,
-        errorStack: error.stack
-      }
-    });
-  }
-});
-
-// Debug endpoint to simulate getArtisanOrders logic
-app.get('/api/debug/orders-artisan-debug', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const jwt = require('jsonwebtoken');
-    
-    console.log('🔍 DEBUG: Starting orders-artisan debug');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      console.log('❌ DEBUG: No token provided');
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided',
-        debug: {
-          hasAuthHeader: !!req.headers.authorization,
-          authHeader: req.headers.authorization
-        }
-      });
-    }
-
-    console.log('🔍 DEBUG: Token found, verifying...');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔍 DEBUG: Token decoded, userId:', decoded.userId);
-
-    // Validate userId format
-    console.log('🔍 DEBUG: User ID from token:', decoded.userId);
-    console.log('🔍 DEBUG: User ID type:', typeof decoded.userId);
-    console.log('🔍 DEBUG: User ID valid ObjectId:', ObjectId.isValid(decoded.userId));
-    
-    if (!decoded.userId) {
-      console.log('❌ DEBUG: No user ID in token');
-      return res.status(400).json({
-        success: false,
-        message: 'No user ID in token',
-        debug: {
-          decoded: decoded
-        }
-      });
-    }
-    
-    if (!ObjectId.isValid(decoded.userId)) {
-      console.log('❌ DEBUG: Invalid user ID format:', decoded.userId);
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID format',
-        debug: {
-          userId: decoded.userId,
-          type: typeof decoded.userId,
-          length: decoded.userId?.length
-        }
-      });
-    }
-
-    console.log('🔍 DEBUG: Connecting to database...');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const ordersCollection = db.collection('orders');
-    const artisansCollection = db.collection('artisans');
-
-    // Get artisan profile
-    console.log('🔍 DEBUG: Looking for artisan with user ID:', decoded.userId);
-    const artisan = await artisansCollection.findOne({
-      user: new ObjectId(decoded.userId)
-    });
-
-    console.log('🔍 DEBUG: Found artisan:', artisan ? 'Yes' : 'No');
-    if (!artisan) {
-      console.log('❌ DEBUG: Artisan profile not found');
-      await client.close();
-      return res.status(404).json({
-        success: false,
-        message: 'Artisan profile not found',
-        debug: {
-          userId: decoded.userId,
-          searchedFor: new ObjectId(decoded.userId)
-        }
-      });
-    }
-
-    // Get ALL orders to see their structure
-    console.log('🔍 DEBUG: Getting all orders to see structure...');
-    const allOrders = await ordersCollection.find({}).limit(3).toArray();
-    
-    // Try different query approaches
-    console.log('🔍 DEBUG: Testing different query approaches...');
-    
-    // Query 1: items.artisanId (current approach)
-    const orders1 = await ordersCollection.find({ 
-      'items.artisanId': artisan._id 
-    }).toArray();
-    
-    // Query 2: artisan field at root level
-    const orders2 = await ordersCollection.find({ 
-      artisan: artisan._id 
-    }).toArray();
-    
-    // Query 3: artisan field as string
-    const orders3 = await ordersCollection.find({ 
-      artisan: artisan._id.toString() 
-    }).toArray();
-
-    console.log('🔍 DEBUG: Found orders with items.artisanId:', orders1.length);
-    console.log('🔍 DEBUG: Found orders with artisan (ObjectId):', orders2.length);
-    console.log('🔍 DEBUG: Found orders with artisan (String):', orders3.length);
-    
-    await client.close();
-
-    res.json({
-      success: true,
-      message: 'Debug successful',
-      debug: {
-        userId: decoded.userId,
-        artisan: {
-          _id: artisan._id,
-          artisanName: artisan.artisanName
-        },
-        allOrdersSample: allOrders.map(o => ({
-          _id: o._id,
-          artisan: o.artisan,
-          artisanType: typeof o.artisan,
-          items: o.items?.map(item => ({
-            productId: item.productId,
-            artisanId: item.artisanId,
-            artisanIdType: typeof item.artisanId
-          }))
-        })),
-        queryResults: {
-          itemsArtisanId: orders1.length,
-          artisanObjectId: orders2.length,
-          artisanString: orders3.length
-        }
-      }
-    });
-  } catch (error) {
-    console.error('❌ DEBUG: Error caught:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Debug failed',
-      error: error.message,
-      debug: {
-        errorName: error.name,
-        errorStack: error.stack
-      }
-    });
-  }
-});
-
-// Artisan profile management
-app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
-app.post('/api/profile/artisan', async (req, res) => {
-  try {
-    const { MongoClient } = require('mongodb');
     const jwt = require('jsonwebtoken');
     
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -3239,103 +2479,95 @@ app.post('/api/profile/artisan', async (req, res) => {
         message: 'No token provided'
       });
     }
-    
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { artisanName, businessName, category, type, description, address, phone, email } = req.body;
     
-    // Validate required fields
-    if (!artisanName || !businessName || !category || !type) {
+    if (!ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         success: false,
-        message: 'Artisan name, business name, category, and type are required'
+        message: 'Invalid product ID format'
       });
     }
+
+    const { stock, totalCapacity, remainingCapacity, capacityPeriod } = req.body;
     
-    // Validate userId format
-    if (!decoded.userId || !(require('mongodb')).ObjectId.isValid(decoded.userId)) {
+    if (stock === undefined && totalCapacity === undefined && remainingCapacity === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid user ID format'
+        message: 'At least one inventory field is required'
       });
     }
-    
+
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
+    const productsCollection = db.collection('products');
     const artisansCollection = db.collection('artisans');
-    const usersCollection = db.collection('users');
-    
-    // Check if user exists
-    const user = await usersCollection.findOne({ 
-      _id: new (require('mongodb')).ObjectId(decoded.userId) 
+
+    // Verify the product belongs to the authenticated artisan
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
     });
-    
-    if (!user) {
+
+    if (!artisan) {
       await client.close();
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: 'Artisan profile not found'
       });
     }
-    
-    // Check if artisan profile already exists
-    const existingArtisan = await artisansCollection.findOne({
-      user: new (require('mongodb')).ObjectId(decoded.userId)
+
+    const product = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id),
+      artisan: artisan._id
     });
-    
-    if (existingArtisan) {
+
+    if (!product) {
       await client.close();
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
-        message: 'Artisan profile already exists'
+        message: 'Product not found or not owned by artisan'
       });
     }
-    
-    // Create artisan profile
-    const artisan = {
-      user: new (require('mongodb')).ObjectId(decoded.userId),
-      artisanName,
-      businessName,
-      category,
-      type,
-      description: description || '',
-      address: address || {},
-      phone: phone || '',
-      email: email || user.email,
-      status: 'active',
-      isVerified: false,
-      createdAt: new Date(),
+
+    // Update inventory fields
+    const updateData = {
       updatedAt: new Date()
     };
-    
-    const result = await artisansCollection.insertOne(artisan);
-    const artisanId = result.insertedId;
-    
-    // Update user role to artisan
-    await usersCollection.updateOne(
-      { _id: new (require('mongodb')).ObjectId(decoded.userId) },
-      { 
-        $set: { 
-          role: 'artisan',
-          updatedAt: new Date()
-        }
-      }
+
+    if (stock !== undefined) updateData.stock = stock;
+    if (totalCapacity !== undefined) updateData.totalCapacity = totalCapacity;
+    if (remainingCapacity !== undefined) updateData.remainingCapacity = remainingCapacity;
+    if (capacityPeriod !== undefined) updateData.capacityPeriod = capacityPeriod;
+
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: updateData }
     );
-    
+
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const updatedProduct = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id)
+    });
+
     await client.close();
-    
-    res.status(201).json({
+
+    res.json({
       success: true,
-      message: 'Artisan profile created successfully',
+      message: 'Inventory updated successfully',
       data: {
-        artisan: {
-          _id: artisanId,
-          ...artisan
-        }
+        product: updatedProduct
       }
     });
   } catch (error) {
-    console.error('Create artisan profile error:', error);
+    console.error('Inventory update error:', error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
@@ -3344,16 +2576,16 @@ app.post('/api/profile/artisan', async (req, res) => {
     }
     res.status(500).json({
       success: false,
-      message: 'Failed to create artisan profile',
+      message: 'Failed to update inventory',
       error: error.message
     });
   }
 });
 
-// Debug endpoint to check artisan products and orders
-app.get('/api/debug/artisan-data', async (req, res) => {
+// Update product stock (PATCH)
+app.patch('/api/products/:id/inventory', async (req, res) => {
   try {
-    const { MongoClient } = require('mongodb');
+    const { MongoClient, ObjectId } = require('mongodb');
     const jwt = require('jsonwebtoken');
     
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -3363,21 +2595,36 @@ app.get('/api/debug/artisan-data', async (req, res) => {
         message: 'No token provided'
       });
     }
-    
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+
+    const { stock, totalCapacity, remainingCapacity, capacityPeriod } = req.body;
+    
+    if (stock === undefined && totalCapacity === undefined && remainingCapacity === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one inventory field is required'
+      });
+    }
+
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
-    const artisansCollection = db.collection('artisans');
     const productsCollection = db.collection('products');
-    const ordersCollection = db.collection('orders');
-    
-    // Get artisan profile
+    const artisansCollection = db.collection('artisans');
+
+    // Verify the product belongs to the authenticated artisan
     const artisan = await artisansCollection.findOne({
-      user: new (require('mongodb')).ObjectId(decoded.userId)
+      user: new ObjectId(decoded.userId)
     });
-    
+
     if (!artisan) {
       await client.close();
       return res.status(404).json({
@@ -3385,55 +2632,76 @@ app.get('/api/debug/artisan-data', async (req, res) => {
         message: 'Artisan profile not found'
       });
     }
-    
-    // Get products for this artisan
-    const products = await productsCollection.find({
+
+    const product = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id),
       artisan: artisan._id
-    }).toArray();
-    
-    // Get orders for this artisan
-    const orders = await ordersCollection.find({
-      artisan: artisan._id
-    }).toArray();
-    
-    // Get all orders to see structure
-    const allOrders = await ordersCollection.find({}).limit(3).toArray();
-    
+    });
+
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or not owned by artisan'
+      });
+    }
+
+    // Update inventory fields
+    const updateData = {
+      updatedAt: new Date()
+    };
+
+    if (stock !== undefined) updateData.stock = stock;
+    if (totalCapacity !== undefined) updateData.totalCapacity = totalCapacity;
+    if (remainingCapacity !== undefined) updateData.remainingCapacity = remainingCapacity;
+    if (capacityPeriod !== undefined) updateData.capacityPeriod = capacityPeriod;
+
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const updatedProduct = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id)
+    });
+
     await client.close();
-    
+
     res.json({
       success: true,
+      message: 'Inventory updated successfully',
       data: {
-        artisanId: artisan._id,
-        artisanName: artisan.artisanName,
-        productsCount: products.length,
-        products: products.map(p => ({ _id: p._id, name: p.name, artisan: p.artisan })),
-        ordersCount: orders.length,
-        orders: orders.map(o => ({ _id: o._id, items: o.items?.map(item => ({ artisanId: item.artisanId })) })),
-        sampleOrders: allOrders.map(o => ({
-          _id: o._id,
-          items: o.items?.map(item => ({
-            productId: item.productId,
-            artisanId: item.artisanId,
-            artisanIdType: typeof item.artisanId
-          }))
-        }))
+        product: updatedProduct
       }
     });
   } catch (error) {
-    console.error('Debug artisan data error:', error);
+    console.error('Inventory update error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Debug failed',
+      message: 'Failed to update inventory',
       error: error.message
     });
   }
 });
 
-// Debug endpoint to check artisan profile status
-app.get('/api/debug/artisan-status', async (req, res) => {
+// Reduce inventory (for order fulfillment)
+app.patch('/api/products/:id/reduce-inventory', async (req, res) => {
   try {
-    const { MongoClient } = require('mongodb');
+    const { MongoClient, ObjectId } = require('mongodb');
     const jwt = require('jsonwebtoken');
     
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -3443,42 +2711,229 @@ app.get('/api/debug/artisan-status', async (req, res) => {
         message: 'No token provided'
       });
     }
-    
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+
+    const { quantity } = req.body;
+    
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid quantity is required'
+      });
+    }
+
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
+    const productsCollection = db.collection('products');
     const artisansCollection = db.collection('artisans');
-    const usersCollection = db.collection('users');
-    
-    // Get user info
-    const user = await usersCollection.findOne({ 
-      _id: new (require('mongodb')).ObjectId(decoded.userId) 
-    });
-    
-    // Get artisan profile
+
+    // Verify the product belongs to the authenticated artisan
     const artisan = await artisansCollection.findOne({
-      user: new (require('mongodb')).ObjectId(decoded.userId)
+      user: new ObjectId(decoded.userId)
     });
-    
+
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    const product = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id),
+      artisan: artisan._id
+    });
+
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or not owned by artisan'
+      });
+    }
+
+    // Check if sufficient inventory
+    if (product.stock < quantity) {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient inventory'
+      });
+    }
+
+    // Reduce inventory
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { 
+        $inc: { 
+          stock: -quantity,
+          soldCount: quantity
+        },
+        $set: { updatedAt: new Date() }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const updatedProduct = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id)
+    });
+
     await client.close();
-    
+
     res.json({
       success: true,
+      message: 'Inventory reduced successfully',
       data: {
-        userId: decoded.userId,
-        userExists: !!user,
-        userRole: user?.role,
-        artisanExists: !!artisan,
-        artisanId: artisan?._id
+        product: updatedProduct
       }
     });
   } catch (error) {
-    console.error('Debug artisan status error:', error);
+    console.error('Inventory reduction error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Debug failed',
+      message: 'Failed to reduce inventory',
+      error: error.message
+    });
+  }
+});
+
+// Update stock specifically
+app.patch('/api/products/:id/stock', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+
+    const { stock } = req.body;
+    
+    if (stock === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stock value is required'
+      });
+    }
+
+    if (stock < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Stock cannot be negative'
+      });
+    }
+
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+
+    // Verify the product belongs to the authenticated artisan
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    const product = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id),
+      artisan: artisan._id
+    });
+
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or not owned by artisan'
+      });
+    }
+
+    // Update stock
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { 
+        $set: { 
+          stock: stock,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    const updatedProduct = await productsCollection.findOne({
+      _id: new ObjectId(req.params.id)
+    });
+
+    await client.close();
+
+    res.json({
+      success: true,
+      message: 'Stock updated successfully',
+      data: {
+        product: updatedProduct
+      }
+    });
+  } catch (error) {
+    console.error('Stock update error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update stock',
       error: error.message
     });
   }

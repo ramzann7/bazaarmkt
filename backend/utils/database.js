@@ -13,8 +13,8 @@ let cachedClient = null;
  * @returns {Promise<MongoClient>}
  */
 async function connectToDatabase() {
-  // Return cached connection if available and connected
-  if (cachedClient && cachedClient.topology?.isConnected()) {
+  // Simple check for existing connection without async operations during import
+  if (cachedClient) {
     return cachedClient;
   }
 

@@ -3448,6 +3448,19 @@ app.use((error, req, res, next) => {
   });
 });
 
+// Debug endpoint to test optimized middleware
+app.get('/api/debug/auth', verifyToken, async (req, res) => {
+  res.json({
+    success: true,
+    message: 'Optimized auth middleware working!',
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role
+    }
+  });
+});
+
 // 404 handler for unknown routes
 app.use((req, res) => {
   res.status(404).json({

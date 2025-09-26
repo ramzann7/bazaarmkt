@@ -578,14 +578,9 @@ app.get('/api/products/my-products', async (req, res) => {
       { $match: { artisan: artisan._id } },
       { $sort: { createdAt: -1 } },
       {
-        $addFields: {
-          artisanObjectId: { $toObjectId: '$artisan' }
-        }
-      },
-      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisanObjectId',
+          localField: 'artisan',
           foreignField: '_id',
           as: 'artisanInfo'
         }
@@ -597,8 +592,7 @@ app.get('/api/products/my-products', async (req, res) => {
       },
       {
         $project: {
-          artisanInfo: 0,
-          artisanObjectId: 0
+          artisanInfo: 0
         }
       }
     ]).toArray();
@@ -1727,14 +1721,9 @@ app.get('/api/promotional/products/featured', async (req, res) => {
       { $match: { status: 'active', isFeatured: true } },
       { $limit: parseInt(req.query.limit) || 6 },
       {
-        $addFields: {
-          artisanObjectId: { $toObjectId: '$artisan' }
-        }
-      },
-      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisanObjectId',
+          localField: 'artisan',
           foreignField: '_id',
           as: 'artisanInfo'
         }
@@ -1746,8 +1735,7 @@ app.get('/api/promotional/products/featured', async (req, res) => {
       },
       {
         $project: {
-          artisanInfo: 0,
-          artisanObjectId: 0
+          artisanInfo: 0
         }
       }
     ]).toArray();
@@ -1790,14 +1778,9 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
       },
       { $limit: parseInt(req.query.limit) || 3 },
       {
-        $addFields: {
-          artisanObjectId: { $toObjectId: '$artisan' }
-        }
-      },
-      {
         $lookup: {
           from: 'artisans',
-          localField: 'artisanObjectId',
+          localField: 'artisan',
           foreignField: '_id',
           as: 'artisanInfo'
         }
@@ -1809,8 +1792,7 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
       },
       {
         $project: {
-          artisanInfo: 0,
-          artisanObjectId: 0
+          artisanInfo: 0
         }
       }
     ]).toArray();

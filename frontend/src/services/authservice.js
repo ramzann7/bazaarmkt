@@ -89,7 +89,7 @@ export const preloadProfile = () => {
 export const loginUser = async (credentials) => {
   try {
     const response = await api.post('/auth/login', credentials);
-    const { token, user } = response.data;
+    const { token, user } = response.data.data; // Fix: data is nested under response.data.data
     
     authToken.setToken(token);
     
@@ -126,7 +126,7 @@ export const registerUser = async (userData) => {
     }
     
     const response = await api.post(endpoint, userData);
-    const { token, user, artisan } = response.data;
+    const { token, user, artisan } = response.data.data || response.data; // Handle both nested and direct structures
     
     authToken.setToken(token);
     

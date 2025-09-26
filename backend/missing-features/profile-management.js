@@ -734,6 +734,20 @@ const getArtisanProfile = async (req, res) => {
     });
 
     console.log('Found artisan profile:', artisan ? 'Yes' : 'No');
+    console.log('Artisan profile data:', {
+      _id: artisan?._id,
+      artisanName: artisan?.artisanName,
+      businessImage: artisan?.businessImage ? 'Present' : 'Missing',
+      description: artisan?.description,
+      category: artisan?.category,
+      specialties: artisan?.specialties,
+      address: artisan?.address,
+      contactInfo: artisan?.contactInfo,
+      phone: artisan?.phone,
+      email: artisan?.email,
+      type: artisan?.type
+    });
+
     if (!artisan) {
       await client.close();
       return res.status(404).json({

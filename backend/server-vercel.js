@@ -1356,6 +1356,429 @@ app.patch('/api/products/:id/stock', async (req, res) => {
   }
 });
 
+// Create new product
+app.post('/api/products', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get artisan profile using user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Validate required fields
+    const { name, description, price, category, subcategory, productType, unit } = req.body;
+    
+    if (!name || !description || !price || !category || !subcategory || !productType) {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: name, description, price, category, subcategory, productType'
+      });
+    }
+    
+    // Prepare product data
+    const productData = {
+      name: name.trim(),
+      description: description.trim(),
+      price: parseFloat(price),
+      category: category.trim(),
+      subcategory: subcategory.trim(),
+      productType: productType,
+      unit: unit || 'piece',
+      weight: req.body.weight ? parseFloat(req.body.weight) : null,
+      status: req.body.status || 'active',
+      
+      // Dietary attributes
+      isOrganic: req.body.isOrganic || false,
+      isGlutenFree: req.body.isGlutenFree || false,
+      isVegan: req.body.isVegan || false,
+      isDairyFree: req.body.isDairyFree || false,
+      isNutFree: req.body.isNutFree || false,
+      isKosher: req.body.isKosher || false,
+      isHalal: req.body.isHalal || false,
+      
+      // Assign to artisan
+      artisan: artisan._id,
+      
+      // Product type specific fields
+      ...(productType === 'ready_to_ship' && {
+        stock: parseInt(req.body.stock) || 0,
+        lowStockThreshold: parseInt(req.body.lowStockThreshold) || 5
+      }),
+      ...(productType === 'made_to_order' && {
+        stock: parseInt(req.body.stock) || 0, // Keep for backward compatibility
+        totalCapacity: Math.max(parseInt(req.body.stock) || 0, 1),
+        remainingCapacity: Math.max(parseInt(req.body.stock) || 0, 1),
+        leadTime: parseInt(req.body.leadTime) || 1,
+        leadTimeUnit: req.body.leadTimeUnit || 'days',
+        maxOrderQuantity: parseInt(req.body.maxOrderQuantity) || 10,
+        capacityPeriod: req.body.capacityPeriod || 'daily'
+      }),
+      ...(productType === 'scheduled_order' && {
+        stock: parseInt(req.body.stock) || 0, // Keep for backward compatibility
+        availableQuantity: Math.max(parseInt(req.body.stock) || 0, 1),
+        scheduleType: req.body.scheduleType || 'daily',
+        scheduleDetails: req.body.scheduleDetails || {
+          frequency: 'every_day',
+          customSchedule: [],
+          orderCutoffHours: 24
+        },
+        nextAvailableDate: req.body.nextAvailableDate || new Date().toISOString().split('T')[0],
+        nextAvailableTime: req.body.nextAvailableTime || '09:00'
+      }),
+      
+      // Timestamps
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    // Insert product
+    const result = await productsCollection.insertOne(productData);
+    
+    // Get the created product with artisan population
+    const createdProduct = await productsCollection.aggregate([
+      { $match: { _id: result.insertedId } },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0
+        }
+      }
+    ]).toArray();
+    
+    await client.close();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      data: createdProduct[0]
+    });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create product',
+      error: error.message
+    });
+  }
+});
+
+// Update product
+app.put('/api/products/:id', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const productId = req.params.id;
+    
+    // Validate product ID format
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get product and verify ownership
+    const product = await productsCollection.findOne({ _id: new ObjectId(productId) });
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get artisan profile using user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Verify product belongs to this artisan
+    if (product.artisan.toString() !== artisan._id.toString()) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update your own products'
+      });
+    }
+    
+    // Prepare update data
+    const updateData = {
+      updatedAt: new Date()
+    };
+    
+    // Update basic fields if provided
+    if (req.body.name) updateData.name = req.body.name.trim();
+    if (req.body.description) updateData.description = req.body.description.trim();
+    if (req.body.price !== undefined) updateData.price = parseFloat(req.body.price);
+    if (req.body.category) updateData.category = req.body.category.trim();
+    if (req.body.subcategory) updateData.subcategory = req.body.subcategory.trim();
+    if (req.body.unit) updateData.unit = req.body.unit;
+    if (req.body.weight !== undefined) updateData.weight = req.body.weight ? parseFloat(req.body.weight) : null;
+    if (req.body.status) updateData.status = req.body.status;
+    
+    // Update dietary attributes
+    if (req.body.isOrganic !== undefined) updateData.isOrganic = req.body.isOrganic;
+    if (req.body.isGlutenFree !== undefined) updateData.isGlutenFree = req.body.isGlutenFree;
+    if (req.body.isVegan !== undefined) updateData.isVegan = req.body.isVegan;
+    if (req.body.isDairyFree !== undefined) updateData.isDairyFree = req.body.isDairyFree;
+    if (req.body.isNutFree !== undefined) updateData.isNutFree = req.body.isNutFree;
+    if (req.body.isKosher !== undefined) updateData.isKosher = req.body.isKosher;
+    if (req.body.isHalal !== undefined) updateData.isHalal = req.body.isHalal;
+    
+    // Update product type specific fields
+    if (req.body.productType === 'ready_to_ship') {
+      if (req.body.stock !== undefined) updateData.stock = parseInt(req.body.stock);
+      if (req.body.lowStockThreshold !== undefined) updateData.lowStockThreshold = parseInt(req.body.lowStockThreshold);
+    }
+    
+    if (req.body.productType === 'made_to_order') {
+      if (req.body.stock !== undefined) {
+        updateData.stock = parseInt(req.body.stock);
+        updateData.totalCapacity = Math.max(parseInt(req.body.stock), 1);
+        updateData.remainingCapacity = Math.max(parseInt(req.body.stock), 1);
+      }
+      if (req.body.leadTime !== undefined) updateData.leadTime = parseInt(req.body.leadTime);
+      if (req.body.leadTimeUnit) updateData.leadTimeUnit = req.body.leadTimeUnit;
+      if (req.body.maxOrderQuantity !== undefined) updateData.maxOrderQuantity = parseInt(req.body.maxOrderQuantity);
+      if (req.body.capacityPeriod) updateData.capacityPeriod = req.body.capacityPeriod;
+    }
+    
+    if (req.body.productType === 'scheduled_order') {
+      if (req.body.stock !== undefined) {
+        updateData.stock = parseInt(req.body.stock);
+        updateData.availableQuantity = Math.max(parseInt(req.body.stock), 1);
+      }
+      if (req.body.scheduleType) updateData.scheduleType = req.body.scheduleType;
+      if (req.body.scheduleDetails) updateData.scheduleDetails = req.body.scheduleDetails;
+      if (req.body.nextAvailableDate) updateData.nextAvailableDate = req.body.nextAvailableDate;
+      if (req.body.nextAvailableTime) updateData.nextAvailableTime = req.body.nextAvailableTime;
+    }
+    
+    // Update product
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(productId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get updated product with artisan population
+    const updatedProduct = await productsCollection.aggregate([
+      { $match: { _id: new ObjectId(productId) } },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0
+        }
+      }
+    ]).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Product updated successfully',
+      data: updatedProduct[0]
+    });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update product',
+      error: error.message
+    });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const productId = req.params.id;
+    
+    // Validate product ID format
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get product and verify ownership
+    const product = await productsCollection.findOne({ _id: new ObjectId(productId) });
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get artisan profile using user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Verify product belongs to this artisan
+    if (product.artisan.toString() !== artisan._id.toString()) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own products'
+      });
+    }
+    
+    // Delete product
+    const result = await productsCollection.deleteOne({ _id: new ObjectId(productId) });
+    
+    if (result.deletedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete product',
+      error: error.message
+    });
+  }
+});
+
 
 // ============================================================================
 // AUTHENTICATION ENDPOINTS

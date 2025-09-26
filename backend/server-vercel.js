@@ -996,7 +996,7 @@ app.post('/api/orders', async (req, res) => {
         productPrice: product.price,
         quantity: item.quantity,
         itemTotal: itemTotal,
-        artisanId: product.artisan
+        artisanId: new (require('mongodb')).ObjectId(product.artisan)
       });
     }
     

@@ -785,7 +785,7 @@ const createGuestOrder = async (req, res) => {
         productPrice: product.price,
         quantity: item.quantity,
         itemTotal: itemTotal,
-        artisanId: product.artisan
+        artisanId: new ObjectId(product.artisan)
       });
     }
 

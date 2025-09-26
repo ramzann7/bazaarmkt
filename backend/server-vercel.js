@@ -822,7 +822,8 @@ app.get('/api/auth/profile', async (req, res) => {
           firstName: user.firstName,
           lastName: user.lastName,
           phone: user.phone,
-          userType: user.role, // Frontend expects userType
+          role: user.role, // Frontend expects role field
+          userType: user.role, // Keep userType for backward compatibility
           isActive: user.isActive,
           isVerified: user.isVerified,
           createdAt: user.createdAt,

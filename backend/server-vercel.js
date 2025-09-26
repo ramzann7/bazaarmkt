@@ -40,6 +40,14 @@ app.use(cors({
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// IMMEDIATE DEBUG - Test if routes register at all
+app.get('/api/debug/immediate', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Immediate debug endpoint working - routes are registering'
+  });
+});
+
 // Database connection middleware for serverless
 let isConnected = false;
 

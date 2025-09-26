@@ -122,6 +122,34 @@ export default function EventDetails() {
     return diffDays;
   };
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths without leading slash
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+  };
+
   if (!event) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
@@ -159,10 +187,17 @@ export default function EventDetails() {
             <div className="relative mb-8">
               <div className="aspect-w-16 aspect-h-9 bg-stone-100 rounded-2xl overflow-hidden">
                 <img
-                  src={event.images[currentImageIndex]}
+                  src={getImageUrl(event.images[currentImageIndex])}
                   alt={event.title}
                   className="w-full h-96 object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
                 />
+                <div className="w-full h-96 bg-gray-200 flex items-center justify-center" style={{ display: 'none' }}>
+                  <span className="text-lg">📅</span>
+                </div>
                 
                 {/* Favorite Button */}
                 <button

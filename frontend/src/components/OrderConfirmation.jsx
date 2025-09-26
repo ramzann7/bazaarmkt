@@ -140,6 +140,34 @@ export default function OrderConfirmation() {
     }
   };
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths without leading slash
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+  };
+
   const formatPickupTime = (pickupTimeWindow) => {
     if (!pickupTimeWindow) return null;
     
@@ -441,7 +469,7 @@ export default function OrderConfirmation() {
                             {(item.product?.image || item.image) && (
                               <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 print:hidden">
                                 <img 
-                                  src={item.product?.image || item.image} 
+                                  src={getImageUrl(item.product?.image || item.image)} 
                                   alt={item.product?.name || item.name || 'Product'}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {

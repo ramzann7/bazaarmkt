@@ -26,6 +26,34 @@ export default function BoostProduct({ product, onClose, onSuccess }) {
     }
   }, [selectedFeature]);
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths without leading slash
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+  };
+
   const handleFeatureSelect = (featureType) => {
     setSelectedFeature(featureType);
     // Reset duration for sponsored products to 7 days
@@ -124,11 +152,18 @@ export default function BoostProduct({ product, onClose, onSuccess }) {
           <div className="flex items-center space-x-4">
             {product.image && (
               <img
-                src={product.image}
+                src={getImageUrl(product.image)}
                 alt={product.name}
                 className="w-16 h-16 object-cover rounded-lg"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
               />
             )}
+            <div className="w-16 h-16 bg-gray-200 flex items-center justify-center rounded-lg" style={{ display: product.image ? 'none' : 'flex' }}>
+              <span className="text-lg">📦</span>
+            </div>
             <div>
               <h3 className="font-semibold text-gray-900">{product.name}</h3>
               <p className="text-sm text-gray-600">{product.category}</p>

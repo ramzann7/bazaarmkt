@@ -117,6 +117,34 @@ export default function AdminProductManagement() {
     setFilteredProducts(filtered);
   };
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths without leading slash
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+  };
+
   const handleStatusChange = async (productId, newStatus) => {
     try {
       // Call the API to update the database
@@ -354,15 +382,18 @@ export default function AdminProductManagement() {
                         <div className="flex-shrink-0 h-12 w-12">
                           {product.image ? (
                             <img
-                              src={product.image}
+                              src={getImageUrl(product.image)}
                               alt={product.name}
                               className="h-12 w-12 rounded-lg object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
                             />
-                          ) : (
-                            <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
-                              <span className="text-lg">📦</span>
-                            </div>
-                          )}
+                          ) : null}
+                          <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center" style={{ display: product.image ? 'none' : 'flex' }}>
+                            <span className="text-lg">📦</span>
+                          </div>
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">

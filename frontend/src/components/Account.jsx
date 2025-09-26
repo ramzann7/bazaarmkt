@@ -158,6 +158,34 @@ export default function Account() {
     }
   }, [location.search]);
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+    }
+    
+    // Handle paths without leading slash
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+  };
+
   const handleLogout = () => {
     logoutUser();
     toast.success("Logged out successfully!");
@@ -386,10 +414,17 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
             {favoriteArtisans.map((artisan) => (
               <div key={artisan.id} className="flex items-center space-x-3 p-3 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors">
                 <img
-                  src={artisan.image}
+                  src={getImageUrl(artisan.image)}
                   alt={artisan.name}
                   className="w-12 h-12 rounded-lg object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
                 />
+                <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center" style={{ display: 'none' }}>
+                  <BuildingStorefrontIcon className="w-6 h-6 text-gray-400" />
+                </div>
                 <div className="flex-1">
                   <h4 className="text-sm font-medium text-stone-900">{artisan.name}</h4>
                   <p className="text-xs text-stone-500 capitalize">{artisan.type.replace('_', ' ')}</p>
@@ -698,10 +733,17 @@ function FavoritesTab({ favoriteArtisans }) {
           <div key={artisan.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
             <div className="relative h-48 bg-stone-100">
               <img
-                src={artisan.image}
+                src={getImageUrl(artisan.image)}
                 alt={artisan.name}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
               />
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center" style={{ display: 'none' }}>
+                <BuildingStorefrontIcon className="w-16 h-16 text-gray-400" />
+              </div>
               <button className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white transition-colors">
                 <HeartIcon className="w-5 h-5 text-red-500" />
               </button>

@@ -573,11 +573,35 @@ app.get('/api/products/my-products', async (req, res) => {
       });
     }
     
-    // Get products for this artisan using artisan ID
-    const products = await productsCollection
-      .find({ artisan: artisan._id })
-      .sort({ createdAt: -1 })
-      .toArray();
+    // Get products for this artisan using aggregation pipeline to populate artisan data
+    const products = await productsCollection.aggregate([
+      { $match: { artisan: artisan._id } },
+      { $sort: { createdAt: -1 } },
+      {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanObjectId',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0,
+          artisanObjectId: 0
+        }
+      }
+    ]).toArray();
     
     await client.close();
     
@@ -1698,11 +1722,35 @@ app.get('/api/promotional/products/featured', async (req, res) => {
     const db = client.db();
     const productsCollection = db.collection('products');
     
-    // Get promotional featured products
-    const featuredProducts = await productsCollection
-      .find({ status: 'active', isFeatured: true })
-      .limit(parseInt(req.query.limit) || 6)
-      .toArray();
+    // Get promotional featured products with artisan population
+    const featuredProducts = await productsCollection.aggregate([
+      { $match: { status: 'active', isFeatured: true } },
+      { $limit: parseInt(req.query.limit) || 6 },
+      {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanObjectId',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0,
+          artisanObjectId: 0
+        }
+      }
+    ]).toArray();
     
     await client.close();
     
@@ -1732,14 +1780,40 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
     const db = client.db();
     const productsCollection = db.collection('products');
     
-    // Get sponsored products (products with promotional features)
-    const sponsoredProducts = await productsCollection
-      .find({ 
-        status: 'active',
-        'promotionalFeatures.0': { $exists: true }
-      })
-      .limit(parseInt(req.query.limit) || 3)
-      .toArray();
+    // Get sponsored products with artisan population
+    const sponsoredProducts = await productsCollection.aggregate([
+      { 
+        $match: { 
+          status: 'active',
+          'promotionalFeatures.0': { $exists: true }
+        } 
+      },
+      { $limit: parseInt(req.query.limit) || 3 },
+      {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanObjectId',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0,
+          artisanObjectId: 0
+        }
+      }
+    ]).toArray();
     
     await client.close();
     

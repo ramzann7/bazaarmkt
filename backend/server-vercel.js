@@ -2374,6 +2374,15 @@ app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
 app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
 app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 
+// Test endpoint to check if profileFeatures is working
+app.get('/api/test/profile-features', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Profile features module loaded',
+    functions: Object.keys(profileFeatures)
+  });
+});
+
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.post('/api/profile/artisan', async (req, res) => {

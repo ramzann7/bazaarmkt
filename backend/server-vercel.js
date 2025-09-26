@@ -861,23 +861,71 @@ app.get('/api/auth/profile', async (req, res) => {
       });
     }
     
-    await client.close();
+    // If user is an artisan, get their artisan profile
+    let artisanProfile = null;
+    if (user.role === 'artisan') {
+      const artisansCollection = db.collection('artisans');
+      artisanProfile = await artisansCollection.findOne({ 
+        user: new (require('mongodb')).ObjectId(decoded.userId) 
+      });
+    }
     
+    await client.close();
+
+    // Build user response with artisan data if available
+    const userResponse = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role, // Keep role for backend compatibility
+      userType: user.role, // Frontend expects userType
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      // Include all user fields
+      profilePicture: user.profilePicture,
+      notificationPreferences: user.notificationPreferences,
+      accountSettings: user.accountSettings,
+      favoriteArtisans: user.favoriteArtisans,
+      coordinates: user.coordinates,
+      addresses: user.addresses,
+      paymentMethods: user.paymentMethods
+    };
+
+    // Add artisan-specific data if user is an artisan
+    if (artisanProfile) {
+      userResponse.artisan = {
+        _id: artisanProfile._id,
+        artisanName: artisanProfile.artisanName,
+        businessName: artisanProfile.businessName,
+        type: artisanProfile.type,
+        description: artisanProfile.description,
+        profileImage: artisanProfile.profileImage,
+        businessAddress: artisanProfile.businessAddress,
+        businessPhone: artisanProfile.businessPhone,
+        businessEmail: artisanProfile.businessEmail,
+        businessHours: artisanProfile.businessHours,
+        specialties: artisanProfile.specialties,
+        certifications: artisanProfile.certifications,
+        deliveryRadius: artisanProfile.deliveryRadius,
+        pickupAvailable: artisanProfile.pickupAvailable,
+        personalDeliveryAvailable: artisanProfile.personalDeliveryAvailable,
+        professionalDeliveryAvailable: artisanProfile.professionalDeliveryAvailable,
+        professionalDeliveryData: artisanProfile.professionalDeliveryData,
+        status: artisanProfile.status,
+        isVerified: artisanProfile.isVerified,
+        createdAt: artisanProfile.createdAt,
+        updatedAt: artisanProfile.updatedAt
+      };
+    }
+
     res.json({
       success: true,
       data: {
-        user: {
-          _id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          userType: user.role, // Frontend expects userType
-          isActive: user.isActive,
-          isVerified: user.isVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        }
+        user: userResponse
       }
     });
   } catch (error) {

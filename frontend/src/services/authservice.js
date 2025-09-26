@@ -89,7 +89,24 @@ export const preloadProfile = () => {
 export const loginUser = async (credentials) => {
   try {
     const response = await api.post('/auth/login', credentials);
-    const { token, user } = response.data.data; // Fix: data is nested under response.data.data
+    
+    // Debug: Log the response structure
+    console.log('🔍 Login response:', response.data);
+    
+    // Handle both nested and direct response structures
+    const responseData = response.data.data || response.data;
+    const { token, user } = responseData;
+    
+    // Validate required fields
+    if (!token) {
+      console.error('❌ No token in response:', responseData);
+      throw new Error('Login failed: No token received');
+    }
+    
+    if (!user) {
+      console.error('❌ No user in response:', responseData);
+      throw new Error('Login failed: No user data received');
+    }
     
     authToken.setToken(token);
     
@@ -104,6 +121,7 @@ export const loginUser = async (credentials) => {
     
     return { user };
   } catch (error) {
+    console.error('❌ Login error:', error);
     throw error;
   }
 };
@@ -126,7 +144,21 @@ export const registerUser = async (userData) => {
     }
     
     const response = await api.post(endpoint, userData);
-    const { token, user, artisan } = response.data.data || response.data; // Handle both nested and direct structures
+    
+    // Handle both nested and direct response structures
+    const responseData = response.data.data || response.data;
+    const { token, user, artisan } = responseData;
+    
+    // Validate required fields
+    if (!token) {
+      console.error('❌ No token in registration response:', responseData);
+      throw new Error('Registration failed: No token received');
+    }
+    
+    if (!user) {
+      console.error('❌ No user in registration response:', responseData);
+      throw new Error('Registration failed: No user data received');
+    }
     
     authToken.setToken(token);
     

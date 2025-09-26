@@ -161,11 +161,10 @@ const Cart = () => {
       return imagePath;
     }
     
-    // Handle relative paths (already have /uploads prefix) - legacy support
+    // For legacy uploads paths, return null to trigger fallback placeholder
     if (imagePath.startsWith('/uploads/')) {
-      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Cart - Using legacy uploads path:', fullUrl);
-      return fullUrl;
+      console.log('🖼️ Cart - Legacy uploads path detected, using fallback placeholder');
+      return null; // This will trigger the fallback placeholder
     }
     
     // Handle paths that need /uploads prefix - legacy support
@@ -688,6 +687,27 @@ const Cart = () => {
     }
     
     await loadCart();
+    migrateLegacyCartItems();
+  };
+
+  // Migrate legacy cart items (clear cart if it contains legacy image paths)
+  const migrateLegacyCartItems = () => {
+    try {
+      const cart = cartService.getCart(currentUserId);
+      const hasLegacyImages = cart.some(item => 
+        item.image && item.image.startsWith('/uploads/')
+      );
+      
+      if (hasLegacyImages) {
+        console.log('🔄 Cart contains legacy image paths, clearing cart for migration');
+        cartService.clearCart(currentUserId);
+        setCart([]);
+        setCartByArtisan({});
+        toast.info('Cart cleared due to image migration. Please re-add your items.');
+      }
+    } catch (error) {
+      console.error('Error migrating legacy cart items:', error);
+    }
   };
 
   // Handle cart updates

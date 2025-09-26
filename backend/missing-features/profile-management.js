@@ -648,7 +648,7 @@ const getArtisanOrders = async (req, res) => {
     const artisansCollection = db.collection('artisans');
 
     // Get artisan profile
-    console.log('🔍 getArtisanOrders: Looking for artisan with user ID:', decoded.userId);
+    console.log('🔍 getArtisanOrders: Looking for artisan with user ID:', verified.userId);
     console.log('🔍 getArtisanOrders: Using ObjectId:', userObjectId);
     
     let artisan;

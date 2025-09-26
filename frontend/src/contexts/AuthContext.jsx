@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
             
             // Load fresh profile in background
             console.log('🔄 AuthContext: Loading fresh profile in background...');
-            getProfileFast().then(profile => {
+            getProfile().then(profile => {
               console.log('✅ AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
               console.log('AuthContext setUser:', profile);
               setUser(profile);
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
           
           // No cache, load profile
           console.log('🔄 AuthContext: No cached profile, loading fresh data...');
-          const profile = await getProfileFast();
+          const profile = await getProfile();
           console.log('✅ AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
           console.log('AuthContext setUser:', profile);
           setUser(profile);
@@ -119,14 +119,19 @@ export const AuthProvider = ({ children }) => {
         cacheService.delete(cartCountKey);
       }
       
-      // TEMPORARILY DISABLED: Force immediate profile refresh for better UX
-      // This might be causing the slice() error
-      /*
+      // Force immediate profile refresh for better UX
       setTimeout(async () => {
         try {
-          const freshProfile = await getProfileFast();
+          console.log('🔄 AuthContext: Starting profile refresh...');
+          const freshProfile = await getProfile();
           console.log('✅ AuthContext: Fresh profile loaded after login:', { userId: freshProfile._id, email: freshProfile.email });
           console.log('🔍 AuthContext: Full profile structure:', freshProfile);
+          
+          // Validate that we have a valid profile
+          if (!freshProfile || !freshProfile._id) {
+            console.error('❌ AuthContext: Invalid profile data received:', freshProfile);
+            return;
+          }
           
           // Ensure profile has required fields with defaults
           const normalizedProfile = {
@@ -146,7 +151,6 @@ export const AuthProvider = ({ children }) => {
           console.error('❌ AuthContext: Background profile refresh failed:', error);
         }
       }, 100);
-      */
       
       toast.success('Login successful!');
     } catch (error) {
@@ -175,7 +179,7 @@ export const AuthProvider = ({ children }) => {
       clearProfileCache();
       
       // Fetch fresh profile data
-      const profile = await getProfileFast();
+      const profile = await getProfile();
       console.log('✅ AuthContext: Profile updated successfully:', profile);
       
       // Ensure profile has required fields with defaults
@@ -219,7 +223,7 @@ export const AuthProvider = ({ children }) => {
       const { clearProfileCache } = await import('../services/profileService');
       clearProfileCache();
       
-      const profile = await getProfileFast();
+      const profile = await getProfile();
       console.log('✅ AuthContext: User data refreshed successfully:', profile);
       console.log('🔍 AuthContext: Full profile structure:', profile);
       

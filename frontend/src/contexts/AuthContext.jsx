@@ -119,7 +119,9 @@ export const AuthProvider = ({ children }) => {
         cacheService.delete(cartCountKey);
       }
       
-      // Force immediate profile refresh for better UX
+      // TEMPORARILY DISABLED: Force immediate profile refresh for better UX
+      // This might be causing the slice() error
+      /*
       setTimeout(async () => {
         try {
           const freshProfile = await getProfileFast();
@@ -144,6 +146,7 @@ export const AuthProvider = ({ children }) => {
           console.error('❌ AuthContext: Background profile refresh failed:', error);
         }
       }, 100);
+      */
       
       toast.success('Login successful!');
     } catch (error) {

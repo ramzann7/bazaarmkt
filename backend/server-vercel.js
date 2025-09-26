@@ -268,92 +268,9 @@ app.get('/api/env-check', (req, res) => {
 // PRODUCT ENDPOINTS
 // ============================================================================
 
-// Get all products with optional filters
-app.get('/api/products', async (req, res) => {
-  try {
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    
-    // Build query from filters
-    const query = { status: 'active' };
-    
-    if (req.query.category) {
-      query.category = req.query.category;
-    }
-    if (req.query.subcategory) {
-      query.subcategory = req.query.subcategory;
-    }
-    if (req.query.search) {
-      query.$or = [
-        { name: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
-    }
-    if (req.query.artisan) {
-      query.artisan = req.query.artisan;
-    }
-    
-    // Get products with artisan population
-    const products = await productsCollection.aggregate([
-      { $match: query },
-      { $sort: { createdAt: -1 } },
-      { $limit: parseInt(req.query.limit) || 50 },
-      {
-        $addFields: {
-          artisanObjectId: { $toObjectId: '$artisan' }
-        }
-      },
-      {
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisanObjectId',
-          foreignField: '_id',
-          as: 'artisanInfo',
-          pipeline: [
-            { $project: { 
-              artisanName: 1, 
-              businessName: 1, 
-              type: 1, 
-              address: 1, 
-              deliveryOptions: 1, 
-              pickupLocation: 1,
-              pickupInstructions: 1,
-              pickupHours: 1,
-              deliveryInstructions: 1,
-              rating: 1,
-              businessImage: 1
-            }}
-          ]
-        }
-      },
-      {
-        $addFields: {
-          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
-        }
-      },
-      { $unset: ['artisanInfo', 'artisanObjectId'] }
-    ]).toArray();
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      products: products,
-      count: products.length
-    });
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching products',
-      error: error.message
-    });
-  }
-});
+// Get all products - Now handled by Product Service microservice
+// This endpoint is now handled by the Product Service microservice
+// Route: /api/products is automatically routed to the microservice
 
 // Get popular products
 app.get('/api/products/popular', async (req, res) => {
@@ -424,73 +341,9 @@ app.get('/api/products/popular', async (req, res) => {
   }
 });
 
-// Get featured products
-app.get('/api/products/featured', async (req, res) => {
-  try {
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    
-    // Get featured products with artisan population
-    const featuredProducts = await productsCollection.aggregate([
-      { $match: { status: 'active', isFeatured: true } },
-      { $limit: 6 },
-      {
-        $addFields: {
-          artisanObjectId: { $toObjectId: '$artisan' }
-        }
-      },
-      {
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisanObjectId',
-          foreignField: '_id',
-          as: 'artisanInfo',
-          pipeline: [
-            { $project: { 
-              artisanName: 1, 
-              businessName: 1, 
-              type: 1, 
-              address: 1, 
-              deliveryOptions: 1, 
-              pickupLocation: 1,
-              pickupInstructions: 1,
-              pickupHours: 1,
-              deliveryInstructions: 1,
-              rating: 1,
-              businessImage: 1
-            }}
-          ]
-        }
-      },
-      {
-        $addFields: {
-          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
-        }
-      },
-      { $unset: ['artisanInfo', 'artisanObjectId'] }
-    ]).toArray();
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      data: featuredProducts,
-      products: featuredProducts, // Frontend compatibility
-      count: featuredProducts.length
-    });
-  } catch (error) {
-    console.error('Error fetching featured products:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching featured products',
-      error: error.message
-    });
-  }
-});
+// Get featured products - Now handled by Product Service microservice
+// This endpoint is now handled by the Product Service microservice
+// Route: /api/products/featured is automatically routed to the microservice
 
 // Enhanced search endpoint with location-based filtering
 app.get('/api/products/enhanced-search', async (req, res) => {
@@ -661,119 +514,13 @@ app.get('/api/products/my-products', async (req, res) => {
   }
 });
 
-// Get single product by ID
-app.get('/api/products/:id', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    
-    // Validate ObjectId before using it
-    if (!ObjectId.isValid(req.params.id)) {
-      await client.close();
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid product ID format' 
-      });
-    }
-    
-    // Get product with artisan population
-    const products = await productsCollection.aggregate([
-      { $match: { _id: new ObjectId(req.params.id), status: 'active' } },
-      {
-        $addFields: {
-          artisanObjectId: { $toObjectId: '$artisan' }
-        }
-      },
-      {
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisanObjectId',
-          foreignField: '_id',
-          as: 'artisanInfo',
-          pipeline: [
-            { $project: { 
-              artisanName: 1, 
-              businessName: 1, 
-              type: 1, 
-              address: 1, 
-              deliveryOptions: 1, 
-              pickupLocation: 1,
-              pickupInstructions: 1,
-              pickupHours: 1,
-              deliveryInstructions: 1,
-              rating: 1,
-              businessImage: 1
-            }}
-          ]
-        }
-      },
-      {
-        $addFields: {
-          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
-        }
-      },
-      { $unset: ['artisanInfo', 'artisanObjectId'] }
-    ]).toArray();
-    
-    await client.close();
-    
-    if (!products || products.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: products[0]
-    });
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching product',
-      error: error.message
-    });
-  }
-});
+// Get single product by ID - Now handled by Product Service microservice
+// This endpoint is now handled by the Product Service microservice
+// Route: /api/products/:id is automatically routed to the microservice
 
-// Get product categories
-app.get('/api/products/categories/list', async (req, res) => {
-  try {
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    
-    // Get unique categories
-    const categories = await productsCollection.distinct('category', { status: 'active' });
-    const subcategories = await productsCollection.distinct('subcategory', { status: 'active' });
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      data: {
-        categories: categories,
-        subcategories: subcategories
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching categories',
-      error: error.message
-    });
-  }
-});
+// Get product categories - Now handled by Product Service microservice
+// This endpoint is now handled by the Product Service microservice
+// Route: /api/products/categories is automatically routed to the microservice
 
 
 // ============================================================================

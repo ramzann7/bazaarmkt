@@ -1,0 +1,844 @@
+{
+  "info": {
+    "name": "BazaarMKT API Collection",
+    "description": "Complete API collection for BazaarMKT marketplace platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://www.bazaarmkt.ca",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"(555) 123-4567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"(555) 123-4567\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"oldpassword\",\n  \"newPassword\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products?limit=20&page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/:productId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", ":productId"],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "68bfa53b38427321e62b57d0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Featured Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/featured",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "featured"]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/popular",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "popular"]
+            }
+          }
+        },
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/enhanced-search?query=bread&category=food&location=Montreal",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "enhanced-search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "bread"
+                },
+                {
+                  "key": "category",
+                  "value": "food"
+                },
+                {
+                  "key": "location",
+                  "value": "Montreal"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get My Products (Artisan)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/my-products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "my-products"]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Artisan Bread\",\n  \"description\": \"Fresh baked artisan bread\",\n  \"price\": 12.99,\n  \"category\": \"baked_goods\",\n  \"subcategory\": \"bread\",\n  \"images\": [\"base64_image_data\"],\n  \"availableQuantity\": 10,\n  \"type\": \"ready_to_ship\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Artisan Bread\",\n  \"description\": \"Updated description\",\n  \"price\": 14.99,\n  \"availableQuantity\": 15\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/:productId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", ":productId"],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "68bfa53b38427321e62b57d0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/:productId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", ":productId"],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "68bfa53b38427321e62b57d0"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Artisan Profile",
+      "item": [
+        {
+          "name": "Get Artisan Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profile/artisan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profile", "artisan"]
+            }
+          }
+        },
+        {
+          "name": "Create Artisan Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"artisanName\": \"John's Bakery\",\n  \"description\": \"Fresh baked goods daily\",\n  \"category\": [\"baked_goods\", \"snacks_treats\"],\n  \"specialties\": [\"organic\", \"gluten_free\"],\n  \"address\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"Montreal\",\n    \"state\": \"Quebec\",\n    \"zipCode\": \"H1A 1A1\"\n  },\n  \"contactInfo\": {\n    \"phone\": \"(555) 123-4567\",\n    \"email\": \"john@bakery.com\",\n    \"website\": \"https://johnsbakery.com\"\n  },\n  \"type\": \"food_beverages\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/profile/artisan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profile", "artisan"]
+            }
+          }
+        },
+        {
+          "name": "Update Artisan Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"artisanName\": \"Updated Bakery Name\",\n  \"description\": \"Updated description\",\n  \"category\": [\"baked_goods\", \"dairy_products\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/profile/artisan",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profile", "artisan"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Get Buyer Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/buyer?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "buyer"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Artisan Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/artisan?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "artisan"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", ":orderId"],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "68c0b2cb76471cf369d30194"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"68bfa53b38427321e62b57d0\",\n      \"quantity\": 2\n    }\n  ],\n  \"shippingAddress\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"Montreal\",\n    \"state\": \"Quebec\",\n    \"zipCode\": \"H1A 1A1\"\n  },\n  \"paymentMethod\": \"credit_card\",\n  \"notes\": \"Please deliver after 5 PM\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", ":orderId", "status"],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "68c0b2cb76471cf369d30194"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", ":orderId", "cancel"],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "68c0b2cb76471cf369d30194"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Decline Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId/decline",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", ":orderId", "decline"],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "68c0b2cb76471cf369d30194"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Artisans",
+      "item": [
+        {
+          "name": "Get All Artisans",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/artisans?includeProducts=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artisans"],
+              "query": [
+                {
+                  "key": "includeProducts",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Artisan by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/artisans/:artisanId?includeProducts=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artisans", ":artisanId"],
+              "query": [
+                {
+                  "key": "includeProducts",
+                  "value": "true"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "artisanId",
+                  "value": "68bfa0ec38427321e62b55e8"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Artisan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"artisanName\": \"New Artisan Shop\",\n  \"description\": \"Handcrafted items\",\n  \"category\": [\"handmade\", \"jewelry\"],\n  \"type\": \"art_collectibles\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/artisans",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "artisans"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Revenue & Analytics",
+      "item": [
+        {
+          "name": "Get Artisan Revenue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/revenue/artisan?period=month",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "revenue", "artisan"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Business Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics/business",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics", "business"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get Wallet Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/balance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wallet", "balance"]
+            }
+          }
+        },
+        {
+          "name": "Get Wallet Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/wallet/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "wallet", "transactions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Promotional",
+      "item": [
+        {
+          "name": "Get Featured Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/promotional/products/featured",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "promotional", "products", "featured"]
+            }
+          }
+        },
+        {
+          "name": "Get Sponsored Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/promotional/products/sponsored",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "promotional", "products", "sponsored"]
+            }
+          }
+        },
+        {
+          "name": "Get Promotional Pricing",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/promotional/pricing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "promotional", "pricing"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Spotlight",
+      "item": [
+        {
+          "name": "Get Spotlight Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/spotlight/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "spotlight", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Debug Endpoints",
+      "item": [
+        {
+          "name": "Debug Artisan Structure",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/artisan-structure",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "artisan-structure"]
+            }
+          }
+        },
+        {
+          "name": "Debug Artisan Flow",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/artisan-flow",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "artisan-flow"]
+            }
+          }
+        },
+        {
+          "name": "Debug Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/token-debug",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "token-debug"]
+            }
+          }
+        },
+        {
+          "name": "Debug Orders Artisan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/orders-artisan-debug",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "orders-artisan-debug"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

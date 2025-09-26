@@ -1207,7 +1207,13 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// Get single order
+// SPECIFIC ORDER ROUTES (must come before /:id route)
+// Order management - specific routes first
+app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
+app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
+app.post('/api/orders/guest', profileFeatures.createGuestOrder);
+
+// Get single order (must come after specific routes)
 app.get('/api/orders/:id', async (req, res) => {
   try {
     const { MongoClient } = require('mongodb');
@@ -1975,10 +1981,7 @@ app.get('/api/auth/guest/:guestId', profileFeatures.getGuestProfile);
 app.put('/api/auth/guest/:guestId', profileFeatures.updateGuestProfile);
 app.post('/api/auth/guest/:guestId/convert', profileFeatures.convertGuestToUser);
 
-// Order management
-app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
-app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
-app.post('/api/orders/guest', profileFeatures.createGuestOrder);
+// Order management routes moved to line 1212-1214 to fix route precedence
 
 // ============================================================================
 // ADDITIONAL SERVICES ENDPOINTS

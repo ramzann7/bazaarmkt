@@ -227,7 +227,7 @@ export const getProfileFast = async () => {
       const response = await axios.get(`${config.API_URL}/auth/profile`, {
         headers: getAuthHeaders()
       });
-      return response.data.user;
+      return response.data.data?.user || response.data.user;
     },
     CACHE_TTL.USER_PROFILE
   );
@@ -246,7 +246,7 @@ export const preloadProfileFast = () => {
       const response = await axios.get(`${config.API_URL}/auth/profile`, {
         headers: getAuthHeaders()
       });
-      return response.data.user;
+      return response.data.data?.user || response.data.user;
     }, CACHE_TTL.USER_PROFILE);
   }
 };

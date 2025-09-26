@@ -67,8 +67,8 @@ export const getProfile = async () => {
     cacheKey,
     async () => {
       const response = await api.get('/auth/profile');
-      // The auth/profile endpoint returns { user: userObject }
-      return response.data.user;
+      // The auth/profile endpoint returns { success: true, data: { user: userObject } }
+      return response.data.data?.user || response.data.user;
     },
     CACHE_TTL.USER_PROFILE
   );
@@ -80,7 +80,7 @@ export const preloadProfile = () => {
     const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
     cacheService.preload(cacheKey, async () => {
       const response = await api.get('/auth/profile');
-      return response.data.user;
+      return response.data.data?.user || response.data.user;
     }, CACHE_TTL.USER_PROFILE);
   }
 };

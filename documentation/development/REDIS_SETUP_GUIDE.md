@@ -35,12 +35,13 @@ USER_CACHE_TTL_SECONDS=3600
 
 ### Production Environment (.env)
 ```bash
-# Production - Uses Redis
+# Production - Uses Redis Cloud
 NODE_ENV=production
-REDIS_HOST=your_redis_host
-REDIS_PORT=6379
-REDIS_PASSWORD=your_redis_password
-REDIS_DB=0
+REDIS_USERNAME=default
+REDIS_PASSWORD=9Tlm4vZWKmd52kRxLcoeRDBGkxDY2z9i
+REDIS_HOST=redis-19393.c256.us-east-1-2.ec2.redns.redis-cloud.com
+REDIS_PORT=19393
+REDIS_TLS=true
 CACHE_TTL_SECONDS=300
 USER_CACHE_TTL_SECONDS=3600
 ```

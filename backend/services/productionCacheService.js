@@ -3,7 +3,7 @@
  * Provides Redis caching for production with in-memory fallback for development
  */
 
-const Redis = require('ioredis');
+const { createClient } = require('redis');
 
 class ProductionCacheService {
   constructor() {
@@ -27,28 +27,18 @@ class ProductionCacheService {
    */
   initializeRedis() {
     try {
-      this.redis = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD,
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3,
-        lazyConnect: true,
-        // Production settings
-        keepAlive: 30000,
-        connectTimeout: 10000,
-        commandTimeout: 5000,
-        enableReadyCheck: true,
-        maxLoadingTimeout: 10000,
-        // Connection pool
-        family: 4,
-        db: process.env.REDIS_DB || 0,
-        // Retry settings
-        retryDelayOnClusterDown: 300,
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3,
-        // Health check
-        enableOfflineQueue: false
+      // Use Redis Cloud configuration
+      this.redis = createClient({
+        username: process.env.REDIS_USERNAME || 'default',
+        password: process.env.REDIS_PASSWORD || '9Tlm4vZWKmd52kRxLcoeRDBGkxDY2z9i',
+        socket: {
+          host: process.env.REDIS_HOST || 'redis-19393.c256.us-east-1-2.ec2.redns.redis-cloud.com',
+          port: parseInt(process.env.REDIS_PORT) || 19393,
+          connectTimeout: 10000,
+          commandTimeout: 5000,
+          // SSL/TLS settings for Redis Cloud
+          tls: process.env.REDIS_TLS === 'true' ? {} : undefined
+        }
       });
 
       // Handle Redis connection events
@@ -69,8 +59,8 @@ class ProductionCacheService {
         this.useMemoryCache = true;
       });
 
-      // Test connection
-      this.testRedisConnection();
+      // Connect to Redis
+      this.connectRedis();
       
     } catch (error) {
       console.error('❌ Redis initialization failed:', error);
@@ -88,6 +78,21 @@ class ProductionCacheService {
     
     // Start cleanup interval
     this.startCleanup();
+  }
+
+  /**
+   * Connect to Redis
+   */
+  async connectRedis() {
+    try {
+      await this.redis.connect();
+      console.log('✅ Redis connection established');
+      this.redisConnected = true;
+    } catch (error) {
+      console.error('❌ Redis connection failed:', error);
+      this.redisConnected = false;
+      this.useMemoryCache = true;
+    }
   }
 
   /**
@@ -208,7 +213,7 @@ class ProductionCacheService {
    */
   async setInRedis(key, value, ttl = 300) {
     try {
-      await this.redis.setex(key, ttl, JSON.stringify(value));
+      await this.redis.setEx(key, ttl, JSON.stringify(value));
       return true;
     } catch (error) {
       console.error('❌ Redis set error:', error);
@@ -259,7 +264,7 @@ class ProductionCacheService {
   async clear() {
     try {
       if (this.isProduction && this.redisConnected) {
-        await this.redis.flushdb();
+        await this.redis.flushDb();
       } else {
         this.memoryCache.clear();
       }
@@ -412,7 +417,7 @@ class ProductionCacheService {
       try {
         const keys = await this.redis.keys(pattern);
         if (keys.length > 0) {
-          await this.redis.del(...keys);
+          await this.redis.del(keys);
         }
         return keys.length;
       } catch (error) {

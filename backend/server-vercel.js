@@ -1655,6 +1655,70 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
   }
 });
 
+// Get promotional pricing
+app.get('/api/promotional/pricing', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get products with promotional pricing
+    const promotionalProducts = await productsCollection.find({
+      status: 'active',
+      $or: [
+        { 'promotionalFeatures.type': 'discount' },
+        { 'promotionalFeatures.type': 'sale' },
+        { 'promotionalFeatures.type': 'special_offer' }
+      ]
+    }).toArray();
+    
+    // Calculate promotional pricing
+    const pricingData = promotionalProducts.map(product => {
+      const basePrice = product.price || 0;
+      let discountedPrice = basePrice;
+      let discountPercentage = 0;
+      
+      if (product.promotionalFeatures && product.promotionalFeatures.length > 0) {
+        const promo = product.promotionalFeatures[0];
+        if (promo.type === 'discount' && promo.value) {
+          discountPercentage = promo.value;
+          discountedPrice = basePrice * (1 - discountPercentage / 100);
+        } else if (promo.type === 'sale' && promo.salePrice) {
+          discountedPrice = promo.salePrice;
+          discountPercentage = ((basePrice - discountedPrice) / basePrice) * 100;
+        }
+      }
+      
+      return {
+        productId: product._id,
+        name: product.name,
+        basePrice: basePrice,
+        discountedPrice: Math.round(discountedPrice * 100) / 100,
+        discountPercentage: Math.round(discountPercentage * 100) / 100,
+        savings: Math.round((basePrice - discountedPrice) * 100) / 100
+      };
+    });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      pricing: pricingData,
+      count: pricingData.length
+    });
+  } catch (error) {
+    console.error('Error fetching promotional pricing:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching promotional pricing',
+      error: error.message
+    });
+  }
+});
+
 // ============================================================================
 // MISSING FEATURES - RESTORED
 // ============================================================================

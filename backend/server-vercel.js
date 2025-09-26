@@ -1422,8 +1422,10 @@ app.post('/api/products', verifyToken, requireArtisan, validateProduct, async (r
       updatedAt: new Date()
     };
     
-    // Use optimized database connection
-    const client = await connectToDatabase();
+    // Use same database pattern as working middleware
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
     const db = client.db();
     const productsCollection = db.collection('products');
     
@@ -1454,6 +1456,8 @@ app.post('/api/products', verifyToken, requireArtisan, validateProduct, async (r
     ]).toArray();
     
     const result = createdProduct[0];
+    
+    await client.close();
     
     res.status(201).json({
       success: true,

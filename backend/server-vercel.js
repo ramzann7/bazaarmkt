@@ -2527,6 +2527,80 @@ app.get('/api/debug/artisan-structure', async (req, res) => {
   }
 });
 
+// Debug endpoint to test complete artisan data flow
+app.get('/api/debug/artisan-flow', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    const productsCollection = db.collection('products');
+    const ordersCollection = db.collection('orders');
+    
+    // Get a sample artisan
+    const artisan = await artisansCollection.findOne({});
+    
+    if (!artisan) {
+      await client.close();
+      return res.json({
+        success: false,
+        message: 'No artisans found'
+      });
+    }
+    
+    // Test the relationships
+    const products = await productsCollection.find({ 
+      artisan: artisan._id 
+    }).limit(3).toArray();
+    
+    const orders = await ordersCollection.find({ 
+      'items.artisanId': artisan._id 
+    }).limit(3).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Artisan data flow test',
+      data: {
+        artisan: {
+          _id: artisan._id,
+          user: artisan.user,
+          artisanName: artisan.artisanName,
+          type: artisan.type
+        },
+        products: {
+          count: products.length,
+          sample: products.map(p => ({
+            _id: p._id,
+            name: p.name,
+            artisan: p.artisan
+          }))
+        },
+        orders: {
+          count: orders.length,
+          sample: orders.map(o => ({
+            _id: o._id,
+            items: o.items?.map(item => ({
+              productId: item.productId,
+              artisanId: item.artisanId
+            }))
+          }))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Debug artisan flow error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test artisan flow',
+      error: error.message
+    });
+  }
+});
+
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.post('/api/profile/artisan', async (req, res) => {

@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 
-// Import optimized middleware
-const { connectToDatabase } = require('./utils/database');
-const { verifyToken, requireArtisan } = require('./middleware/authmiddleware');
-const { validateProduct } = require('./middleware/validation');
+// COMMENTED OUT FOR DEBUGGING - Testing if imports cause module load failure
+// const { connectToDatabase } = require('./utils/database');
+// const { verifyToken, requireArtisan } = require('./middleware/authmiddleware');
+// const { validateProduct } = require('./middleware/validation');
 
 const app = express();
 

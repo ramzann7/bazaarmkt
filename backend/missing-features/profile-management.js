@@ -666,7 +666,26 @@ const getArtisanOrders = async (req, res) => {
       count: orders.length
     });
   } catch (error) {
-    console.error('Get artisan orders error:', error);
+    console.error('❌ getArtisanOrders: Error caught:', error);
+    console.error('❌ getArtisanOrders: Error name:', error.name);
+    console.error('❌ getArtisanOrders: Error message:', error.message);
+    console.error('❌ getArtisanOrders: Error stack:', error.stack);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    if (error.name === 'CastError' || error.message.includes('ObjectId')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid ObjectId format',
+        error: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to get artisan orders',

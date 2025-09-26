@@ -2374,6 +2374,15 @@ app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
 app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
 app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 
+// Test endpoint to check if the route is working
+app.get('/api/test/orders-artisan', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Orders artisan endpoint is accessible',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.post('/api/profile/artisan', async (req, res) => {

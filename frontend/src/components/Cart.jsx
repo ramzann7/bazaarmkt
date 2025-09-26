@@ -137,6 +137,44 @@ const Cart = () => {
     }).format(price);
   };
 
+  // Helper function to get image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    
+    console.log('🖼️ Cart - Getting image URL for:', imagePath);
+    
+    // Handle base64 data URLs
+    if (imagePath.startsWith('data:')) {
+      console.log('🖼️ Cart - Using base64 data URL');
+      return imagePath;
+    }
+    
+    // Handle HTTP URLs
+    if (imagePath.startsWith('http')) {
+      console.log('🖼️ Cart - Using HTTP URL');
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix)
+    if (imagePath.startsWith('/uploads/')) {
+      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      console.log('🖼️ Cart - Using relative path with /uploads:', fullUrl);
+      return fullUrl;
+    }
+    
+    // Handle paths that need /uploads prefix
+    if (imagePath.startsWith('/')) {
+      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
+      console.log('🖼️ Cart - Using path with leading slash:', fullUrl);
+      return fullUrl;
+    }
+    
+    // Handle paths without leading slash
+    const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
+    console.log('🖼️ Cart - Using path without leading slash:', fullUrl);
+    return fullUrl;
+  };
+
   // Helper function to check if address is required
   const isAddressRequired = () => {
     return Object.values(selectedDeliveryMethods).some(method => 
@@ -1920,10 +1958,21 @@ const Cart = () => {
                         {/* Product Image */}
                         <div className="relative flex-shrink-0">
                           <img
-                            src={item.image}
+                            src={getImageUrl(item.image)}
                             alt={item.name}
                             className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                            onError={(e) => {
+                              console.log('❌ Cart - Image failed to load:', e.target.src);
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                            onLoad={(e) => {
+                              console.log('✅ Cart - Image loaded successfully:', e.target.src);
+                            }}
                           />
+                          <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center rounded-lg shadow-sm" style={{ display: 'none' }}>
+                            <ShoppingBagIcon className="w-6 h-6 text-amber-400" />
+                          </div>
                           <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                             {item.quantity}
                           </div>

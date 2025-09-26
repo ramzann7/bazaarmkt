@@ -1199,6 +1199,9 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// Get artisan orders (MUST be before /api/orders/:id to avoid route conflict)
+app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
+
 // Get single order
 app.get('/api/orders/:id', async (req, res) => {
   try {
@@ -2460,7 +2463,6 @@ app.post('/api/auth/guest/:guestId/convert', profileFeatures.convertGuestToUser)
 
 // Order management
 app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
-app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
 app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 
 // Test endpoint to check if the route is working

@@ -1422,10 +1422,8 @@ app.post('/api/products', verifyToken, requireArtisan, validateProduct, async (r
       updatedAt: new Date()
     };
     
-    // Use same database pattern as working middleware
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
+    // Use optimized database connection (reuses cached connection)
+    const client = await connectToDatabase();
     const db = client.db();
     const productsCollection = db.collection('products');
     
@@ -1457,7 +1455,7 @@ app.post('/api/products', verifyToken, requireArtisan, validateProduct, async (r
     
     const result = createdProduct[0];
     
-    await client.close();
+    // Don't close connection in serverless - reuse for performance
     
     res.status(201).json({
       success: true,

@@ -4,7 +4,7 @@
  */
 
 const jwt = require("jsonwebtoken");
-const { ObjectId } = require("mongodb");
+const { connectToDatabase, ObjectId } = require("../utils/database");
 
 /**
  * Basic token verification middleware
@@ -29,10 +29,8 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('✅ Token verified, user ID:', decoded.userId);
     
-    // Use the same pattern as working endpoints
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
+    // Use optimized database connection (no close() for serverless reuse)
+    const client = await connectToDatabase();
     console.log('✅ Database connection established');
     
     const db = client.db();
@@ -45,7 +43,6 @@ const verifyToken = async (req, res, next) => {
     
     if (!user) {
       console.log('❌ User not found for ID:', decoded.userId);
-      await client.close();
       return res.status(404).json({
         success: false,
         message: "User not found"
@@ -57,7 +54,6 @@ const verifyToken = async (req, res, next) => {
     req.userId = decoded.userId;
     req.token = token;
     
-    await client.close();
     console.log('✅ verifyToken middleware completed, calling next()');
     next();
   } catch (error) {
@@ -89,9 +85,7 @@ const requireArtisan = async (req, res, next) => {
       });
     }
 
-    const { MongoClient } = require('mongodb');
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
+    const client = await connectToDatabase();
     const db = client.db();
     const artisansCollection = db.collection('artisans');
     
@@ -100,7 +94,6 @@ const requireArtisan = async (req, res, next) => {
     });
 
     if (!artisan) {
-      await client.close();
       return res.status(404).json({
         success: false,
         message: "Artisan profile not found"
@@ -108,7 +101,6 @@ const requireArtisan = async (req, res, next) => {
     }
 
     req.artisan = artisan;
-    await client.close();
     next();
   } catch (error) {
     console.error('Artisan auth error:', error);

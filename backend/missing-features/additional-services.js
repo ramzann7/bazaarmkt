@@ -293,11 +293,11 @@ const getArtisanRevenue = async (req, res) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // Aggregate revenue data - orders have direct artisan field
+    // Aggregate revenue data - orders have items with artisanId field
     const revenueData = await ordersCollection.aggregate([
       {
         $match: {
-          artisan: artisan._id,
+          'items.artisanId': artisan._id,
           createdAt: { $gte: startDate },
           status: { $in: ['confirmed', 'preparing', 'ready', 'delivered'] }
         }
@@ -510,7 +510,7 @@ const getBusinessAnalytics = async (req, res) => {
         .toArray(),
 
       // Recent orders
-      ordersCollection.find({ artisan: artisan._id })
+      ordersCollection.find({ 'items.artisanId': artisan._id })
         .sort({ createdAt: -1 })
         .limit(10)
         .toArray(),
@@ -519,7 +519,7 @@ const getBusinessAnalytics = async (req, res) => {
       ordersCollection.aggregate([
         {
           $match: {
-            artisan: artisan._id,
+            'items.artisanId': artisan._id,
             createdAt: {
               $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
             }

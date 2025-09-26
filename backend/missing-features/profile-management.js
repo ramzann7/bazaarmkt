@@ -727,27 +727,13 @@ const getArtisanProfile = async (req, res) => {
     const db = client.db();
     const artisansCollection = db.collection('artisans');
 
-    // Get artisan profile by user ID
+    // Get artisan profile by user ID to find the artisan ID
     console.log('Looking for artisan profile with user ID:', decoded.userId);
     const artisan = await artisansCollection.findOne({
       user: new ObjectId(decoded.userId)
     });
 
     console.log('Found artisan profile:', artisan ? 'Yes' : 'No');
-    console.log('Artisan profile data:', {
-      _id: artisan?._id,
-      artisanName: artisan?.artisanName,
-      businessImage: artisan?.businessImage ? 'Present' : 'Missing',
-      description: artisan?.description,
-      category: artisan?.category,
-      specialties: artisan?.specialties,
-      address: artisan?.address,
-      contactInfo: artisan?.contactInfo,
-      phone: artisan?.phone,
-      email: artisan?.email,
-      type: artisan?.type
-    });
-
     if (!artisan) {
       await client.close();
       return res.status(404).json({
@@ -755,6 +741,20 @@ const getArtisanProfile = async (req, res) => {
         message: 'Artisan profile not found'
       });
     }
+
+    console.log('Artisan profile data:', {
+      _id: artisan._id,
+      artisanName: artisan.artisanName,
+      businessImage: artisan.businessImage ? 'Present' : 'Missing',
+      description: artisan.description,
+      category: artisan.category,
+      specialties: artisan.specialties,
+      address: artisan.address,
+      contactInfo: artisan.contactInfo,
+      phone: artisan.phone,
+      email: artisan.email,
+      type: artisan.type
+    });
 
     await client.close();
 

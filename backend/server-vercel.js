@@ -2377,6 +2377,60 @@ app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 
+// Debug endpoint to check artisan profile status
+app.get('/api/debug/artisan-status', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    const usersCollection = db.collection('users');
+    
+    // Get user info
+    const user = await usersCollection.findOne({ 
+      _id: new (require('mongodb')).ObjectId(decoded.userId) 
+    });
+    
+    // Get artisan profile
+    const artisan = await artisansCollection.findOne({
+      user: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        userId: decoded.userId,
+        userExists: !!user,
+        userRole: user?.role,
+        artisanExists: !!artisan,
+        artisanId: artisan?._id
+      }
+    });
+  } catch (error) {
+    console.error('Debug artisan status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug failed',
+      error: error.message
+    });
+  }
+});
+
 // ============================================================================
 // ADDITIONAL SERVICES ENDPOINTS
 // ============================================================================

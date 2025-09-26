@@ -133,29 +133,34 @@ export default function Profile() {
     }
   };
 
-  // Load artisan profile data
+  // Load artisan profile data - now using the enhanced profile endpoint
   const loadArtisanProfile = useCallback(async () => {
     try {
-      console.log('🔄 Loading artisan profile...');
+      console.log('🔄 Loading artisan profile from enhanced profile data...');
       console.log('🔄 User role:', profile?.role);
       console.log('🔄 User ID:', profile?._id);
-      const artisanData = await profileService.getArtisanProfile();
-      console.log('✅ Artisan profile loaded:', artisanData);
-      console.log('✅ Artisan profile ID:', artisanData?._id);
-      console.log('✅ Artisan profile type:', artisanData?.type);
+      console.log('🔄 User artisan data:', profile?.artisan);
       
-      if (isMountedRef.current) {
-        setArtisanProfile(artisanData);
-        console.log('✅ Artisan profile state updated');
+      // The artisan data is now included in the main profile response
+      if (profile?.artisan) {
+        console.log('✅ Artisan profile found in user data:', profile.artisan);
+        if (isMountedRef.current) {
+          setArtisanProfile(profile.artisan);
+          console.log('✅ Artisan profile state updated from user data');
+        }
+      } else {
+        console.log('⚠️ No artisan data found in user profile');
+        if (isMountedRef.current) {
+          setArtisanProfile(null);
+        }
       }
     } catch (error) {
-      console.log('ℹ️ No artisan profile found or user is not artisan:', error.message);
-      console.log('ℹ️ Error response:', error.response?.data);
-      console.log('ℹ️ Error status:', error.response?.status);
-      console.log('ℹ️ Error details:', error.response?.data?.message);
-      // This is normal for new artisans who haven't created their profile yet
+      console.error('❌ Error processing artisan profile data:', error);
+      if (isMountedRef.current) {
+        setArtisanProfile(null);
+      }
     }
-  }, [profile?.role, profile?._id]);
+  }, [profile?.artisan]);
 
   // Always fetch profile on profile page mount or navigation (for all users)
   useEffect(() => {

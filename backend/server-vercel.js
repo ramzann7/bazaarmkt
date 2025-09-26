@@ -1262,6 +1262,309 @@ app.put('/api/orders/:id/status', async (req, res) => {
   }
 });
 
+// Cancel order (patron only)
+app.put('/api/orders/:id/cancel', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    
+    // Find the order and verify ownership
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id),
+      userId: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    if (!order) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Check if order can be cancelled
+    if (order.status === 'delivered' || order.status === 'cancelled') {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'Order cannot be cancelled'
+      });
+    }
+    
+    // Update order status
+    await ordersCollection.updateOne(
+      { _id: new (require('mongodb')).ObjectId(req.params.id) },
+      { 
+        $set: { 
+          status: 'cancelled',
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Restore product quantities
+    for (const item of order.items) {
+      await productsCollection.updateOne(
+        { _id: item.productId },
+        { 
+          $inc: { 
+            availableQuantity: item.quantity,
+            soldCount: -item.quantity
+          }
+        }
+      );
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully'
+    });
+  } catch (error) {
+    console.error('Cancel order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel order',
+      error: error.message
+    });
+  }
+});
+
+// Decline order (artisan only)
+app.put('/api/orders/:id/decline', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { reason } = req.body;
+    
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Decline reason is required'
+      });
+    }
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get artisan profile
+    const artisan = await artisansCollection.findOne({
+      user: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Find the order and verify it belongs to this artisan
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id),
+      artisan: artisan._id
+    });
+    
+    if (!order) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Check if order can be declined
+    if (order.status === 'delivered' || order.status === 'cancelled' || order.status === 'declined') {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'Order cannot be declined'
+      });
+    }
+    
+    // Update order status
+    await ordersCollection.updateOne(
+      { _id: new (require('mongodb')).ObjectId(req.params.id) },
+      { 
+        $set: { 
+          status: 'declined',
+          declineReason: reason.trim(),
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    // Restore product quantities
+    for (const item of order.items) {
+      await productsCollection.updateOne(
+        { _id: item.productId },
+        { 
+          $inc: { 
+            availableQuantity: item.quantity,
+            soldCount: -item.quantity
+          }
+        }
+      );
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Order declined successfully'
+    });
+  } catch (error) {
+    console.error('Decline order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to decline order',
+      error: error.message
+    });
+  }
+});
+
+// Update payment status
+app.put('/api/orders/:id/payment', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { paymentStatus } = req.body;
+    
+    if (!paymentStatus) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment status is required'
+      });
+    }
+    
+    const validStatuses = ['pending', 'paid', 'failed', 'refunded'];
+    if (!validStatuses.includes(paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment status'
+      });
+    }
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    
+    const result = await ordersCollection.updateOne(
+      { _id: new (require('mongodb')).ObjectId(req.params.id) },
+      { 
+        $set: { 
+          paymentStatus,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Payment status updated successfully'
+    });
+  } catch (error) {
+    console.error('Update payment status error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payment status',
+      error: error.message
+    });
+  }
+});
+
 // ============================================================================
 // FILE UPLOAD ENDPOINTS
 // ============================================================================

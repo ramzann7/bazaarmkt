@@ -3,8 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 
-// COMMENTED OUT FOR DEBUGGING - Testing if imports cause module load failure
-// const { connectToDatabase } = require('./utils/database');
+// TESTING IMPORTS ONE BY ONE - Finding the problematic import
+const { connectToDatabase } = require('./utils/database');
 // const { verifyToken, requireArtisan } = require('./middleware/authmiddleware');
 // const { validateProduct } = require('./middleware/validation');
 

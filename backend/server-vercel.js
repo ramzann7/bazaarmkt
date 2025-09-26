@@ -1814,6 +1814,63 @@ app.get('/api/promotional/products/sponsored', async (req, res) => {
   }
 });
 
+// Get promotional pricing information
+app.get('/api/promotional/pricing', async (req, res) => {
+  try {
+    // Return promotional pricing tiers and features
+    const pricingData = {
+      featured: {
+        name: 'Featured Products',
+        price: 5.99,
+        currency: 'CAD',
+        duration: '7 days',
+        features: [
+          'Product appears in featured section',
+          'Higher visibility on homepage',
+          'Priority in search results',
+          'Special featured badge'
+        ]
+      },
+      sponsored: {
+        name: 'Sponsored Products',
+        price: 9.99,
+        currency: 'CAD',
+        duration: '14 days',
+        features: [
+          'Premium placement in search results',
+          'Sponsored badge and styling',
+          'Cross-platform promotion',
+          'Analytics and insights'
+        ]
+      },
+      spotlight: {
+        name: 'Spotlight Promotion',
+        price: 19.99,
+        currency: 'CAD',
+        duration: '30 days',
+        features: [
+          'Exclusive homepage spotlight',
+          'Email newsletter feature',
+          'Social media promotion',
+          'Priority customer support'
+        ]
+      }
+    };
+
+    res.json({
+      success: true,
+      data: pricingData
+    });
+  } catch (error) {
+    console.error('Error fetching promotional pricing:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching promotional pricing',
+      error: error.message
+    });
+  }
+});
+
 // ============================================================================
 // MISSING FEATURES - RESTORED
 // ============================================================================

@@ -165,7 +165,8 @@ export const getMyProducts = async () => {
   const response = await axios.get(`${API_URL}/my-products`, {
     headers: { Authorization: `Bearer ${token}` }
   });
-  return response.data;
+  // API returns { success: true, data: products, count: N }
+  return response.data.data || response.data.products || [];
 };
 
 // Get products by producer ID

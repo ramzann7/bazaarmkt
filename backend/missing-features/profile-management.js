@@ -577,9 +577,16 @@ const getArtisanOrders = async (req, res) => {
     
     if (!ObjectId.isValid(decoded.userId)) {
       console.log('❌ getArtisanOrders: Invalid user ID format:', decoded.userId);
+      console.log('❌ getArtisanOrders: User ID type:', typeof decoded.userId);
+      console.log('❌ getArtisanOrders: User ID length:', decoded.userId?.length);
       return res.status(400).json({
         success: false,
-        message: 'Invalid user ID format'
+        message: 'Invalid user ID format',
+        details: {
+          userId: decoded.userId,
+          type: typeof decoded.userId,
+          length: decoded.userId?.length
+        }
       });
     }
 

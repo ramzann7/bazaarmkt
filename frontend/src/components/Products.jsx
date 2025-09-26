@@ -298,29 +298,35 @@ export default function Products() {
       return imagePath;
     }
     
-    // Handle HTTP URLs
+    // Handle HTTP URLs (including Vercel Blob URLs)
     if (imagePath.startsWith('http')) {
-      console.log('🖼️ Using HTTP URL');
+      console.log('🖼️ Using HTTP URL (including Vercel Blob)');
       return imagePath;
     }
     
-    // Handle relative paths (already have /uploads prefix)
+    // Handle Vercel Blob URLs that might be stored as filenames
+    if (imagePath.includes('.public.blob.vercel-storage.com')) {
+      console.log('🖼️ Using Vercel Blob URL');
+      return imagePath;
+    }
+    
+    // Handle relative paths (legacy support)
     if (imagePath.startsWith('/uploads/')) {
       const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Using relative path with /uploads:', fullUrl);
+      console.log('🖼️ Using legacy uploads path:', fullUrl);
       return fullUrl;
     }
     
-    // Handle paths that need /uploads prefix
+    // Handle paths with leading slash (legacy support)
     if (imagePath.startsWith('/')) {
       const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Using path with leading slash:', fullUrl);
+      console.log('🖼️ Using legacy path with leading slash:', fullUrl);
       return fullUrl;
     }
     
-    // Handle paths without leading slash
+    // Handle paths without leading slash (legacy support)
     const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-    console.log('🖼️ Using path without leading slash:', fullUrl);
+    console.log('🖼️ Using legacy path without leading slash:', fullUrl);
     return fullUrl;
   };
 

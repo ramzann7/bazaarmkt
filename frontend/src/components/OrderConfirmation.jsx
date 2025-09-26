@@ -149,22 +149,27 @@ export default function OrderConfirmation() {
       return imagePath;
     }
     
-    // Handle HTTP URLs
+    // Handle HTTP URLs (including Vercel Blob URLs)
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
     
-    // Handle relative paths (already have /uploads prefix)
+    // Handle Vercel Blob URLs that might be stored as filenames
+    if (imagePath.includes('.public.blob.vercel-storage.com')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (legacy support)
     if (imagePath.startsWith('/uploads/')) {
       return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
-    // Handle paths that need /uploads prefix
+    // Handle paths with leading slash (legacy support)
     if (imagePath.startsWith('/')) {
       return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
-    // Handle paths without leading slash
+    // Handle paths without leading slash (legacy support)
     return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
   };
 

@@ -31,17 +31,23 @@ const ProductCard = ({
       return imagePath;
     }
     
-    // Handle relative paths
-    if (imagePath.startsWith('/uploads/')) {
-      return `${config.API_URL}${imagePath}`;
-    }
-    
-    // Handle full URLs
+    // Handle HTTP URLs (including Vercel Blob URLs)
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
     
-    return imagePath;
+    // Handle Vercel Blob URLs that might be stored as filenames
+    if (imagePath.includes('.public.blob.vercel-storage.com')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (legacy support)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${config.API_URL}${imagePath}`;
+    }
+    
+    // Handle paths without leading slash (legacy support)
+    return `${config.API_URL}/${imagePath}`;
   };
 
   // Format price

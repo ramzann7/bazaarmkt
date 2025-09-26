@@ -826,22 +826,27 @@ export default function Home() {
       return imagePath;
     }
     
-    // Handle HTTP URLs
+    // Handle HTTP URLs (including Vercel Blob URLs)
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
     
-    // Handle relative paths (already have /uploads prefix)
+    // Handle Vercel Blob URLs that might be stored as filenames
+    if (imagePath.includes('.public.blob.vercel-storage.com')) {
+      return imagePath;
+    }
+    
+    // Handle relative paths (legacy support)
     if (imagePath.startsWith('/uploads/')) {
       return `${config.BASE_URL}${imagePath}`;
     }
     
-    // Handle paths that need /uploads prefix
+    // Handle paths that need /uploads prefix (legacy support)
     if (imagePath.startsWith('/')) {
       return `${config.BASE_URL}${imagePath}`;
     }
     
-    // Handle paths without leading slash
+    // Handle paths without leading slash (legacy support)
     return `${config.BASE_URL}/${imagePath}`;
   };
 

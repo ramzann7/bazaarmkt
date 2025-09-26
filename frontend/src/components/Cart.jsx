@@ -149,29 +149,35 @@ const Cart = () => {
       return imagePath;
     }
     
-    // Handle HTTP URLs
+    // Handle HTTP URLs (including Vercel Blob URLs)
     if (imagePath.startsWith('http')) {
-      console.log('🖼️ Cart - Using HTTP URL');
+      console.log('🖼️ Cart - Using HTTP URL (including Vercel Blob)');
       return imagePath;
     }
     
-    // Handle relative paths (already have /uploads prefix)
+    // Handle Vercel Blob URLs that might be stored as filenames
+    if (imagePath.includes('.public.blob.vercel-storage.com')) {
+      console.log('🖼️ Cart - Using Vercel Blob URL');
+      return imagePath;
+    }
+    
+    // Handle relative paths (already have /uploads prefix) - legacy support
     if (imagePath.startsWith('/uploads/')) {
       const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Cart - Using relative path with /uploads:', fullUrl);
+      console.log('🖼️ Cart - Using legacy uploads path:', fullUrl);
       return fullUrl;
     }
     
-    // Handle paths that need /uploads prefix
+    // Handle paths that need /uploads prefix - legacy support
     if (imagePath.startsWith('/')) {
       const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Cart - Using path with leading slash:', fullUrl);
+      console.log('🖼️ Cart - Using legacy path with leading slash:', fullUrl);
       return fullUrl;
     }
     
-    // Handle paths without leading slash
+    // Handle paths without leading slash - legacy support
     const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-    console.log('🖼️ Cart - Using path without leading slash:', fullUrl);
+    console.log('🖼️ Cart - Using legacy path without leading slash:', fullUrl);
     return fullUrl;
   };
 

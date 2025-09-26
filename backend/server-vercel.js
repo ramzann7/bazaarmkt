@@ -2383,6 +2383,61 @@ app.get('/api/test/orders-artisan', (req, res) => {
   });
 });
 
+// Debug endpoint to check artisan data structure
+app.get('/api/debug/artisan-structure', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    
+    // Get a sample artisan document to see the structure
+    const sampleArtisan = await artisansCollection.findOne({});
+    
+    await client.close();
+    
+    if (!sampleArtisan) {
+      return res.json({
+        success: false,
+        message: 'No artisans found in database'
+      });
+    }
+    
+    // Return the structure without sensitive data
+    const structure = {
+      _id: sampleArtisan._id,
+      user: sampleArtisan.user,
+      artisanName: sampleArtisan.artisanName,
+      businessImage: sampleArtisan.businessImage ? 'Present' : 'Missing',
+      description: sampleArtisan.description,
+      category: sampleArtisan.category,
+      specialties: sampleArtisan.specialties,
+      address: sampleArtisan.address,
+      contactInfo: sampleArtisan.contactInfo,
+      phone: sampleArtisan.phone,
+      email: sampleArtisan.email,
+      type: sampleArtisan.type,
+      // Show all top-level fields
+      allFields: Object.keys(sampleArtisan)
+    };
+    
+    res.json({
+      success: true,
+      message: 'Artisan data structure',
+      data: structure
+    });
+  } catch (error) {
+    console.error('Debug artisan structure error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get artisan structure',
+      error: error.message
+    });
+  }
+});
+
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.post('/api/profile/artisan', async (req, res) => {

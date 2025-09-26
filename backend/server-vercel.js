@@ -2559,6 +2559,9 @@ app.get('/api/debug/artisan-flow', async (req, res) => {
       'items.artisanId': artisan._id 
     }).limit(3).toArray();
     
+    // Also check all orders to see their structure
+    const allOrders = await ordersCollection.find({}).limit(5).toArray();
+    
     await client.close();
     
     res.json({
@@ -2586,6 +2589,19 @@ app.get('/api/debug/artisan-flow', async (req, res) => {
             items: o.items?.map(item => ({
               productId: item.productId,
               artisanId: item.artisanId
+            }))
+          }))
+        },
+        allOrders: {
+          count: allOrders.length,
+          sample: allOrders.map(o => ({
+            _id: o._id,
+            status: o.status,
+            totalAmount: o.totalAmount,
+            items: o.items?.map(item => ({
+              productId: item.productId,
+              artisanId: item.artisanId,
+              artisanIdType: typeof item.artisanId
             }))
           }))
         }
@@ -2662,6 +2678,81 @@ app.get('/api/debug/token-debug', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Token debug failed',
+      error: error.message
+    });
+  }
+});
+
+// Debug endpoint to check order structure without authentication
+app.get('/api/debug/order-structure', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get a sample artisan
+    const artisan = await artisansCollection.findOne({});
+    
+    if (!artisan) {
+      await client.close();
+      return res.json({
+        success: false,
+        message: 'No artisans found'
+      });
+    }
+    
+    // Get all orders to see their structure
+    const allOrders = await ordersCollection.find({}).limit(3).toArray();
+    
+    // Try different query approaches
+    const orders1 = await ordersCollection.find({ 
+      'items.artisanId': artisan._id 
+    }).toArray();
+    
+    const orders2 = await ordersCollection.find({ 
+      artisan: artisan._id 
+    }).toArray();
+    
+    const orders3 = await ordersCollection.find({ 
+      artisan: artisan._id.toString() 
+    }).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Order structure debug',
+      debug: {
+        artisan: {
+          _id: artisan._id,
+          artisanName: artisan.artisanName
+        },
+        allOrdersSample: allOrders.map(o => ({
+          _id: o._id,
+          artisan: o.artisan,
+          artisanType: typeof o.artisan,
+          items: o.items?.map(item => ({
+            productId: item.productId,
+            artisanId: item.artisanId,
+            artisanIdType: typeof item.artisanId
+          }))
+        })),
+        queryResults: {
+          itemsArtisanId: orders1.length,
+          artisanObjectId: orders2.length,
+          artisanString: orders3.length
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Order structure debug error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Order structure debug failed',
       error: error.message
     });
   }
@@ -2748,17 +2839,32 @@ app.get('/api/debug/orders-artisan-debug', async (req, res) => {
       });
     }
 
-    // Get orders for this artisan
-    console.log('🔍 DEBUG: Querying orders for artisan ID:', artisan._id);
-    const orders = await ordersCollection
-      .find({ 
-        'items.artisanId': artisan._id 
-      })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .toArray();
+    // Get ALL orders to see their structure
+    console.log('🔍 DEBUG: Getting all orders to see structure...');
+    const allOrders = await ordersCollection.find({}).limit(3).toArray();
+    
+    // Try different query approaches
+    console.log('🔍 DEBUG: Testing different query approaches...');
+    
+    // Query 1: items.artisanId (current approach)
+    const orders1 = await ordersCollection.find({ 
+      'items.artisanId': artisan._id 
+    }).toArray();
+    
+    // Query 2: artisan field at root level
+    const orders2 = await ordersCollection.find({ 
+      artisan: artisan._id 
+    }).toArray();
+    
+    // Query 3: artisan field as string
+    const orders3 = await ordersCollection.find({ 
+      artisan: artisan._id.toString() 
+    }).toArray();
 
-    console.log('🔍 DEBUG: Found orders:', orders.length);
+    console.log('🔍 DEBUG: Found orders with items.artisanId:', orders1.length);
+    console.log('🔍 DEBUG: Found orders with artisan (ObjectId):', orders2.length);
+    console.log('🔍 DEBUG: Found orders with artisan (String):', orders3.length);
+    
     await client.close();
 
     res.json({
@@ -2770,14 +2876,20 @@ app.get('/api/debug/orders-artisan-debug', async (req, res) => {
           _id: artisan._id,
           artisanName: artisan.artisanName
         },
-        orders: {
-          count: orders.length,
-          sample: orders.map(o => ({
-            _id: o._id,
-            status: o.status,
-            totalAmount: o.totalAmount,
-            items: o.items?.length
+        allOrdersSample: allOrders.map(o => ({
+          _id: o._id,
+          artisan: o.artisan,
+          artisanType: typeof o.artisan,
+          items: o.items?.map(item => ({
+            productId: item.productId,
+            artisanId: item.artisanId,
+            artisanIdType: typeof item.artisanId
           }))
+        })),
+        queryResults: {
+          itemsArtisanId: orders1.length,
+          artisanObjectId: orders2.length,
+          artisanString: orders3.length
         }
       }
     });

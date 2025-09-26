@@ -548,37 +548,83 @@ const getBuyerOrders = async (req, res) => {
 const getArtisanOrders = async (req, res) => {
   try {
     console.log('🔍 getArtisanOrders: Starting request');
+    console.log('🔍 getArtisanOrders: Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('🔍 getArtisanOrders: Authorization header:', req.headers.authorization);
+    
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
       console.log('❌ getArtisanOrders: No token provided');
       return res.status(401).json({
         success: false,
-        message: 'No token provided'
+        message: 'No token provided',
+        debug: {
+          hasAuthHeader: !!req.headers.authorization,
+          authHeader: req.headers.authorization,
+          headers: req.headers
+        }
       });
     }
 
-    console.log('🔍 getArtisanOrders: Token found, verifying...');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔍 getArtisanOrders: Token decoded, userId:', decoded.userId);
+    console.log('🔍 getArtisanOrders: Token found, length:', token.length);
+    console.log('🔍 getArtisanOrders: Token preview:', token.substring(0, 50) + '...');
+    
+    // Decode token without verification first
+    let decoded;
+    try {
+      decoded = jwt.decode(token, { complete: true });
+      console.log('🔍 getArtisanOrders: Token decoded (without verification):', decoded);
+    } catch (decodeError) {
+      console.log('❌ getArtisanOrders: Token decode failed:', decodeError.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid token format',
+        debug: {
+          decodeError: decodeError.message,
+          token: token.substring(0, 50) + '...'
+        }
+      });
+    }
+
+    // Try to verify the token
+    let verified;
+    try {
+      verified = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('🔍 getArtisanOrders: Token verified successfully:', verified);
+    } catch (verifyError) {
+      console.log('❌ getArtisanOrders: Token verification failed:', verifyError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        debug: {
+          verifyError: verifyError.message,
+          token: token.substring(0, 50) + '...',
+          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
+        }
+      });
+    }
+
     const limit = parseInt(req.query.limit) || 20;
 
     // Validate userId format
-    console.log('🔍 getArtisanOrders: User ID from token:', decoded.userId);
-    console.log('🔍 getArtisanOrders: User ID type:', typeof decoded.userId);
-    console.log('🔍 getArtisanOrders: User ID valid ObjectId:', ObjectId.isValid(decoded.userId));
+    console.log('🔍 getArtisanOrders: User ID from token:', verified.userId);
+    console.log('🔍 getArtisanOrders: User ID type:', typeof verified.userId);
+    console.log('🔍 getArtisanOrders: User ID valid ObjectId:', ObjectId.isValid(verified.userId));
     
-    if (!decoded.userId) {
+    if (!verified.userId) {
       console.log('❌ getArtisanOrders: No user ID in token');
       return res.status(400).json({
         success: false,
-        message: 'No user ID in token'
+        message: 'No user ID in token',
+        debug: {
+          verified: verified
+        }
       });
     }
     
     // Try to create ObjectId and let the database handle validation
     let userObjectId;
     try {
-      userObjectId = new ObjectId(decoded.userId);
+      userObjectId = new ObjectId(verified.userId);
       console.log('🔍 getArtisanOrders: ObjectId created successfully:', userObjectId);
     } catch (objectIdError) {
       console.log('❌ getArtisanOrders: ObjectId creation failed:', objectIdError.message);
@@ -586,9 +632,9 @@ const getArtisanOrders = async (req, res) => {
         success: false,
         message: 'Invalid user ID format',
         details: {
-          userId: decoded.userId,
-          type: typeof decoded.userId,
-          length: decoded.userId?.length,
+          userId: verified.userId,
+          type: typeof verified.userId,
+          length: verified.userId?.length,
           objectIdError: objectIdError.message
         }
       });

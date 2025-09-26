@@ -2884,6 +2884,183 @@ app.get('/api/debug/test-token', async (req, res) => {
   }
 });
 
+// Comprehensive debug endpoint for artisan orders
+app.get('/api/debug/artisan-orders-comprehensive', async (req, res) => {
+  try {
+    const jwt = require('jsonwebtoken');
+    const { MongoClient, ObjectId } = require('mongodb');
+    
+    console.log('🔍 COMPREHENSIVE DEBUG: Starting artisan orders debug');
+    console.log('🔍 COMPREHENSIVE DEBUG: Headers:', JSON.stringify(req.headers, null, 2));
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.json({
+        success: false,
+        message: 'No token provided',
+        debug: {
+          hasAuthHeader: !!req.headers.authorization,
+          authHeader: req.headers.authorization,
+          allHeaders: req.headers
+        }
+      });
+    }
+    
+    console.log('🔍 COMPREHENSIVE DEBUG: Token found, length:', token.length);
+    console.log('🔍 COMPREHENSIVE DEBUG: Token preview:', token.substring(0, 50) + '...');
+    
+    // Step 1: Decode token without verification
+    let decoded;
+    try {
+      decoded = jwt.decode(token, { complete: true });
+      console.log('🔍 COMPREHENSIVE DEBUG: Token decoded successfully');
+    } catch (decodeError) {
+      console.log('❌ COMPREHENSIVE DEBUG: Token decode failed:', decodeError.message);
+      return res.json({
+        success: false,
+        message: 'Token decode failed',
+        debug: {
+          decodeError: decodeError.message,
+          token: token.substring(0, 50) + '...'
+        }
+      });
+    }
+    
+    // Step 2: Verify token
+    let verified;
+    try {
+      verified = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('🔍 COMPREHENSIVE DEBUG: Token verified successfully');
+    } catch (verifyError) {
+      console.log('❌ COMPREHENSIVE DEBUG: Token verification failed:', verifyError.message);
+      return res.json({
+        success: false,
+        message: 'Token verification failed',
+        debug: {
+          verifyError: verifyError.message,
+          token: token.substring(0, 50) + '...',
+          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
+        }
+      });
+    }
+    
+    // Step 3: Validate userId
+    if (!verified.userId) {
+      console.log('❌ COMPREHENSIVE DEBUG: No user ID in token');
+      return res.json({
+        success: false,
+        message: 'No user ID in token',
+        debug: {
+          verified: verified
+        }
+      });
+    }
+    
+    // Step 4: Create ObjectId
+    let userObjectId;
+    try {
+      userObjectId = new ObjectId(verified.userId);
+      console.log('🔍 COMPREHENSIVE DEBUG: ObjectId created successfully');
+    } catch (objectIdError) {
+      console.log('❌ COMPREHENSIVE DEBUG: ObjectId creation failed:', objectIdError.message);
+      return res.json({
+        success: false,
+        message: 'Invalid user ID format',
+        debug: {
+          userId: verified.userId,
+          type: typeof verified.userId,
+          length: verified.userId?.length,
+          objectIdError: objectIdError.message
+        }
+      });
+    }
+    
+    // Step 5: Connect to database and find artisan
+    console.log('🔍 COMPREHENSIVE DEBUG: Connecting to database...');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    
+    const artisan = await artisansCollection.findOne({
+      user: userObjectId
+    });
+    
+    if (!artisan) {
+      console.log('❌ COMPREHENSIVE DEBUG: Artisan profile not found');
+      await client.close();
+      return res.json({
+        success: false,
+        message: 'Artisan profile not found',
+        debug: {
+          userId: verified.userId,
+          userObjectId: userObjectId,
+          searchedFor: userObjectId
+        }
+      });
+    }
+    
+    console.log('🔍 COMPREHENSIVE DEBUG: Artisan found:', artisan.artisanName);
+    
+    // Step 6: Query orders
+    const ordersCollection = db.collection('orders');
+    const orders = await ordersCollection
+      .find({ 
+        artisan: artisan._id 
+      })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
+    
+    console.log('🔍 COMPREHENSIVE DEBUG: Found orders:', orders.length);
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Comprehensive debug successful',
+      debug: {
+        token: {
+          length: token.length,
+          preview: token.substring(0, 50) + '...',
+          decoded: decoded,
+          verified: verified
+        },
+        user: {
+          userId: verified.userId,
+          userObjectId: userObjectId,
+          isValid: ObjectId.isValid(verified.userId)
+        },
+        artisan: {
+          _id: artisan._id,
+          artisanName: artisan.artisanName,
+          user: artisan.user
+        },
+        orders: {
+          count: orders.length,
+          sample: orders.map(o => ({
+            _id: o._id,
+            status: o.status,
+            totalAmount: o.totalAmount,
+            createdAt: o.createdAt
+          }))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ COMPREHENSIVE DEBUG: Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Comprehensive debug failed',
+      error: error.message,
+      debug: {
+        errorName: error.name,
+        errorStack: error.stack
+      }
+    });
+  }
+});
+
 // Debug endpoint to simulate getArtisanOrders logic
 app.get('/api/debug/orders-artisan-debug', async (req, res) => {
   try {

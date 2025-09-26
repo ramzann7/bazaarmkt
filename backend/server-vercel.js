@@ -2499,6 +2499,86 @@ app.post('/api/profile/artisan', async (req, res) => {
   }
 });
 
+// Debug endpoint to check artisan products and orders
+app.get('/api/debug/artisan-data', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    const productsCollection = db.collection('products');
+    const ordersCollection = db.collection('orders');
+    
+    // Get artisan profile
+    const artisan = await artisansCollection.findOne({
+      user: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Get products for this artisan
+    const products = await productsCollection.find({
+      artisan: artisan._id
+    }).toArray();
+    
+    // Get orders for this artisan
+    const orders = await ordersCollection.find({
+      'items.artisanId': artisan._id
+    }).toArray();
+    
+    // Get all orders to see structure
+    const allOrders = await ordersCollection.find({}).limit(3).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: {
+        artisanId: artisan._id,
+        artisanName: artisan.artisanName,
+        productsCount: products.length,
+        products: products.map(p => ({ _id: p._id, name: p.name, artisan: p.artisan })),
+        ordersCount: orders.length,
+        orders: orders.map(o => ({ _id: o._id, items: o.items?.map(item => ({ artisanId: item.artisanId })) })),
+        sampleOrders: allOrders.map(o => ({
+          _id: o._id,
+          items: o.items?.map(item => ({
+            productId: item.productId,
+            artisanId: item.artisanId,
+            artisanIdType: typeof item.artisanId
+          }))
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Debug artisan data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug failed',
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to check artisan profile status
 app.get('/api/debug/artisan-status', async (req, res) => {
   try {

@@ -175,7 +175,7 @@ const Cart = () => {
           cartService.clearCart(currentUserId);
           setCart([]);
           setCartByArtisan({});
-          toast.info('Cart cleared due to image migration. Please re-add your items.');
+          toast.success('Cart cleared due to image migration. Please re-add your items.');
         }
       }, 1000);
       return null; // This will trigger the fallback placeholder
@@ -721,7 +721,7 @@ const Cart = () => {
         cartService.clearCart(currentUserId);
         setCart([]);
         setCartByArtisan({});
-        toast.info('Cart cleared due to image migration. Please re-add your items.');
+        toast.success('Cart cleared due to image migration. Please re-add your items.');
         return true; // Indicate migration occurred
       }
       return false; // No migration needed

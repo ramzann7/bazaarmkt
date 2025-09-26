@@ -32,6 +32,12 @@ app.use(cors({
 }));
 
 
+// Microservices Integration - Initialize after server starts
+const MicroservicesIntegration = require('./middleware/microservicesIntegration');
+
+// Initialize microservices after server starts
+let microservicesInitialized = false;
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
@@ -39,6 +45,109 @@ app.get('/api/health', (req, res) => {
     message: 'bazaar API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Microservices routes
+app.get('/api/services', async (req, res) => {
+  try {
+    const status = MicroservicesIntegration.getStatus();
+    res.json({
+      success: true,
+      ...status.serviceRegistry
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Service registry error',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/services/health', async (req, res) => {
+  try {
+    const healthSummary = await MicroservicesIntegration.getHealthSummary();
+    res.json({
+      success: true,
+      ...healthSummary
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Health check error',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/health/:service', async (req, res) => {
+  try {
+    const serviceName = req.params.service;
+    const service = MicroservicesIntegration.getService(serviceName);
+    
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: `Service ${serviceName} not found`
+      });
+    }
+
+    if (service.healthCheck) {
+      const health = await service.healthCheck();
+      res.json({
+        success: true,
+        service: serviceName,
+        ...health
+      });
+    } else {
+      res.json({
+        success: true,
+        service: serviceName,
+        status: 'healthy',
+        message: 'No health check available'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Service health check error',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/gateway/status', (req, res) => {
+  try {
+    const status = MicroservicesIntegration.getStatus();
+    res.json({
+      success: true,
+      status: 'active',
+      routes: status.apiGateway.routes || [],
+      services: status.services
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'API Gateway status error',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/gateway/routes', (req, res) => {
+  try {
+    const endpoints = MicroservicesIntegration.getServiceEndpoints();
+    res.json({
+      success: true,
+      routes: endpoints
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'API Gateway routes error',
+      error: error.message
+    });
+  }
 });
 
 // Debug endpoint
@@ -1190,20 +1299,9 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// Get artisan orders (MUST be before /api/orders/:id to avoid route conflict)
-app.get('/api/orders/artisan', async (req, res) => {
-  try {
-    console.log('🔍 Route test: /api/orders/artisan called');
-    return await profileFeatures.getArtisanOrders(req, res);
-  } catch (error) {
-    console.error('❌ Route test error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Route test failed',
-      error: error.message
-    });
-  }
-});
+// Get artisan orders - Now handled by Order Service microservice
+// This endpoint is now handled by the Order Service microservice
+// Route: /api/orders/artisan is automatically routed to the microservice
 
 // Get single order
 app.get('/api/orders/:id', async (req, res) => {
@@ -2249,9 +2347,9 @@ app.get('/api/promotional/pricing', async (req, res) => {
 // Import missing feature modules
 const reviewsFeatures = require('./missing-features/reviews');
 const favoritesFeatures = require('./missing-features/favorites');
-const notificationsFeatures = require('./missing-features/notifications');
+// notificationsFeatures - Now handled by Notification Service microservice
+// profileFeatures - Now handled by User Service microservice
 const communityFeatures = require('./missing-features/community');
-const profileFeatures = require('./missing-features/profile-management');
 const additionalFeatures = require('./missing-features/additional-services');
 
 // ============================================================================
@@ -2293,23 +2391,10 @@ app.get('/api/favorites/status/:productId', favoritesFeatures.checkFavoriteStatu
 app.get('/api/favorites/filtered', favoritesFeatures.getFavoritesWithFilters);
 
 // ============================================================================
-// NOTIFICATIONS ENDPOINTS
+// NOTIFICATIONS ENDPOINTS - Now handled by Notification Service microservice
 // ============================================================================
-
-// Get user notifications
-app.get('/api/notifications', notificationsFeatures.getUserNotifications);
-
-// Mark notification as read
-app.put('/api/notifications/:notificationId/read', notificationsFeatures.markAsRead);
-
-// Mark all notifications as read
-app.put('/api/notifications/read-all', notificationsFeatures.markAllAsRead);
-
-// Delete notification
-app.delete('/api/notifications/:notificationId', notificationsFeatures.deleteNotification);
-
-// Send notification (admin/system use)
-app.post('/api/notifications/send', notificationsFeatures.sendNotification);
+// These endpoints are now handled by the Notification Service microservice
+// Routes: /api/notifications/* are automatically routed to the microservice
 
 // ============================================================================
 // COMMUNITY ENDPOINTS
@@ -2449,25 +2534,10 @@ app.get('/api/community/leaderboard', communityFeatures.getEngagementLeaderboard
 app.get('/api/community/leaderboard/engagement', communityFeatures.getEngagementLeaderboard);
 
 // ============================================================================
-// PROFILE MANAGEMENT ENDPOINTS
+// PROFILE MANAGEMENT ENDPOINTS - Now handled by User Service microservice
 // ============================================================================
-
-// Profile updates
-// Removed redundant /api/profile/artisan endpoint - use /api/auth/profile instead
-app.put('/api/profile', profileFeatures.updateProfile);
-app.put('/api/profile/addresses', profileFeatures.updateAddresses);
-app.post('/api/profile/addresses', profileFeatures.addAddress);
-
-// Guest user management
-app.get('/api/auth/check-email/:email', profileFeatures.checkEmail);
-app.post('/api/auth/guest', profileFeatures.createGuestProfile);
-app.get('/api/auth/guest/:guestId', profileFeatures.getGuestProfile);
-app.put('/api/auth/guest/:guestId', profileFeatures.updateGuestProfile);
-app.post('/api/auth/guest/:guestId/convert', profileFeatures.convertGuestToUser);
-
-// Order management
-app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
-app.post('/api/orders/guest', profileFeatures.createGuestOrder);
+// These endpoints are now handled by the User Service microservice
+// Routes: /api/auth/* and /api/profile/* are automatically routed to the microservice
 
 // Test endpoint to check if the route is working
 app.get('/api/test/orders-artisan', (req, res) => {
@@ -2992,6 +3062,29 @@ app.use((error, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
+
+// Start server (only if not in Vercel environment)
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, async () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+    
+    // Initialize microservices after server starts
+    try {
+      console.log('🚀 Initializing Microservices...');
+      await MicroservicesIntegration.initialize();
+      microservicesInitialized = true;
+      console.log('✅ Microservices Integration initialized');
+      console.log(`📊 Services: http://localhost:${PORT}/api/services`);
+      console.log(`🔍 Gateway: http://localhost:${PORT}/api/gateway/status`);
+    } catch (error) {
+      console.error('❌ Microservices Integration failed:', error);
+      console.log('⚠️ Server running without microservices');
+    }
+  });
+}
 
 // Export for Vercel
 module.exports = app;

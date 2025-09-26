@@ -32,8 +32,6 @@ class DatabaseManager {
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
         connectTimeoutMS: 10000,
-        bufferMaxEntries: 0,
-        bufferCommands: false,
         retryWrites: true,
         retryReads: true,
         // Enable connection pooling

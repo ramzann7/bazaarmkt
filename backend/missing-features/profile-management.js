@@ -573,10 +573,12 @@ const getArtisanOrders = async (req, res) => {
     const artisansCollection = db.collection('artisans');
 
     // Get artisan profile
+    console.log('Looking for artisan with user ID:', decoded.userId);
     const artisan = await artisansCollection.findOne({
       user: new ObjectId(decoded.userId)
     });
 
+    console.log('Found artisan:', artisan ? 'Yes' : 'No');
     if (!artisan) {
       await client.close();
       return res.status(404).json({
@@ -638,10 +640,12 @@ const getArtisanProfile = async (req, res) => {
     const artisansCollection = db.collection('artisans');
 
     // Get artisan profile by user ID
+    console.log('Looking for artisan profile with user ID:', decoded.userId);
     const artisan = await artisansCollection.findOne({
       user: new ObjectId(decoded.userId)
     });
 
+    console.log('Found artisan profile:', artisan ? 'Yes' : 'No');
     if (!artisan) {
       await client.close();
       return res.status(404).json({

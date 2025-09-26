@@ -575,17 +575,21 @@ const getArtisanOrders = async (req, res) => {
       });
     }
     
-    if (!ObjectId.isValid(decoded.userId)) {
-      console.log('❌ getArtisanOrders: Invalid user ID format:', decoded.userId);
-      console.log('❌ getArtisanOrders: User ID type:', typeof decoded.userId);
-      console.log('❌ getArtisanOrders: User ID length:', decoded.userId?.length);
+    // Try to create ObjectId and let the database handle validation
+    let userObjectId;
+    try {
+      userObjectId = new ObjectId(decoded.userId);
+      console.log('🔍 getArtisanOrders: ObjectId created successfully:', userObjectId);
+    } catch (objectIdError) {
+      console.log('❌ getArtisanOrders: ObjectId creation failed:', objectIdError.message);
       return res.status(400).json({
         success: false,
         message: 'Invalid user ID format',
         details: {
           userId: decoded.userId,
           type: typeof decoded.userId,
-          length: decoded.userId?.length
+          length: decoded.userId?.length,
+          objectIdError: objectIdError.message
         }
       });
     }
@@ -599,12 +603,12 @@ const getArtisanOrders = async (req, res) => {
 
     // Get artisan profile
     console.log('🔍 getArtisanOrders: Looking for artisan with user ID:', decoded.userId);
-    console.log('🔍 getArtisanOrders: Converting to ObjectId:', new ObjectId(decoded.userId));
+    console.log('🔍 getArtisanOrders: Using ObjectId:', userObjectId);
     
     let artisan;
     try {
       artisan = await artisansCollection.findOne({
-        user: new ObjectId(decoded.userId)
+        user: userObjectId
       });
 
       console.log('🔍 getArtisanOrders: Found artisan:', artisan ? 'Yes' : 'No');
@@ -715,10 +719,29 @@ const getArtisanProfile = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Validate userId format
-    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+    if (!decoded.userId) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid user ID format'
+        message: 'No user ID in token'
+      });
+    }
+
+    // Try to create ObjectId and let the database handle validation
+    let userObjectId;
+    try {
+      userObjectId = new ObjectId(decoded.userId);
+      console.log('🔍 getArtisanProfile: ObjectId created successfully:', userObjectId);
+    } catch (objectIdError) {
+      console.log('❌ getArtisanProfile: ObjectId creation failed:', objectIdError.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format',
+        details: {
+          userId: decoded.userId,
+          type: typeof decoded.userId,
+          length: decoded.userId?.length,
+          objectIdError: objectIdError.message
+        }
       });
     }
 
@@ -730,7 +753,7 @@ const getArtisanProfile = async (req, res) => {
     // Get artisan profile by user ID to find the artisan ID
     console.log('Looking for artisan profile with user ID:', decoded.userId);
     const artisan = await artisansCollection.findOne({
-      user: new ObjectId(decoded.userId)
+      user: userObjectId
     });
 
     console.log('Found artisan profile:', artisan ? 'Yes' : 'No');

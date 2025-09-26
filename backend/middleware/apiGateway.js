@@ -79,6 +79,30 @@ class APIGateway {
       rateLimit: 'standard'
     });
 
+    // Search Service routes
+    this.routes.set('/api/search/*', {
+      service: 'search-service',
+      methods: ['GET', 'POST'],
+      authentication: false, // Public search access
+      rateLimit: 'standard'
+    });
+
+    // Analytics Service routes
+    this.routes.set('/api/analytics/*', {
+      service: 'analytics-service',
+      methods: ['GET', 'POST'],
+      authentication: true, // Admin access required
+      rateLimit: 'standard'
+    });
+
+    // File Service routes
+    this.routes.set('/api/files/*', {
+      service: 'file-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
     // Health check routes
     this.routes.set('/api/health/*', {
       service: 'api-gateway',

@@ -10,6 +10,9 @@ const UserService = require('../services/userService');
 const ProductService = require('../services/productService');
 const OrderService = require('../services/orderService');
 const NotificationService = require('../services/notificationService');
+const SearchService = require('../services/searchService');
+const AnalyticsService = require('../services/analyticsService');
+const FileService = require('../services/fileService');
 
 class MicroservicesIntegration {
   constructor() {
@@ -77,6 +80,24 @@ class MicroservicesIntegration {
       await NotificationService.initialize();
       this.services.set('notification-service', NotificationService);
       console.log('  ✅ Notification Service initialized');
+
+      // Initialize Search Service
+      console.log('  - Initializing Search Service...');
+      await SearchService.initialize();
+      this.services.set('search-service', SearchService);
+      console.log('  ✅ Search Service initialized');
+
+      // Initialize Analytics Service
+      console.log('  - Initializing Analytics Service...');
+      await AnalyticsService.initialize();
+      this.services.set('analytics-service', AnalyticsService);
+      console.log('  ✅ Analytics Service initialized');
+
+      // Initialize File Service
+      console.log('  - Initializing File Service...');
+      await FileService.initialize();
+      this.services.set('file-service', FileService);
+      console.log('  ✅ File Service initialized');
 
       // Step 5: Perform Health Checks
       console.log('Step 5: Performing Health Checks...');

@@ -203,6 +203,27 @@ class ServiceRegistry {
       metadata: { type: 'core', database: 'notifications' }
     });
 
+    this.registerService('search-service', {
+      version: '1.0.0',
+      endpoints: ['/api/search/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'products' }
+    });
+
+    this.registerService('analytics-service', {
+      version: '1.0.0',
+      endpoints: ['/api/analytics/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'analytics' }
+    });
+
+    this.registerService('file-service', {
+      version: '1.0.0',
+      endpoints: ['/api/files/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'files' }
+    });
+
     this.registerService('database', {
       version: '1.0.0',
       endpoints: [],

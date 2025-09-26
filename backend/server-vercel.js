@@ -538,7 +538,71 @@ app.get('/api/products/enhanced-search', async (req, res) => {
   }
 });
 
-// Get single product by ID
+// Get my products (for authenticated artisans) - must come before /:id route
+app.get('/api/products/my-products', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get artisan profile using user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Get products for this artisan using artisan ID
+    const products = await productsCollection
+      .find({ artisan: artisan._id })
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: products,
+      count: products.length
+    });
+  } catch (error) {
+    console.error('Error fetching my products:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch products',
+      error: error.message
+    });
+  }
+});
+
+// Get single product by ID (moved after specific routes)
 app.get('/api/products/:id', async (req, res) => {
   try {
     const { MongoClient, ObjectId } = require('mongodb');
@@ -619,69 +683,7 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// Get my products (for authenticated artisans)
-app.get('/api/products/my-products', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const jwt = require('jsonwebtoken');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
-      });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    const artisansCollection = db.collection('artisans');
-    
-    // Get artisan profile using user ID
-    const artisan = await artisansCollection.findOne({
-      user: new ObjectId(decoded.userId)
-    });
-    
-    if (!artisan) {
-      await client.close();
-      return res.status(404).json({
-        success: false,
-        message: 'Artisan profile not found'
-      });
-    }
-    
-    // Get products for this artisan using artisan ID
-    const products = await productsCollection
-      .find({ artisan: artisan._id })
-      .sort({ createdAt: -1 })
-      .toArray();
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      data: products,
-      count: products.length
-    });
-  } catch (error) {
-    console.error('Error fetching my products:', error);
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch products',
-      error: error.message
-    });
-  }
-});
+// My products endpoint moved to line 542 to fix route precedence
 
 // Get product categories
 app.get('/api/products/categories/list', async (req, res) => {

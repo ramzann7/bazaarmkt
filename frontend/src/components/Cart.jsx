@@ -141,37 +141,30 @@ const Cart = () => {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     
-    console.log('🖼️ Cart - Getting image URL for:', imagePath);
-    
     // Handle base64 data URLs
     if (imagePath.startsWith('data:')) {
-      console.log('🖼️ Cart - Using base64 data URL');
       return imagePath;
     }
     
     // Handle HTTP URLs (including Vercel Blob URLs)
     if (imagePath.startsWith('http')) {
-      console.log('🖼️ Cart - Using HTTP URL (including Vercel Blob)');
       return imagePath;
     }
     
     // Handle Vercel Blob URLs that might be stored as filenames
     if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      console.log('🖼️ Cart - Using Vercel Blob URL');
       return imagePath;
     }
     
     // For legacy uploads paths, return null to trigger fallback placeholder
     if (imagePath.startsWith('/uploads/')) {
-      console.log('🖼️ Cart - Legacy uploads path detected, using fallback placeholder');
-      // Also trigger cart migration for this legacy item
+      // Trigger cart migration for legacy items
       setTimeout(() => {
         const cart = cartService.getCart(currentUserId);
         const hasLegacyImages = cart.some(item => 
           item.image && item.image.startsWith('/uploads/')
         );
         if (hasLegacyImages) {
-          console.log('🔄 Auto-clearing cart with legacy images');
           cartService.clearCart(currentUserId);
           setCart([]);
           setCartByArtisan({});
@@ -183,15 +176,11 @@ const Cart = () => {
     
     // Handle other paths that need /uploads prefix - legacy support
     if (imagePath.startsWith('/')) {
-      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Cart - Using legacy path with leading slash:', fullUrl);
-      return fullUrl;
+      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
     }
     
     // Handle paths without leading slash - legacy support
-    const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-    console.log('🖼️ Cart - Using legacy path without leading slash:', fullUrl);
-    return fullUrl;
+    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
   };
 
   // Helper function to check if address is required
@@ -708,16 +697,11 @@ const Cart = () => {
   const migrateLegacyCartItems = () => {
     try {
       const cart = cartService.getCart(currentUserId);
-      console.log('🔍 Checking cart for legacy images:', cart);
-      
       const hasLegacyImages = cart.some(item => 
         item.image && item.image.startsWith('/uploads/')
       );
       
-      console.log('🔍 Has legacy images:', hasLegacyImages);
-      
       if (hasLegacyImages) {
-        console.log('🔄 Cart contains legacy image paths, clearing cart for migration');
         cartService.clearCart(currentUserId);
         setCart([]);
         setCartByArtisan({});
@@ -736,13 +720,6 @@ const Cart = () => {
     await loadCart();
   };
 
-  // Manual cart clear function for debugging
-  const handleClearCart = () => {
-    cartService.clearCart(currentUserId);
-    setCart([]);
-    setCartByArtisan({});
-    toast.success('Cart cleared successfully');
-  };
 
   // Handle quantity changes with instant UI updates
   const handleQuantityChange = async (productId, newQuantity) => {
@@ -1944,15 +1921,6 @@ const Cart = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 font-serif">Your Artisan Collection</h1>
               <p className="text-sm sm:text-base text-gray-600">Review the beautiful creations you've selected</p>
             </div>
-            {/* Temporary debug button */}
-            {cart.length > 0 && (
-              <button
-                onClick={handleClearCart}
-                className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Clear Cart (Debug)
-              </button>
-            )}
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">

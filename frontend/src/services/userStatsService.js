@@ -10,7 +10,7 @@ export const userStatsService = {
   getUserStats: async () => {
     try {
       const token = localStorage.getItem('token');
-      const cacheKey = `${CACHE_KEYS.USER_STATS}_${token?.slice(-10)}`;
+      const cacheKey = `${CACHE_KEYS.USER_STATS}_${token?.slice(-10) || 'no-token'}`;
       
       // Check cache first
       const cached = cacheService.get(cacheKey);
@@ -45,7 +45,7 @@ export const userStatsService = {
   getRecentOrders: async (limit = 5) => {
     try {
       const token = localStorage.getItem('token');
-      const cacheKey = `${CACHE_KEYS.USER_ORDERS}_${token?.slice(-10)}`;
+      const cacheKey = `${CACHE_KEYS.USER_ORDERS}_${token?.slice(-10) || 'no-token'}`;
       
       // Check cache first
       const cached = cacheService.get(cacheKey);
@@ -115,14 +115,14 @@ export const userStatsService = {
   // Clear user stats cache
   clearStatsCache: () => {
     const token = localStorage.getItem('token');
-    const cacheKey = `${CACHE_KEYS.USER_STATS}_${token?.slice(-10)}`;
+    const cacheKey = `${CACHE_KEYS.USER_STATS}_${token?.slice(-10) || 'no-token'}`;
     cacheService.delete(cacheKey);
   },
 
   // Clear orders cache
   clearOrdersCache: () => {
     const token = localStorage.getItem('token');
-    const cacheKey = `${CACHE_KEYS.USER_ORDERS}_${token?.slice(-10)}`;
+    const cacheKey = `${CACHE_KEYS.USER_ORDERS}_${token?.slice(-10) || 'no-token'}`;
     cacheService.delete(cacheKey);
   },
 

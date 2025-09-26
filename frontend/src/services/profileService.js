@@ -212,7 +212,7 @@ export const getProfileFast = async () => {
     throw new Error('No authentication token');
   }
 
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10) || 'no-token'}`;
   
   // Try fast cache first (synchronous)
   const cached = cacheService.getFast(cacheKey);
@@ -238,7 +238,7 @@ export const preloadProfileFast = () => {
   const token = authToken.getToken();
   if (!token) return;
 
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10) || 'no-token'}`;
   
   // Only preload if not already cached
   if (!cacheService.getFast(cacheKey)) {
@@ -256,7 +256,7 @@ export const updateProfileCache = (userData) => {
   const token = authToken.getToken();
   if (!token) return;
 
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10) || 'no-token'}`;
   cacheService.set(cacheKey, userData, CACHE_TTL.USER_PROFILE);
 };
 
@@ -265,6 +265,6 @@ export const clearProfileCache = () => {
   const token = authToken.getToken();
   if (!token) return;
 
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10) || 'no-token'}`;
   cacheService.delete(cacheKey);
 };

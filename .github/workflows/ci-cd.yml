@@ -2,7 +2,7 @@ name: bazaarMKT CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]  # Only deploy from main branch to production
   pull_request:
     branches: [ main, develop ]
 

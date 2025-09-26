@@ -1946,6 +1946,9 @@ app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
 app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
 app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 
+// Artisan profile management
+app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
+
 // ============================================================================
 // ADDITIONAL SERVICES ENDPOINTS
 // ============================================================================

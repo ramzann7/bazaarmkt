@@ -593,6 +593,53 @@ const getArtisanOrders = async (req, res) => {
   }
 };
 
+// Get artisan profile
+const getArtisanProfile = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+
+    // Get artisan profile by user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    await client.close();
+
+    res.json({
+      success: true,
+      data: artisan
+    });
+  } catch (error) {
+    console.error('Get artisan profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get artisan profile',
+      error: error.message
+    });
+  }
+};
+
 // Create guest order
 const createGuestOrder = async (req, res) => {
   try {
@@ -713,5 +760,6 @@ module.exports = {
   convertGuestToUser,
   getBuyerOrders,
   getArtisanOrders,
+  getArtisanProfile,
   createGuestOrder
 };

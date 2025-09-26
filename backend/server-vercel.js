@@ -31,6 +31,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
+// Serve static files from uploads directory (legacy support)
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 // Database connection middleware for serverless
 let isConnected = false;
 

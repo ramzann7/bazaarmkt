@@ -31,7 +31,8 @@ export const orderService = {
       const response = await axios.get(`${API_URL}/orders/buyer`, {
         headers: getAuthHeaders()
       });
-      return response.data;
+      // API returns { success: true, data: { orders: [...] }, count: N }
+      return response.data.data?.orders || response.data.orders || [];
     } catch (error) {
       console.error('Error fetching patron orders:', error);
       throw error;
@@ -44,7 +45,8 @@ export const orderService = {
       const response = await axios.get(`${API_URL}/orders/artisan`, {
         headers: getAuthHeaders()
       });
-      return response.data;
+      // API returns { success: true, data: { orders: [...] }, count: N }
+      return response.data.data?.orders || response.data.orders || [];
     } catch (error) {
       console.error('Error fetching artisan orders:', error);
       throw error;
@@ -57,7 +59,8 @@ export const orderService = {
       const response = await axios.get(`${API_URL}/orders/${orderId}`, {
         headers: getAuthHeaders()
       });
-      return response.data;
+      // API returns { success: true, data: { order: {...} } }
+      return response.data.data?.order || response.data.order || response.data;
     } catch (error) {
       console.error('Error fetching order:', error);
       throw error;

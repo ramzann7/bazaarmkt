@@ -164,10 +164,24 @@ const Cart = () => {
     // For legacy uploads paths, return null to trigger fallback placeholder
     if (imagePath.startsWith('/uploads/')) {
       console.log('🖼️ Cart - Legacy uploads path detected, using fallback placeholder');
+      // Also trigger cart migration for this legacy item
+      setTimeout(() => {
+        const cart = cartService.getCart(currentUserId);
+        const hasLegacyImages = cart.some(item => 
+          item.image && item.image.startsWith('/uploads/')
+        );
+        if (hasLegacyImages) {
+          console.log('🔄 Auto-clearing cart with legacy images');
+          cartService.clearCart(currentUserId);
+          setCart([]);
+          setCartByArtisan({});
+          toast.info('Cart cleared due to image migration. Please re-add your items.');
+        }
+      }, 1000);
       return null; // This will trigger the fallback placeholder
     }
     
-    // Handle paths that need /uploads prefix - legacy support
+    // Handle other paths that need /uploads prefix - legacy support
     if (imagePath.startsWith('/')) {
       const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
       console.log('🖼️ Cart - Using legacy path with leading slash:', fullUrl);
@@ -694,9 +708,13 @@ const Cart = () => {
   const migrateLegacyCartItems = () => {
     try {
       const cart = cartService.getCart(currentUserId);
+      console.log('🔍 Checking cart for legacy images:', cart);
+      
       const hasLegacyImages = cart.some(item => 
         item.image && item.image.startsWith('/uploads/')
       );
+      
+      console.log('🔍 Has legacy images:', hasLegacyImages);
       
       if (hasLegacyImages) {
         console.log('🔄 Cart contains legacy image paths, clearing cart for migration');
@@ -704,9 +722,12 @@ const Cart = () => {
         setCart([]);
         setCartByArtisan({});
         toast.info('Cart cleared due to image migration. Please re-add your items.');
+        return true; // Indicate migration occurred
       }
+      return false; // No migration needed
     } catch (error) {
       console.error('Error migrating legacy cart items:', error);
+      return false;
     }
   };
 

@@ -3450,6 +3450,7 @@ app.use((error, req, res, next) => {
 
 // Debug endpoint to test optimized middleware
 app.get('/api/debug/auth', verifyToken, async (req, res) => {
+  console.log('🔍 Debug endpoint reached!');
   res.json({
     success: true,
     message: 'Optimized auth middleware working!',

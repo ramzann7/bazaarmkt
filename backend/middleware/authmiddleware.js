@@ -12,19 +12,26 @@ const { connectToDatabase, ObjectId } = require("../utils/database");
  */
 const verifyToken = async (req, res, next) => {
   try {
+    console.log('🔍 verifyToken middleware called for:', req.method, req.path);
+    
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(401).json({
         success: false,
         message: "No token provided"
       });
     }
 
+    console.log('🔍 Token found, verifying...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('✅ Token verified, user ID:', decoded.userId);
     
     const client = await connectToDatabase();
+    console.log('✅ Database connection established');
+    
     const db = client.db();
     const usersCollection = db.collection('users');
     
@@ -34,19 +41,22 @@ const verifyToken = async (req, res, next) => {
     );
     
     if (!user) {
+      console.log('❌ User not found for ID:', decoded.userId);
       return res.status(404).json({
         success: false,
         message: "User not found"
       });
     }
 
+    console.log('✅ User found:', user.email);
     req.user = user;
     req.userId = decoded.userId;
     req.token = token;
     
+    console.log('✅ verifyToken middleware completed, calling next()');
     next();
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('❌ Auth error:', error);
     return res.status(401).json({
       success: false,
       message: "Invalid token"

@@ -736,6 +736,626 @@ app.get('/api/products/categories/list', async (req, res) => {
   }
 });
 
+// Update product inventory (PUT and PATCH for compatibility)
+app.put('/api/products/:id/inventory', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const productId = req.params.id;
+    
+    // Validate product ID format
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get product and verify ownership
+    const product = await productsCollection.findOne({ _id: new ObjectId(productId) });
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get artisan profile using user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Verify product belongs to this artisan
+    if (product.artisan.toString() !== artisan._id.toString()) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update your own products'
+      });
+    }
+    
+    // Prepare update data
+    const updateData = {
+      updatedAt: new Date()
+    };
+    
+    // Handle different inventory fields based on request body
+    if (req.body.stock !== undefined) {
+      updateData.stock = parseInt(req.body.stock);
+      if (updateData.stock < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Stock cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.totalCapacity !== undefined) {
+      updateData.totalCapacity = parseInt(req.body.totalCapacity);
+      if (updateData.totalCapacity < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Total capacity cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.remainingCapacity !== undefined) {
+      updateData.remainingCapacity = parseInt(req.body.remainingCapacity);
+      if (updateData.remainingCapacity < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Remaining capacity cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.availableQuantity !== undefined) {
+      updateData.availableQuantity = parseInt(req.body.availableQuantity);
+      if (updateData.availableQuantity < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Available quantity cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.capacityPeriod !== undefined) {
+      updateData.capacityPeriod = req.body.capacityPeriod;
+    }
+    
+    if (req.body.nextAvailableDate !== undefined) {
+      updateData.nextAvailableDate = req.body.nextAvailableDate;
+    }
+    
+    if (req.body.lastCapacityRestore !== undefined) {
+      updateData.lastCapacityRestore = req.body.lastCapacityRestore;
+    }
+    
+    // Update product
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(productId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get updated product with artisan population
+    const updatedProduct = await productsCollection.aggregate([
+      { $match: { _id: new ObjectId(productId) } },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0
+        }
+      }
+    ]).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Inventory updated successfully',
+      product: updatedProduct[0]
+    });
+  } catch (error) {
+    console.error('Error updating product inventory:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update inventory',
+      error: error.message
+    });
+  }
+});
+
+// PATCH endpoint for inventory updates (alternative to PUT)
+app.patch('/api/products/:id/inventory', async (req, res) => {
+  // Use the same logic as PUT but handle it directly
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const productId = req.params.id;
+    
+    // Validate product ID format
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get product and verify ownership
+    const product = await productsCollection.findOne({ _id: new ObjectId(productId) });
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get artisan profile using user ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Verify product belongs to this artisan
+    if (product.artisan.toString() !== artisan._id.toString()) {
+      await client.close();
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update your own products'
+      });
+    }
+    
+    // Prepare update data
+    const updateData = {
+      updatedAt: new Date()
+    };
+    
+    // Handle different inventory fields based on request body
+    if (req.body.stock !== undefined) {
+      updateData.stock = parseInt(req.body.stock);
+      if (updateData.stock < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Stock cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.totalCapacity !== undefined) {
+      updateData.totalCapacity = parseInt(req.body.totalCapacity);
+      if (updateData.totalCapacity < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Total capacity cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.remainingCapacity !== undefined) {
+      updateData.remainingCapacity = parseInt(req.body.remainingCapacity);
+      if (updateData.remainingCapacity < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Remaining capacity cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.availableQuantity !== undefined) {
+      updateData.availableQuantity = parseInt(req.body.availableQuantity);
+      if (updateData.availableQuantity < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Available quantity cannot be negative'
+        });
+      }
+    }
+    
+    if (req.body.capacityPeriod !== undefined) {
+      updateData.capacityPeriod = req.body.capacityPeriod;
+    }
+    
+    if (req.body.nextAvailableDate !== undefined) {
+      updateData.nextAvailableDate = req.body.nextAvailableDate;
+    }
+    
+    if (req.body.lastCapacityRestore !== undefined) {
+      updateData.lastCapacityRestore = req.body.lastCapacityRestore;
+    }
+    
+    // Update product
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(productId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get updated product with artisan population
+    const updatedProduct = await productsCollection.aggregate([
+      { $match: { _id: new ObjectId(productId) } },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0
+        }
+      }
+    ]).toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Inventory updated successfully',
+      product: updatedProduct[0]
+    });
+  } catch (error) {
+    console.error('Error updating product inventory:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update inventory',
+      error: error.message
+    });
+  }
+});
+
+// Reduce inventory for purchases
+app.patch('/api/products/:id/reduce-inventory', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    
+    const productId = req.params.id;
+    const { quantity } = req.body;
+    
+    // Validate inputs
+    if (!ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+    
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity must be a positive number'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Get current product
+    const product = await productsCollection.findOne({ _id: new ObjectId(productId) });
+    if (!product) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Determine what to reduce based on product type
+    let updateData = {};
+    let canReduce = false;
+    
+    switch (product.productType) {
+      case 'ready_to_ship':
+        if (product.stock >= quantity) {
+          updateData.stock = product.stock - quantity;
+          canReduce = true;
+        }
+        break;
+        
+      case 'made_to_order':
+        if (product.remainingCapacity >= quantity) {
+          updateData.remainingCapacity = product.remainingCapacity - quantity;
+          canReduce = true;
+        }
+        break;
+        
+      case 'scheduled_order':
+        if (product.availableQuantity >= quantity) {
+          updateData.availableQuantity = product.availableQuantity - quantity;
+          canReduce = true;
+        }
+        break;
+        
+      default:
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid product type'
+        });
+    }
+    
+    if (!canReduce) {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient inventory available'
+      });
+    }
+    
+    // Update product
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(productId) },
+      { 
+        $set: { 
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+    
+    // Get updated product
+    const updatedProduct = await productsCollection.findOne({ _id: new ObjectId(productId) });
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Inventory reduced successfully',
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Error reducing inventory:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reduce inventory',
+      error: error.message
+    });
+  }
+});
+
+// Update product stock (alternative endpoint)
+app.patch('/api/products/:id/stock', async (req, res) => {
+  try {
+    const { quantity } = req.body;
+    
+    // Create a new request body with stock field and forward to inventory endpoint
+    const originalBody = req.body;
+    req.body = { stock: quantity };
+    
+    // Call the inventory endpoint logic
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const jwt = require('jsonwebtoken');
+      
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: 'No token provided'
+        });
+      }
+      
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const productId = req.params.id;
+      
+      // Validate product ID format
+      if (!ObjectId.isValid(productId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid product ID format'
+        });
+      }
+      
+      const client = new MongoClient(process.env.MONGODB_URI);
+      await client.connect();
+      const db = client.db();
+      const productsCollection = db.collection('products');
+      const artisansCollection = db.collection('artisans');
+      
+      // Get product and verify ownership
+      const product = await productsCollection.findOne({ _id: new ObjectId(productId) });
+      if (!product) {
+        await client.close();
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found'
+        });
+      }
+      
+      // Get artisan profile using user ID
+      const artisan = await artisansCollection.findOne({
+        user: new ObjectId(decoded.userId)
+      });
+      
+      if (!artisan) {
+        await client.close();
+        return res.status(403).json({
+          success: false,
+          message: 'Artisan profile not found'
+        });
+      }
+      
+      // Verify product belongs to this artisan
+      if (product.artisan.toString() !== artisan._id.toString()) {
+        await client.close();
+        return res.status(403).json({
+          success: false,
+          message: 'You can only update your own products'
+        });
+      }
+      
+      // Validate stock value
+      const stockValue = parseInt(quantity);
+      if (stockValue < 0) {
+        await client.close();
+        return res.status(400).json({
+          success: false,
+          message: 'Stock cannot be negative'
+        });
+      }
+      
+      // Update product stock
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(productId) },
+        { 
+          $set: { 
+            stock: stockValue,
+            updatedAt: new Date()
+          }
+        }
+      );
+      
+      if (result.matchedCount === 0) {
+        await client.close();
+        return res.status(404).json({
+          success: false,
+          message: 'Product not found'
+        });
+      }
+      
+      // Get updated product
+      const updatedProduct = await productsCollection.findOne({ _id: new ObjectId(productId) });
+      
+      await client.close();
+      
+      res.json({
+        success: true,
+        message: 'Stock updated successfully',
+        product: updatedProduct
+      });
+    } finally {
+      // Restore original request body
+      req.body = originalBody;
+    }
+  } catch (error) {
+    console.error('Error updating product stock:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update stock',
+      error: error.message
+    });
+  }
+});
+
 
 // ============================================================================
 // AUTHENTICATION ENDPOINTS

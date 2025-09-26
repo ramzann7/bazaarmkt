@@ -2601,6 +2601,72 @@ app.get('/api/debug/artisan-flow', async (req, res) => {
   }
 });
 
+// Debug endpoint to check JWT token and authentication
+app.get('/api/debug/token-debug', async (req, res) => {
+  try {
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.json({
+        success: false,
+        message: 'No token provided',
+        debug: {
+          hasAuthHeader: !!req.headers.authorization,
+          authHeader: req.headers.authorization
+        }
+      });
+    }
+    
+    // Decode token without verification first
+    const decoded = jwt.decode(token, { complete: true });
+    
+    // Try to verify the token
+    let verified;
+    try {
+      verified = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (verifyError) {
+      return res.json({
+        success: false,
+        message: 'Token verification failed',
+        debug: {
+          token: token.substring(0, 50) + '...',
+          decoded: decoded,
+          verifyError: verifyError.message,
+          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
+        }
+      });
+    }
+    
+    // Check ObjectId validation
+    const isUserIdValid = ObjectId.isValid(verified.userId);
+    
+    res.json({
+      success: true,
+      message: 'Token debug successful',
+      debug: {
+        token: token.substring(0, 50) + '...',
+        decoded: decoded,
+        verified: verified,
+        userId: verified.userId,
+        userIdType: typeof verified.userId,
+        userIdLength: verified.userId?.length,
+        isUserIdValid: isUserIdValid,
+        jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
+      }
+    });
+  } catch (error) {
+    console.error('Token debug error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Token debug failed',
+      error: error.message
+    });
+  }
+});
+
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.post('/api/profile/artisan', async (req, res) => {

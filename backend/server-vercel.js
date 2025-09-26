@@ -1464,7 +1464,7 @@ app.post('/api/products',
       message: 'Product created successfully',
       data: result
     });
-  });
+  }));
 
 // Update product
 app.put('/api/products/:id', async (req, res) => {

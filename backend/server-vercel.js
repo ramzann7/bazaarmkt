@@ -2376,6 +2376,128 @@ app.post('/api/orders/guest', profileFeatures.createGuestOrder);
 
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
+app.post('/api/profile/artisan', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { artisanName, businessName, category, type, description, address, phone, email } = req.body;
+    
+    // Validate required fields
+    if (!artisanName || !businessName || !category || !type) {
+      return res.status(400).json({
+        success: false,
+        message: 'Artisan name, business name, category, and type are required'
+      });
+    }
+    
+    // Validate userId format
+    if (!decoded.userId || !(require('mongodb')).ObjectId.isValid(decoded.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const artisansCollection = db.collection('artisans');
+    const usersCollection = db.collection('users');
+    
+    // Check if user exists
+    const user = await usersCollection.findOne({ 
+      _id: new (require('mongodb')).ObjectId(decoded.userId) 
+    });
+    
+    if (!user) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Check if artisan profile already exists
+    const existingArtisan = await artisansCollection.findOne({
+      user: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    if (existingArtisan) {
+      await client.close();
+      return res.status(400).json({
+        success: false,
+        message: 'Artisan profile already exists'
+      });
+    }
+    
+    // Create artisan profile
+    const artisan = {
+      user: new (require('mongodb')).ObjectId(decoded.userId),
+      artisanName,
+      businessName,
+      category,
+      type,
+      description: description || '',
+      address: address || {},
+      phone: phone || '',
+      email: email || user.email,
+      status: 'active',
+      isVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await artisansCollection.insertOne(artisan);
+    const artisanId = result.insertedId;
+    
+    // Update user role to artisan
+    await usersCollection.updateOne(
+      { _id: new (require('mongodb')).ObjectId(decoded.userId) },
+      { 
+        $set: { 
+          role: 'artisan',
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    await client.close();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Artisan profile created successfully',
+      data: {
+        artisan: {
+          _id: artisanId,
+          ...artisan
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Create artisan profile error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create artisan profile',
+      error: error.message
+    });
+  }
+});
 
 // Debug endpoint to check artisan profile status
 app.get('/api/debug/artisan-status', async (req, res) => {

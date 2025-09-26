@@ -837,6 +837,40 @@
               "path": ["api", "debug", "orders-artisan-debug"]
             }
           }
+        },
+        {
+          "name": "Debug Token Validation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/test-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "test-token"]
+            }
+          }
+        },
+        {
+          "name": "Debug Artisan Orders Comprehensive",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/artisan-orders-comprehensive",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "artisan-orders-comprehensive"]
+            }
+          }
         }
       ]
     }

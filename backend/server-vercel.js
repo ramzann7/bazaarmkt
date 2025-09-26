@@ -4,8 +4,7 @@ const cors = require('cors');
 const compression = require('compression');
 
 // Import optimized middleware
-const { connectToDatabase, withDatabase } = require('./utils/database');
-const { errorHandler, AppError, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { connectToDatabase } = require('./utils/database');
 const { verifyToken, requireArtisan } = require('./middleware/authmiddleware');
 const { validateProduct } = require('./middleware/validation');
 
@@ -1424,37 +1423,37 @@ app.post('/api/products', verifyToken, requireArtisan, validateProduct, async (r
     };
     
     // Use optimized database connection
-    const result = await withDatabase(async ({ db }) => {
-      const productsCollection = db.collection('products');
-      
-      // Insert product
-      const insertResult = await productsCollection.insertOne(productData);
-      
-      // Get the created product with artisan population
-      const createdProduct = await productsCollection.aggregate([
-        { $match: { _id: insertResult.insertedId } },
-        {
-          $lookup: {
-            from: 'artisans',
-            localField: 'artisan',
-            foreignField: '_id',
-            as: 'artisanInfo'
-          }
-        },
-        {
-          $addFields: {
-            artisan: { $arrayElemAt: ['$artisanInfo', 0] }
-          }
-        },
-        {
-          $project: {
-            artisanInfo: 0
-          }
+    const client = await connectToDatabase();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    
+    // Insert product
+    const insertResult = await productsCollection.insertOne(productData);
+    
+    // Get the created product with artisan population
+    const createdProduct = await productsCollection.aggregate([
+      { $match: { _id: insertResult.insertedId } },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
         }
-      ]).toArray();
-      
-      return createdProduct[0];
-    });
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0
+        }
+      }
+    ]).toArray();
+    
+    const result = createdProduct[0];
     
     res.status(201).json({
       success: true,

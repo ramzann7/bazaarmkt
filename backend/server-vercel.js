@@ -2556,7 +2556,7 @@ app.get('/api/debug/artisan-flow', async (req, res) => {
     }).limit(3).toArray();
     
     const orders = await ordersCollection.find({ 
-      'items.artisanId': artisan._id 
+      artisan: artisan._id 
     }).limit(3).toArray();
     
     // Also check all orders to see their structure
@@ -3075,7 +3075,7 @@ app.get('/api/debug/artisan-data', async (req, res) => {
     
     // Get orders for this artisan
     const orders = await ordersCollection.find({
-      'items.artisanId': artisan._id
+      artisan: artisan._id
     }).toArray();
     
     // Get all orders to see structure

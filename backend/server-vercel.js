@@ -907,7 +907,7 @@ app.get('/api/auth/profile', async (req, res) => {
     
     res.json({
       success: true,
-      data: responseData
+      ...responseData
     });
   } catch (error) {
     console.error('Profile error:', error);

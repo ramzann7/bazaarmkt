@@ -1200,7 +1200,19 @@ app.get('/api/orders', async (req, res) => {
 });
 
 // Get artisan orders (MUST be before /api/orders/:id to avoid route conflict)
-app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
+app.get('/api/orders/artisan', async (req, res) => {
+  try {
+    console.log('🔍 Route test: /api/orders/artisan called');
+    return await profileFeatures.getArtisanOrders(req, res);
+  } catch (error) {
+    console.error('❌ Route test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Route test failed',
+      error: error.message
+    });
+  }
+});
 
 // Get single order
 app.get('/api/orders/:id', async (req, res) => {

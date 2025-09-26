@@ -2667,6 +2667,134 @@ app.get('/api/debug/token-debug', async (req, res) => {
   }
 });
 
+// Debug endpoint to simulate getArtisanOrders logic
+app.get('/api/debug/orders-artisan-debug', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    console.log('🔍 DEBUG: Starting orders-artisan debug');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      console.log('❌ DEBUG: No token provided');
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided',
+        debug: {
+          hasAuthHeader: !!req.headers.authorization,
+          authHeader: req.headers.authorization
+        }
+      });
+    }
+
+    console.log('🔍 DEBUG: Token found, verifying...');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('🔍 DEBUG: Token decoded, userId:', decoded.userId);
+
+    // Validate userId format
+    console.log('🔍 DEBUG: User ID from token:', decoded.userId);
+    console.log('🔍 DEBUG: User ID type:', typeof decoded.userId);
+    console.log('🔍 DEBUG: User ID valid ObjectId:', ObjectId.isValid(decoded.userId));
+    
+    if (!decoded.userId) {
+      console.log('❌ DEBUG: No user ID in token');
+      return res.status(400).json({
+        success: false,
+        message: 'No user ID in token',
+        debug: {
+          decoded: decoded
+        }
+      });
+    }
+    
+    if (!ObjectId.isValid(decoded.userId)) {
+      console.log('❌ DEBUG: Invalid user ID format:', decoded.userId);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format',
+        debug: {
+          userId: decoded.userId,
+          type: typeof decoded.userId,
+          length: decoded.userId?.length
+        }
+      });
+    }
+
+    console.log('🔍 DEBUG: Connecting to database...');
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+
+    // Get artisan profile
+    console.log('🔍 DEBUG: Looking for artisan with user ID:', decoded.userId);
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+
+    console.log('🔍 DEBUG: Found artisan:', artisan ? 'Yes' : 'No');
+    if (!artisan) {
+      console.log('❌ DEBUG: Artisan profile not found');
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found',
+        debug: {
+          userId: decoded.userId,
+          searchedFor: new ObjectId(decoded.userId)
+        }
+      });
+    }
+
+    // Get orders for this artisan
+    console.log('🔍 DEBUG: Querying orders for artisan ID:', artisan._id);
+    const orders = await ordersCollection
+      .find({ 
+        'items.artisanId': artisan._id 
+      })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
+
+    console.log('🔍 DEBUG: Found orders:', orders.length);
+    await client.close();
+
+    res.json({
+      success: true,
+      message: 'Debug successful',
+      debug: {
+        userId: decoded.userId,
+        artisan: {
+          _id: artisan._id,
+          artisanName: artisan.artisanName
+        },
+        orders: {
+          count: orders.length,
+          sample: orders.map(o => ({
+            _id: o._id,
+            status: o.status,
+            totalAmount: o.totalAmount,
+            items: o.items?.length
+          }))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ DEBUG: Error caught:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug failed',
+      error: error.message,
+      debug: {
+        errorName: error.name,
+        errorStack: error.stack
+      }
+    });
+  }
+});
+
 // Artisan profile management
 app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
 app.post('/api/profile/artisan', async (req, res) => {

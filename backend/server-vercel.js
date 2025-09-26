@@ -1207,68 +1207,7 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
-// Get single order
-app.get('/api/orders/:id', async (req, res) => {
-  try {
-    const { MongoClient } = require('mongodb');
-    const jwt = require('jsonwebtoken');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
-      });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid order ID format'
-      });
-    }
-    
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const ordersCollection = db.collection('orders');
-    
-    const order = await ordersCollection.findOne({
-      _id: new (require('mongodb')).ObjectId(req.params.id),
-      userId: new (require('mongodb')).ObjectId(decoded.userId)
-    });
-    
-    if (!order) {
-      await client.close();
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-    
-    await client.close();
-    
-    res.json({
-      success: true,
-      data: { order }
-    });
-  } catch (error) {
-    console.error('Get order error:', error);
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get order',
-      error: error.message
-    });
-  }
-});
+// Get single order route moved to after specific routes (line ~1780)
 
 // Update order status (for artisans/admin)
 app.put('/api/orders/:id/status', async (req, res) => {
@@ -1773,6 +1712,69 @@ const additionalFeatures = require('./missing-features/additional-services');
 app.get('/api/orders/buyer', profileFeatures.getBuyerOrders);
 app.get('/api/orders/artisan', profileFeatures.getArtisanOrders);
 app.post('/api/orders/guest', profileFeatures.createGuestOrder);
+
+// Get single order (moved here to fix route precedence)
+app.get('/api/orders/:id', async (req, res) => {
+  try {
+    const { MongoClient } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id),
+      userId: new (require('mongodb')).ObjectId(decoded.userId)
+    });
+    
+    if (!order) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      data: { order }
+    });
+  } catch (error) {
+    console.error('Get order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order',
+      error: error.message
+    });
+  }
+});
 
 // ============================================================================
 // REVIEWS ENDPOINTS

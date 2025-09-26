@@ -88,30 +88,41 @@ const getWalletBalance = async (req, res) => {
 
     // Create wallet if it doesn't exist
     if (!wallet && artisan) {
-      wallet = {
-        artisanId: artisan._id,
-        balance: 0,
-        currency: 'CAD',
-        isActive: true,
-        stripeCustomerId: null,
-        stripeAccountId: null,
-        payoutSettings: {
-          enabled: false,
-          schedule: 'weekly',
-          minimumPayout: 50,
-          lastPayoutDate: null,
-          nextPayoutDate: null
-        },
-        metadata: {
-          totalEarnings: 0,
-          totalSpent: 0,
-          totalPayouts: 0,
-          platformFees: 0
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      await walletsCollection.insertOne(wallet);
+      try {
+        wallet = {
+          artisanId: artisan._id, // Wallet is linked to artisan, not user directly
+          balance: 0,
+          currency: 'CAD',
+          isActive: true,
+          stripeCustomerId: null,
+          stripeAccountId: null,
+          payoutSettings: {
+            enabled: false,
+            schedule: 'weekly',
+            minimumPayout: 50,
+            lastPayoutDate: null,
+            nextPayoutDate: null
+          },
+          metadata: {
+            totalEarnings: 0,
+            totalSpent: 0,
+            totalPayouts: 0,
+            platformFees: 0
+          },
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        await walletsCollection.insertOne(wallet);
+      } catch (insertError) {
+        // If insert fails (e.g., due to duplicate key), try to find the existing wallet
+        if (insertError.code === 11000) {
+          wallet = await walletsCollection.findOne({
+            artisanId: artisan._id
+          });
+        } else {
+          throw insertError;
+        }
+      }
     }
 
     await client.close();

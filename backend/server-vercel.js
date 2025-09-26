@@ -489,6 +489,95 @@ app.get('/api/products/enhanced-search', async (req, res) => {
   }
 });
 
+// Get artisan's products (my-products endpoint) - MUST be before /api/products/:id to avoid route conflict
+app.get('/api/products/my-products', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    const jwt = require('jsonwebtoken');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Validate userId format
+    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+
+    // First, find the artisan profile by user ID to get the artisan ID
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+
+    if (!artisan) {
+      await client.close();
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    // Get products for this artisan
+    const products = await productsCollection
+      .find({ 
+        artisan: artisan._id,
+        status: { $ne: 'deleted' }
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    // Populate artisan information in products
+    const productsWithArtisan = products.map(product => ({
+      ...product,
+      artisan: {
+        _id: artisan._id,
+        artisanName: artisan.artisanName,
+        businessImage: artisan.businessImage,
+        type: artisan.type,
+        address: artisan.address,
+        deliveryOptions: artisan.deliveryOptions,
+        rating: artisan.rating
+      }
+    }));
+
+    await client.close();
+
+    res.json({
+      success: true,
+      data: productsWithArtisan,
+      count: productsWithArtisan.length
+    });
+  } catch (error) {
+    console.error('Get my products error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get products',
+      error: error.message
+    });
+  }
+});
+
 // Get single product by ID
 app.get('/api/products/:id', async (req, res) => {
   try {
@@ -603,94 +692,6 @@ app.get('/api/products/categories/list', async (req, res) => {
   }
 });
 
-// Get artisan's products (my-products endpoint)
-app.get('/api/products/my-products', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const jwt = require('jsonwebtoken');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
-      });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Validate userId format
-    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID format'
-      });
-    }
-
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    const artisansCollection = db.collection('artisans');
-
-    // First, find the artisan profile by user ID to get the artisan ID
-    const artisan = await artisansCollection.findOne({
-      user: new ObjectId(decoded.userId)
-    });
-
-    if (!artisan) {
-      await client.close();
-      return res.status(404).json({
-        success: false,
-        message: 'Artisan profile not found'
-      });
-    }
-
-    // Get products for this artisan
-    const products = await productsCollection
-      .find({ 
-        artisan: artisan._id,
-        status: { $ne: 'deleted' }
-      })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    // Populate artisan information in products
-    const productsWithArtisan = products.map(product => ({
-      ...product,
-      artisan: {
-        _id: artisan._id,
-        artisanName: artisan.artisanName,
-        businessImage: artisan.businessImage,
-        type: artisan.type,
-        address: artisan.address,
-        deliveryOptions: artisan.deliveryOptions,
-        rating: artisan.rating
-      }
-    }));
-
-    await client.close();
-
-    res.json({
-      success: true,
-      data: productsWithArtisan,
-      count: productsWithArtisan.length
-    });
-  } catch (error) {
-    console.error('Get my products error:', error);
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get products',
-      error: error.message
-    });
-  }
-});
 
 // ============================================================================
 // AUTHENTICATION ENDPOINTS

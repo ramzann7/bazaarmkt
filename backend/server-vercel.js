@@ -3465,6 +3465,65 @@ app.get('/api/debug/token', (req, res) => {
   });
 });
 
+// Debug endpoint that returns token validation details in response
+app.get('/api/debug/token-details', (req, res) => {
+  try {
+    const jwt = require('jsonwebtoken');
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    
+    if (!token) {
+      return res.json({
+        success: false,
+        message: 'No token provided',
+        authHeader: authHeader,
+        hasAuthHeader: !!authHeader
+      });
+    }
+    
+    // Decode without verification to see payload
+    const decodedWithoutVerify = jwt.decode(token, { complete: true });
+    
+    // Check environment
+    const hasJwtSecret = !!process.env.JWT_SECRET;
+    const jwtSecretPreview = process.env.JWT_SECRET ? process.env.JWT_SECRET.substring(0, 10) + '...' : 'NOT SET';
+    
+    let verificationResult = null;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      verificationResult = {
+        success: true,
+        userId: decoded.userId,
+        exp: decoded.exp,
+        iat: decoded.iat
+      };
+    } catch (verifyError) {
+      verificationResult = {
+        success: false,
+        error: verifyError.message,
+        name: verifyError.name
+      };
+    }
+    
+    res.json({
+      success: true,
+      message: 'Token details',
+      tokenLength: token.length,
+      tokenPreview: token.substring(0, 30) + '...',
+      decodedWithoutVerify: decodedWithoutVerify,
+      hasJwtSecret: hasJwtSecret,
+      jwtSecretPreview: jwtSecretPreview,
+      verificationResult: verificationResult
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      message: 'Error analyzing token',
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to test optimized middleware
 app.get('/api/debug/auth', verifyToken, async (req, res) => {
   console.log('🔍 Debug endpoint reached!');

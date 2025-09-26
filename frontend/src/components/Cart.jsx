@@ -736,6 +736,14 @@ const Cart = () => {
     await loadCart();
   };
 
+  // Manual cart clear function for debugging
+  const handleClearCart = () => {
+    cartService.clearCart(currentUserId);
+    setCart([]);
+    setCartByArtisan({});
+    toast.success('Cart cleared successfully');
+  };
+
   // Handle quantity changes with instant UI updates
   const handleQuantityChange = async (productId, newQuantity) => {
     // Prevent multiple simultaneous updates for the same item
@@ -1936,6 +1944,15 @@ const Cart = () => {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 font-serif">Your Artisan Collection</h1>
               <p className="text-sm sm:text-base text-gray-600">Review the beautiful creations you've selected</p>
             </div>
+            {/* Temporary debug button */}
+            {cart.length > 0 && (
+              <button
+                onClick={handleClearCart}
+                className="ml-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Clear Cart (Debug)
+              </button>
+            )}
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">

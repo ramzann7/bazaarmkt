@@ -2758,6 +2758,66 @@ app.get('/api/debug/order-structure', async (req, res) => {
   }
 });
 
+// Test endpoint to simulate artisan orders without authentication
+app.get('/api/debug/test-artisan-orders', async (req, res) => {
+  try {
+    const { MongoClient, ObjectId } = require('mongodb');
+    
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    const db = client.db();
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get a sample artisan
+    const artisan = await artisansCollection.findOne({});
+    
+    if (!artisan) {
+      await client.close();
+      return res.json({
+        success: false,
+        message: 'No artisans found'
+      });
+    }
+    
+    // Test the exact same query that getArtisanOrders uses
+    const orders = await ordersCollection
+      .find({ 
+        artisan: artisan._id 
+      })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .toArray();
+    
+    await client.close();
+    
+    res.json({
+      success: true,
+      message: 'Test artisan orders successful',
+      data: {
+        artisan: {
+          _id: artisan._id,
+          artisanName: artisan.artisanName
+        },
+        orders: orders.map(o => ({
+          _id: o._id,
+          status: o.status,
+          totalAmount: o.totalAmount,
+          createdAt: o.createdAt
+        })),
+        count: orders.length
+      }
+    });
+  } catch (error) {
+    console.error('Test artisan orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Test artisan orders failed',
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to simulate getArtisanOrders logic
 app.get('/api/debug/orders-artisan-debug', async (req, res) => {
   try {

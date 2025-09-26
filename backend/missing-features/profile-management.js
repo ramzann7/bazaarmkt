@@ -596,6 +596,29 @@ const getArtisanOrders = async (req, res) => {
 
     // Get orders for this artisan (orders have items with artisanId field)
     console.log('🔍 getArtisanOrders: Querying orders for artisan ID:', artisan._id);
+    console.log('🔍 getArtisanOrders: Artisan ID type:', typeof artisan._id);
+    console.log('🔍 getArtisanOrders: Artisan ID string:', artisan._id.toString());
+    
+    // Try different query approaches
+    const query1 = { 'items.artisanId': artisan._id };
+    const query2 = { 'items.artisanId': artisan._id.toString() };
+    const query3 = { 'items.artisanId': new ObjectId(artisan._id) };
+    
+    console.log('🔍 getArtisanOrders: Query 1 (ObjectId):', query1);
+    console.log('🔍 getArtisanOrders: Query 2 (String):', query2);
+    console.log('🔍 getArtisanOrders: Query 3 (New ObjectId):', query3);
+    
+    // First, let's see what orders exist
+    const allOrders = await ordersCollection.find({}).limit(5).toArray();
+    console.log('🔍 getArtisanOrders: Sample orders structure:', allOrders.map(o => ({
+      _id: o._id,
+      items: o.items?.map(item => ({
+        productId: item.productId,
+        artisanId: item.artisanId,
+        artisanIdType: typeof item.artisanId
+      }))
+    })));
+    
     const orders = await ordersCollection
       .find({ 
         'items.artisanId': artisan._id 

@@ -3448,6 +3448,21 @@ app.use((error, req, res, next) => {
   });
 });
 
+// Simple debug endpoint to test token parsing only
+app.get('/api/debug/token', (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  
+  res.json({
+    success: true,
+    message: 'Token test endpoint',
+    hasAuthHeader: !!authHeader,
+    authHeader: authHeader ? authHeader.substring(0, 20) + '...' : null,
+    hasToken: !!token,
+    token: token ? token.substring(0, 20) + '...' : null
+  });
+});
+
 // Debug endpoint to test optimized middleware
 app.get('/api/debug/auth', verifyToken, async (req, res) => {
   console.log('🔍 Debug endpoint reached!');
@@ -3459,6 +3474,25 @@ app.get('/api/debug/auth', verifyToken, async (req, res) => {
       email: req.user.email,
       role: req.user.role
     }
+  });
+});
+
+// Debug endpoint to test full product creation flow
+app.post('/api/debug/product', verifyToken, requireArtisan, validateProduct, async (req, res) => {
+  console.log('🔍 Debug product endpoint reached!');
+  res.json({
+    success: true,
+    message: 'All middleware working - product creation would work!',
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role
+    },
+    artisan: {
+      id: req.artisan._id,
+      name: req.artisan.artisanName
+    },
+    productData: req.body
   });
 });
 

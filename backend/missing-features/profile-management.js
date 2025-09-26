@@ -805,11 +805,42 @@ const getArtisanProfile = async (req, res) => {
       type: artisan.type
     });
 
+    // Get user data to include in response
+    const usersCollection = db.collection('users');
+    const user = await usersCollection.findOne({ 
+      _id: userObjectId 
+    });
+
     await client.close();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Return the same structure as /api/auth/profile
+    const responseData = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role,
+      userType: user.role,
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      artisan: artisan
+    };
 
     res.json({
       success: true,
-      data: artisan
+      data: {
+        user: responseData
+      }
     });
   } catch (error) {
     console.error('Get artisan profile error:', error);

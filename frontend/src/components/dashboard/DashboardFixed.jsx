@@ -58,22 +58,20 @@ export default function DashboardFixed() {
           return;
         }
 
-        // Step 1.5: Load artisan profile
-        console.log('DashboardFixed: Loading artisan profile...');
+        // Step 1.5: Load artisan profile from user data
+        console.log('DashboardFixed: Loading artisan profile from user data...');
         try {
-          const response = await fetch('/api/profile/artisan', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          if (response.ok) {
-            const artisanData = await response.json();
-            console.log('DashboardFixed: Artisan profile loaded:', artisanData);
-            setArtisanProfile(artisanData);
+          // Artisan profile is already included in the user data from getProfile()
+          if (userData.artisan) {
+            console.log('DashboardFixed: Artisan profile found in user data:', userData.artisan);
+            setArtisanProfile(userData.artisan);
+          } else {
+            console.log('DashboardFixed: No artisan profile found in user data');
+            setArtisanProfile(null);
           }
         } catch (error) {
-          console.error('DashboardFixed: Error loading artisan profile:', error);
+          console.error('DashboardFixed: Error processing artisan profile:', error);
+          setArtisanProfile(null);
         }
 
         // Step 1.6: Load spotlight status

@@ -2453,7 +2453,7 @@ app.get('/api/community/leaderboard/engagement', communityFeatures.getEngagement
 // ============================================================================
 
 // Profile updates
-app.get('/api/profile/artisan', profileFeatures.getArtisanProfile);
+// Removed redundant /api/profile/artisan endpoint - use /api/auth/profile instead
 app.put('/api/profile', profileFeatures.updateProfile);
 app.put('/api/profile/addresses', profileFeatures.updateAddresses);
 app.post('/api/profile/addresses', profileFeatures.addAddress);

@@ -905,10 +905,12 @@ app.get('/api/auth/profile', async (req, res) => {
       responseData.artisan = artisanProfile;
     }
     
-    res.json({
-      success: true,
-      ...responseData
-    });
+           res.json({
+             success: true,
+             data: {
+               user: responseData
+             }
+           });
   } catch (error) {
     console.error('Profile error:', error);
     if (error.name === 'JsonWebTokenError') {

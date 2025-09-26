@@ -6,8 +6,8 @@ const compression = require('compression');
 // Import optimized middleware
 const { connectToDatabase, withDatabase } = require('./utils/database');
 const { errorHandler, AppError, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { verifyToken, requireArtisan, requireAdmin, verifyOwnership, optionalAuth } = require('./middleware/authmiddleware');
-const { validateProduct, validateObjectId, validatePagination, validateOrder, validateProfileUpdate, validateSearch } = require('./middleware/validation');
+const { verifyToken, requireArtisan } = require('./middleware/authmiddleware');
+const { validateProduct } = require('./middleware/validation');
 
 const app = express();
 
@@ -1363,11 +1363,8 @@ app.patch('/api/products/:id/stock', async (req, res) => {
 });
 
 // Create new product
-app.post('/api/products', 
-  verifyToken, 
-  requireArtisan, 
-  validateProduct, 
-  asyncHandler(async (req, res) => {
+app.post('/api/products', verifyToken, requireArtisan, validateProduct, async (req, res) => {
+  try {
     const { name, description, price, category, subcategory, productType, unit } = req.body;
     
     // Prepare product data
@@ -1464,7 +1461,21 @@ app.post('/api/products',
       message: 'Product created successfully',
       data: result
     });
-  }));
+  } catch (error) {
+    console.error('Error creating product:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create product',
+      error: error.message
+    });
+  }
+});
 
 // Update product
 app.put('/api/products/:id', async (req, res) => {
@@ -3439,10 +3450,12 @@ app.use((error, req, res, next) => {
 });
 
 // 404 handler for unknown routes
-app.use(notFoundHandler);
-
-// Global error handling middleware (must be last)
-app.use(errorHandler);
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.path} not found`
+  });
+});
 
 // Export for Vercel
 module.exports = app;

@@ -1,13 +1,10 @@
 /**
- * Enhanced Authentication Middleware
- * 
- * Provides authentication and authorization for different user types.
- * Uses the shared database connection for better performance.
+ * Simplified Authentication Middleware for Serverless
+ * Provides essential authentication with minimal overhead
  */
 
 const jwt = require("jsonwebtoken");
 const { connectToDatabase, ObjectId } = require("../utils/database");
-const { AppError } = require("./errorHandler");
 
 /**
  * Basic token verification middleware
@@ -16,40 +13,44 @@ const { AppError } = require("./errorHandler");
 const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1]; // Expect "Bearer TOKEN"
+    const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
-      throw new AppError("No token provided", 401, "NO_TOKEN", "AUTH_001");
+      return res.status(401).json({
+        success: false,
+        message: "No token provided"
+      });
     }
 
-    // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user from database
-    const { db } = await connectToDatabase();
+    const client = await connectToDatabase();
+    const db = client.db();
     const usersCollection = db.collection('users');
     
     const user = await usersCollection.findOne(
       { _id: new ObjectId(decoded.userId) },
-      { projection: { password: 0 } } // exclude password
+      { projection: { password: 0 } }
     );
     
     if (!user) {
-      throw new AppError("User not found", 404, "USER_NOT_FOUND", "AUTH_002");
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
     }
 
-    if (!user.isActive) {
-      throw new AppError("User account is deactivated", 403, "ACCOUNT_DEACTIVATED", "AUTH_003");
-    }
-
-    // Attach user data to request
     req.user = user;
     req.userId = decoded.userId;
     req.token = token;
     
     next();
   } catch (error) {
-    next(error);
+    console.error('Auth error:', error);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid token"
+    });
   }
 };
 
@@ -60,15 +61,21 @@ const verifyToken = async (req, res, next) => {
 const requireArtisan = async (req, res, next) => {
   try {
     if (!req.user) {
-      throw new AppError("Authentication required", 401, "AUTH_REQUIRED", "AUTH_004");
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required"
+      });
     }
 
     if (req.user.role !== 'artisan') {
-      throw new AppError("Artisan access required", 403, "ARTISAN_REQUIRED", "AUTH_005");
+      return res.status(403).json({
+        success: false,
+        message: "Artisan access required"
+      });
     }
 
-    // Get artisan profile
-    const { db } = await connectToDatabase();
+    const client = await connectToDatabase();
+    const db = client.db();
     const artisansCollection = db.collection('artisans');
     
     const artisan = await artisansCollection.findOne({
@@ -76,19 +83,20 @@ const requireArtisan = async (req, res, next) => {
     });
 
     if (!artisan) {
-      throw new AppError("Artisan profile not found", 404, "ARTISAN_PROFILE_NOT_FOUND", "AUTH_006");
+      return res.status(404).json({
+        success: false,
+        message: "Artisan profile not found"
+      });
     }
 
-    if (artisan.status !== 'active') {
-      throw new AppError("Artisan account is not active", 403, "ARTISAN_INACTIVE", "AUTH_007");
-    }
-
-    // Attach artisan data to request
     req.artisan = artisan;
-    
     next();
   } catch (error) {
-    next(error);
+    console.error('Artisan auth error:', error);
+    return res.status(500).json({
+      success: false,
+      message: "Authentication failed"
+    });
   }
 };
 
@@ -209,8 +217,5 @@ const optionalAuth = async (req, res, next) => {
 
 module.exports = {
   verifyToken,
-  requireArtisan,
-  requireAdmin,
-  verifyOwnership,
-  optionalAuth
+  requireArtisan
 };

@@ -14,20 +14,36 @@ const verifyToken = async (req, res, next) => {
   try {
     console.log('🔍 verifyToken middleware called for:', req.method, req.path);
     
+    // DEBUG: Log the auth header exactly as received
+    console.log("Auth Header:", req.headers.authorization);
+    
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
     if (!token) {
       console.log('❌ No token provided');
+      console.log('❌ Auth header value:', authHeader);
       return res.status(401).json({
         success: false,
         message: "No token provided"
       });
     }
 
+    console.log('🔍 Token found, length:', token.length);
+    console.log('🔍 Token preview:', token.substring(0, 20) + '...');
+    
+    // DEBUG: Decode token without verification to check payload
+    const decodedWithoutVerify = jwt.decode(token, { complete: true });
+    console.log("Decoded token:", decodedWithoutVerify);
+    
+    // DEBUG: Check JWT secret
+    console.log('🔍 JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    console.log('🔍 JWT_SECRET preview:', process.env.JWT_SECRET ? process.env.JWT_SECRET.substring(0, 10) + '...' : 'NOT SET');
+    
     console.log('🔍 Token found, verifying...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('✅ Token verified, user ID:', decoded.userId);
+    console.log('✅ Full decoded payload:', decoded);
     
     // Use optimized database connection (no close() for serverless reuse)
     const client = await connectToDatabase();
@@ -71,7 +87,13 @@ const verifyToken = async (req, res, next) => {
  */
 const requireArtisan = async (req, res, next) => {
   try {
+    console.log('🔍 requireArtisan middleware called');
+    console.log('🔍 req.user exists:', !!req.user);
+    console.log('🔍 req.user.role:', req.user?.role);
+    console.log('🔍 req.userId:', req.userId);
+    
     if (!req.user) {
+      console.log('❌ No user in request - auth middleware did not run');
       return res.status(401).json({
         success: false,
         message: "Authentication required"
@@ -79,12 +101,14 @@ const requireArtisan = async (req, res, next) => {
     }
 
     if (req.user.role !== 'artisan') {
+      console.log('❌ User is not an artisan, role:', req.user.role);
       return res.status(403).json({
         success: false,
         message: "Artisan access required"
       });
     }
 
+    console.log('✅ User is artisan, looking up artisan profile...');
     const client = await connectToDatabase();
     const db = client.db();
     const artisansCollection = db.collection('artisans');
@@ -94,13 +118,16 @@ const requireArtisan = async (req, res, next) => {
     });
 
     if (!artisan) {
+      console.log('❌ Artisan profile not found for user ID:', req.userId);
       return res.status(404).json({
         success: false,
         message: "Artisan profile not found"
       });
     }
 
+    console.log('✅ Artisan profile found:', artisan.artisanName);
     req.artisan = artisan;
+    console.log('✅ requireArtisan middleware completed');
     next();
   } catch (error) {
     console.error('Artisan auth error:', error);

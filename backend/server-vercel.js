@@ -3479,6 +3479,24 @@ app.get('/api/debug/auth', verifyToken, async (req, res) => {
   });
 });
 
+// Debug endpoint to test auth + artisan middleware
+app.get('/api/debug/artisan', verifyToken, requireArtisan, async (req, res) => {
+  console.log('🔍 Debug artisan endpoint reached!');
+  res.json({
+    success: true,
+    message: 'Auth + Artisan middleware working!',
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      role: req.user.role
+    },
+    artisan: {
+      id: req.artisan._id,
+      name: req.artisan.artisanName
+    }
+  });
+});
+
 // Debug endpoint to test full product creation flow
 app.post('/api/debug/product', verifyToken, requireArtisan, validateProduct, async (req, res) => {
   console.log('🔍 Debug product endpoint reached!');

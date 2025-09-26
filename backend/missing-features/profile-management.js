@@ -508,6 +508,14 @@ const getBuyerOrders = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const limit = parseInt(req.query.limit) || 20;
 
+    // Validate userId format
+    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
@@ -549,6 +557,14 @@ const getArtisanOrders = async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const limit = parseInt(req.query.limit) || 20;
+
+    // Validate userId format
+    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
 
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
@@ -605,6 +621,14 @@ const getArtisanProfile = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Validate userId format
+    if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
 
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();

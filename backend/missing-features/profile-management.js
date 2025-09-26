@@ -547,25 +547,31 @@ const getBuyerOrders = async (req, res) => {
 // Get orders for artisan
 const getArtisanOrders = async (req, res) => {
   try {
+    console.log('🔍 getArtisanOrders: Starting request');
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
+      console.log('❌ getArtisanOrders: No token provided');
       return res.status(401).json({
         success: false,
         message: 'No token provided'
       });
     }
 
+    console.log('🔍 getArtisanOrders: Token found, verifying...');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('🔍 getArtisanOrders: Token decoded, userId:', decoded.userId);
     const limit = parseInt(req.query.limit) || 20;
 
     // Validate userId format
     if (!decoded.userId || !ObjectId.isValid(decoded.userId)) {
+      console.log('❌ getArtisanOrders: Invalid user ID format:', decoded.userId);
       return res.status(400).json({
         success: false,
         message: 'Invalid user ID format'
       });
     }
 
+    console.log('🔍 getArtisanOrders: Connecting to database...');
     const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     const db = client.db();
@@ -573,13 +579,14 @@ const getArtisanOrders = async (req, res) => {
     const artisansCollection = db.collection('artisans');
 
     // Get artisan profile
-    console.log('Looking for artisan with user ID:', decoded.userId);
+    console.log('🔍 getArtisanOrders: Looking for artisan with user ID:', decoded.userId);
     const artisan = await artisansCollection.findOne({
       user: new ObjectId(decoded.userId)
     });
 
-    console.log('Found artisan:', artisan ? 'Yes' : 'No');
+    console.log('🔍 getArtisanOrders: Found artisan:', artisan ? 'Yes' : 'No');
     if (!artisan) {
+      console.log('❌ getArtisanOrders: Artisan profile not found');
       await client.close();
       return res.status(404).json({
         success: false,
@@ -588,6 +595,7 @@ const getArtisanOrders = async (req, res) => {
     }
 
     // Get orders for this artisan (orders have items with artisanId field)
+    console.log('🔍 getArtisanOrders: Querying orders for artisan ID:', artisan._id);
     const orders = await ordersCollection
       .find({ 
         'items.artisanId': artisan._id 
@@ -596,6 +604,7 @@ const getArtisanOrders = async (req, res) => {
       .limit(limit)
       .toArray();
 
+    console.log('🔍 getArtisanOrders: Found orders:', orders.length);
     await client.close();
 
     res.json({

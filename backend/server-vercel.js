@@ -3,6 +3,12 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 
+// Import optimized middleware
+const { connectToDatabase, withDatabase } = require('./utils/database');
+const { errorHandler, AppError, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { verifyToken, requireArtisan, requireAdmin, verifyOwnership, optionalAuth } = require('./middleware/authmiddleware');
+const { validateProduct, validateObjectId, validatePagination, validateOrder, validateProfileUpdate, validateSearch } = require('./middleware/validation');
+
 const app = express();
 
 // Middleware
@@ -1357,50 +1363,12 @@ app.patch('/api/products/:id/stock', async (req, res) => {
 });
 
 // Create new product
-app.post('/api/products', async (req, res) => {
-  try {
-    const { MongoClient, ObjectId } = require('mongodb');
-    const jwt = require('jsonwebtoken');
-    
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
-      });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    const client = new MongoClient(process.env.MONGODB_URI);
-    await client.connect();
-    const db = client.db();
-    const productsCollection = db.collection('products');
-    const artisansCollection = db.collection('artisans');
-    
-    // Get artisan profile using user ID
-    const artisan = await artisansCollection.findOne({
-      user: new ObjectId(decoded.userId)
-    });
-    
-    if (!artisan) {
-      await client.close();
-      return res.status(403).json({
-        success: false,
-        message: 'Artisan profile not found'
-      });
-    }
-    
-    // Validate required fields
+app.post('/api/products', 
+  verifyToken, 
+  requireArtisan, 
+  validateProduct, 
+  asyncHandler(async (req, res) => {
     const { name, description, price, category, subcategory, productType, unit } = req.body;
-    
-    if (!name || !description || !price || !category || !subcategory || !productType) {
-      await client.close();
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required fields: name, description, price, category, subcategory, productType'
-      });
-    }
     
     // Prepare product data
     const productData = {
@@ -1423,8 +1391,8 @@ app.post('/api/products', async (req, res) => {
       isKosher: req.body.isKosher || false,
       isHalal: req.body.isHalal || false,
       
-      // Assign to artisan
-      artisan: artisan._id,
+      // Assign to artisan (from middleware)
+      artisan: req.artisan._id,
       
       // Product type specific fields
       ...(productType === 'ready_to_ship' && {
@@ -1458,54 +1426,45 @@ app.post('/api/products', async (req, res) => {
       updatedAt: new Date()
     };
     
-    // Insert product
-    const result = await productsCollection.insertOne(productData);
-    
-    // Get the created product with artisan population
-    const createdProduct = await productsCollection.aggregate([
-      { $match: { _id: result.insertedId } },
-      {
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisan',
-          foreignField: '_id',
-          as: 'artisanInfo'
+    // Use optimized database connection
+    const result = await withDatabase(async ({ db }) => {
+      const productsCollection = db.collection('products');
+      
+      // Insert product
+      const insertResult = await productsCollection.insertOne(productData);
+      
+      // Get the created product with artisan population
+      const createdProduct = await productsCollection.aggregate([
+        { $match: { _id: insertResult.insertedId } },
+        {
+          $lookup: {
+            from: 'artisans',
+            localField: 'artisan',
+            foreignField: '_id',
+            as: 'artisanInfo'
+          }
+        },
+        {
+          $addFields: {
+            artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+          }
+        },
+        {
+          $project: {
+            artisanInfo: 0
+          }
         }
-      },
-      {
-        $addFields: {
-          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
-        }
-      },
-      {
-        $project: {
-          artisanInfo: 0
-        }
-      }
-    ]).toArray();
-    
-    await client.close();
+      ]).toArray();
+      
+      return createdProduct[0];
+    });
     
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: createdProduct[0]
+      data: result
     });
-  } catch (error) {
-    console.error('Error creating product:', error);
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create product',
-      error: error.message
-    });
-  }
-});
+  });
 
 // Update product
 app.put('/api/products/:id', async (req, res) => {
@@ -3478,6 +3437,12 @@ app.use((error, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
+
+// 404 handler for unknown routes
+app.use(notFoundHandler);
+
+// Global error handling middleware (must be last)
+app.use(errorHandler);
 
 // Export for Vercel
 module.exports = app;

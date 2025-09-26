@@ -2818,6 +2818,72 @@ app.get('/api/debug/test-artisan-orders', async (req, res) => {
   }
 });
 
+// Test endpoint to check token validation
+app.get('/api/debug/test-token', async (req, res) => {
+  try {
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.json({
+        success: false,
+        message: 'No token provided',
+        debug: {
+          hasAuthHeader: !!req.headers.authorization,
+          authHeader: req.headers.authorization
+        }
+      });
+    }
+    
+    // Decode token without verification first
+    const decoded = jwt.decode(token, { complete: true });
+    
+    // Try to verify the token
+    let verified;
+    try {
+      verified = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (verifyError) {
+      return res.json({
+        success: false,
+        message: 'Token verification failed',
+        debug: {
+          token: token.substring(0, 50) + '...',
+          decoded: decoded,
+          verifyError: verifyError.message,
+          jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
+        }
+      });
+    }
+    
+    // Check ObjectId validation
+    const isUserIdValid = ObjectId.isValid(verified.userId);
+    
+    res.json({
+      success: true,
+      message: 'Token validation successful',
+      debug: {
+        token: token.substring(0, 50) + '...',
+        decoded: decoded,
+        verified: verified,
+        userId: verified.userId,
+        userIdType: typeof verified.userId,
+        userIdLength: verified.userId?.length,
+        isUserIdValid: isUserIdValid,
+        jwtSecret: process.env.JWT_SECRET ? 'Present' : 'Missing'
+      }
+    });
+  } catch (error) {
+    console.error('Token test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Token test failed',
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to simulate getArtisanOrders logic
 app.get('/api/debug/orders-artisan-debug', async (req, res) => {
   try {

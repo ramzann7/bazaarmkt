@@ -865,6 +865,7 @@ app.get('/api/auth/profile', async (req, res) => {
     await client.connect();
     const db = client.db();
     const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
     
     const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
     if (!user) {
@@ -875,25 +876,38 @@ app.get('/api/auth/profile', async (req, res) => {
       });
     }
     
+    // If user is an artisan, get their artisan profile
+    let artisanProfile = null;
+    if (user.role === 'artisan') {
+      artisanProfile = await artisansCollection.findOne({ 
+        user: new (require('mongodb')).ObjectId(decoded.userId) 
+      });
+    }
+    
     await client.close();
+    
+    const responseData = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      role: user.role, // Frontend expects role field
+      userType: user.role, // Keep userType for backward compatibility
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+    
+    // Include artisan profile data if available
+    if (artisanProfile) {
+      responseData.artisan = artisanProfile;
+    }
     
     res.json({
       success: true,
-      data: {
-        user: {
-          _id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          role: user.role, // Frontend expects role field
-          userType: user.role, // Keep userType for backward compatibility
-          isActive: user.isActive,
-          isVerified: user.isVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        }
-      }
+      data: responseData
     });
   } catch (error) {
     console.error('Profile error:', error);

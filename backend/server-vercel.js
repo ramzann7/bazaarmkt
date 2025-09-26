@@ -3,8 +3,9 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 
-// TESTING IMPORTS ONE BY ONE - Finding the problematic import
-const { connectToDatabase } = require('./utils/database');
+// TESTING: Remove all middleware imports to restore basic functionality
+// Database optimization will be implemented using inline pattern instead
+// const { connectToDatabase } = require('./utils/database');
 // const { verifyToken, requireArtisan } = require('./middleware/authmiddleware');
 // const { validateProduct } = require('./middleware/validation');
 

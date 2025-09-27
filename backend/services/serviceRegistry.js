@@ -224,6 +224,76 @@ class ServiceRegistry {
       metadata: { type: 'core', database: 'files' }
     });
 
+    this.registerService('reviews-service', {
+      version: '1.0.0',
+      endpoints: ['/api/reviews/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'reviews' }
+    });
+
+    this.registerService('favorites-service', {
+      version: '1.0.0',
+      endpoints: ['/api/favorites/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'favorites' }
+    });
+
+    this.registerService('community-service', {
+      version: '1.0.0',
+      endpoints: ['/api/community/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'community' }
+    });
+
+    this.registerService('artisan-service', {
+      version: '1.0.0',
+      endpoints: ['/api/artisans/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'artisans' }
+    });
+
+    this.registerService('promotional-service', {
+      version: '1.0.0',
+      endpoints: ['/api/promotional/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'promotions' }
+    });
+
+    this.registerService('wallet-service', {
+      version: '1.0.0',
+      endpoints: ['/api/wallet/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'wallets' }
+    });
+
+    this.registerService('revenue-service', {
+      version: '1.0.0',
+      endpoints: ['/api/revenue/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'revenue' }
+    });
+
+    this.registerService('spotlight-service', {
+      version: '1.0.0',
+      endpoints: ['/api/spotlight/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'spotlight' }
+    });
+
+    this.registerService('admin-service', {
+      version: '1.0.0',
+      endpoints: ['/api/admin/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'admin' }
+    });
+
+    this.registerService('geocoding-service', {
+      version: '1.0.0',
+      endpoints: ['/api/geocoding/*'],
+      dependencies: ['database', 'cache'],
+      metadata: { type: 'core', database: 'geocoding' }
+    });
+
     this.registerService('database', {
       version: '1.0.0',
       endpoints: [],

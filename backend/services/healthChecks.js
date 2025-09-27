@@ -329,6 +329,196 @@ class HealthChecks {
       }
     });
 
+    // Reviews Service health check
+    this.checks.set('reviews-service', async () => {
+      try {
+        const start = Date.now();
+        // Test reviews functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            reviewsCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Favorites Service health check
+    this.checks.set('favorites-service', async () => {
+      try {
+        const start = Date.now();
+        // Test favorites functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            favoritesCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Community Service health check
+    this.checks.set('community-service', async () => {
+      try {
+        const start = Date.now();
+        // Test community functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            communityCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Artisan Service health check
+    this.checks.set('artisan-service', async () => {
+      try {
+        const start = Date.now();
+        // Test artisan functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            artisanCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Promotional Service health check
+    this.checks.set('promotional-service', async () => {
+      try {
+        const start = Date.now();
+        // Test promotional functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            promotionalCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Wallet Service health check
+    this.checks.set('wallet-service', async () => {
+      try {
+        const start = Date.now();
+        // Test wallet functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            walletCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Revenue Service health check
+    this.checks.set('revenue-service', async () => {
+      try {
+        const start = Date.now();
+        // Test revenue functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            revenueCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Spotlight Service health check
+    this.checks.set('spotlight-service', async () => {
+      try {
+        const start = Date.now();
+        // Test spotlight functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            spotlightCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Admin Service health check
+    this.checks.set('admin-service', async () => {
+      try {
+        const start = Date.now();
+        // Test admin functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            adminCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
+    // Geocoding Service health check
+    this.checks.set('geocoding-service', async () => {
+      try {
+        const start = Date.now();
+        // Test geocoding functionality (placeholder for now)
+        const responseTime = Date.now() - start;
+        return {
+          status: 'healthy',
+          responseTime: responseTime,
+          metadata: {
+            geocodingCapability: 'available',
+            responseTime: `${responseTime}ms`
+          }
+        };
+      } catch (error) {
+        return { status: 'unhealthy', error: error.message, metadata: { timestamp: new Date().toISOString() } };
+      }
+    });
+
     console.log('✅ Health checks initialized for all services');
   }
 

@@ -500,6 +500,302 @@ class ProductService {
   }
 
   /**
+   * Get products by artisan (my-products)
+   */
+  async getMyProducts(artisanId, options = {}) {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const productsCollection = db.collection('products');
+      
+      const { 
+        page = 1, 
+        limit = 20,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        status
+      } = options;
+      
+      const skip = (page - 1) * limit;
+      const query = { artisan: new ObjectId(artisanId) };
+      
+      if (status) query.status = status;
+      
+      const sort = {};
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+      
+      const [products, totalCount] = await Promise.all([
+        productsCollection.find(query)
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .toArray(),
+        productsCollection.countDocuments(query)
+      ]);
+      
+      await client.close();
+      
+      return {
+        success: true,
+        products: products,
+        pagination: {
+          page: page,
+          limit: limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit)
+        }
+      };
+    } catch (error) {
+      console.error('Product Service - Get my products error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Enhanced search with location-based filtering
+   */
+  async enhancedSearch(searchParams = {}) {
+    try {
+      const { MongoClient } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const productsCollection = db.collection('products');
+      
+      const { 
+        query: searchTerm,
+        category,
+        minPrice,
+        maxPrice,
+        location,
+        latitude,
+        longitude,
+        radius = 50, // km
+        page = 1,
+        limit = 20,
+        sortBy = 'createdAt',
+        sortOrder = 'desc'
+      } = searchParams;
+      
+      const skip = (page - 1) * limit;
+      const filter = { status: 'active' };
+      
+      // Text search
+      if (searchTerm) {
+        filter.$text = { $search: searchTerm };
+      }
+      
+      // Category filter
+      if (category) {
+        filter.category = category;
+      }
+      
+      // Price range filter
+      if (minPrice || maxPrice) {
+        filter.price = {};
+        if (minPrice) filter.price.$gte = parseFloat(minPrice);
+        if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+      }
+      
+      // Location filter (basic implementation - in production, use geospatial queries)
+      if (location) {
+        filter.location = { $regex: location, $options: 'i' };
+      }
+      
+      const sort = {};
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+      
+      // If text search, prioritize text score
+      if (searchTerm) {
+        sort.score = { $meta: 'textScore' };
+      }
+      
+      const [products, totalCount] = await Promise.all([
+        productsCollection.find(filter)
+          .sort(sort)
+          .skip(skip)
+          .limit(limit)
+          .toArray(),
+        productsCollection.countDocuments(filter)
+      ]);
+      
+      await client.close();
+      
+      return {
+        success: true,
+        products: products,
+        searchParams: searchParams,
+        pagination: {
+          page: page,
+          limit: limit,
+          total: totalCount,
+          pages: Math.ceil(totalCount / limit)
+        }
+      };
+    } catch (error) {
+      console.error('Product Service - Enhanced search error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update product inventory
+   */
+  async updateInventory(productId, inventoryData, artisanId) {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const productsCollection = db.collection('products');
+      
+      // Verify ownership
+      const product = await productsCollection.findOne({
+        _id: new ObjectId(productId),
+        artisan: new ObjectId(artisanId)
+      });
+      
+      if (!product) {
+        await client.close();
+        throw new Error('Product not found or access denied');
+      }
+      
+      const updateData = {
+        inventory: inventoryData.inventory,
+        updatedAt: new Date()
+      };
+      
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(productId) },
+        { $set: updateData }
+      );
+      
+      await client.close();
+      
+      if (result.matchedCount === 0) {
+        throw new Error('Product not found');
+      }
+      
+      return {
+        success: true,
+        message: 'Inventory updated successfully'
+      };
+    } catch (error) {
+      console.error('Product Service - Update inventory error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reduce product inventory (for order fulfillment)
+   */
+  async reduceInventory(productId, quantity, artisanId) {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const productsCollection = db.collection('products');
+      
+      // Verify ownership and sufficient inventory
+      const product = await productsCollection.findOne({
+        _id: new ObjectId(productId),
+        artisan: new ObjectId(artisanId)
+      });
+      
+      if (!product) {
+        await client.close();
+        throw new Error('Product not found or access denied');
+      }
+      
+      if (product.inventory < quantity) {
+        await client.close();
+        throw new Error('Insufficient inventory');
+      }
+      
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(productId) },
+        { 
+          $inc: { 
+            inventory: -quantity,
+            soldCount: quantity
+          },
+          $set: { updatedAt: new Date() }
+        }
+      );
+      
+      await client.close();
+      
+      if (result.matchedCount === 0) {
+        throw new Error('Product not found');
+      }
+      
+      return {
+        success: true,
+        message: 'Inventory reduced successfully'
+      };
+    } catch (error) {
+      console.error('Product Service - Reduce inventory error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update product stock
+   */
+  async updateStock(productId, stockData, artisanId) {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const productsCollection = db.collection('products');
+      
+      // Verify ownership
+      const product = await productsCollection.findOne({
+        _id: new ObjectId(productId),
+        artisan: new ObjectId(artisanId)
+      });
+      
+      if (!product) {
+        await client.close();
+        throw new Error('Product not found or access denied');
+      }
+      
+      const updateData = {
+        inventory: stockData.stock || stockData.inventory,
+        updatedAt: new Date()
+      };
+      
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(productId) },
+        { $set: updateData }
+      );
+      
+      await client.close();
+      
+      if (result.matchedCount === 0) {
+        throw new Error('Product not found');
+      }
+      
+      return {
+        success: true,
+        message: 'Stock updated successfully'
+      };
+    } catch (error) {
+      console.error('Product Service - Update stock error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get service information
    */
   getServiceInfo() {
@@ -516,7 +812,13 @@ class ProductService {
         'GET /api/products/featured',
         'GET /api/products/category/:category',
         'GET /api/products/search',
-        'GET /api/products/categories'
+        'GET /api/products/categories',
+        'GET /api/products/my-products',
+        'GET /api/products/enhanced-search',
+        'PUT /api/products/:id/inventory',
+        'PATCH /api/products/:id/inventory',
+        'PATCH /api/products/:id/reduce-inventory',
+        'PATCH /api/products/:id/stock'
       ]
     };
   }

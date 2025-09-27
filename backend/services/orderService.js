@@ -471,6 +471,156 @@ class OrderService {
   }
 
   /**
+   * Decline order (artisan only)
+   */
+  async declineOrder(orderId, artisanId, reason = '') {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const ordersCollection = db.collection('orders');
+      
+      // Verify order belongs to artisan
+      const order = await ordersCollection.findOne({
+        _id: new ObjectId(orderId),
+        'items.artisanId': new ObjectId(artisanId)
+      });
+      
+      if (!order) {
+        await client.close();
+        throw new Error('Order not found or access denied');
+      }
+      
+      if (order.status !== 'pending') {
+        await client.close();
+        throw new Error('Order cannot be declined in current status');
+      }
+      
+      const result = await ordersCollection.updateOne(
+        { _id: new ObjectId(orderId) },
+        { 
+          $set: { 
+            status: 'declined',
+            declinedAt: new Date(),
+            declineReason: reason,
+            updatedAt: new Date()
+          }
+        }
+      );
+      
+      await client.close();
+      
+      if (result.matchedCount === 0) {
+        throw new Error('Order not found');
+      }
+      
+      return {
+        success: true,
+        message: 'Order declined successfully'
+      };
+    } catch (error) {
+      console.error('Order Service - Decline order error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update payment status
+   */
+  async updatePaymentStatus(orderId, paymentData, userId = null) {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const ordersCollection = db.collection('orders');
+      
+      // Verify order access
+      const query = { _id: new ObjectId(orderId) };
+      if (userId) {
+        query.userId = new ObjectId(userId);
+      }
+      
+      const order = await ordersCollection.findOne(query);
+      
+      if (!order) {
+        await client.close();
+        throw new Error('Order not found or access denied');
+      }
+      
+      const updateData = {
+        paymentStatus: paymentData.paymentStatus || 'paid',
+        paymentMethod: paymentData.paymentMethod,
+        paymentId: paymentData.paymentId,
+        paidAt: paymentData.paymentStatus === 'paid' ? new Date() : null,
+        updatedAt: new Date()
+      };
+      
+      // If payment is successful, update order status
+      if (paymentData.paymentStatus === 'paid' && order.status === 'pending') {
+        updateData.status = 'confirmed';
+        updateData.confirmedAt = new Date();
+      }
+      
+      const result = await ordersCollection.updateOne(
+        { _id: new ObjectId(orderId) },
+        { $set: updateData }
+      );
+      
+      await client.close();
+      
+      if (result.matchedCount === 0) {
+        throw new Error('Order not found');
+      }
+      
+      return {
+        success: true,
+        message: 'Payment status updated successfully'
+      };
+    } catch (error) {
+      console.error('Order Service - Update payment status error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get artisan orders for authenticated artisan (matches server endpoint)
+   */
+  async getArtisanOrdersForAuthUser(userId, filters = {}) {
+    try {
+      const { MongoClient, ObjectId } = require('mongodb');
+      const client = new MongoClient(process.env.MONGODB_URI);
+      
+      await client.connect();
+      const db = client.db();
+      const ordersCollection = db.collection('orders');
+      const artisansCollection = db.collection('artisans');
+      
+      // First, find the artisan profile by user ID to get the artisan ID
+      const artisan = await artisansCollection.findOne({
+        user: new ObjectId(userId)
+      });
+      
+      if (!artisan) {
+        await client.close();
+        throw new Error('Artisan profile not found');
+      }
+      
+      // Now get orders for this artisan using the existing method
+      const result = await this.getArtisanOrders(artisan._id, filters);
+      
+      await client.close();
+      return result;
+    } catch (error) {
+      console.error('Order Service - Get artisan orders for auth user error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get service information
    */
   getServiceInfo() {
@@ -483,9 +633,11 @@ class OrderService {
         'GET /api/orders',
         'GET /api/orders/:id',
         'PUT /api/orders/:id/status',
-        'GET /api/orders/artisan/:artisanId',
+        'GET /api/orders/artisan',
         'GET /api/orders/stats',
-        'DELETE /api/orders/:id/cancel'
+        'PUT /api/orders/:id/cancel',
+        'PUT /api/orders/:id/decline',
+        'PUT /api/orders/:id/payment'
       ]
     };
   }

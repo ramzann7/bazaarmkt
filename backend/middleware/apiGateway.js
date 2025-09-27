@@ -103,6 +103,86 @@ class APIGateway {
       rateLimit: 'standard'
     });
 
+    // Reviews Service routes
+    this.routes.set('/api/reviews/*', {
+      service: 'reviews-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Favorites Service routes
+    this.routes.set('/api/favorites/*', {
+      service: 'favorites-service',
+      methods: ['GET', 'POST', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Community Service routes
+    this.routes.set('/api/community/*', {
+      service: 'community-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Artisan Service routes
+    this.routes.set('/api/artisans/*', {
+      service: 'artisan-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Promotional Service routes
+    this.routes.set('/api/promotional/*', {
+      service: 'promotional-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Wallet Service routes
+    this.routes.set('/api/wallet/*', {
+      service: 'wallet-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Revenue Service routes
+    this.routes.set('/api/revenue/*', {
+      service: 'revenue-service',
+      methods: ['GET', 'POST'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Spotlight Service routes
+    this.routes.set('/api/spotlight/*', {
+      service: 'spotlight-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'standard'
+    });
+
+    // Admin Service routes
+    this.routes.set('/api/admin/*', {
+      service: 'admin-service',
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      authentication: true,
+      rateLimit: 'admin'
+    });
+
+    // Geocoding Service routes
+    this.routes.set('/api/geocoding/*', {
+      service: 'geocoding-service',
+      methods: ['GET', 'POST'],
+      authentication: false, // Public geocoding access
+      rateLimit: 'standard'
+    });
+
     // Health check routes
     this.routes.set('/api/health/*', {
       service: 'api-gateway',

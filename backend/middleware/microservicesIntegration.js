@@ -13,6 +13,16 @@ const NotificationService = require('../services/notificationService');
 const SearchService = require('../services/searchService');
 const AnalyticsService = require('../services/analyticsService');
 const FileService = require('../services/fileService');
+const ReviewsService = require('../services/reviewsService');
+const FavoritesService = require('../services/favoritesService');
+const CommunityService = require('../services/communityService');
+const ArtisanService = require('../services/artisanService');
+const PromotionalService = require('../services/promotionalService');
+const WalletService = require('../services/walletService');
+const RevenueService = require('../services/revenueService');
+const SpotlightService = require('../services/spotlightService');
+const AdminService = require('../services/adminService');
+const GeocodingService = require('../services/geocodingService');
 
 class MicroservicesIntegration {
   constructor() {
@@ -98,6 +108,66 @@ class MicroservicesIntegration {
       await FileService.initialize();
       this.services.set('file-service', FileService);
       console.log('  ✅ File Service initialized');
+
+      // Initialize Reviews Service
+      console.log('  - Initializing Reviews Service...');
+      await ReviewsService.initialize();
+      this.services.set('reviews-service', ReviewsService);
+      console.log('  ✅ Reviews Service initialized');
+
+      // Initialize Favorites Service
+      console.log('  - Initializing Favorites Service...');
+      await FavoritesService.initialize();
+      this.services.set('favorites-service', FavoritesService);
+      console.log('  ✅ Favorites Service initialized');
+
+      // Initialize Community Service
+      console.log('  - Initializing Community Service...');
+      await CommunityService.initialize();
+      this.services.set('community-service', CommunityService);
+      console.log('  ✅ Community Service initialized');
+
+      // Initialize Artisan Service
+      console.log('  - Initializing Artisan Service...');
+      await ArtisanService.initialize();
+      this.services.set('artisan-service', ArtisanService);
+      console.log('  ✅ Artisan Service initialized');
+
+      // Initialize Promotional Service
+      console.log('  - Initializing Promotional Service...');
+      await PromotionalService.initialize();
+      this.services.set('promotional-service', PromotionalService);
+      console.log('  ✅ Promotional Service initialized');
+
+      // Initialize Wallet Service
+      console.log('  - Initializing Wallet Service...');
+      await WalletService.initialize();
+      this.services.set('wallet-service', WalletService);
+      console.log('  ✅ Wallet Service initialized');
+
+      // Initialize Revenue Service
+      console.log('  - Initializing Revenue Service...');
+      await RevenueService.initialize();
+      this.services.set('revenue-service', RevenueService);
+      console.log('  ✅ Revenue Service initialized');
+
+      // Initialize Spotlight Service
+      console.log('  - Initializing Spotlight Service...');
+      await SpotlightService.initialize();
+      this.services.set('spotlight-service', SpotlightService);
+      console.log('  ✅ Spotlight Service initialized');
+
+      // Initialize Admin Service
+      console.log('  - Initializing Admin Service...');
+      await AdminService.initialize();
+      this.services.set('admin-service', AdminService);
+      console.log('  ✅ Admin Service initialized');
+
+      // Initialize Geocoding Service
+      console.log('  - Initializing Geocoding Service...');
+      await GeocodingService.initialize();
+      this.services.set('geocoding-service', GeocodingService);
+      console.log('  ✅ Geocoding Service initialized');
 
       // Step 5: Perform Health Checks
       console.log('Step 5: Performing Health Checks...');

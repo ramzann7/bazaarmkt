@@ -100,7 +100,7 @@ export default function AdminDashboard() {
       title: 'Promotional Dashboard',
       description: 'Manage spotlight subscriptions and promotional revenue',
       icon: SparklesIcon,
-      color: 'bg-amber-500',
+      color: 'bg-primary-500',
       path: '/admin/promotional'
     },
     {

@@ -6,20 +6,47 @@ import {
   CurrencyDollarIcon,
   ClockIcon,
   ChartBarIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline';
+import { profileService } from '../services/profileService';
 import walletService from '../services/walletService';
 import toast from 'react-hot-toast';
 
 const WalletDashboard = () => {
   const [walletData, setWalletData] = useState(null);
   const [stats, setStats] = useState(null);
+  const [artisanProfile, setArtisanProfile] = useState(null);
+  const [hasBankInfo, setHasBankInfo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     loadWalletData();
+    loadArtisanProfile();
   }, []);
+
+  const loadArtisanProfile = async () => {
+    try {
+      const response = await profileService.getArtisanProfile();
+      if (response.data) {
+        setArtisanProfile(response.data);
+        
+        // Check if bank info is configured
+        const bankInfo = response.data.bankInfo;
+        const isConfigured = bankInfo && 
+          bankInfo.accountHolderName && 
+          bankInfo.institutionNumber && 
+          bankInfo.transitNumber && 
+          bankInfo.accountNumber;
+        
+        setHasBankInfo(isConfigured);
+      }
+    } catch (error) {
+      console.error('Error loading artisan profile:', error);
+      // Not critical, just won't show bank info prompt
+    }
+  };
 
   const loadWalletData = async () => {
     try {
@@ -85,6 +112,30 @@ const WalletDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Bank Info Required Alert */}
+      {!hasBankInfo && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <ExclamationTriangleIcon className="h-6 w-6 text-primary mt-0.5 mr-3 flex-shrink-0" />
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-amber-900 mb-1">
+                Bank Information Required for Payouts
+              </h4>
+              <p className="text-sm text-primary-dark mb-3">
+                To receive weekly payouts, please configure your bank account information in your profile.
+              </p>
+              <a
+                href="/profile?tab=payment"
+                className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium transition-colors"
+              >
+                Add Bank Information
+                <ArrowRightIcon className="w-4 h-4 ml-2" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Wallet Balance Card */}
       <div className="bg-gradient-to-r from-[#D77A61] to-[#C06A51] rounded-lg shadow-sm p-6 text-white">
         <div className="flex items-center justify-between">

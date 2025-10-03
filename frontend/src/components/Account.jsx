@@ -20,6 +20,7 @@ import {
   BuildingStorefrontIcon
 } from '@heroicons/react/24/outline';
 import { getProfile, logoutUser } from '../services/authservice';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import toast from 'react-hot-toast';
 
 export default function Account() {
@@ -158,38 +159,6 @@ export default function Account() {
     }
   }, [location.search]);
 
-  // Helper function to get image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // Handle HTTP URLs (including Vercel Blob URLs)
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    // Handle Vercel Blob URLs that might be stored as filenames
-    if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      return imagePath;
-    }
-    
-    // Handle relative paths (legacy support)
-    if (imagePath.startsWith('/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    // Handle paths with leading slash (legacy support)
-    if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    // Handle paths without leading slash (legacy support)
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-  };
 
   const handleLogout = () => {
     logoutUser();
@@ -212,8 +181,8 @@ export default function Account() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -221,14 +190,14 @@ export default function Account() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-stone-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-stone-900 mb-2">My Account</h1>
-              <p className="text-stone-600">Manage your account, orders, and preferences</p>
+              <p className="text-gray-600">Manage your account, orders, and preferences</p>
             </div>
             <button
               onClick={handleLogout}
@@ -240,9 +209,9 @@ export default function Account() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-200">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
           {/* Tab Navigation */}
-          <div className="border-b border-stone-200">
+          <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6 overflow-x-auto" aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -258,8 +227,8 @@ export default function Account() {
                     }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap ${
                       activeTab === tab.id
-                        ? 'border-amber-500 text-amber-600'
-                        : 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-300'
+                        ? 'border-primary text-primary'
+                        : 'border-transparent text-stone-500 hover:text-secondary hover:border-gray-300'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -275,10 +244,10 @@ export default function Account() {
             {activeTab === 'dashboard' && user && user.role === 'artisan' && (
               <div className="text-center py-8">
                 <h3 className="text-lg font-semibold text-stone-900 mb-2">Artisan Dashboard</h3>
-                <p className="text-stone-600 mb-4">Artisans have access to a dedicated dashboard with business analytics.</p>
+                <p className="text-gray-600 mb-4">Artisans have access to a dedicated dashboard with business analytics.</p>
                 <button
                   onClick={() => navigate('/dashboard')}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Go to Artisan Dashboard
                 </button>
@@ -327,56 +296,56 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
         <h2 className="text-2xl font-bold text-stone-900 mb-2">
           Welcome back, {user.firstName}!
         </h2>
-        <p className="text-stone-600">
+        <p className="text-gray-600">
           Here's what's happening with your local marketplace account today.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white border border-stone-200 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <ShoppingBagIcon className="w-6 h-6 text-amber-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <ShoppingBagIcon className="w-6 h-6 text-primary" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-stone-600">Total Orders</p>
+              <p className="text-sm font-medium text-gray-600">Total Orders</p>
               <p className="text-2xl font-bold text-stone-900">{stats.totalOrders}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-stone-200 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <CreditCardIcon className="w-6 h-6 text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-stone-600">Total Spent</p>
+              <p className="text-sm font-medium text-gray-600">Total Spent</p>
               <p className="text-2xl font-bold text-stone-900">${stats.totalSpent}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-stone-200 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
               <HeartIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-stone-600">Favorite Artisans</p>
+              <p className="text-sm font-medium text-gray-600">Favorite Artisans</p>
               <p className="text-2xl font-bold text-stone-900">{stats.favoriteArtisans}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-stone-200 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
               <StarIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-stone-600">Avg Rating</p>
+              <p className="text-sm font-medium text-gray-600">Avg Rating</p>
               <p className="text-2xl font-bold text-stone-900">{stats.averageRating}</p>
             </div>
           </div>
@@ -384,8 +353,8 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
       </div>
 
       {/* Recent Orders */}
-      <div className="bg-white border border-stone-200 rounded-xl">
-        <div className="px-6 py-4 border-b border-stone-200">
+      <div className="bg-white border border-gray-200 rounded-xl">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-stone-900">Recent Orders</h3>
         </div>
         <div className="divide-y divide-stone-200">
@@ -410,14 +379,14 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
       </div>
 
       {/* Favorite Artisans */}
-      <div className="bg-white border border-stone-200 rounded-xl">
-        <div className="px-6 py-4 border-b border-stone-200">
+      <div className="bg-white border border-gray-200 rounded-xl">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-stone-900">Favorite Artisans</h3>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {favoriteArtisans.map((artisan) => (
-              <div key={artisan.id} className="flex items-center space-x-3 p-3 border border-stone-200 rounded-lg hover:bg-stone-50 transition-colors">
+              <div key={artisan.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 <img
                   src={getImageUrl(artisan.image)}
                   alt={artisan.name}
@@ -434,8 +403,8 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
                   <h4 className="text-sm font-medium text-stone-900">{artisan.name}</h4>
                   <p className="text-xs text-stone-500 capitalize">{artisan.type.replace('_', ' ')}</p>
                   <div className="flex items-center space-x-2 mt-1">
-                    <StarIcon className="w-3 h-3 text-amber-400" />
-                    <span className="text-xs text-stone-600">{artisan.rating}</span>
+                    <StarIcon className="w-3 h-3 text-primary-400" />
+                    <span className="text-xs text-gray-600">{artisan.rating}</span>
                     <span className="text-xs text-stone-500">•</span>
                     <span className="text-xs text-stone-500">{artisan.products} products</span>
                   </div>
@@ -471,39 +440,39 @@ function PersonalInfoTab({ user }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">First Name</label>
+              <label className="block text-sm font-medium text-secondary mb-2">First Name</label>
               <input
                 type="text"
                 value={formData.firstName}
                 onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Last Name</label>
+              <label className="block text-sm font-medium text-secondary mb-2">Last Name</label>
               <input
                 type="text"
                 value={formData.lastName}
                 onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Email</label>
+              <label className="block text-sm font-medium text-secondary mb-2">Email</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Phone</label>
+              <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
             </div>
           </div>
@@ -570,16 +539,16 @@ function AddressesTab({ user }) {
 
       {/* Add Address Form */}
       {showAddForm && (
-        <div className="bg-stone-50 rounded-lg p-6">
+        <div className="bg-gray-50 rounded-lg p-6">
           <h4 className="text-lg font-medium text-stone-900 mb-4">Add New Address</h4>
           <form onSubmit={handleAddAddress} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">Address Type</label>
+                <label className="block text-sm font-medium text-secondary mb-2">Address Type</label>
                 <select
                   value={newAddress.type}
                   onChange={(e) => setNewAddress({...newAddress, type: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="home">Home</option>
                   <option value="work">Work</option>
@@ -587,56 +556,56 @@ function AddressesTab({ user }) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">Label</label>
+                <label className="block text-sm font-medium text-secondary mb-2">Label</label>
                 <input
                   type="text"
                   value={newAddress.label}
                   onChange={(e) => setNewAddress({...newAddress, label: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   placeholder="e.g., My House, Office"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-2">Street Address</label>
+              <label className="block text-sm font-medium text-secondary mb-2">Street Address</label>
               <input
                 type="text"
                 required
                 value={newAddress.street}
                 onChange={(e) => setNewAddress({...newAddress, street: e.target.value})}
-                className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 placeholder="123 Main Street"
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">City</label>
+                <label className="block text-sm font-medium text-secondary mb-2">City</label>
                 <input
                   type="text"
                   required
                   value={newAddress.city}
                   onChange={(e) => setNewAddress({...newAddress, city: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">State</label>
+                <label className="block text-sm font-medium text-secondary mb-2">State</label>
                 <input
                   type="text"
                   required
                   value={newAddress.state}
                   onChange={(e) => setNewAddress({...newAddress, state: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-2">ZIP Code</label>
+                <label className="block text-sm font-medium text-secondary mb-2">ZIP Code</label>
                 <input
                   type="text"
                   required
                   value={newAddress.zipCode}
                   onChange={(e) => setNewAddress({...newAddress, zipCode: e.target.value})}
-                  className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </div>
             </div>
@@ -660,7 +629,7 @@ function AddressesTab({ user }) {
       {addresses.length > 0 ? (
         <div className="space-y-4">
           {addresses.map((address) => (
-            <div key={address.id} className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+            <div key={address.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
               <div className="flex items-center space-x-3">
                 <MapPinIcon className="w-5 h-5 text-stone-400" />
                 <div>
@@ -669,11 +638,11 @@ function AddressesTab({ user }) {
                     {address.label && (
                       <>
                         <span className="text-stone-400">•</span>
-                        <span className="text-sm text-stone-600">{address.label}</span>
+                        <span className="text-sm text-gray-600">{address.label}</span>
                       </>
                     )}
                   </div>
-                  <p className="text-sm text-stone-600">
+                  <p className="text-sm text-gray-600">
                     {address.street}, {address.city}, {address.state} {address.zipCode}
                   </p>
                 </div>
@@ -703,7 +672,7 @@ function OrdersTab({ recentOrders, getStatusColor }) {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-stone-900">My Orders</h3>
-      <div className="bg-white border border-stone-200 rounded-xl">
+      <div className="bg-white border border-gray-200 rounded-xl">
         <div className="divide-y divide-stone-200">
           {recentOrders.map((order) => (
             <div key={order.id} className="px-6 py-4">
@@ -735,8 +704,8 @@ function FavoritesTab({ favoriteArtisans }) {
       <h3 className="text-lg font-semibold text-stone-900">Favorite Artisans</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {favoriteArtisans.map((artisan) => (
-          <div key={artisan.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-            <div className="relative h-48 bg-stone-100">
+          <div key={artisan.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+            <div className="relative h-48 bg-gray-100">
               <img
                 src={getImageUrl(artisan.image)}
                 alt={artisan.name}
@@ -758,8 +727,8 @@ function FavoritesTab({ favoriteArtisans }) {
               <p className="text-sm text-stone-500 capitalize mb-3">{artisan.type.replace('_', ' ')}</p>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <StarIcon className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm text-stone-600">{artisan.rating}</span>
+                  <StarIcon className="w-4 h-4 text-primary-400" />
+                  <span className="text-sm text-gray-600">{artisan.rating}</span>
                   <span className="text-sm text-stone-500">•</span>
                   <span className="text-sm text-stone-500">{artisan.products} products</span>
                 </div>
@@ -781,28 +750,28 @@ function NotificationsTab({ user }) {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-stone-900">Notification Preferences</h3>
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">Order Updates</h4>
             <p className="text-sm text-stone-500">Get notified about your order status</p>
           </div>
           <input type="checkbox" defaultChecked className="rounded" />
         </div>
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">New Products</h4>
             <p className="text-sm text-stone-500">Be the first to know about new products from your favorite artisans</p>
           </div>
           <input type="checkbox" defaultChecked className="rounded" />
         </div>
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">Community Events</h4>
             <p className="text-sm text-stone-500">Get notified about local artisan events and workshops</p>
           </div>
           <input type="checkbox" className="rounded" />
         </div>
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">Seasonal Offers</h4>
             <p className="text-sm text-stone-500">Receive special offers and seasonal promotions</p>
@@ -840,23 +809,23 @@ function SecurityTab() {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-stone-900">Security Settings</h3>
       <div className="space-y-4">
-        <div className="p-4 border border-stone-200 rounded-lg">
+        <div className="p-4 border border-gray-200 rounded-lg">
           <h4 className="font-medium text-stone-900 mb-2">Change Password</h4>
           <div className="space-y-3">
             <input
               type="password"
               placeholder="Current Password"
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <input
               type="password"
               placeholder="New Password"
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <input
               type="password"
               placeholder="Confirm New Password"
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <button className="btn-primary">
               Update Password
@@ -874,29 +843,29 @@ function SettingsTab({ user }) {
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-stone-900">Account Settings</h3>
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">Language</h4>
             <p className="text-sm text-stone-500">English</p>
           </div>
-          <select className="px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+          <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
             <option>English</option>
             <option>French</option>
             <option>Spanish</option>
           </select>
         </div>
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">Currency</h4>
             <p className="text-sm text-stone-500">US Dollar (USD)</p>
           </div>
-          <select className="px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent">
+          <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
             <option>USD</option>
             <option>CAD</option>
             <option>EUR</option>
           </select>
         </div>
-        <div className="flex items-center justify-between p-4 border border-stone-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
             <h4 className="font-medium text-stone-900">Two-Factor Authentication</h4>
             <p className="text-sm text-stone-500">Add an extra layer of security</p>

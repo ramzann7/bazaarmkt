@@ -194,7 +194,7 @@ const DeliveryRevenueDashboard = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-emerald-100 rounded-lg">
-                  <CurrencyDollarIcon className="h-6 w-6 text-emerald-600" />
+                  <CurrencyDollarIcon className="h-6 w-6 text-accent" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Wallet Credits</p>

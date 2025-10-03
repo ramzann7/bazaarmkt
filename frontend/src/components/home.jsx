@@ -23,6 +23,8 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { getFeaturedProducts, getPopularProducts, clearCache, clearFeaturedProductsCache, clearPopularProductsCache } from '../services/productService';
 import { promotionalService } from '../services/promotionalService';
+import communityService from '../services/communityService';
+import HorizontalProductScroll from './HorizontalProductScroll';
 
 import { 
   PRODUCT_CATEGORIES, 
@@ -94,6 +96,8 @@ export default function Home() {
 
   const [userLocation, setUserLocation] = useState(null);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [communityPosts, setCommunityPosts] = useState([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const navigate = useNavigate();
 
   // Memoize reference data to prevent unnecessary re-computations
@@ -159,13 +163,14 @@ export default function Home() {
           setIsLoadingPopular(false);
           return;
         }
-        const response = await getPopularProducts();
+        const response = await getPopularProducts(12); // Limit to 12 products
         
         if (response.success) {
-          setPopularProducts(response.products || []);
+          const limitedProducts = (response.products || []).slice(0, 12);
+          setPopularProducts(limitedProducts);
           setIsLoadingPopular(false);
-          // Cache the results
-          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, response.products, CACHE_TTL.POPULAR_PRODUCTS);
+          // Cache the limited results
+          cacheService.set(CACHE_KEYS.POPULAR_PRODUCTS, limitedProducts, CACHE_TTL.POPULAR_PRODUCTS);
         } else {
           console.error('Failed to load popular products:', response.message);
           setError('Failed to load popular products');
@@ -192,25 +197,9 @@ export default function Home() {
     // Clear popular products cache to ensure we get the latest data
     cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
     
-    // Check cache first
-    const cachedFeatured = cacheService.get(CACHE_KEYS.FEATURED_PRODUCTS);
-    const cachedPopular = cacheService.get(CACHE_KEYS.POPULAR_PRODUCTS);
-    
-    // Cache check completed
-    
-    if (cachedFeatured) {
-      setFeaturedProducts(cachedFeatured);
-      setIsLoadingFeatured(false);
-    } else {
-      loadFeaturedProducts();
-    }
-    
-    if (cachedPopular) {
-      setPopularProducts(cachedPopular);
-      setIsLoadingPopular(false);
-    } else {
-      loadPopularProducts();
-    }
+    // Always load fresh data since we're clearing cache
+    loadFeaturedProducts();
+    loadPopularProducts();
     
     const endTime = performance.now();
     console.log(`Home component basic data loading took ${(endTime - startTime).toFixed(2)}ms`);
@@ -498,11 +487,11 @@ export default function Home() {
         proximityRadius: '25', // 25km radius
         enhancedRanking: 'true',
         includeDistance: 'true',
-        limit: '8' // Limit to 8 nearby products
+        limit: '12' // Limit to 12 nearby products
       });
       
       console.log('🔍 Fetching nearby products with params:', searchParams.toString());
-      const response = await fetch(`/api/products/enhanced-search?${searchParams.toString()}`);
+      const response = await fetch(`http://localhost:4000/api/products/enhanced-search?${searchParams.toString()}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -550,10 +539,11 @@ export default function Home() {
         }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
         
         console.log('✅ Nearby products loaded:', productsWithDistance.length);
-        setNearbyProducts(productsWithDistance);
+        const limitedNearbyProducts = productsWithDistance.slice(0, 12);
+        setNearbyProducts(limitedNearbyProducts);
         
-        // Cache the results with longer TTL for nearby products (30 minutes)
-        cacheService.set(cacheKey, productsWithDistance, 30 * 60 * 1000);
+        // Cache the limited results with longer TTL for nearby products (30 minutes)
+        cacheService.set(cacheKey, limitedNearbyProducts, 30 * 60 * 1000);
       } else {
         console.log('ℹ️ No nearby products found');
         setNearbyProducts([]);
@@ -581,7 +571,60 @@ export default function Home() {
     setShowLocationPrompt(false);
   };
 
+  // Handle Find Near Me button click
+  const handleFindNearMe = async () => {
+    try {
+      // Check if we already have a saved location
+      const savedLocation = locationService.getSavedLocation();
+      
+      if (savedLocation && savedLocation.latitude && savedLocation.longitude) {
+        // Navigate with saved location
+        navigate(`/search?nearby=true&lat=${savedLocation.latitude}&lng=${savedLocation.longitude}`);
+        return;
+      }
 
+      // Request location permission
+      if ("geolocation" in navigator) {
+        toast.loading('Getting your location...', { id: 'location' });
+        
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            // Save location
+            locationService.saveLocation({
+              latitude,
+              longitude,
+              timestamp: Date.now()
+            });
+            
+            toast.success('Location found!', { id: 'location' });
+            
+            // Navigate to search with location parameters
+            navigate(`/search?nearby=true&lat=${latitude}&lng=${longitude}`);
+          },
+          (error) => {
+            console.error('Error getting location:', error);
+            toast.error('Unable to get your location. Please allow location access.', { id: 'location' });
+            // Navigate without location - search page will handle it
+            navigate('/search?nearby=true');
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000 // 5 minutes
+          }
+        );
+      } else {
+        toast.error('Geolocation is not supported by your browser');
+        navigate('/search?nearby=true');
+      }
+    } catch (error) {
+      console.error('Error in handleFindNearMe:', error);
+      toast.error('Something went wrong. Please try again.');
+      navigate('/search?nearby=true');
+    }
+  };
 
   // Function to enhance product with complete artisan data
   const enhanceProductWithArtisanData = async (product) => {
@@ -863,10 +906,10 @@ export default function Home() {
     const hasHalfStar = rating % 1 !== 0;
 
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIcon key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />);
+      stars.push(<StarIcon key={i} className="w-4 h-4 fill-primary-400 text-primary-400" />);
     }
     if (hasHalfStar) {
-      stars.push(<StarIcon key="half" className="w-4 h-4 fill-amber-400 text-amber-400" />);
+      stars.push(<StarIcon key="half" className="w-4 h-4 fill-primary-400 text-primary-400" />);
     }
     const emptyStars = 5 - Math.ceil(rating);
     for (let i = 0; i < emptyStars; i++) {
@@ -890,226 +933,255 @@ export default function Home() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [loadFeaturedProducts, loadPopularProducts]);
 
+  // Load community posts - trending this week or latest
+  useEffect(() => {
+    const loadCommunityPosts = async () => {
+      try {
+        setIsLoadingPosts(true);
+        
+        // Calculate date for one week ago
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        // Try to get trending posts from this week
+        let posts = [];
+        try {
+          const trendingResponse = await communityService.getPosts({
+            sort: 'trending',
+            startDate: oneWeekAgo.toISOString(),
+            limit: 3
+          });
+          posts = trendingResponse.posts || trendingResponse.data || [];
+        } catch (error) {
+          console.log('No trending posts available, fetching latest:', error);
+        }
+        
+        // If no trending posts, get latest posts
+        if (!posts || posts.length === 0) {
+          const latestResponse = await communityService.getPosts({
+            sort: 'createdAt',
+            order: 'desc',
+            limit: 3
+          });
+          posts = latestResponse.posts || latestResponse.data || [];
+        }
+        
+        setCommunityPosts(posts || []);
+      } catch (error) {
+        console.error('Error loading community posts:', error);
+        // Set empty array on error
+        setCommunityPosts([]);
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+
+    loadCommunityPosts();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#F5F1EA]">
-      {/* Featured Products Grid */}
-      <section className="py-8 sm:py-12 lg:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between mb-6 sm:mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif">Featured Products</h2>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  clearFeaturedProductsCache();
-                  loadFeaturedProducts();
-                }}
-                className="text-sm text-[#3C6E47] hover:text-[#2E2E2E] font-medium"
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+        <div className="grid lg:grid-cols-[1fr_420px] gap-6 sm:gap-8 items-stretch">
+          {/* Hero Left - Text Content */}
+          <div className="bg-white rounded-xl p-8 sm:p-10 shadow-soft flex flex-col justify-center">
+            {/* Tag */}
+            <div className="inline-block self-start">
+              <span className="inline-block bg-primary/10 text-primary px-3 py-1.5 rounded-full font-bold text-xs sm:text-sm mb-4">
+                Handmade • Local • Seasonal
+              </span>
+            </div>
+            
+            {/* Heading */}
+            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-secondary mb-4 leading-tight">
+              Discover treasures made by your neighbours
+            </h1>
+            
+            {/* Lead Text */}
+            <p className="text-base sm:text-lg text-secondary/70 mb-6 leading-relaxed">
+              Shop fresh, homemade food and handcrafted goods from local artisans near you. Each purchase supports a person — not a faceless corporation.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                to="/find-artisans"
+                className="btn-primary px-6 py-3 text-center"
               >
-                Refresh
-              </button>
-              <Link 
-                to="/search" 
-                className="flex items-center space-x-2 text-[#D77A61] hover:text-[#3C6E47] font-medium"
-              >
-                <span>View all</span>
-                <ArrowRightIcon className="w-4 h-4" />
+                Explore Artisans
               </Link>
+              <button
+                onClick={handleFindNearMe}
+                className="btn-outline px-6 py-3 text-center"
+              >
+                Find Near Me
+              </button>
             </div>
           </div>
+          
+          {/* Hero Right - Image */}
+          <div className="rounded-xl overflow-hidden shadow-soft bg-white h-64 lg:h-auto">
+            <img 
+              src="/artisan-market-hero.jpeg" 
+              alt="Vibrant artisan market with pottery and handcrafted goods"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      </section>
 
+      {/* Featured Products - Horizontal Scroll */}
+      <section className="py-8 sm:py-12 lg:py-16 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {isLoadingFeatured ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-              {[...Array(8)].map((_, index) => (
-                <ProductSkeleton key={index} />
-              ))}
-            </div>
-          ) : availableFeaturedProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-              {availableFeaturedProducts.slice(0, 8).map((product) => (
-                <ProductCard 
-                  key={product._id} 
-                  product={product} 
-                  showImagePreview={true}
-                />
-              ))}
-            </div>
+            <>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif mb-6">Featured Products</h2>
+              <div className="flex gap-6 overflow-hidden">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="w-[280px] flex-shrink-0">
+                    <ProductSkeleton />
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
-            <div className="text-center py-12">
-              <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Featured Products</h3>
-              <p className="text-gray-500">Check back soon for featured products from our artisans.</p>
-            </div>
+            <HorizontalProductScroll
+              title="Featured Products"
+              products={availableFeaturedProducts}
+              backgroundColor="#F5F1EA"
+            />
           )}
         </div>
       </section>
 
-      {/* Popular Products Section */}
+      {/* Popular Products - Horizontal Scroll */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 font-serif">Popular Products</h2>
+          {isLoadingPopular ? (
+            <>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif mb-6">Popular Products</h2>
+              <div className="flex gap-6 overflow-hidden">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="w-[280px] flex-shrink-0">
+                    <ProductSkeleton />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <HorizontalProductScroll
+              title="Popular Products"
+              products={availablePopularProducts}
+              backgroundColor="#ffffff"
+            />
+          )}
+        </div>
+      </section>
+
+      {/* Community Spotlight */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-display text-3xl font-bold text-secondary mb-8">Community Spotlight</h2>
+          
+          {isLoadingPosts ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-6 animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div className="space-y-2 mb-4">
+                    <div className="h-4 bg-gray-200 rounded"></div>
+                    <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : communityPosts.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {communityPosts.map((post) => (
+                <div key={post._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all flex flex-col">
+                  <h4 className="font-semibold text-lg text-secondary mb-3 line-clamp-2">
+                    {post.title}
+                  </h4>
+                  <p className="text-sm text-secondary/70 mb-4 flex-1 line-clamp-3">
+                    {post.content || post.description || 'Check out this post from the community.'}
+                  </p>
+                  <div className="flex gap-3 items-center mt-auto">
+                    <Link 
+                      to={`/community/post/${post._id}`} 
+                      className="text-primary font-semibold text-sm hover:text-primary-dark transition-colors"
+                    >
+                      Read More
+                    </Link>
+                    {post.createdAt && (
+                      <span className="text-xs text-secondary/50">
+                        • {new Date(post.createdAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Fallback static content when no posts are available */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all flex flex-col">
+                <h4 className="font-semibold text-lg text-secondary mb-3">
+                  From the oven: Marie's sourdough tips
+                </h4>
+                <p className="text-sm text-secondary/70 mb-4 flex-1">
+                  A short recipe and tips on keeping your sourdough starter healthy — shared by Marie, local baker.
+                </p>
+                <div className="flex gap-3 items-center mt-auto">
+                  <Link to="/community" className="text-primary font-semibold text-sm hover:text-primary-dark transition-colors">
+                    See Story
+                  </Link>
+                  <span className="text-xs text-secondary/50">• 3 min read</span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all flex flex-col">
+                <h4 className="font-semibold text-lg text-secondary mb-3">
+                  Upcoming: Local craft fair
+                </h4>
+                <p className="text-sm text-secondary/70 mb-4 flex-1">
+                  Meet artisans, sample goods, and order ahead to pick up at the event.
+                </p>
+                <div className="flex gap-3 items-center mt-auto">
+                  <Link to="/community" className="text-primary font-semibold text-sm hover:text-primary-dark transition-colors">
+                    Event Details
+                  </Link>
+                  <span className="text-xs text-secondary/50">• Free entry</span>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all flex flex-col">
+                <h4 className="font-semibold text-lg text-secondary mb-3">
+                  How to price handmade goods
+                </h4>
+                <p className="text-sm text-secondary/70 mb-4 flex-1">
+                  Practical tips and cost calculators to help artisans price their products fairly.
+                </p>
+                <div className="flex gap-3 items-center mt-auto">
+                  <Link to="/community" className="text-primary font-semibold text-sm hover:text-primary-dark transition-colors">
+                    Read Guide
+                  </Link>
+                  <span className="text-xs text-secondary/50">• 5 min read</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center mt-8">
             <Link 
-              to="/search" 
-              className="flex items-center space-x-2 text-[#D77A61] hover:text-[#3C6E47] font-medium"
+              to="/community" 
+              className="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-semibold transition-colors"
             >
-              <span>View all</span>
+              View All Community Posts
               <ArrowRightIcon className="w-4 h-4" />
             </Link>
           </div>
-          
-          {isLoadingPopular ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {[...Array(4)].map((_, index) => (
-                <ProductSkeleton key={index} />
-              ))}
-            </div>
-          ) : availablePopularProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {availablePopularProducts.slice(0, 4).map((product) => (
-                <ProductCard 
-                  key={product._id} 
-                  product={product} 
-                  showImagePreview={true}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Popular Products</h3>
-              <p className="text-gray-500">Check back soon for popular products from our artisans.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Close to You Section */}
-      <section className="py-16 bg-[#F5F1EA]">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-3">
-              <MapPinIcon className="w-8 h-8 text-[#3C6E47]" />
-              <h2 className="text-3xl font-bold text-gray-900 font-serif">Close to You</h2>
-            </div>
-            {/* Only show location indicator for guests */}
-            {!user && <LocationIndicator onLocationUpdate={handleLocationSet} />}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  // Clear nearby products cache before refreshing
-                  if (userLocation) {
-                    const userType = user ? 'patron' : 'guest';
-                    const cacheKey = `${CACHE_KEYS.NEARBY_PRODUCTS}_${userType}_${userLocation.latitude.toFixed(2)}_${userLocation.longitude.toFixed(2)}`;
-                    cacheService.delete(cacheKey);
-                  }
-                  loadNearbyProducts();
-                }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Refresh
-              </button>
-              <Link 
-                to="/search" 
-                className="flex items-center space-x-2 text-amber-600 hover:text-amber-700 font-medium"
-              >
-                <span>View all</span>
-                <ArrowRightIcon className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-          
-          {isLoadingNearby ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {[...Array(8)].map((_, index) => (
-                <ProductSkeleton key={index} />
-              ))}
-            </div>
-          ) : availableNearbyProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {availableNearbyProducts.slice(0, 8).map((product) => (
-                <ProductCard 
-                  key={product._id} 
-                  product={product} 
-                  showDistance={true}
-                  showImagePreview={true}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <MapPinIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Nearby Products</h3>
-              <p className="text-gray-500">
-                {user ? 
-                  "No products found within 25km of your location. Try expanding your search or check back later." :
-                  userLocation ? 
-                    "No products found within 25km of your location. Try expanding your search or check back later." :
-                    "Unable to determine your location. Please provide your location for personalized recommendations."
-                }
-              </p>
-              {!user && !userLocation && (
-                <button
-                  onClick={() => loadNearbyProducts()}
-                  className="mt-4 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
-                >
-                  Try Again
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
-
-
-
-      {/* Features Section */}
-      <section className="py-16 bg-amber-50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose Bazaar?</h2>
-            <p className="text-lg text-gray-600">Supporting local artisans and bringing you authentic, quality products</p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <HeartIcon className="w-8 h-8 text-amber-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Local & Authentic</h3>
-              <p className="text-gray-600">Connect directly with local artisans and discover unique, handmade products.</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TruckIcon className="w-8 h-8 text-amber-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Fresh Delivery</h3>
-              <p className="text-gray-600">Get fresh, local products delivered to your doorstep with care and attention.</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <SparklesIcon className="w-8 h-8 text-amber-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Quality Assured</h3>
-              <p className="text-gray-600">Every product is carefully curated and quality-checked for your satisfaction.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 bg-amber-600">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to Start Selling?</h2>
-          <p className="text-xl text-amber-100 mb-8">Join our community of artisans and share your passion with customers</p>
-          <Link
-            to="/signup"
-            className="inline-flex items-center px-8 py-3 bg-white text-amber-600 font-semibold rounded-full hover:bg-gray-100 transition-colors"
-          >
-            Become an Artisan
-            <ArrowRightIcon className="w-5 h-5 ml-2" />
-          </Link>
         </div>
       </section>
 
@@ -1147,7 +1219,7 @@ export default function Home() {
                   />
                 ) : null}
                 <div className={`w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${selectedProduct.image ? 'hidden' : 'flex'}`}>
-                  <BuildingStorefrontIcon className="w-16 h-16 text-amber-400" />
+                  <BuildingStorefrontIcon className="w-16 h-16 text-primary-400" />
                 </div>
               </div>
             </div>

@@ -14,10 +14,22 @@ export const guestService = {
   checkExistingUser: async (email) => {
     try {
       const response = await axios.get(`${API_URL}/auth/check-email/${encodeURIComponent(email)}`);
-      return response.data.user;
+      return {
+        exists: true,
+        user: response.data.user,
+        isGuest: response.data.user.isGuest,
+        isPatron: response.data.user.isPatron,
+        message: response.data.message
+      };
     } catch (error) {
       if (error.response?.status === 404) {
-        return null; // User not found
+        return {
+          exists: false,
+          user: null,
+          isGuest: false,
+          isPatron: false,
+          message: 'Email not found'
+        };
       }
       console.error('Error checking existing user:', error);
       throw error;

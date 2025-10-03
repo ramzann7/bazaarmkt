@@ -38,61 +38,79 @@ export const AuthProvider = ({ children }) => {
   // Initialize auth state on app load - Optimized for performance
   useEffect(() => {
     const initializeAuth = async () => {
+      const startTime = performance.now();
+      console.log('🚀 AuthContext: Starting initialization...');
+      
       try {
-        console.log('🔄 AuthContext: Starting initialization...');
         const token = authToken.getToken();
         
         if (token) {
-          console.log('✅ AuthContext: Token found, setting authenticated state');
+          console.log('🔑 AuthContext: Token found, setting authenticated state...');
           // Set authenticated immediately for better UX
           setIsAuthenticated(true);
+          setIsLoading(false);
+          setIsInitialized(true);
+          setIsProviderReady(true);
           
           // Try to get cached profile first (fast path)
           const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
           const cachedProfile = cacheService.getFast(cacheKey);
+          
           if (cachedProfile) {
-            console.log('✅ AuthContext: Using cached profile:', { userId: cachedProfile._id, email: cachedProfile.email });
-            console.log('AuthContext setUser:', cachedProfile);
+            console.log('⚡ AuthContext: Using cached profile for immediate response');
             setUser(cachedProfile);
-            setIsLoading(false);
-            setIsInitialized(true);
-            setIsProviderReady(true);
             
-            // Load fresh profile in background
-            console.log('🔄 AuthContext: Loading fresh profile in background...');
-            getProfile().then(profile => {
-              console.log('✅ AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
-              console.log('AuthContext setUser:', profile);
-              setUser(profile);
-            }).catch(error => {
-              console.error('❌ AuthContext: Background profile refresh failed:', error);
-            });
+            // Load fresh profile in background (non-blocking)
+            setTimeout(async () => {
+              try {
+                console.log('🔄 AuthContext: Refreshing profile in background...');
+                const profile = await getProfile();
+                setUser(profile);
+                console.log('✅ AuthContext: Background profile refresh completed');
+              } catch (error) {
+                console.error('❌ AuthContext: Background profile refresh failed:', error);
+              }
+            }, 100); // Small delay to ensure UI is responsive
+            
+            const endTime = performance.now();
+            console.log(`⚡ AuthContext: Fast initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
             return;
           }
           
-          // No cache, load profile
-          console.log('🔄 AuthContext: No cached profile, loading fresh data...');
-          const profile = await getProfile();
-          console.log('✅ AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
-          console.log('AuthContext setUser:', profile);
+          console.log('🔄 AuthContext: No cache found, loading profile...');
+          // No cache, load profile with timeout
+          const profilePromise = getProfile();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile load timeout')), 3000)
+          );
+          
+          const profile = await Promise.race([profilePromise, timeoutPromise]);
           setUser(profile);
+          
+          const endTime = performance.now();
+          console.log(`✅ AuthContext: Profile loaded in ${(endTime - startTime).toFixed(2)}ms`);
         } else {
-          console.log('ℹ️ AuthContext: No token found, user not authenticated');
+          console.log('🔓 AuthContext: No token found, setting unauthenticated state');
           setIsAuthenticated(false);
-          console.log('AuthContext setUser:', null);
           setUser(null);
+          setIsLoading(false);
+          setIsInitialized(true);
+          setIsProviderReady(true);
+          
+          const endTime = performance.now();
+          console.log(`⚡ AuthContext: Quick initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
         }
       } catch (error) {
         console.error('❌ AuthContext: Initialization error:', error);
         setIsAuthenticated(false);
-        console.log('AuthContext setUser:', null);
         setUser(null);
-        authToken.removeToken();
-      } finally {
-        console.log('✅ AuthContext: Initialization complete, setting provider ready');
         setIsLoading(false);
         setIsInitialized(true);
         setIsProviderReady(true);
+        authToken.removeToken();
+        
+        const endTime = performance.now();
+        console.log(`⚠️ AuthContext: Error recovery completed in ${(endTime - startTime).toFixed(2)}ms`);
       }
     };
 
@@ -106,7 +124,6 @@ export const AuthProvider = ({ children }) => {
       const user = userData.user || userData;
       
       // Set user immediately for instant UI response
-      console.log('AuthContext setUser:', user);
       setUser(user);
       setIsAuthenticated(true);
       
@@ -122,10 +139,7 @@ export const AuthProvider = ({ children }) => {
       // Force immediate profile refresh for better UX
       setTimeout(async () => {
         try {
-          console.log('🔄 AuthContext: Starting profile refresh...');
           const freshProfile = await getProfile();
-          console.log('✅ AuthContext: Fresh profile loaded after login:', { userId: freshProfile._id, email: freshProfile.email });
-          console.log('🔍 AuthContext: Full profile structure:', freshProfile);
           
           // Validate that we have a valid profile
           if (!freshProfile || !freshProfile._id) {
@@ -136,6 +150,9 @@ export const AuthProvider = ({ children }) => {
           // Ensure profile has required fields with defaults
           const normalizedProfile = {
             ...freshProfile,
+            userType: freshProfile.userType, // Explicitly preserve userType
+            artisan: freshProfile.artisan, // Explicitly preserve artisan data
+            artisanId: freshProfile.artisanId, // Explicitly preserve artisanId
             firstName: freshProfile.firstName || '',
             lastName: freshProfile.lastName || '',
             phone: freshProfile.phone || '',
@@ -145,7 +162,6 @@ export const AuthProvider = ({ children }) => {
             paymentMethods: freshProfile.paymentMethods || []
           };
           
-          console.log('🔧 AuthContext: Normalized profile:', normalizedProfile);
           setUser(normalizedProfile);
         } catch (error) {
           console.error('❌ AuthContext: Background profile refresh failed:', error);
@@ -162,7 +178,6 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
-    console.log('AuthContext setUser:', null);
     setUser(null);
     setIsAuthenticated(false);
     authToken.removeToken();
@@ -172,7 +187,6 @@ export const AuthProvider = ({ children }) => {
   // Update user profile - Optimized
   const updateUser = async () => {
     try {
-      console.log('🔄 AuthContext: Updating user profile...');
       
       // Clear cache to force fresh data
       const { clearProfileCache } = await import('../services/profileService');
@@ -180,11 +194,13 @@ export const AuthProvider = ({ children }) => {
       
       // Fetch fresh profile data
       const profile = await getProfile();
-      console.log('✅ AuthContext: Profile updated successfully:', profile);
       
       // Ensure profile has required fields with defaults
       const normalizedProfile = {
         ...profile,
+        userType: profile.userType, // Explicitly preserve userType
+        artisan: profile.artisan, // Explicitly preserve artisan data
+        artisanId: profile.artisanId, // Explicitly preserve artisanId
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
         phone: profile.phone || '',
@@ -194,8 +210,6 @@ export const AuthProvider = ({ children }) => {
         paymentMethods: profile.paymentMethods || []
       };
       
-      console.log('🔧 AuthContext: Normalized profile in updateUser:', normalizedProfile);
-      console.log('AuthContext setUser:', normalizedProfile);
       setUser(normalizedProfile);
       return normalizedProfile;
     } catch (error) {
@@ -208,13 +222,10 @@ export const AuthProvider = ({ children }) => {
   // Refresh user data - Optimized
   const refreshUser = async () => {
     try {
-      console.log('🔄 AuthContext: Refreshing user data...');
       const token = authToken.getToken();
       
       if (!token) {
-        console.log('❌ No token found, user not authenticated');
         setIsAuthenticated(false);
-        console.log('AuthContext setUser:', null);
         setUser(null);
         throw new Error('No authentication token');
       }
@@ -223,13 +234,14 @@ export const AuthProvider = ({ children }) => {
       const { clearProfileCache } = await import('../services/profileService');
       clearProfileCache();
       
-      const profile = await getProfile();
-      console.log('✅ AuthContext: User data refreshed successfully:', profile);
-      console.log('🔍 AuthContext: Full profile structure:', profile);
+      const profile = await getProfile(true); // Force refresh to get latest data
       
       // Ensure profile has required fields with defaults
       const normalizedProfile = {
         ...profile,
+        userType: profile.userType, // Explicitly preserve userType
+        artisan: profile.artisan, // Explicitly preserve artisan data
+        artisanId: profile.artisanId, // Explicitly preserve artisanId
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
         phone: profile.phone || '',
@@ -239,8 +251,6 @@ export const AuthProvider = ({ children }) => {
         paymentMethods: profile.paymentMethods || []
       };
       
-      console.log('🔧 AuthContext: Normalized profile:', normalizedProfile);
-      console.log('AuthContext setUser:', normalizedProfile);
       setUser(normalizedProfile);
       setIsAuthenticated(true);
       return normalizedProfile;
@@ -248,7 +258,6 @@ export const AuthProvider = ({ children }) => {
       console.error('❌ Profile refresh error:', error);
       // If refresh fails, user might be logged out
       if (error.response?.status === 401) {
-        console.log('❌ 401 error, logging out user');
         logout();
       }
       throw error;
@@ -258,7 +267,6 @@ export const AuthProvider = ({ children }) => {
   // Listen for auth state changes from other components
   useEffect(() => {
     const handleAuthStateChange = async (event) => {
-      console.log('🔄 AuthContext: Received authStateChanged event:', event.detail);
       if (event.detail.isAuthenticated) {
         // User was authenticated elsewhere (e.g., registration), refresh auth state
         await refreshUser();

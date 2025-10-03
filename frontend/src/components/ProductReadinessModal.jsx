@@ -189,10 +189,10 @@ const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
 
           {/* Urgency Warning */}
           {readinessInfo.urgency && (
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <div className="p-3 rounded-lg bg-primary-50 border border-primary-200">
               <div className="flex items-center space-x-2">
-                <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
-                <span className="text-sm font-medium text-amber-800">
+                <ExclamationTriangleIcon className="w-5 h-5 text-primary" />
+                <span className="text-sm font-medium text-primary-800">
                   {readinessInfo.urgency === 'low-stock' && 'Low stock - order soon!'}
                   {readinessInfo.urgency === 'coming-soon' && 'Coming soon - limited availability'}
                   {readinessInfo.urgency === 'schedule-needed' && 'Schedule needs to be determined'}

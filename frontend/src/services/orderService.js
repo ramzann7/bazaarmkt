@@ -181,15 +181,31 @@ export const orderService = {
   // Decline order (artisan only)
   declineOrder: async (orderId, reason) => {
     try {
-      
-      const response = await axios.put(`${API_URL}/orders/${orderId}/decline`, { reason }, {
+      // Use the status update endpoint with 'declined' or 'cancelled' status
+      const response = await axios.put(`${API_URL}/orders/${orderId}/status`, { 
+        status: 'declined',
+        updateReason: reason 
+      }, {
         headers: getAuthHeaders()
       });
       
       return response.data;
     } catch (error) {
-      console.error('❌ Order Service Debug - Decline Error:', error);
-      console.error('❌ Order Service Debug - Error Response:', error.response?.data);
+      console.error('❌ Error declining order:', error);
+      throw error;
+    }
+  },
+
+  // Patron confirms order receipt (patron only)
+  confirmOrderReceipt: async (orderId) => {
+    try {
+      const response = await axios.post(`${API_URL}/orders/${orderId}/confirm-receipt`, {}, {
+        headers: getAuthHeaders()
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error confirming order receipt:', error);
       throw error;
     }
   },

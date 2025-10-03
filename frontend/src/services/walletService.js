@@ -5,7 +5,7 @@ const API_URL = config.API_URL;
 
 class WalletService {
   constructor() {
-    this.baseURL = `${API_URL}/wallet`;
+    this.baseURL = `${API_URL}/admin/wallet`;
   }
 
   // Get wallet balance and basic info

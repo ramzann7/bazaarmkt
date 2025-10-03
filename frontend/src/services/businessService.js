@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import config from '../config/environment.js';
+
+const API_BASE_URL = config.API_URL;
 
 export const artisanService = {
   // Get all artisans with optional filters

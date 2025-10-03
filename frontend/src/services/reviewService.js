@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import config from '../config/environment.js';
+
+const API_BASE_URL = config.API_URL;
 
 // Create axios instance with default config
 const reviewApi = axios.create({

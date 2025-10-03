@@ -185,9 +185,25 @@ export const getProductById = async (productId) => {
 export const createProduct = async (productData) => {
   const token = localStorage.getItem('token');
   
+  console.log('🔍 ProductService.createProduct - Input data:', productData);
+  
   // Normalize and validate product data
   const normalizedData = normalizeProductData(productData);
   logCategoryUsage('ProductService', 'createProduct', normalizedData);
+  
+  console.log('🔍 ProductService.createProduct - Normalized data:', normalizedData);
+  console.log('🔍 ProductService.createProduct - Required fields check:', {
+    name: !!normalizedData.name,
+    description: !!normalizedData.description,
+    price: !!normalizedData.price,
+    category: !!normalizedData.category,
+    values: {
+      name: normalizedData.name,
+      description: normalizedData.description,
+      price: normalizedData.price,
+      category: normalizedData.category
+    }
+  });
   
   let requestData;
   let headers = { 
@@ -195,8 +211,16 @@ export const createProduct = async (productData) => {
   };
   
   // Check if there's an image file to upload
+  console.log('🔍 ProductService.createProduct - Image type check:', {
+    hasImage: !!normalizedData.image,
+    imageType: typeof normalizedData.image,
+    isFile: normalizedData.image instanceof File,
+    isString: typeof normalizedData.image === 'string'
+  });
+  
   if (normalizedData.image instanceof File) {
     // Use FormData for file upload
+    console.log('🔍 ProductService.createProduct - Using FormData for file upload');
     requestData = new FormData();
     
     Object.keys(normalizedData).forEach(key => {
@@ -211,15 +235,34 @@ export const createProduct = async (productData) => {
       }
     });
     
+    // Log FormData contents
+    console.log('🔍 ProductService.createProduct - FormData entries:');
+    for (let [key, value] of requestData.entries()) {
+      console.log(`  ${key}:`, value);
+    }
+    
     // Don't set Content-Type for FormData, let browser set it with boundary
   } else {
     // Use JSON for data without files
+    console.log('🔍 ProductService.createProduct - Using JSON (no file upload)');
     requestData = normalizedData;
     headers['Content-Type'] = 'application/json';
   }
   
+  console.log('🔍 ProductService.createProduct - Final request data type:', typeof requestData);
+  console.log('🔍 ProductService.createProduct - Request headers:', headers);
+  console.log('🔍 ProductService.createProduct - API URL:', API_URL);
+  
   const response = await axios.post(API_URL, requestData, { headers });
-  return response.data;
+  
+  console.log('🔍 ProductService.createProduct - Response:', response.data);
+  
+  // Return the product data from the response
+  if (response.data.success && response.data.data) {
+    return response.data.data;
+  } else {
+    throw new Error(response.data.message || 'Failed to create product');
+  }
 };
 
 // Update product
@@ -316,7 +359,7 @@ export const uploadImage = async (file) => {
   const formData = new FormData();
   formData.append('photo', file);
   
-        const response = await axios.post(`${import.meta.env.VITE_API_URL || '/api'}/upload/photo`, formData, {
+        const response = await axios.post(`http://localhost:4000/api/upload/photo`, formData, {
     headers: { 
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'

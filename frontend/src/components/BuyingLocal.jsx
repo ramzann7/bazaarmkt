@@ -81,7 +81,7 @@ const BuyingLocal = () => {
           </p>
           <Link
             to="/search"
-            className="inline-block bg-amber-600 text-white px-8 py-4 rounded-2xl shadow-lg text-lg font-semibold hover:bg-amber-700 transition-colors"
+            className="inline-block bg-primary text-white px-8 py-4 rounded-2xl shadow-lg text-lg font-semibold hover:bg-primary-dark transition-colors"
           >
             Start Shopping Local
           </Link>
@@ -121,7 +121,7 @@ const BuyingLocal = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="text-4xl font-bold text-amber-600 mb-2">
+                <div className="text-4xl font-bold text-primary mb-2">
                   {stat.number}
                 </div>
                 <p className="text-gray-600">
@@ -148,13 +148,13 @@ const BuyingLocal = () => {
                 <ul className="space-y-3">
                   {tips.map((tip, index) => (
                     <li key={index} className="flex items-start">
-                      <div className="w-2 h-2 bg-amber-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                      <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0"></div>
                       <span className="text-gray-600">{tip}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="bg-amber-50 rounded-xl p-6">
+              <div className="bg-primary-50 rounded-xl p-6">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">
                   Ready to Start?
                 </h3>
@@ -164,7 +164,7 @@ const BuyingLocal = () => {
                 </p>
                 <Link
                   to="/search"
-                  className="inline-block bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-amber-700 transition-colors"
+                  className="inline-block bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary-dark transition-colors"
                 >
                   Browse Local Products
                 </Link>
@@ -175,7 +175,7 @@ const BuyingLocal = () => {
       </section>
 
       {/* Call to Action */}
-      <section className="py-16 bg-gradient-to-r from-green-600 to-amber-600">
+      <section className="py-16 bg-gradient-to-r from-green-600 to-primary">
         <div className="max-w-4xl mx-auto text-center px-4">
           <h2 className="text-3xl font-bold text-white mb-6">
             Join the Local Movement
@@ -187,13 +187,13 @@ const BuyingLocal = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/search"
-              className="inline-block bg-white text-amber-600 px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition-colors"
+              className="inline-block bg-white text-primary px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition-colors"
             >
               Start Shopping
             </Link>
                          <Link
                to="/artisans"
-               className="inline-block border-2 border-white text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white hover:text-amber-600 transition-colors"
+               className="inline-block border-2 border-white text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white hover:text-primary transition-colors"
              >
                Meet Our Artisans
              </Link>

@@ -1,0 +1,22 @@
+# Frontend Environment Variables
+# Copy this file to frontend/.env and fill in your actual values
+
+# Brevo API Configuration (for email notifications)
+# Get your API key from: https://app.brevo.com/settings/keys/api
+VITE_BREVO_API_KEY=your_brevo_api_key_here
+
+# API Configuration
+VITE_API_URL=http://localhost:4000/api
+VITE_BASE_URL=http://localhost:4000
+VITE_UPLOADS_URL=http://localhost:4000/uploads
+
+# Vercel Blob Configuration (for production)
+VITE_VERCEL_BLOB_DOMAIN=blob.vercel-storage.com
+VITE_VERCEL_BLOB_URL=https://blob.vercel-storage.com
+
+# Other API Keys (optional)
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_key_here
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key_here
+
+# Environment
+VITE_NODE_ENV=development

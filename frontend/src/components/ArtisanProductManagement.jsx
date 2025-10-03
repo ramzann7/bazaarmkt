@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   MagnifyingGlassIcon, 
   EyeIcon, 
@@ -44,27 +45,6 @@ export default function ArtisanProductManagement() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // Helper function to get the correct image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    // If it's a local path, prefix with backend URL
-    if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-  };
 
   useEffect(() => {
     const initializeComponent = async () => {
@@ -103,14 +83,75 @@ export default function ArtisanProductManagement() {
       if (selectedProduct) {
         // Update existing product
         console.log('🔍 Updating existing product...');
-        const updatedProduct = await productService.updateProduct(selectedProduct._id, productData);
+        
+        // Separate inventory data from product data
+        const inventoryFields = ['stock', 'totalCapacity', 'remainingCapacity', 'availableQuantity'];
+        const hasInventoryChanges = inventoryFields.some(field => 
+          productData[field] !== undefined && productData[field] !== selectedProduct[field]
+        );
+        
+        // Remove inventory fields from product update (they'll be updated separately)
+        const productUpdateData = { ...productData };
+        delete productUpdateData.stock;
+        delete productUpdateData.totalCapacity;
+        delete productUpdateData.remainingCapacity;
+        delete productUpdateData.availableQuantity;
+        
+        // Update product info first
+        let updatedProduct = await productService.updateProduct(selectedProduct._id, productUpdateData);
+        
+        // If inventory changed, update it using the inventory API
+        if (hasInventoryChanges) {
+          console.log('🔍 Inventory changed, updating via inventory API...');
+          
+          // Determine inventory value based on product type
+          let inventoryQuantity;
+          switch (productData.productType || selectedProduct.productType) {
+            case 'ready_to_ship':
+              inventoryQuantity = productData.stock;
+              break;
+            case 'made_to_order':
+              inventoryQuantity = productData.totalCapacity;
+              break;
+            case 'scheduled_order':
+              inventoryQuantity = productData.availableQuantity;
+              break;
+            default:
+              inventoryQuantity = productData.stock;
+          }
+          
+          if (inventoryQuantity !== undefined) {
+            // Use the inventory API endpoint
+            const response = await axios.put(
+              `${config.API_URL}/products/${selectedProduct._id}/inventory`,
+              { 
+                quantity: inventoryQuantity,
+                action: 'set'
+              },
+              {
+                headers: { 
+                  Authorization: `Bearer ${localStorage.getItem('token')}` 
+                }
+              }
+            );
+            
+            // Use the product from inventory API response
+            updatedProduct = response.data.product;
+            console.log('✅ Inventory updated via API:', updatedProduct);
+          }
+        }
+        
         setProducts(products.map(p => p._id === selectedProduct._id ? updatedProduct : p));
         toast.success('Product updated successfully!');
       } else {
         // Add new product
         console.log('🔍 Creating new product...');
         const newProduct = await productService.createProduct(productData);
+        console.log('🔍 New product received:', newProduct);
+        console.log('🔍 Current products count:', products.length);
+        console.log('🔍 Adding new product to list...');
         setProducts([...products, newProduct]);
+        console.log('🔍 Products updated, new count should be:', products.length + 1);
         toast.success('Product added successfully!');
       }
       setShowProductModal(false);
@@ -194,7 +235,11 @@ export default function ArtisanProductManagement() {
       }
 
       const profile = await getProfile();
-      if (!['artisan', 'producer', 'food_maker'].includes(profile.role)) {
+      // Check both role and userType for artisan access
+      const isArtisan = profile.role === 'artisan' || profile.userType === 'artisan' || 
+                       ['artisan', 'producer', 'food_maker'].includes(profile.role);
+      
+      if (!isArtisan) {
         toast.error('Access denied. Artisan privileges required.');
         navigate('/');
         return;
@@ -375,7 +420,7 @@ export default function ArtisanProductManagement() {
     if (featuredCount > 0 && sponsoredCount > 0) {
       return { status: 'both', text: 'Featured + Sponsored', color: 'text-purple-600' };
     } else if (featuredCount > 0) {
-      return { status: 'featured', text: 'Featured Product', color: 'text-amber-600' };
+      return { status: 'featured', text: 'Featured Product', color: 'text-primary' };
     } else if (sponsoredCount > 0) {
       return { status: 'sponsored', text: 'Sponsored Product', color: 'text-purple-600' };
     }
@@ -428,13 +473,13 @@ export default function ArtisanProductManagement() {
           </div>
           
           {/* Promotional Features Info */}
-          <div className="bg-gradient-to-r from-amber-50 to-purple-50 rounded-xl p-6 border border-amber-200">
+          <div className="bg-gradient-to-r from-amber-50 to-purple-50 rounded-xl p-6 border border-primary-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Promotional Features</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-amber-200">
-                <StarIcon className="w-6 h-6 text-amber-500" />
+              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-primary-200">
+                <StarIcon className="w-6 h-6 text-primary-500" />
                 <div>
-                  <span className="font-semibold text-amber-700">Featured Product</span>
+                  <span className="font-semibold text-primary-dark">Featured Product</span>
                   <p className="text-sm text-gray-600">$5/day - Homepage visibility with distance-based ranking</p>
                 </div>
               </div>
@@ -571,7 +616,12 @@ export default function ArtisanProductManagement() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredProducts.map((product) => (
+              {filteredProducts.map((product) => {
+                // Use InventoryModel to check actual inventory status
+                const inventoryModel = new InventoryModel(product);
+                const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+                
+                return (
                 <div key={product._id} className="bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
@@ -581,11 +631,7 @@ export default function ArtisanProductManagement() {
                             src={getImageUrl(product.image)}
                             alt={product.name}
                             className="w-full h-full object-cover rounded-lg"
-                            onError={(e) => {
-                              console.error('Image failed to load:', getImageUrl(product.image));
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
+                            onError={(e) => handleImageError(e, 'product')}
                           />
                         ) : null}
                         <div className={`w-full h-full flex items-center justify-center ${product.image ? 'hidden' : 'flex'}`}>
@@ -599,17 +645,28 @@ export default function ArtisanProductManagement() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-3 mb-3">
                           <h4 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h4>
+                          
+                          {/* Status Badge - Shows manual status OR auto-detected out of stock */}
                           <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            outOfStockStatus.isOutOfStock ? 'bg-red-100 text-red-800' :
                             product.status === 'active' ? 'bg-green-100 text-green-800' : 
                             product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
                             product.status === 'out_of_stock' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {product.status === 'active' ? 'Active' : 
+                            {outOfStockStatus.isOutOfStock ? 'Out of Stock' :
+                             product.status === 'active' ? 'Active' : 
                              product.status === 'inactive' ? 'Inactive' :
                              product.status === 'out_of_stock' ? 'Out of Stock' :
                              'Draft'}
                           </span>
+                          
+                          {/* Out of Stock Reason Tag (if inventory-based) */}
+                          {outOfStockStatus.isOutOfStock && product.status === 'active' && (
+                            <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full" title={outOfStockStatus.reason}>
+                              {outOfStockStatus.message}
+                            </span>
+                          )}
                           <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPromotionStatus(product).color} bg-opacity-10`}>
                             {getPromotionStatus(product).text}
                           </span>
@@ -644,7 +701,7 @@ export default function ArtisanProductManagement() {
                         </div>
                         
                         {/* Additional Product Details */}
-                        {(product.weight || product.dimensions || product.allergens) && (
+                        {(product.weight || product.dimensions || (product.allergens && product.allergens.length > 0)) && (
                           <div className="mt-4 pt-4 border-t border-gray-200">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                               {product.weight && (
@@ -659,10 +716,10 @@ export default function ArtisanProductManagement() {
                                   <p className="text-gray-600">{product.dimensions}</p>
                                 </div>
                               )}
-                              {product.allergens && (
+                              {product.allergens && product.allergens.length > 0 && (
                                 <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
                                   <span className="font-medium text-gray-700">Allergens:</span>
-                                  <p className="text-gray-600">{product.allergens}</p>
+                                  <p className="text-gray-600">{Array.isArray(product.allergens) ? product.allergens.join(', ') : product.allergens}</p>
                                 </div>
                               )}
                             </div>
@@ -720,7 +777,8 @@ export default function ArtisanProductManagement() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -761,10 +819,7 @@ export default function ArtisanProductManagement() {
                       src={getImageUrl(selectedProduct.image)}
                       alt={selectedProduct.name}
                       className="w-16 h-16 object-cover rounded-lg"
-                      onError={(e) => {
-                        console.error('Image failed to load in promotion modal:', getImageUrl(selectedProduct.image));
-                        e.target.style.display = 'none';
-                      }}
+                      onError={(e) => handleImageError(e, 'product-modal')}
                     />
                   )}
                   <div>
@@ -784,20 +839,20 @@ export default function ArtisanProductManagement() {
                   <div
                     className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                       promotionData.featureType === 'featured_product'
-                        ? 'border-amber-400 bg-amber-50'
-                        : 'border-gray-200 hover:border-amber-200'
+                        ? 'border-amber-400 bg-primary-50'
+                        : 'border-gray-200 hover:border-primary-200'
                     }`}
                     onClick={() => setPromotionData({...promotionData, featureType: 'featured_product'})}
                   >
                     <div className="flex items-center space-x-3 mb-3">
-                      <StarIcon className="w-6 h-6 text-amber-500" />
+                      <StarIcon className="w-6 h-6 text-primary-500" />
                       <h4 className="font-semibold text-gray-900">Featured Product</h4>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">
                       Showcase your product on the homepage with distance-based ranking
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-amber-600">
+                      <span className="text-2xl font-bold text-primary">
                         ${promotionalPricing?.featured_product?.pricePerDay ? 
                           (promotionalPricing.featured_product.pricePerDay * 7) : 25}
                       </span>
@@ -976,6 +1031,21 @@ export default function ArtisanProductManagement() {
 
 // Product Form Component
 const ProductForm = ({ product, onSave, onCancel }) => {
+  // Determine correct inventory value based on product type
+  const getInventoryValue = (prod) => {
+    if (!prod) return 0;
+    switch (prod.productType) {
+      case 'ready_to_ship':
+        return prod.stock || 0;
+      case 'made_to_order':
+        return prod.totalCapacity || 0;
+      case 'scheduled_order':
+        return prod.availableQuantity || 0;
+      default:
+        return prod.stock || 0;
+    }
+  };
+  
   const [formData, setFormData] = useState({
     name: product?.name || '',
     description: product?.description || '',
@@ -984,9 +1054,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     productType: product?.productType || 'ready_to_ship',
     category: product?.category || 'food_beverages',
     subcategory: product?.subcategory || 'baked_goods',
-    stock: product?.productType === 'made_to_order' ? (product?.totalCapacity || 0) :
-           product?.productType === 'scheduled_order' ? (product?.availableQuantity || 0) :
-           (product?.stock || 0),
+    stock: getInventoryValue(product),
     weight: product?.weight || '',
     dimensions: product?.dimensions || '',
     allergens: product?.allergens || '',
@@ -1022,6 +1090,22 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   // Update form data when product changes
   useEffect(() => {
     if (product) {
+      // Determine correct inventory value based on product type
+      let inventoryValue = 0;
+      switch (product.productType) {
+        case 'ready_to_ship':
+          inventoryValue = product.stock || 0;
+          break;
+        case 'made_to_order':
+          inventoryValue = product.totalCapacity || 0;
+          break;
+        case 'scheduled_order':
+          inventoryValue = product.availableQuantity || 0;
+          break;
+        default:
+          inventoryValue = product.stock || 0;
+      }
+      
       setFormData(prev => ({
         ...prev,
         name: product.name || '',
@@ -1031,9 +1115,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         productType: product.productType || 'ready_to_ship',
         category: product.category || 'food_beverages',
         subcategory: product.subcategory || 'baked_goods',
-        stock: product.productType === 'made_to_order' ? (product.totalCapacity || 0) :
-               product.productType === 'scheduled_order' ? (product.availableQuantity || 0) :
-               (product.stock || 0),
+        stock: inventoryValue,
         weight: product.weight || '',
         dimensions: product.dimensions || '',
         allergens: product.allergens || '',
@@ -1068,6 +1150,22 @@ const ProductForm = ({ product, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    console.log('🔍 Form submission - formData:', formData);
+    console.log('🔍 Form submission - required fields check:', {
+      name: !!formData.name,
+      description: !!formData.description,
+      price: !!formData.price,
+      category: !!formData.category,
+      subcategory: !!formData.subcategory,
+      values: {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        category: formData.category,
+        subcategory: formData.subcategory
+      }
+    });
     
     // Filter formData to only include fields that the backend expects
     const filteredData = {
@@ -2139,16 +2237,16 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           ))}
         </div>
         
-        <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <div className="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-200">
           <div className="flex items-start space-x-3">
-            <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
               <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
               <div>
               <p className="text-sm font-medium text-amber-900">Important Note</p>
-              <p className="text-xs text-amber-700 mt-1">
+              <p className="text-xs text-primary-dark mt-1">
                 Only select certifications that you can verify. Customers rely on this information for their dietary needs and safety.
               </p>
               </div>

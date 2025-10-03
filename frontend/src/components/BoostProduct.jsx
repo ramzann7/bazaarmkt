@@ -114,7 +114,7 @@ export default function BoostProduct({ product, onClose, onSuccess }) {
   const getFeatureIcon = (featureType) => {
     switch (featureType) {
       case 'featured_product':
-        return <StarIcon className="w-8 h-8 text-amber-500" />;
+        return <StarIcon className="w-8 h-8 text-primary-500" />;
       case 'sponsored_product':
         return <SparklesIcon className="w-8 h-8 text-purple-500" />;
       default:
@@ -125,7 +125,7 @@ export default function BoostProduct({ product, onClose, onSuccess }) {
   const getFeatureColor = (featureType) => {
     switch (featureType) {
       case 'featured_product':
-        return 'border-amber-200 bg-amber-50';
+        return 'border-primary-200 bg-primary-50';
       case 'sponsored_product':
         return 'border-purple-200 bg-purple-50';
       default:
@@ -186,20 +186,20 @@ export default function BoostProduct({ product, onClose, onSuccess }) {
             <div
               className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                 selectedFeature === 'featured_product'
-                  ? 'border-amber-400 bg-amber-50'
-                  : 'border-gray-200 hover:border-amber-200'
+                  ? 'border-amber-400 bg-primary-50'
+                  : 'border-gray-200 hover:border-primary-200'
               }`}
               onClick={() => handleFeatureSelect('featured_product')}
             >
               <div className="flex items-center space-x-3 mb-3">
-                <StarIcon className="w-6 h-6 text-amber-500" />
+                <StarIcon className="w-6 h-6 text-primary-500" />
                 <h4 className="font-semibold text-gray-900">Featured Product</h4>
               </div>
               <p className="text-sm text-gray-600 mb-3">
                 Showcase your product on the homepage with distance-based ranking
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold text-amber-600">$25</span>
+                <span className="text-2xl font-bold text-primary">$25</span>
                 <span className="text-sm text-gray-500">One-time</span>
               </div>
               <div className="mt-3 space-y-1">

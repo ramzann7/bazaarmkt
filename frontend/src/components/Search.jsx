@@ -185,11 +185,8 @@ export default function Search() {
       setSelectedProduct(null);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      if (error.message.includes('Artisans cannot add products to cart')) {
-        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
-      } else {
-        toast.error('Failed to add to cart');
-      }
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
     }
   };
 
@@ -247,10 +244,10 @@ export default function Search() {
     const hasHalfStar = rating % 1 !== 0;
 
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-amber-400" />);
+      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-primary-400" />);
     }
     if (hasHalfStar) {
-      stars.push(<StarIcon key="half" className="w-4 h-4 text-amber-400" />);
+      stars.push(<StarIcon key="half" className="w-4 h-4 text-primary-400" />);
     }
     const emptyStars = 5 - Math.ceil(rating);
     for (let i = 0; i < emptyStars; i++) {
@@ -352,7 +349,7 @@ export default function Search() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="relevance">Relevance</option>
                 <option value="price-low">Price: Low to High</option>
@@ -401,7 +398,7 @@ export default function Search() {
                     setSelectedCategory('');
                     setSelectedSubcategory('');
                   }}
-                  className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -436,7 +433,7 @@ export default function Search() {
                   />
                 ) : (
                   <div className="w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
-                    <BuildingStorefrontIcon className="w-16 h-16 text-amber-400" />
+                    <BuildingStorefrontIcon className="w-16 h-16 text-primary-400" />
                   </div>
                 )}
               </div>

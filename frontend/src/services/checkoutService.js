@@ -5,7 +5,9 @@ import { cartService } from './cartService';
 import { orderService } from './orderService';
 import toast from 'react-hot-toast';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/orders` : 'http://localhost:4000/api/orders';
+import config from '../config/environment.js';
+
+const API_URL = `${config.API_URL}/orders`;
 
 const getAuthHeaders = () => ({
   Authorization: `Bearer ${authToken.getToken()}`,
@@ -202,7 +204,7 @@ export const checkoutService = {
   // Save checkout preferences
   saveCheckoutPreferences: async (preferences) => {
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || '/api'}/profile/checkout-preferences`, preferences, {
+      const response = await axios.post(`${config.API_URL}/profile/checkout-preferences`, preferences, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -215,7 +217,7 @@ export const checkoutService = {
   // Get saved checkout preferences
   getCheckoutPreferences: async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL || '/api'}/profile/checkout-preferences`, {
+      const response = await axios.get(`${config.API_URL}/profile/checkout-preferences`, {
         headers: getAuthHeaders()
       });
       return response.data;

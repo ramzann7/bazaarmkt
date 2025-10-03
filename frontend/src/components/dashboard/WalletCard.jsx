@@ -11,6 +11,7 @@ import toast from "react-hot-toast";
 
 export default function WalletCard() {
   const [walletBalance, setWalletBalance] = useState(0);
+  const [pendingBalance, setPendingBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [recentTransactions, setRecentTransactions] = useState([]);
 
@@ -26,6 +27,7 @@ export default function WalletCard() {
       if (walletResponse.success) {
         console.log('WalletCard: Setting wallet balance to:', walletResponse.data.balance);
         setWalletBalance(walletResponse.data.balance);
+        setPendingBalance(walletResponse.data.pendingBalance || 0);
       }
       
       // Load recent transactions (if available)
@@ -127,6 +129,19 @@ export default function WalletCard() {
             </>
           )}
         </div>
+        
+        {/* Pending Balance */}
+        {!isLoading && pendingBalance > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <ClockIcon className="w-4 h-4 text-primary-500" />
+            <div className="flex items-baseline gap-1">
+              <span className="text-sm font-semibold text-primary-dark">
+                {formatCurrency(pendingBalance)}
+              </span>
+              <span className="text-xs text-primary">pending</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Quick Stats */}
@@ -138,8 +153,10 @@ export default function WalletCard() {
           </p>
         </div>
         <div className="bg-gray-50 rounded-lg p-2">
-          <p className="text-xs text-gray-500 mb-1">Status</p>
-          <p className="text-sm font-semibold text-green-600">Ready</p>
+          <p className="text-xs text-gray-500 mb-1">Pending</p>
+          <p className="text-sm font-semibold text-primary">
+            {formatCurrency(pendingBalance)}
+          </p>
         </div>
       </div>
 

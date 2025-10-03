@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   MagnifyingGlassIcon, 
@@ -381,31 +382,6 @@ export default function SearchResults() {
     setQuantity(1);
   };
 
-  const getImageUrl = (image) => {
-    if (!image) return '';
-    
-    // Handle base64 data URLs
-    if (image.startsWith('data:')) return image;
-    
-    if (image.startsWith('http')) return image;
-    
-    let finalUrl;
-    
-    // Check if the image path already contains /uploads/products/
-    if (image.startsWith('/uploads/products/')) {
-      finalUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${image}`;
-    }
-    // Check if the image path starts with uploads/products/ (without leading slash)
-    else if (image.startsWith('uploads/products/')) {
-      finalUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${image}`;
-    }
-    // Default case: add /uploads/products/ prefix
-    else {
-      finalUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/uploads/products/${image}`;
-    }
-    
-    return finalUrl;
-  };
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
@@ -420,10 +396,10 @@ export default function SearchResults() {
     const hasHalfStar = rating % 1 !== 0;
 
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIcon key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />);
+      stars.push(<StarIcon key={i} className="w-4 h-4 fill-primary-400 text-primary-400" />);
     }
     if (hasHalfStar) {
-      stars.push(<StarIcon key="half" className="w-4 h-4 fill-amber-400 text-amber-400" />);
+      stars.push(<StarIcon key="half" className="w-4 h-4 fill-primary-400 text-primary-400" />);
     }
     const emptyStars = 5 - Math.ceil(rating);
     for (let i = 0; i < emptyStars; i++) {
@@ -444,9 +420,9 @@ export default function SearchResults() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div className="min-h-screen bg-primary-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-amber-200">
+      <div className="bg-white shadow-sm border-b border-primary-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -457,7 +433,7 @@ export default function SearchResults() {
                   </h1>
                   <p className="text-slate-600 mt-1">
                     {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
-                    {autoSearch && <span className="text-amber-600 font-medium"> • Auto-selected for you</span>}
+                    {autoSearch && <span className="text-primary font-medium"> • Auto-selected for you</span>}
                   </p>
                 </>
               ) : query ? (
@@ -476,7 +452,7 @@ export default function SearchResults() {
                   </h1>
                   <p className="text-slate-600 mt-1">
                     {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
-                    {autoSearch && <span className="text-amber-600 font-medium"> • Auto-selected for you</span>}
+                    {autoSearch && <span className="text-primary font-medium"> • Auto-selected for you</span>}
                   </p>
                 </>
               ) : (
@@ -495,7 +471,7 @@ export default function SearchResults() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 border border-amber-200 rounded-lg hover:bg-amber-50"
+                className="flex items-center space-x-2 px-4 py-2 border border-primary-200 rounded-lg hover:bg-primary-50"
               >
                 <FunnelIcon className="w-5 h-5" />
                 <span>Filters</span>
@@ -504,7 +480,7 @@ export default function SearchResults() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="px-4 py-2 border border-primary-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               >
                 <option value="distance">Sort by Distance</option>
                 <option value="price-low">Price: Low to High</option>
@@ -518,7 +494,7 @@ export default function SearchResults() {
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white border-b border-amber-200">
+        <div className="bg-white border-b border-primary-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Categories */}
@@ -537,7 +513,7 @@ export default function SearchResults() {
                             setSelectedCategories(selectedCategories.filter(c => c !== category.id));
                           }
                         }}
-                        className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <span className="ml-2 text-sm text-gray-700">{category.icon} {category.name}</span>
                     </label>
@@ -571,7 +547,7 @@ export default function SearchResults() {
                     setSelectedCategories([]);
                     setPriceRange([0, 1000]);
                   }}
-                  className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Clear Filters
                 </button>
@@ -638,7 +614,7 @@ export default function SearchResults() {
                   />
                 ) : null}
                 <div className={`w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${selectedProduct.image ? 'hidden' : 'flex'}`}>
-                  <BuildingStorefrontIcon className="w-16 h-16 text-amber-400" />
+                  <BuildingStorefrontIcon className="w-16 h-16 text-primary-400" />
                 </div>
               </div>
             </div>

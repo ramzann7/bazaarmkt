@@ -358,11 +358,8 @@ export default function BusinessDetails() {
       updateCartCount().catch(console.error);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      if (error.message.includes('Artisans cannot add products to cart')) {
-        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
-      } else {
-        toast.error('Failed to add item to cart. Please try again.');
-      }
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
     }
   };
 
@@ -1173,7 +1170,7 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
           {product.image && (
             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300 ease-in-out">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-amber-600 rounded-full p-2 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                <div className="bg-primary rounded-full p-2 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
                   <HeartIcon className="w-4 h-4 text-white" />
                 </div>
               </div>

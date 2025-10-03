@@ -440,7 +440,7 @@ export default function OrderConfirmation() {
                   {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
                     <div className="bg-emerald-50 rounded-lg p-4 mb-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
                       <div className="flex items-start gap-3">
-                        <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
+                        <MapPinIcon className="w-5 h-5 text-accent mt-1 print:hidden" />
                         <div>
                           <p className="text-sm font-medium text-emerald-800 mb-1">Pickup Location</p>
                           <p className="text-sm text-emerald-700">
@@ -492,11 +492,11 @@ export default function OrderConfirmation() {
                               <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                   <h4 className="font-semibold text-gray-900 text-sm print:text-xs">
-                                    {item.product?.name || item.name || 'Product'}
+                                    {item.productName || item.product?.name || item.name || 'Product'}
                                   </h4>
-                                  {item.product?.description && (
+                                  {(item.product?.description || item.description) && (
                                     <p className="text-xs text-gray-600 mt-1 line-clamp-2 print:text-xs">
-                                      {item.product.description}
+                                      {item.product?.description || item.description}
                                     </p>
                                   )}
                                 </div>
@@ -561,11 +561,11 @@ export default function OrderConfirmation() {
                       const pickupTime = formatPickupTime(pickupTimeWindow);
                       return pickupTime ? (
                         <>
-                          <div className="flex items-center gap-2 text-emerald-600">
+                          <div className="flex items-center gap-2 text-accent">
                             <CalendarIcon className="w-4 h-4 print:hidden" />
                             <span className="font-medium print:text-xs">Pickup Date: {pickupTime.date}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-emerald-600">
+                          <div className="flex items-center gap-2 text-accent">
                             <ClockIcon className="w-4 h-4 print:hidden" />
                             <span className="font-medium print:text-xs">Pickup Time: {pickupTime.time}</span>
                           </div>
@@ -746,12 +746,37 @@ export default function OrderConfirmation() {
           <div className="bg-white rounded-2xl shadow-xl border border-emerald-200 p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
             <div className="flex items-center gap-3 mb-6 print:mb-4">
               <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center print:hidden">
-                <MapPinIcon className="w-6 h-6 text-emerald-600" />
+                <MapPinIcon className="w-6 h-6 text-accent" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 print:text-lg">Pickup Information</h2>
             </div>
 
             <div className="space-y-4 print:space-y-2">
+              {/* Pickup Location */}
+              {(() => {
+                // Find pickup order and get pickup location from artisan data
+                const pickupOrder = orders.find(order => order.deliveryMethod === 'pickup');
+                if (pickupOrder?.artisan?.pickupAddress) {
+                  const pickupAddress = pickupOrder.artisan.pickupAddress;
+                  return (
+                    <div className="flex items-start gap-3 bg-emerald-50 rounded-lg p-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                      <MapPinIcon className="w-5 h-5 text-accent mt-1 print:hidden" />
+                      <div>
+                        <p className="text-sm font-medium text-emerald-800 mb-1 print:text-xs">Pickup Location</p>
+                        <p className="font-medium text-emerald-900 print:text-sm">
+                          {pickupOrder.artisan?.artisanName || pickupOrder.artisan?.businessName || 'Artisan Location'}
+                        </p>
+                        <p className="text-sm text-emerald-700 mt-1 print:text-xs">
+                          {pickupAddress.street}<br />
+                          {pickupAddress.city}, {pickupAddress.state} {pickupAddress.zipCode}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Pickup Time Information */}
               {(() => {
                 // Find pickup order and get pickup time from order data or navigation state
@@ -764,13 +789,13 @@ export default function OrderConfirmation() {
                     const pickupTime = formatPickupTime(pickupTimeWindow);
                     return pickupTime ? (
                 <div className="flex items-start gap-3">
-                        <CalendarIcon className="w-5 h-5 text-emerald-400 mt-1" />
+                        <CalendarIcon className="w-5 h-5 text-emerald-400 mt-1 print:hidden" />
                   <div>
-                          <p className="text-sm text-gray-600">Scheduled Pickup Time</p>
-                          <p className="font-medium text-gray-900 text-emerald-700">
+                          <p className="text-sm text-gray-600 print:text-xs">Scheduled Pickup Time</p>
+                          <p className="font-medium text-gray-900 text-emerald-700 print:text-sm">
                             {pickupTime.full}
                           </p>
-                          <p className="text-xs text-emerald-600 mt-1">
+                          <p className="text-xs text-accent mt-1">
                             Please arrive within this time window
                     </p>
                   </div>
@@ -782,10 +807,10 @@ export default function OrderConfirmation() {
               })()}
 
                   <div className="flex items-start gap-3">
-                    <MapPinIcon className="w-5 h-5 text-emerald-400 mt-1" />
+                    <MapPinIcon className="w-5 h-5 text-emerald-400 mt-1 print:hidden" />
                     <div>
-                      <p className="text-sm text-gray-600">Pickup Instructions</p>
-                      <p className="font-medium text-gray-900 text-emerald-700">
+                      <p className="text-sm text-gray-600 print:text-xs">Pickup Instructions</p>
+                      <p className="font-medium text-gray-900 text-emerald-700 print:text-sm">
                         Visit the artisan location to collect your order. Bring your email confirmation.
                       </p>
                     </div>

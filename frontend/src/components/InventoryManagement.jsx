@@ -4,7 +4,9 @@ import axios from 'axios';
 import { productService } from '../services/productService';
 import InventoryModel from '../models/InventoryModel';
 
-const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/products` : '/api/products';
+import config from '../config/environment.js';
+
+const API_URL = `${config.API_URL}/products`;
 
 const InventoryManagement = ({ 
   product, 
@@ -32,7 +34,8 @@ const InventoryManagement = ({
 
     try {
       const response = await axios.put(`${API_URL}/${product._id}/inventory`, { 
-        stock: newStock 
+        quantity: newStock,
+        action: 'set'
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
@@ -66,8 +69,8 @@ const InventoryManagement = ({
       console.log('🔍 Capacity calculation result:', capacityCalculation);
       
       const response = await axios.put(`${API_URL}/${product._id}/inventory`, { 
-        totalCapacity: capacityCalculation.totalCapacity,
-        remainingCapacity: capacityCalculation.remainingCapacity
+        quantity: capacityCalculation.totalCapacity,
+        action: 'set'
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
@@ -98,7 +101,8 @@ const InventoryManagement = ({
 
     try {
       const response = await axios.put(`${API_URL}/${product._id}/inventory`, { 
-        availableQuantity: newAvailableQuantity
+        quantity: newAvailableQuantity,
+        action: 'set'
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });

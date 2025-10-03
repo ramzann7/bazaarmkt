@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -383,34 +384,6 @@ export default function FindArtisans() {
     }
   }, [isAuthenticated]);
 
-  // Enhanced image URL handling
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle different photo data structures
-    if (typeof imagePath === 'object' && imagePath.url) {
-      return imagePath.url;
-    }
-    
-    // Handle string format
-    if (typeof imagePath === 'string') {
-      // Handle base64 data URLs
-      if (imagePath.startsWith('data:image/')) {
-        return imagePath;
-      }
-      // Handle HTTP URLs
-      if (imagePath.startsWith('http')) {
-        return imagePath;
-      }
-      // Handle relative paths
-      if (imagePath.startsWith('/')) {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      }
-              return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-    }
-    
-    return null;
-  };
 
   // Enhanced artisan images handling
   const getArtisanImages = (artisan) => {
@@ -709,7 +682,7 @@ export default function FindArtisans() {
               <h3 className={`text-lg font-semibold transition-colors duration-300 ${
                 isOpen === false 
                   ? 'text-gray-600 group-hover:text-gray-800' 
-                  : 'text-gray-900 group-hover:text-amber-600'
+                  : 'text-gray-900 group-hover:text-primary'
               }`}>
                 {artisan.artisanName || 'Unnamed Artisan'}
               </h3>
@@ -721,9 +694,9 @@ export default function FindArtisans() {
               )}
             </div>
             <div className="flex items-center space-x-1">
-              <StarIconSolid className="w-4 h-4 text-amber-500" />
+              <StarIconSolid className="w-4 h-4 text-primary-500" />
               <span className={`text-sm font-medium ${
-                ratingDisplay.isNew ? 'text-amber-600' : 'text-gray-900'
+                ratingDisplay.isNew ? 'text-primary' : 'text-gray-900'
               }`}>
                 {ratingDisplay.text}
               </span>
@@ -735,7 +708,7 @@ export default function FindArtisans() {
 
           {/* Artisan Type */}
           <p className={`text-sm font-medium mb-2 capitalize ${
-            isOpen === false ? 'text-gray-500' : 'text-amber-600'
+            isOpen === false ? 'text-gray-500' : 'text-primary'
           }`}>
             {artisan.type?.replace('_', ' ') || 'Local Artisan'}
           </p>
@@ -769,7 +742,7 @@ export default function FindArtisans() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1">
               <span className={`text-sm font-medium ${
-                isOpen === false ? 'text-gray-500' : 'text-amber-600'
+                isOpen === false ? 'text-gray-500' : 'text-primary'
               }`}>
                 {isOpen ? 'Open Now' : 'Currently Closed'}
               </span>
@@ -783,7 +756,7 @@ export default function FindArtisans() {
                   className={`p-2 transition-colors duration-300 ${
                     isOpen === false 
                       ? 'text-gray-300 cursor-not-allowed' 
-                      : 'text-gray-400 hover:text-amber-600'
+                      : 'text-gray-400 hover:text-primary'
                   }`}
                   title="Call artisan"
                   onClick={(e) => {
@@ -800,7 +773,7 @@ export default function FindArtisans() {
                   className={`p-2 transition-colors duration-300 ${
                     isOpen === false 
                       ? 'text-gray-300 cursor-not-allowed' 
-                      : 'text-gray-400 hover:text-amber-600'
+                      : 'text-gray-400 hover:text-primary'
                   }`}
                   title="Email artisan"
                   onClick={(e) => {
@@ -969,7 +942,7 @@ export default function FindArtisans() {
                       {/* Artisan Info */}
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-primary transition-colors">
                             {artisan.artisanName || artisan.businessName}
                           </h3>
                           {artisan.isVerified && (
@@ -1049,7 +1022,7 @@ export default function FindArtisans() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="name">Name (A-Z)</option>
                     <option value="rating">Highest Rated</option>
@@ -1088,7 +1061,7 @@ export default function FindArtisans() {
                 </p>
                 <button
                   onClick={loadAllArtisans}
-                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Retry
                 </button>
@@ -1106,7 +1079,7 @@ export default function FindArtisans() {
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   View All Categories
                 </button>

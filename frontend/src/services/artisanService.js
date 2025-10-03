@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import config from '../config/environment.js';
+
+const API_BASE_URL = config.API_URL;
 
 // Simple in-memory cache
 const cache = new Map();

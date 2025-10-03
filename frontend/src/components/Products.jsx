@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useNavigate } from 'react-router-dom';
 import { 
   PlusIcon, 
@@ -286,49 +287,6 @@ export default function Products() {
     return unitValue; // Fallback to the value itself
   };
 
-  // Helper function to get image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    console.log('🖼️ Getting image URL for:', imagePath);
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      console.log('🖼️ Using base64 data URL');
-      return imagePath;
-    }
-    
-    // Handle HTTP URLs (including Vercel Blob URLs)
-    if (imagePath.startsWith('http')) {
-      console.log('🖼️ Using HTTP URL (including Vercel Blob)');
-      return imagePath;
-    }
-    
-    // Handle Vercel Blob URLs that might be stored as filenames
-    if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      console.log('🖼️ Using Vercel Blob URL');
-      return imagePath;
-    }
-    
-    // Handle relative paths (legacy support)
-    if (imagePath.startsWith('/uploads/')) {
-      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Using legacy uploads path:', fullUrl);
-      return fullUrl;
-    }
-    
-    // Handle paths with leading slash (legacy support)
-    if (imagePath.startsWith('/')) {
-      const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      console.log('🖼️ Using legacy path with leading slash:', fullUrl);
-      return fullUrl;
-    }
-    
-    // Handle paths without leading slash (legacy support)
-    const fullUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-    console.log('🖼️ Using legacy path without leading slash:', fullUrl);
-    return fullUrl;
-  };
 
   useEffect(() => {
     console.log('Products component mounted - loading data...');
@@ -1231,13 +1189,7 @@ export default function Products() {
                           onLoad={() => {
                             console.log('✅ Image loaded successfully for product:', product.name, 'URL:', getImageUrl(product.image));
                           }}
-                          onError={(e) => {
-                            console.error('❌ Image failed to load for product:', product.name);
-                            console.error('❌ Image path:', product.image);
-                            console.error('❌ Full URL:', getImageUrl(product.image));
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
+                          onError={(e) => handleImageError(e, 'product')}
                         />
                         <div className="w-full h-full flex items-center justify-center text-gray-400 hidden">
                           <CameraIcon className="w-12 h-12" />
@@ -1290,7 +1242,7 @@ export default function Products() {
                                           <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handlePromotionalFeatures(product)}
-                        className="bg-gradient-to-r from-amber-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:from-amber-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                        className="bg-gradient-to-r from-amber-500 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold hover:from-primary hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
                         title="Boost Product Visibility"
                       >
                         <SparklesIcon className="w-3 h-3 mr-1" />

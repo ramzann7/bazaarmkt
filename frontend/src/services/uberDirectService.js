@@ -78,21 +78,36 @@ export const uberDirectService = {
     return majorCities.includes(city);
   },
 
-  // Get estimated delivery time
+  // Get estimated delivery time using realistic car driving speeds
   getEstimatedDeliveryTime: (origin, destination) => {
     const distance = uberDirectService.calculateDistance(origin, destination);
     
-    // Base time is 30 minutes
-    let baseTime = 30;
-    
-    // Add time based on distance
-    if (distance > 10) {
-      baseTime += Math.ceil(distance / 10) * 15; // 15 minutes per 10km
+    if (!distance || distance <= 0) {
+      return {
+        min: 30,
+        max: 60,
+        unit: 'minutes'
+      };
     }
     
+    // Use centralized delivery time estimator with professional delivery speeds
+    const { getDeliveryTimeRange } = require('../utils/deliveryTimeEstimator');
+    const timeRange = getDeliveryTimeRange(distance, 'professionalDelivery');
+    
+    if (timeRange) {
+      return {
+        min: timeRange.min,
+        max: timeRange.max,
+        unit: 'minutes',
+        formatted: timeRange.formatted,
+        distance: distance
+      };
+    }
+    
+    // Fallback calculation
     return {
-      min: baseTime,
-      max: baseTime + 30, // Add 30 minutes buffer
+      min: 30,
+      max: 60,
       unit: 'minutes'
     };
   },

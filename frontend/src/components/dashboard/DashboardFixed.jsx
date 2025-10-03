@@ -43,30 +43,26 @@ export default function DashboardFixed() {
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        console.log('DashboardFixed: Starting to load...');
-        
         // Step 1: Load user profile
-        console.log('DashboardFixed: Loading user profile...');
         const userData = await getProfile();
-        console.log('DashboardFixed: User loaded:', userData);
         setUser(userData);
         
-        // Check if user is artisan
-        if (userData.role !== 'artisan' && userData.role !== 'producer' && userData.role !== 'food_maker') {
+        // Check if user is artisan (check both role and userType for compatibility)
+        const isArtisan = userData.role === 'artisan' || userData.userType === 'artisan' || 
+                         userData.role === 'producer' || userData.role === 'food_maker';
+        
+        if (!isArtisan) {
           toast.error("Dashboard is only available for artisans");
           navigate("/");
           return;
         }
 
         // Step 1.5: Load artisan profile from user data
-        console.log('DashboardFixed: Loading artisan profile from user data...');
         try {
           // Artisan profile is already included in the user data from getProfile()
           if (userData.artisan) {
-            console.log('DashboardFixed: Artisan profile found in user data:', userData.artisan);
             setArtisanProfile(userData.artisan);
           } else {
-            console.log('DashboardFixed: No artisan profile found in user data');
             setArtisanProfile(null);
           }
         } catch (error) {
@@ -75,10 +71,8 @@ export default function DashboardFixed() {
         }
 
         // Step 1.6: Load spotlight status
-        console.log('DashboardFixed: Loading spotlight status...');
         try {
           const spotlightData = await spotlightService.getSpotlightStatus();
-          console.log('DashboardFixed: Spotlight status loaded:', spotlightData);
           setSpotlightStatus(spotlightData);
         } catch (error) {
           console.error('DashboardFixed: Error loading spotlight status:', error);
@@ -86,9 +80,7 @@ export default function DashboardFixed() {
         }
 
         // Step 2: Load orders
-        console.log('DashboardFixed: Loading orders...');
         const orders = await orderService.getArtisanOrders();
-        console.log('DashboardFixed: Orders loaded:', orders);
         
         // Ensure orders is an array
         const ordersArray = Array.isArray(orders) ? orders : [];
@@ -149,29 +141,23 @@ export default function DashboardFixed() {
         };
         
         setArtisanStats(stats);
-        console.log('DashboardFixed: Stats calculated:', stats);
 
         // Load recent orders
         const recent = ordersArray
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 5);
         setRecentOrders(recent);
-        console.log('DashboardFixed: Recent orders loaded:', recent);
 
         // Step 4: Load wallet balance
-        console.log('DashboardFixed: Loading wallet balance...');
         try {
           const walletResponse = await walletService.getWalletBalance();
-          console.log('DashboardFixed: Wallet response:', walletResponse);
           if (walletResponse.success) {
             setWalletBalance(walletResponse.data.balance);
-            console.log('DashboardFixed: Wallet balance loaded:', walletResponse.data.balance);
           }
         } catch (error) {
           console.error('DashboardFixed: Error loading wallet balance:', error);
         }
 
-        console.log('DashboardFixed: Dashboard loaded successfully');
       } catch (error) {
         console.error('DashboardFixed: Error loading dashboard:', error);
         toast.error('Failed to load dashboard data');
@@ -352,8 +338,8 @@ export default function DashboardFixed() {
               {/* Spotlight Status */}
               {spotlightStatus?.hasActiveSpotlight && spotlightStatus?.spotlight ? (
                 <div className="mt-2 flex items-center gap-2">
-                  <SparklesIcon className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm text-amber-700">
+                  <SparklesIcon className="w-4 h-4 text-primary-500" />
+                  <span className="text-sm text-primary-dark">
                     Spotlight active • {spotlightStatus.spotlight.remainingDays} day{spotlightStatus.spotlight.remainingDays !== 1 ? 's' : ''} left
                   </span>
                 </div>
@@ -370,7 +356,7 @@ export default function DashboardFixed() {
                 className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
                   spotlightStatus?.hasActiveSpotlight 
                     ? 'bg-gray-400 text-white cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-amber-600 hover:to-yellow-600'
+                    : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-primary hover:to-yellow-600'
                 }`}
                 disabled={spotlightStatus?.hasActiveSpotlight}
                 title={spotlightStatus?.hasActiveSpotlight ? 'You already have an active spotlight subscription' : 'Get featured at the top of search results'}
@@ -401,7 +387,18 @@ export default function DashboardFixed() {
 
         {/* Revenue & Earnings */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Revenue & Earnings</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Revenue & Earnings</h2>
+            <Link
+              to="/revenue-dashboard"
+              className="inline-flex items-center text-sm text-accent hover:text-emerald-700 font-medium"
+            >
+              View detailed analytics
+              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Product Revenue */}
@@ -429,10 +426,10 @@ export default function DashboardFixed() {
             {/* Total Earnings */}
             <div className="text-center p-6 bg-gray-50 rounded-xl">
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CurrencyDollarIcon className="w-6 h-6 text-emerald-600" />
+                <CurrencyDollarIcon className="w-6 h-6 text-accent" />
               </div>
               <p className="text-sm font-medium text-gray-600 mb-1">Total Earnings</p>
-              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(artisanStats.totalEarnings || 0)}</p>
+              <p className="text-2xl font-bold text-accent">{formatCurrency(artisanStats.totalEarnings || 0)}</p>
               <p className="text-xs text-gray-500">After platform fees</p>
             </div>
 
@@ -456,64 +453,6 @@ export default function DashboardFixed() {
             </div>
           </div>
         </div>
-
-        {/* Delivery Revenue Section */}
-        {artisanStats.deliveryRevenue > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">Delivery Revenue</h2>
-              <Link
-                to="/delivery-revenue"
-                className="inline-flex items-center text-sm text-orange-600 hover:text-orange-700 font-medium"
-              >
-                View detailed analytics
-                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Personal Delivery Revenue */}
-              <div className="text-center p-6 bg-orange-50 rounded-xl">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Personal Delivery</p>
-                <p className="text-2xl font-bold text-orange-600">{formatCurrency(artisanStats.deliveryRevenue)}</p>
-                <p className="text-xs text-gray-500">100% to your wallet</p>
-              </div>
-              
-              {/* Professional Delivery Revenue */}
-              <div className="text-center p-6 bg-blue-50 rounded-xl">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Professional Delivery</p>
-                <p className="text-2xl font-bold text-blue-600">$0.00</p>
-                <p className="text-xs text-gray-500">Goes to platform for Uber</p>
-              </div>
-              
-              {/* Delivery Insights */}
-              <div className="text-center p-6 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Delivery Insights</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {artisanStats.deliveryRevenue > 0 ? 'Active' : 'No deliveries yet'}
-                </p>
-                <p className="text-xs text-gray-500">Track your delivery earnings</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -573,10 +512,10 @@ export default function DashboardFixed() {
             <div className="space-y-4">
               {/* Pending Orders Preview */}
               {artisanStats.pendingOrders > 0 && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-amber-800">Pending Orders</h3>
-                    <span className="text-xs text-amber-600">{artisanStats.pendingOrders} pending</span>
+                    <h3 className="text-sm font-semibold text-primary-800">Pending Orders</h3>
+                    <span className="text-xs text-primary">{artisanStats.pendingOrders} pending</span>
                   </div>
                   <div className="space-y-2">
                     {recentOrders
@@ -585,7 +524,7 @@ export default function DashboardFixed() {
                       .map((order) => (
                         <div key={order._id} className="flex items-center justify-between text-sm">
                           <div className="flex items-center space-x-2">
-                            <span className="text-amber-700 font-medium">#{order._id.slice(-6)}</span>
+                            <span className="text-primary-dark font-medium">#{order._id.slice(-6)}</span>
                             <span className="text-gray-600">•</span>
                             <span className="text-gray-700">
                               {order.items?.slice(0, 2).map((item, index) => (
@@ -684,10 +623,10 @@ export default function DashboardFixed() {
             </div>
           </Link>
 
-          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-sm border border-amber-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-sm border border-primary-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-full flex items-center justify-center">
-                <SparklesIcon className="w-6 h-6 text-amber-600" />
+                <SparklesIcon className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">Spotlight Feature</h3>
@@ -695,7 +634,7 @@ export default function DashboardFixed() {
               </div>
             </div>
             <div className="mt-3">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
                 <SparklesIcon className="w-3 h-3 mr-1" />
                 Premium Feature
               </span>
@@ -710,7 +649,7 @@ export default function DashboardFixed() {
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-primary-400 to-yellow-400 rounded-full flex items-center justify-center">
                   <SparklesIcon className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -729,9 +668,9 @@ export default function DashboardFixed() {
             </div>
 
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-4">
-                <h4 className="font-semibold text-amber-800 mb-2">Spotlight Benefits</h4>
-                <ul className="text-sm text-amber-700 space-y-1">
+              <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-primary-200 rounded-xl p-4">
+                <h4 className="font-semibold text-primary-800 mb-2">Spotlight Benefits</h4>
+                <ul className="text-sm text-primary-dark space-y-1">
                   <li>• Featured at the top of search results</li>
                   <li>• Increased visibility to patrons</li>
                   <li>• Higher chance of getting orders</li>
@@ -748,7 +687,7 @@ export default function DashboardFixed() {
                     <button
                       key={days}
                       onClick={() => handleSpotlightPurchase(days)}
-                      className="p-3 border border-gray-200 rounded-lg hover:border-amber-300 hover:bg-amber-50 transition-colors text-center"
+                      className="p-3 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-center"
                     >
                       <div className="font-semibold text-gray-900">{days} day{days > 1 ? 's' : ''}</div>
                       <div className="text-sm text-gray-600">${days * 10}</div>

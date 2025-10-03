@@ -1,91 +1,102 @@
 /**
- * Geocoding Service - Microservices Foundation
- * Handles address geocoding, location services, and geographic data
+ * Geocoding Service - Nominatim Integration
+ * Uses OpenStreetMap's Nominatim API for free geocoding
  */
 
-const dbManager = require('../config/database');
-const CacheService = require('./productionCacheService');
-const EnvironmentConfig = require('../config/environment');
+const axios = require('axios');
 
 class GeocodingService {
   constructor() {
-    this.serviceName = 'geocoding-service';
-    this.version = '1.0.0';
-    this.isInitialized = false;
+    this.nominatimBaseUrl = 'https://nominatim.openstreetmap.org';
+    this.userAgent = 'bazaarMKT/1.0 (https://github.com/ramzann7/bazaarmkt)';
+    this.lastRequestTime = 0;
+    this.minRequestInterval = 1000; // Nominatim requires 1 request per second
   }
 
   /**
-   * Initialize Geocoding Service
+   * Respect rate limiting - 1 request per second for Nominatim
    */
-  async initialize() {
-    if (this.isInitialized) {
-      console.log('⚠️ Geocoding Service already initialized');
-      return;
+  async rateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    
+    if (timeSinceLastRequest < this.minRequestInterval) {
+      const waitTime = this.minRequestInterval - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-
-    try {
-      const envInfo = EnvironmentConfig.getEnvironmentInfo();
-      console.log(`🔧 Geocoding Service Environment: ${envInfo.nodeEnv} (Vercel: ${envInfo.isVercel})`);
-
-      const warnings = EnvironmentConfig.getProductionWarnings();
-      if (warnings.length > 0) {
-        warnings.forEach(warning => console.warn(`⚠️ Geocoding Service: ${warning}`));
-      }
-
-      await dbManager.connect();
-      console.log('✅ Geocoding Service database connected');
-
-      await CacheService.healthCheck();
-      console.log('✅ Geocoding Service cache connected');
-
-      this.isInitialized = true;
-      console.log('✅ Geocoding Service initialized successfully');
-    } catch (error) {
-      console.error('❌ Geocoding Service initialization failed:', error);
-      throw error;
-    }
+    
+    this.lastRequestTime = Date.now();
   }
 
   /**
-   * Geocode an address to coordinates
+   * Format address for geocoding
+   */
+  formatAddress(addressComponents) {
+    if (typeof addressComponents === 'string') {
+      return addressComponents;
+    }
+
+    const parts = [];
+    if (addressComponents.street) parts.push(addressComponents.street);
+    if (addressComponents.city) parts.push(addressComponents.city);
+    if (addressComponents.state) parts.push(addressComponents.state);
+    if (addressComponents.zipCode) parts.push(addressComponents.zipCode);
+    if (addressComponents.country) parts.push(addressComponents.country);
+    
+    return parts.join(', ');
+  }
+
+  /**
+   * Geocode an address to coordinates using Nominatim
    */
   async geocodeAddress(address) {
     try {
-      // Check cache first
-      const cacheKey = `geocode:${address}`;
-      const cached = await CacheService.get(cacheKey);
-      if (cached) {
-        return {
-          success: true,
-          data: cached
-        };
+      await this.rateLimit();
+
+      const formattedAddress = typeof address === 'string' ? address : this.formatAddress(address);
+      
+      console.log(`🗺️  Geocoding address: ${formattedAddress}`);
+
+      const response = await axios.get(`${this.nominatimBaseUrl}/search`, {
+        params: {
+          q: formattedAddress,
+          format: 'json',
+          addressdetails: 1,
+          limit: 1
+        },
+        headers: {
+          'User-Agent': this.userAgent
+        },
+        timeout: 10000
+      });
+
+      if (!response.data || response.data.length === 0) {
+        console.warn(`⚠️  No results found for address: ${formattedAddress}`);
+        return null;
       }
 
-      // For now, we'll use a simple mock geocoding service
-      // In production, you would integrate with Google Maps API, OpenStreetMap, etc.
-      const mockCoordinates = this.generateMockCoordinates(address);
-      
+      const result = response.data[0];
+      const confidence = this.calculateConfidence(result);
+
       const geocodeResult = {
-        address: address,
-        coordinates: {
-          latitude: mockCoordinates.latitude,
-          longitude: mockCoordinates.longitude
-        },
-        formattedAddress: address,
-        accuracy: 'approximate',
-        geocodedAt: new Date()
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        display_name: result.display_name,
+        confidence: confidence,
+        address_components: result.address,
+        place_id: result.place_id,
+        osm_type: result.osm_type,
+        osm_id: result.osm_id
       };
 
-      // Cache the result for 24 hours
-      await CacheService.set(cacheKey, geocodeResult, 86400);
-
-      return {
-        success: true,
-        data: geocodeResult
-      };
+      console.log(`✅ Geocoded: ${geocodeResult.latitude}, ${geocodeResult.longitude} (confidence: ${confidence}%)`);
+      
+      return geocodeResult;
     } catch (error) {
-      console.error('Geocoding Service - Geocode address error:', error);
-      throw error;
+      console.error('❌ Geocoding error:', error.message);
+      
+      // Return null instead of throwing to allow graceful degradation
+      return null;
     }
   }
 
@@ -94,277 +105,123 @@ class GeocodingService {
    */
   async reverseGeocode(latitude, longitude) {
     try {
-      // Check cache first
-      const cacheKey = `reverse_geocode:${latitude},${longitude}`;
-      const cached = await CacheService.get(cacheKey);
-      if (cached) {
-        return {
-          success: true,
-          data: cached
-        };
+      await this.rateLimit();
+
+      console.log(`🗺️  Reverse geocoding: ${latitude}, ${longitude}`);
+
+      const response = await axios.get(`${this.nominatimBaseUrl}/reverse`, {
+        params: {
+          lat: latitude,
+          lon: longitude,
+          format: 'json',
+          addressdetails: 1
+        },
+        headers: {
+          'User-Agent': this.userAgent
+        },
+        timeout: 10000
+      });
+
+      if (!response.data) {
+        console.warn(`⚠️  No results found for coordinates: ${latitude}, ${longitude}`);
+        return null;
       }
 
-      // Mock reverse geocoding
-      const address = this.generateMockAddress(latitude, longitude);
-      
+      const result = response.data;
+
       const reverseGeocodeResult = {
-        coordinates: {
-          latitude: latitude,
-          longitude: longitude
-        },
-        address: address,
-        formattedAddress: address,
-        accuracy: 'approximate',
-        reverseGeocodedAt: new Date()
+        display_name: result.display_name,
+        address: result.address,
+        latitude: parseFloat(result.lat),
+        longitude: parseFloat(result.lon),
+        place_id: result.place_id,
+        osm_type: result.osm_type,
+        osm_id: result.osm_id
       };
 
-      // Cache the result for 24 hours
-      await CacheService.set(cacheKey, reverseGeocodeResult, 86400);
-
-      return {
-        success: true,
-        data: reverseGeocodeResult
-      };
+      console.log(`✅ Reverse geocoded: ${reverseGeocodeResult.display_name}`);
+      
+      return reverseGeocodeResult;
     } catch (error) {
-      console.error('Geocoding Service - Reverse geocode error:', error);
-      throw error;
+      console.error('❌ Reverse geocoding error:', error.message);
+      return null;
     }
   }
 
   /**
-   * Calculate distance between two coordinates
+   * Calculate confidence score based on geocoding result
    */
-  async calculateDistance(coord1, coord2, unit = 'km') {
-    try {
-      const distance = this.haversineDistance(coord1, coord2, unit);
-      
-      return {
-        success: true,
-        data: {
-          distance: distance,
-          unit: unit,
-          from: coord1,
-          to: coord2,
-          calculatedAt: new Date()
-        }
-      };
-    } catch (error) {
-      console.error('Geocoding Service - Calculate distance error:', error);
-      throw error;
+  calculateConfidence(result) {
+    let confidence = 50; // Base confidence
+
+    // Increase confidence based on place rank (0-30 scale, lower is better)
+    if (result.place_rank) {
+      confidence += Math.max(0, 30 - result.place_rank);
     }
+
+    // Increase confidence if we have detailed address components
+    if (result.address) {
+      if (result.address.house_number) confidence += 10;
+      if (result.address.road) confidence += 5;
+      if (result.address.city || result.address.town || result.address.village) confidence += 5;
+      if (result.address.postcode) confidence += 5;
+    }
+
+    // Cap at 100
+    return Math.min(100, confidence);
   }
 
   /**
-   * Find nearby locations
+   * Calculate distance between two coordinates using Haversine formula
    */
-  async findNearbyLocations(centerCoord, radius = 10, type = 'any') {
-    try {
-      const { MongoClient } = require('mongodb');
-      const client = new MongoClient(process.env.MONGODB_URI);
-      
-      await client.connect();
-      const db = client.db();
-      const locationsCollection = db.collection('locations');
-      
-      // For now, return mock nearby locations
-      // In production, you would query the database with geospatial queries
-      const nearbyLocations = this.generateMockNearbyLocations(centerCoord, radius, type);
-      
-      await client.close();
-      
-      return {
-        success: true,
-        data: {
-          center: centerCoord,
-          radius: radius,
-          type: type,
-          locations: nearbyLocations,
-          count: nearbyLocations.length,
-          searchedAt: new Date()
-        }
-      };
-    } catch (error) {
-      console.error('Geocoding Service - Find nearby locations error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Validate address format
-   */
-  async validateAddress(address) {
-    try {
-      const isValid = this.isValidAddressFormat(address);
-      const suggestions = isValid ? [] : this.generateAddressSuggestions(address);
-      
-      return {
-        success: true,
-        data: {
-          address: address,
-          isValid: isValid,
-          suggestions: suggestions,
-          validatedAt: new Date()
-        }
-      };
-    } catch (error) {
-      console.error('Geocoding Service - Validate address error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Helper: Generate mock coordinates for an address
-   */
-  generateMockCoordinates(address) {
-    // Simple hash-based coordinate generation for consistent results
-    const hash = this.simpleHash(address);
-    const latitude = 40.7128 + (hash % 1000) / 10000; // NYC area
-    const longitude = -74.0060 + (hash % 1000) / 10000;
+  calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in kilometers
     
-    return { latitude, longitude };
-  }
-
-  /**
-   * Helper: Generate mock address from coordinates
-   */
-  generateMockAddress(latitude, longitude) {
-    const streetNumber = Math.floor(Math.random() * 9999) + 1;
-    const streetNames = ['Main St', 'Oak Ave', 'Pine Rd', 'Elm St', 'Cedar Blvd'];
-    const streetName = streetNames[Math.floor(Math.random() * streetNames.length)];
-    
-    return `${streetNumber} ${streetName}, City, State, 12345`;
-  }
-
-  /**
-   * Helper: Generate mock nearby locations
-   */
-  generateMockNearbyLocations(centerCoord, radius, type) {
-    const locations = [];
-    const count = Math.floor(Math.random() * 10) + 1;
-    
-    for (let i = 0; i < count; i++) {
-      const offsetLat = (Math.random() - 0.5) * (radius / 111); // Rough conversion to degrees
-      const offsetLng = (Math.random() - 0.5) * (radius / 111);
-      
-      locations.push({
-        id: `location_${i}`,
-        name: `${type} Location ${i + 1}`,
-        coordinates: {
-          latitude: centerCoord.latitude + offsetLat,
-          longitude: centerCoord.longitude + offsetLng
-        },
-        distance: Math.random() * radius,
-        type: type
-      });
-    }
-    
-    return locations.sort((a, b) => a.distance - b.distance);
-  }
-
-  /**
-   * Helper: Calculate distance using Haversine formula
-   */
-  haversineDistance(coord1, coord2, unit = 'km') {
-    const R = unit === 'km' ? 6371 : 3959; // Earth's radius in km or miles
-    const dLat = this.toRadians(coord2.latitude - coord1.latitude);
-    const dLon = this.toRadians(coord2.longitude - coord1.longitude);
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLon = this.toRadians(lon2 - lon1);
     
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(this.toRadians(coord1.latitude)) * Math.cos(this.toRadians(coord2.latitude)) *
+              Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
               Math.sin(dLon / 2) * Math.sin(dLon / 2);
     
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     
-    return Math.round(distance * 100) / 100; // Round to 2 decimal places
+    return Math.round(distance * 10) / 10; // Round to 1 decimal place
   }
 
   /**
-   * Helper: Convert degrees to radians
+   * Convert degrees to radians
    */
   toRadians(degrees) {
     return degrees * (Math.PI / 180);
   }
 
   /**
-   * Helper: Simple hash function
+   * Format distance for display
    */
-  simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+  formatDistance(distance) {
+    if (distance < 1) {
+      return `${Math.round(distance * 1000)}m`;
     }
-    return Math.abs(hash);
+    return `${distance.toFixed(1)}km`;
   }
 
   /**
-   * Helper: Validate address format
+   * Batch geocode multiple addresses (with rate limiting)
    */
-  isValidAddressFormat(address) {
-    // Simple validation - check if address has minimum components
-    const components = address.split(',').map(c => c.trim());
-    return components.length >= 3; // At least street, city, state/country
-  }
-
-  /**
-   * Helper: Generate address suggestions
-   */
-  generateAddressSuggestions(address) {
-    // Simple suggestions based on common address patterns
-    const suggestions = [];
+  async batchGeocode(addresses) {
+    const results = [];
     
-    if (!address.includes(',')) {
-      suggestions.push(`${address}, City, State`);
-      suggestions.push(`${address}, City, State, ZIP`);
+    for (const address of addresses) {
+      const result = await this.geocodeAddress(address);
+      results.push({
+        address: address,
+        result: result
+      });
     }
     
-    if (!address.match(/\d/)) {
-      suggestions.push(`123 ${address}`);
-    }
-    
-    return suggestions;
-  }
-
-  /**
-   * Health check
-   */
-  async healthCheck() {
-    try {
-      return {
-        service: this.serviceName,
-        status: 'healthy',
-        version: this.version,
-        initialized: this.isInitialized,
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      return {
-        service: this.serviceName,
-        status: 'unhealthy',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  /**
-   * Get service information
-   */
-  getServiceInfo() {
-    return {
-      name: this.serviceName,
-      version: this.version,
-      initialized: this.isInitialized,
-      endpoints: [
-        'POST /api/geocoding/address',
-        'GET /api/geocoding/reverse',
-        'POST /api/geocoding/distance',
-        'GET /api/geocoding/nearby',
-        'POST /api/geocoding/validate'
-      ]
-    };
+    return results;
   }
 }
 

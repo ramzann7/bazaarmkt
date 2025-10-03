@@ -21,7 +21,7 @@ export const profileService = {
 
   // Update entire profile
   updateProfile: async (profileData) => {
-    const response = await axios.put(`${API_URL}/profile`, profileData, {
+    const response = await axios.put(`${API_URL}/auth/profile`, profileData, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -74,17 +74,6 @@ export const profileService = {
   // Update account settings
   updateSettings: async (accountSettings) => {
     const response = await axios.put(`${API_URL}/profile`, { accountSettings }, {
-      headers: getAuthHeaders()
-    });
-    return response.data;
-  },
-
-  // Change password
-  changePassword: async (currentPassword, newPassword) => {
-    const response = await axios.put(`${API_URL}/password`, {
-      currentPassword,
-      newPassword
-    }, {
       headers: getAuthHeaders()
     });
     return response.data;
@@ -174,23 +163,16 @@ export const profileService = {
 
   // Update payment methods
   updatePaymentMethods: async (paymentMethods) => {
-    const response = await axios.put(`${API_URL}/payment-methods`, { paymentMethods }, {
+    const response = await axios.put(`${API_URL}/profile/payment-methods`, { paymentMethods }, {
       headers: getAuthHeaders()
     });
     return response.data;
   },
 
-  // Update security settings
-  updateSecuritySettings: async (securitySettings) => {
-    const response = await axios.put(`${API_URL}/security`, { securitySettings }, {
-      headers: getAuthHeaders()
-    });
-    return response.data;
-  },
 
-  // Change password (updated to accept object)
+  // Change password
   changePassword: async (passwordData) => {
-    const response = await axios.put(`${API_URL}/password`, passwordData, {
+    const response = await axios.put(`${API_URL}/profile/password`, passwordData, {
       headers: getAuthHeaders()
     });
     return response.data;

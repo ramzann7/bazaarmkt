@@ -167,24 +167,31 @@ class PreloadService {
     console.log('User data preloading placeholder');
   }
 
-  // Preload data based on current route
+  // Preload data based on current route (non-blocking)
   preloadForRoute(route) {
-    switch (route) {
-      case '/':
-        this.preloadHomeData();
-        break;
-      case '/find-artisans':
-        this.preloadFindArtisansData();
-        break;
-      case '/profile':
-      case '/account':
-        this.preloadAccountData();
-        break;
-      default:
-        // Preload common data for any route
-        this.preloadCategories();
-        break;
-    }
+    // Use setTimeout to make preloading non-blocking
+    setTimeout(() => {
+      try {
+        switch (route) {
+          case '/':
+            this.preloadHomeData();
+            break;
+          case '/find-artisans':
+            this.preloadFindArtisansData();
+            break;
+          case '/profile':
+          case '/account':
+            this.preloadAccountData();
+            break;
+          default:
+            // Preload common data for any route
+            this.preloadCategories();
+            break;
+        }
+      } catch (error) {
+        console.error('Error in preloadForRoute:', error);
+      }
+    }, 100); // Small delay to ensure UI is responsive
   }
 
   // Preload data for navigation (called when user hovers over links)

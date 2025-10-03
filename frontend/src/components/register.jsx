@@ -319,7 +319,7 @@ export default function Register() {
         </div>
 
         {/* Register Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-stone-200 p-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Role Selection */}
             <div className="form-group">
@@ -330,8 +330,8 @@ export default function Register() {
                   onClick={() => setFormData({ ...formData, role: 'patron' })}
                   className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                     formData.role === 'patron'
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                      ? 'border-primary bg-primary-50 text-primary-dark'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                   }`}
                 >
                   <UserIcon className="w-8 h-8 mx-auto mb-2" />
@@ -343,8 +343,8 @@ export default function Register() {
                   onClick={() => setFormData({ ...formData, role: 'artisan' })}
                   className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                     formData.role === 'artisan'
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                      ? 'border-primary bg-primary-50 text-primary-dark'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                   }`}
                 >
                   <Logo showText={false} className="w-12 h-12 mx-auto mb-2" />
@@ -442,8 +442,8 @@ export default function Register() {
             </div>
 
             {/* Address Section */}
-            <div className="border-t border-stone-200 pt-6">
-              <h3 className="text-lg font-semibold text-stone-800 mb-4 flex items-center">
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4 flex items-center">
                 <span className="mr-2">📍</span>
                 Address (Required)
               </h3>
@@ -668,7 +668,7 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-600 transition-colors duration-300"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-gray-600 transition-colors duration-300"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -702,7 +702,7 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-600 transition-colors duration-300"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-gray-600 transition-colors duration-300"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
@@ -726,9 +726,9 @@ export default function Register() {
 
           {/* Business Benefits */}
           {formData.role === 'artisan' && (
-            <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-amber-200">
-              <h4 className="font-semibold text-stone-800 mb-2">Why sell on Bazaar?</h4>
-              <ul className="text-sm text-stone-600 space-y-1">
+            <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-primary-200">
+              <h4 className="font-semibold text-secondary mb-2">Why sell on Bazaar?</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>
                 <li>• Simple onboarding & payments</li>
@@ -741,11 +741,11 @@ export default function Register() {
 
         {/* Footer */}
         <div className="text-center">
-          <p className="text-stone-600">
+          <p className="text-gray-600">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-amber-600 hover:text-amber-700 transition-colors duration-300"
+              className="font-semibold text-primary hover:text-primary-dark transition-colors duration-300"
             >
               Sign in here
             </Link>

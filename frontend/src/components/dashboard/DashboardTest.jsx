@@ -89,7 +89,7 @@ export default function DashboardTest() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-stone-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <h1 className="text-2xl font-bold text-stone-900 mb-4">Dashboard Test Results</h1>
@@ -98,7 +98,7 @@ export default function DashboardTest() {
             <button
               onClick={runTests}
               disabled={isLoading}
-              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50"
             >
               {isLoading ? 'Running Tests...' : 'Run Tests Again'}
             </button>
@@ -106,41 +106,41 @@ export default function DashboardTest() {
 
           <div className="space-y-4">
             {/* Authentication Test */}
-            <div className="border border-stone-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-semibold text-stone-900 mb-2">Authentication Test</h3>
-              <pre className="text-sm bg-stone-100 p-2 rounded overflow-auto">
+              <pre className="text-sm bg-gray-100 p-2 rounded overflow-auto">
                 {JSON.stringify(testResults.auth, null, 2)}
               </pre>
             </div>
 
             {/* Profile Test */}
-            <div className="border border-stone-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-semibold text-stone-900 mb-2">Profile Test</h3>
-              <pre className="text-sm bg-stone-100 p-2 rounded overflow-auto">
+              <pre className="text-sm bg-gray-100 p-2 rounded overflow-auto">
                 {JSON.stringify(testResults.profile, null, 2)}
               </pre>
             </div>
 
             {/* Orders Test */}
-            <div className="border border-stone-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-semibold text-stone-900 mb-2">Orders Test</h3>
-              <pre className="text-sm bg-stone-100 p-2 rounded overflow-auto">
+              <pre className="text-sm bg-gray-100 p-2 rounded overflow-auto">
                 {JSON.stringify(testResults.orders, null, 2)}
               </pre>
             </div>
 
             {/* Revenue Test */}
-            <div className="border border-stone-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-semibold text-stone-900 mb-2">Revenue Test</h3>
-              <pre className="text-sm bg-stone-100 p-2 rounded overflow-auto">
+              <pre className="text-sm bg-gray-100 p-2 rounded overflow-auto">
                 {JSON.stringify(testResults.revenue, null, 2)}
               </pre>
             </div>
 
             {/* Navigation Test */}
-            <div className="border border-stone-200 rounded-lg p-4">
+            <div className="border border-gray-200 rounded-lg p-4">
               <h3 className="font-semibold text-stone-900 mb-2">Navigation Test</h3>
-              <pre className="text-sm bg-stone-100 p-2 rounded overflow-auto">
+              <pre className="text-sm bg-gray-100 p-2 rounded overflow-auto">
                 {JSON.stringify(testResults.navigation, null, 2)}
               </pre>
             </div>

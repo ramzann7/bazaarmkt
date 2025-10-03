@@ -59,9 +59,14 @@ export const authToken = {
 };
 
 // Optimized getProfile with caching - Performance focused
-export const getProfile = async () => {
+export const getProfile = async (forceRefresh = false) => {
   const token = authToken.getToken();
   const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10)}`;
+  
+  // Clear cache if force refresh is requested
+  if (forceRefresh) {
+    cacheService.delete(cacheKey);
+  }
   
   return cacheService.getOrSet(
     cacheKey,

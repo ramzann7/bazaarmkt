@@ -168,11 +168,11 @@ export default function SpotlightManagement() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <SparklesIcon className="w-5 h-5 mr-2 text-amber-500" />
+            <SparklesIcon className="w-5 h-5 mr-2 text-primary-500" />
             Spotlight Status
           </h3>
           {spotlightStatus?.hasSpotlight && (
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-800 border border-amber-200">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-yellow-100 to-primary-100 text-primary-800 border border-primary-200">
               <SparklesIcon className="w-4 h-4 mr-1" />
               Active
             </span>
@@ -216,7 +216,7 @@ export default function SpotlightManagement() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowExtendModal(true)}
-                className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors flex items-center"
+                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors flex items-center"
               >
                 <CalendarDaysIcon className="w-4 h-4 mr-2" />
                 Extend Spotlight
@@ -232,7 +232,7 @@ export default function SpotlightManagement() {
             </p>
             <button
               onClick={() => setShowPurchaseModal(true)}
-              className="bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition-colors flex items-center mx-auto"
+              className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors flex items-center mx-auto"
             >
               <SparklesIcon className="w-5 h-5 mr-2" />
               Purchase Spotlight
@@ -247,17 +247,17 @@ export default function SpotlightManagement() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="border border-gray-200 rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 mb-2">1 Day</h4>
-            <p className="text-2xl font-bold text-amber-600 mb-2">$10</p>
+            <p className="text-2xl font-bold text-primary mb-2">$10</p>
             <p className="text-sm text-gray-600">Perfect for special events</p>
           </div>
           <div className="border border-gray-200 rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 mb-2">7 Days</h4>
-            <p className="text-2xl font-bold text-amber-600 mb-2">$70</p>
+            <p className="text-2xl font-bold text-primary mb-2">$70</p>
             <p className="text-sm text-gray-600">Great for weekly promotions</p>
           </div>
           <div className="border border-gray-200 rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 mb-2">30 Days</h4>
-            <p className="text-2xl font-bold text-amber-600 mb-2">$300</p>
+            <p className="text-2xl font-bold text-primary mb-2">$300</p>
             <p className="text-sm text-gray-600">Best value for long-term visibility</p>
           </div>
         </div>
@@ -325,7 +325,7 @@ export default function SpotlightManagement() {
               <select
                 value={selectedDays}
                 onChange={(e) => setSelectedDays(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
               >
                 <option value={1}>1 Day - $10</option>
                 <option value={7}>7 Days - $70</option>
@@ -348,7 +348,7 @@ export default function SpotlightManagement() {
               <button
                 onClick={handlePurchaseSpotlight}
                 disabled={isPurchasing}
-                className="flex-1 bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50"
+                className="flex-1 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50"
               >
                 {isPurchasing ? 'Processing...' : 'Purchase'}
               </button>
@@ -369,7 +369,7 @@ export default function SpotlightManagement() {
               <select
                 value={selectedDays}
                 onChange={(e) => setSelectedDays(parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
               >
                 <option value={1}>1 Day - $10</option>
                 <option value={7}>7 Days - $70</option>
@@ -392,7 +392,7 @@ export default function SpotlightManagement() {
               <button
                 onClick={handleExtendSpotlight}
                 disabled={isExtending}
-                className="flex-1 bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors disabled:opacity-50"
+                className="flex-1 bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors disabled:opacity-50"
               >
                 {isExtending ? 'Processing...' : 'Extend'}
               </button>

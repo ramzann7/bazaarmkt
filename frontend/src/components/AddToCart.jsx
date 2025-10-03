@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ShoppingCartIcon, 
   PlusIcon, 
@@ -93,8 +94,11 @@ const AddToCart = ({
         return product.stock || 0;
       
       case 'made_to_order':
-        // For made to order, use maxOrderQuantity (per order limit) or default to 10
-        return product.maxOrderQuantity || 10;
+        // For made to order, check BOTH capacity AND per-order limit
+        const capacity = product.remainingCapacity || product.totalCapacity || 0;
+        const orderLimit = product.maxOrderQuantity || 10;
+        // Return the smaller of the two (whichever is more restrictive)
+        return Math.min(capacity, orderLimit);
       
       case 'scheduled_order':
         // For scheduled orders, use availableQuantity (production capacity for that date)
@@ -154,7 +158,8 @@ const AddToCart = ({
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
       
       if (onError) {
         onError(error);
@@ -181,13 +186,13 @@ const AddToCart = ({
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex items-center justify-center px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
         <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
-          {getStockMessage() || `Max ${maxQuantity} per order`}
+{getStockMessage() || `Max ${maxQuantity} per order`}
         </div>
       </div>
     );
@@ -224,7 +229,7 @@ const AddToCart = ({
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 flex items-center justify-center px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
@@ -255,22 +260,32 @@ const AddToCart = ({
         </div>
       )}
 
-      {/* Distance Information */}
+      {/* Distance Information with Visit Shop */}
       {product?.artisan && (product.distance !== undefined || product.formattedDistance) && (
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-          <div className="flex items-center space-x-2">
-            <span className="text-lg">📍</span>
-            <div>
-              <span className="text-sm font-medium text-blue-800">
-                {product.artisan.artisanName}
-              </span>
-              <p className="text-xs text-blue-600">
-                {product.formattedDistance || 
-                 (product.distance !== undefined && product.distance !== null 
-                   ? `${product.distance.toFixed(1)} km away` 
-                   : 'Distance not available')}
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">📍</span>
+              <div>
+                <span className="text-sm font-medium text-blue-800">
+                  {product.artisan.artisanName}
+                </span>
+                <p className="text-xs text-blue-600">
+                  {product.formattedDistance || 
+                   (product.distance !== undefined && product.distance !== null 
+                     ? `${product.distance.toFixed(1)} km away` 
+                     : 'Distance not available')}
+                </p>
+              </div>
             </div>
+            {product.artisan._id && (
+              <Link
+                to={`/artisan/${product.artisan._id}`}
+                className="text-xs font-medium text-orange-600 hover:text-orange-700 hover:underline whitespace-nowrap"
+              >
+                Visit Shop →
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -310,32 +325,20 @@ const AddToCart = ({
       <div className="bg-gray-50 rounded-lg p-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Total:</span>
-          <span className="text-lg font-bold text-amber-600">
+          <span className="text-lg font-bold text-primary">
             ${(product.price * quantity).toFixed(2)}
           </span>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <button
-          onClick={handleFavorite}
-          className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          {isFavorite ? (
-            <HeartIconSolid className="w-4 h-4 mr-2 text-red-500" />
-          ) : (
-            <HeartIcon className="w-4 h-4 mr-2" />
-          )}
-          {isFavorite ? 'Saved' : 'Save'}
-        </button>
-        
+      {/* Action Button */}
+      <div>
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex-1 flex items-center justify-center px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="w-full flex items-center justify-center px-6 py-4 bg-orange-600 text-white text-lg font-bold rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-lg"
         >
-          <ShoppingCartIcon className="w-4 h-4 mr-2" />
+          <ShoppingCartIcon className="w-6 h-6 mr-2" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
       </div>

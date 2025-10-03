@@ -157,10 +157,10 @@ export default function EventDetails() {
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
-          <p className="text-stone-600">Loading event details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading event details...</p>
         </div>
       </div>
     );
@@ -170,13 +170,13 @@ export default function EventDetails() {
   const isFull = event.attendees >= event.maxAttendees;
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-stone-200">
+      <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <button
             onClick={() => navigate('/community')}
-            className="flex items-center text-stone-600 hover:text-amber-600 transition-colors duration-300"
+            className="flex items-center text-gray-600 hover:text-primary transition-colors duration-300"
           >
             <ArrowLeftIcon className="w-5 h-5 mr-2" />
             Back to Community
@@ -190,7 +190,7 @@ export default function EventDetails() {
           <div className="lg:col-span-2">
             {/* Event Images */}
             <div className="relative mb-8">
-              <div className="aspect-w-16 aspect-h-9 bg-stone-100 rounded-2xl overflow-hidden">
+              <div className="aspect-w-16 aspect-h-9 bg-gray-100 rounded-2xl overflow-hidden">
                 <img
                   src={getImageUrl(event.images[currentImageIndex])}
                   alt={event.title}
@@ -212,13 +212,13 @@ export default function EventDetails() {
                   {isFavorite ? (
                     <HeartIconSolid className="w-6 h-6 text-rose-500" />
                   ) : (
-                    <HeartIcon className="w-6 h-6 text-stone-600" />
+                    <HeartIcon className="w-6 h-6 text-gray-600" />
                   )}
                 </button>
 
                 {/* Featured Badge */}
                 {event.featured && (
-                  <div className="absolute top-4 left-4 bg-amber-500 text-white text-sm px-3 py-1 rounded-full font-medium">
+                  <div className="absolute top-4 left-4 bg-primary-500 text-white text-sm px-3 py-1 rounded-full font-medium">
                     Featured Event
                   </div>
                 )}
@@ -232,7 +232,7 @@ export default function EventDetails() {
                       key={index}
                       onClick={() => setCurrentImageIndex(index)}
                       className={`w-3 h-3 rounded-full transition-colors duration-300 ${
-                        index === currentImageIndex ? 'bg-amber-600' : 'bg-stone-300'
+                        index === currentImageIndex ? 'bg-primary' : 'bg-stone-300'
                       }`}
                     />
                   ))}
@@ -244,43 +244,43 @@ export default function EventDetails() {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-stone-900 mb-2">{event.title}</h1>
-                <p className="text-stone-600">{event.description}</p>
+                <p className="text-gray-600">{event.description}</p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-amber-600">{event.price}</div>
+                <div className="text-2xl font-bold text-primary">{event.price}</div>
                 <div className="text-sm text-stone-500">per person</div>
               </div>
             </div>
 
             {/* Event Details */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 mb-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
               <h2 className="text-xl font-semibold text-stone-900 mb-4">Event Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center text-stone-600">
-                  <CalendarIcon className="w-5 h-5 mr-3 text-amber-600" />
+                <div className="flex items-center text-gray-600">
+                  <CalendarIcon className="w-5 h-5 mr-3 text-primary" />
                   <div>
                     <div className="font-medium">{formatDate(event.date)}</div>
                     {daysUntil > 0 && (
-                      <div className="text-sm text-amber-600">({daysUntil} days away)</div>
+                      <div className="text-sm text-primary">({daysUntil} days away)</div>
                     )}
                   </div>
                 </div>
                 
-                <div className="flex items-center text-stone-600">
-                  <ClockIcon className="w-5 h-5 mr-3 text-amber-600" />
+                <div className="flex items-center text-gray-600">
+                  <ClockIcon className="w-5 h-5 mr-3 text-primary" />
                   <div className="font-medium">{event.time}</div>
                 </div>
                 
-                <div className="flex items-center text-stone-600">
-                  <MapPinIcon className="w-5 h-5 mr-3 text-amber-600" />
+                <div className="flex items-center text-gray-600">
+                  <MapPinIcon className="w-5 h-5 mr-3 text-primary" />
                   <div>
                     <div className="font-medium">{event.location}</div>
                     <div className="text-sm">{event.address}</div>
                   </div>
                 </div>
                 
-                <div className="flex items-center text-stone-600">
-                  <UserGroupIcon className="w-5 h-5 mr-3 text-amber-600" />
+                <div className="flex items-center text-gray-600">
+                  <UserGroupIcon className="w-5 h-5 mr-3 text-primary" />
                   <div>
                     <div className="font-medium">{event.attendees}/{event.maxAttendees} attending</div>
                     <div className="text-sm">{isFull ? 'Event is full' : 'Spots available'}</div>
@@ -290,18 +290,18 @@ export default function EventDetails() {
             </div>
 
             {/* Long Description */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 mb-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
               <h2 className="text-xl font-semibold text-stone-900 mb-4">About This Event</h2>
-              <p className="text-stone-600 leading-relaxed">{event.longDescription}</p>
+              <p className="text-gray-600 leading-relaxed">{event.longDescription}</p>
             </div>
 
             {/* Highlights */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-stone-900 mb-4">What to Expect</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {event.highlights.map((highlight, index) => (
-                  <div key={index} className="flex items-center text-stone-600">
-                    <div className="w-2 h-2 bg-amber-600 rounded-full mr-3"></div>
+                  <div key={index} className="flex items-center text-gray-600">
+                    <div className="w-2 h-2 bg-primary rounded-full mr-3"></div>
                     <span>{highlight}</span>
                   </div>
                 ))}
@@ -312,7 +312,7 @@ export default function EventDetails() {
           {/* Sidebar */}
           <div className="lg:col-span-1">
             {/* Organizer Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 mb-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-stone-900 mb-4">Organizer</h3>
               <div className="flex items-center mb-4">
                 <img
@@ -327,11 +327,11 @@ export default function EventDetails() {
               </div>
               
               <div className="space-y-3">
-                <div className="flex items-center text-stone-600">
+                <div className="flex items-center text-gray-600">
                   <PhoneIcon className="w-4 h-4 mr-2" />
                   <span className="text-sm">{event.organizerPhone}</span>
                 </div>
-                <div className="flex items-center text-stone-600">
+                <div className="flex items-center text-gray-600">
                   <EnvelopeIcon className="w-4 h-4 mr-2" />
                   <span className="text-sm">{event.organizerEmail}</span>
                 </div>
@@ -339,7 +339,7 @@ export default function EventDetails() {
             </div>
 
             {/* Tags */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 mb-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
               <h3 className="text-lg font-semibold text-stone-900 mb-4">Event Tags</h3>
               <div className="flex flex-wrap gap-2">
                 {event.tags.map((tag, index) => (
@@ -351,7 +351,7 @@ export default function EventDetails() {
             </div>
 
             {/* Action Buttons */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <button
                 disabled={isFull}
                 className={`w-full btn-primary mb-3 ${isFull ? 'opacity-50 cursor-not-allowed' : ''}`}

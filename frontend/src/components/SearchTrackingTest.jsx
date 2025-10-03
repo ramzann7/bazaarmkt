@@ -46,11 +46,11 @@ export default function SearchTrackingTest() {
             value={testQuery}
             onChange={(e) => setTestQuery(e.target.value)}
             placeholder="Enter a search term to track..."
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             onClick={handleTestSearch}
-            className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
           >
             Track Search
           </button>

@@ -15,6 +15,7 @@ import { getProfile } from '../services/authservice';
 import toast from 'react-hot-toast';
 import OrderTimeline from './OrderTimeline';
 import { geocodingService } from '../services/geocodingService';
+import PriorityOrderQueue from './PriorityOrderQueue';
 
 export default function Orders() {
   const location = useLocation();
@@ -22,7 +23,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('needs_action'); // Default to most important orders
+  const [filter, setFilter] = useState('all'); // Default to all orders
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -63,18 +64,13 @@ export default function Orders() {
     try {
       setIsLoading(true);
       const userProfile = await getProfile();
-      setUserRole(userProfile.role);
+      setUserRole(userProfile.userType || userProfile.role);
       
-      // Set default filter based on user role
-      if (userProfile.role === 'artisan') {
-        setFilter('needs_action'); // Show orders that need action first
-      } else {
-        setFilter('active'); // Show active orders first for patrons
-      }
+      // Default filter is 'all' - user can change manually if needed
       
       // Load orders based on user role
       let ordersData;
-      if (userProfile.role === 'artisan') {
+      if (userProfile.userType === 'artisan' || userProfile.role === 'artisan') {
         ordersData = await orderService.getArtisanOrders();
       } else {
         ordersData = await orderService.getPatronOrders();
@@ -91,6 +87,70 @@ export default function Orders() {
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+  };
+
+  const handleQuickAction = async (orderId, action) => {
+    try {
+      // Handle patron-specific actions
+      if (action === 'Confirm Receipt') {
+        const order = orders.find(o => o._id === orderId);
+        if (!confirm(`Confirm that you ${order?.deliveryMethod === 'pickup' ? 'picked up' : 'received'} your order?`)) {
+          return;
+        }
+        const result = await orderService.confirmOrderReceipt(orderId);
+        toast.success(`✅ Order confirmed! Artisan has been credited $${result.data.creditedAmount.toFixed(2)}`);
+        await loadUserAndOrders();
+        return;
+      }
+      
+      if (action === 'Cancel Order') {
+        const reason = prompt('Please provide a reason for cancelling this order (optional):');
+        await orderService.cancelOrder(orderId, reason);
+        toast.success('Order cancelled successfully');
+        await loadUserAndOrders();
+        return;
+      }
+      
+      // Handle artisan-specific actions
+      const statusMap = {
+        'Confirm': 'confirmed',
+        'Start Preparing': 'preparing',
+        'Mark Ready': null, // Will be determined by delivery method
+        'Mark Picked Up': 'picked_up',
+        'Mark Delivered': 'delivered',
+        'Decline': 'declined'
+      };
+      
+      let newStatus = statusMap[action];
+      
+      // For "Mark Ready", determine status based on delivery method
+      if (action === 'Mark Ready') {
+        const order = orders.find(o => o._id === orderId);
+        newStatus = order?.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery';
+      }
+      
+      // Handle decline action with reason prompt
+      if (action === 'Decline') {
+        const reason = prompt('Please provide a reason for declining this order:');
+        if (!reason) {
+          toast.error('Decline reason is required');
+          return;
+        }
+        await orderService.declineOrder(orderId, reason);
+        toast.success('Order declined successfully');
+      } else {
+        // Update status for other actions
+        await orderService.updateOrderStatus(orderId, { status: newStatus });
+        toast.success(`Order updated to ${newStatus}`);
+      }
+      
+      // Refresh orders list
+      await loadUserAndOrders();
+    } catch (error) {
+      console.error('❌ Error processing quick action:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update order';
+      toast.error(errorMessage);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -471,7 +531,13 @@ export default function Orders() {
           )}
         </div>
 
-
+        {/* Priority Queue - For Both Artisans and Patrons */}
+        <PriorityOrderQueue
+          orders={orders}
+          onOrderClick={handleOrderClick}
+          onQuickAction={handleQuickAction}
+          userRole={userRole}
+        />
 
         {/* Enhanced Filters and View Toggle */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -706,16 +772,22 @@ export default function Orders() {
                     </span>
                   </div>
                   
-                  {order.deliveryAddress && (
+                  {/* Pickup Address (for pickup orders) */}
+                  {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="font-medium">
-                        {order.deliveryMethod === 'pickup' ? '📍 Pickup:' : '📍 Delivery:'}
-                      </span> 
+                      <span className="font-medium">📍 Pickup Location:</span> 
                       <span>
-                        {order.deliveryMethod === 'pickup' 
-                          ? `${order.deliveryAddress.city} (Pickup)`
-                          : `${order.deliveryAddress.street}, ${order.deliveryAddress.city}`
-                        }
+                        {order.artisan.pickupAddress.street}, {order.artisan.pickupAddress.city}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Delivery Address (for delivery orders) */}
+                  {order.deliveryMethod !== 'pickup' && order.deliveryAddress && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="font-medium">📍 Delivery To:</span> 
+                      <span>
+                        {order.deliveryAddress.street}, {order.deliveryAddress.city}
                       </span>
                     </div>
                   )}
@@ -748,6 +820,22 @@ export default function Orders() {
                     </div>
                   )}
                 </div>
+
+                {/* Patron Confirmation Needed Badge */}
+                {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
+                  <div className="mt-4 p-3 bg-primary-50 border-2 border-amber-400 rounded-lg animate-pulse">
+                    <div className="flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-amber-900">Confirmation Needed</p>
+                        <p className="text-xs text-primary-dark">
+                          {order.deliveryMethod === 'pickup' ? 'Confirm pickup' : 'Confirm delivery received'}
+                        </p>
+                      </div>
+                      <CheckCircleIcon className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                )}
 
                 {/* Action Indicator */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
@@ -912,18 +1000,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
   // Calculate delivery info when modal opens and order is ready for delivery
   useEffect(() => {
-    console.log('🔍 OrderDetailsModal useEffect triggered:', {
-      hasOrder: !!order,
-      orderId: order?._id,
-      orderStatus: order?.status,
-      deliveryMethod: order?.deliveryMethod,
-      hasDeliveryAddress: !!order?.deliveryAddress,
-      deliveryAddress: order?.deliveryAddress,
-      shouldCalculate: order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering') && order.deliveryMethod !== 'pickup'
-    });
-    
     if (order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready') && order.deliveryMethod !== 'pickup') {
-      console.log('🚀 Triggering delivery info calculation for status:', order.status);
       calculateDeliveryInfo();
     }
   }, [order]);
@@ -998,57 +1075,64 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  // Estimate delivery time based on distance and delivery method
+  // Estimate delivery time for PERSONAL DELIVERY ONLY (based on car driving speed)
+  // Professional delivery times come from the API (Uber Direct)
   const estimateDeliveryTime = (distance, deliveryMethod) => {
-    if (!distance || distance <= 0) return null;
-    
-    let baseTimeMinutes = 0;
-    let speedKmh = 0;
-    
-    if (deliveryMethod === 'personalDelivery') {
-      // Personal delivery - car travel
-      speedKmh = 30; // Average city driving speed for personal delivery
-      baseTimeMinutes = 10; // Base preparation time
-    } else if (deliveryMethod === 'delivery') {
-      // Professional delivery - driving
-      speedKmh = 30; // Average city driving speed
-      baseTimeMinutes = 15; // Base preparation time
-    } else {
+    // Only calculate for personal delivery - professional delivery uses API times
+    if (deliveryMethod !== 'personalDelivery') {
       return null;
     }
     
-    const travelTimeMinutes = (distance / speedKmh) * 60;
-    const totalTimeMinutes = baseTimeMinutes + travelTimeMinutes;
+    if (!distance || distance <= 0) return null;
     
+    // Realistic car driving speeds based on distance (for personal delivery)
+    let speedKmh = 0;
+    const prepTimeMinutes = 10; // Preparation time
+    
+    // Select speed based on distance (city/suburban/highway)
+    if (distance <= 5) {
+      speedKmh = 30; // City driving (traffic, lights, stops)
+    } else if (distance <= 15) {
+      speedKmh = 40; // Suburban driving (moderate traffic)
+    } else {
+      speedKmh = 60; // Highway driving (longer distances)
+    }
+    
+    // Calculate travel time
+    const travelTimeMinutes = (distance / speedKmh) * 60;
+    
+    // Add 15% buffer for real-world conditions (traffic, parking, finding address)
+    const bufferMinutes = travelTimeMinutes * 0.15;
+    
+    // Total time
+    const totalTimeMinutes = prepTimeMinutes + travelTimeMinutes + bufferMinutes;
+    
+    // Format time for simple display
+    const formatTime = (minutes) => {
+      if (minutes < 60) {
+        return `${Math.round(minutes)} minutes`;
+      } else {
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      }
+    };
+    
+    // Return simple format for user display
     return {
-      travelTime: Math.round(travelTimeMinutes),
       totalTime: Math.round(totalTimeMinutes),
-      formattedTime: totalTimeMinutes < 60 
-        ? `${Math.round(totalTimeMinutes)} minutes`
-        : `${Math.floor(totalTimeMinutes / 60)}h ${Math.round(totalTimeMinutes % 60)}m`
+      formattedTime: formatTime(totalTimeMinutes)
     };
   };
 
   // Calculate delivery distance and time
   const calculateDeliveryInfo = async () => {
-    console.log('🚀 calculateDeliveryInfo called for order:', {
-      orderId: order._id,
-      hasDeliveryAddress: !!order.deliveryAddress,
-      deliveryMethod: order.deliveryMethod,
-      isPickup: order.deliveryMethod === 'pickup'
-    });
-    
     if (!order.deliveryAddress || order.deliveryMethod === 'pickup') {
-      console.log('❌ Skipping delivery info calculation - no delivery address or pickup order');
       return;
     }
     
     setIsCalculatingDistance(true);
     try {
-      // Debug: Log the full artisan data to see what's available
-      console.log('🔍 Full artisan data:', order.artisan);
-      console.log('🔍 Artisan address:', order.artisan?.address);
-      console.log('🔍 Artisan pickupAddress:', order.artisan?.pickupAddress);
       
       // Get artisan coordinates - try address first, then pickupAddress as fallback
       let artisanAddress = '';
@@ -1081,7 +1165,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           
           // Get delivery address coordinates
           const deliveryAddress = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country}`;
-          console.log('📍 Calculating distance to delivery address:', deliveryAddress);
           const deliveryCoords = await geocodingService.geocodeAddress(deliveryAddress);
           
           if (!deliveryCoords) {
@@ -1116,7 +1199,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         
         // Get delivery address coordinates
         const deliveryAddress = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country}`;
-        console.log('📍 Calculating distance to delivery address:', deliveryAddress);
         const deliveryCoords = await geocodingService.geocodeAddress(deliveryAddress);
         
         if (!deliveryCoords) {
@@ -1138,7 +1220,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         return;
       }
       
-      console.log('📍 Calculating distance from artisan address:', artisanAddress);
       const artisanCoords = await geocodingService.geocodeAddress(artisanAddress);
       
       if (!artisanCoords) {
@@ -1205,6 +1286,26 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     } catch (error) {
       console.error('❌ Error updating order status:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order status';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    if (!confirm(`Confirm that you ${order.deliveryMethod === 'pickup' ? 'picked up' : 'received'} your order?`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await orderService.confirmOrderReceipt(order._id);
+      toast.success(`✅ Order confirmed! Artisan has been credited $${result.data.creditedAmount.toFixed(2)}`);
+      onRefresh();
+      onClose();
+    } catch (error) {
+      console.error('❌ Error confirming order receipt:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to confirm order';
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -1288,6 +1389,22 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             </div>
           </div>
 
+          {/* Decline/Cancellation Reason (if applicable) */}
+          {(order.status === 'declined' || order.status === 'cancelled') && order.lastStatusUpdate?.reason && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-medium text-red-900 mb-2 flex items-center gap-2">
+                <ExclamationTriangleIcon className="w-5 h-5" />
+                Reason for {order.status === 'declined' ? 'Decline' : 'Cancellation'}
+              </h4>
+              <p className="text-sm text-red-800 italic">"{order.lastStatusUpdate.reason}"</p>
+              {order.lastStatusUpdate?.updatedAt && (
+                <p className="text-xs text-red-600 mt-2">
+                  Updated on {formatDate(order.lastStatusUpdate.updatedAt)}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Order Timeline */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h4 className="font-medium text-gray-900 mb-4">Order Progress</h4>
@@ -1370,11 +1487,28 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             </div>
           </div>
 
-          {/* Delivery Information */}
-          {order.deliveryAddress && (
+          {/* Pickup Location Information (for pickup orders) */}
+          {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <h4 className="font-medium text-emerald-900 mb-2 flex items-center gap-2">
+                <MapPinIcon className="w-5 h-5" />
+                Pickup Location
+              </h4>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-emerald-800">{order.artisan.artisanName || 'Artisan Location'}</p>
+                <p className="text-sm text-emerald-700">{order.artisan.pickupAddress.street}</p>
+                <p className="text-sm text-emerald-700">
+                  {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Delivery Address Information (for delivery orders) */}
+          {order.deliveryMethod !== 'pickup' && order.deliveryAddress && (
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-2">
-                {order.deliveryMethod === 'pickup' ? 'Pickup Information' : 'Delivery Address'}
+                Delivery Address
               </h4>
               <div className="space-y-1">
                 <p className="text-sm text-gray-600">{order.deliveryAddress.street}</p>
@@ -1387,33 +1521,17 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 {order.deliveryInstructions && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <h5 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <ExclamationTriangleIcon className="w-4 h-4 text-amber-600" />
+                      <ExclamationTriangleIcon className="w-4 h-4 text-primary" />
                       Delivery Instructions
                     </h5>
-                    <p className="text-sm text-gray-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    <p className="text-sm text-gray-700 bg-primary-50 p-3 rounded-lg border border-primary-200">
                       {order.deliveryInstructions}
                     </p>
                   </div>
                 )}
                 
                 {/* Delivery Distance and Time Information */}
-                {(() => {
-                  const shouldShowDeliveryInfo = order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready');
-                  console.log('🔍 Delivery info display check:', {
-                    orderId: order._id,
-                    deliveryMethod: order.deliveryMethod,
-                    orderStatus: order.status,
-                    shouldShowDeliveryInfo,
-                    isPickup: order.deliveryMethod === 'pickup',
-                    isReadyForDelivery: order.status === 'ready_for_delivery',
-                    isOutForDelivery: order.status === 'out_for_delivery',
-                    isDelivering: order.status === 'delivering',
-                    isReady: order.status === 'ready',
-                    hasDeliveryAddress: !!order.deliveryAddress
-                  });
-                  
-                  return shouldShowDeliveryInfo;
-                })() && (
+                {order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready') && (
                   <div className="mt-3 pt-3 border-t border-gray-200 bg-blue-50 rounded-lg p-3">
                     <h5 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                       <TruckIcon className="w-4 h-4" />
@@ -1565,7 +1683,43 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           {/* Action Buttons */}
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <h4 className="font-bold text-gray-900 mb-4">Order Actions</h4>
+            
+            {/* Patron Confirmation Alert */}
+            {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up' || order.status === 'ready_for_pickup') && !order.walletCredit?.patronConfirmedAt && (
+              <div className="mb-4 p-4 bg-primary-50 border-2 border-primary-300 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-amber-900 mb-1">Confirmation Required</h5>
+                    <p className="text-sm text-primary-800 mb-2">
+                      {order.deliveryMethod === 'pickup' 
+                        ? 'Have you picked up your order? Please confirm once received.'
+                        : 'Have you received your delivery? Please confirm once received.'}
+                    </p>
+                    <p className="text-xs text-primary-dark italic">
+                      {order.deliveryMethod === 'pickup' && order.walletCredit?.autoConfirmDeadline
+                        ? `Auto-confirms in ${Math.max(0, Math.round((new Date(order.walletCredit.autoConfirmDeadline) - new Date()) / (1000 * 60 * 60)))} hours if not confirmed`
+                        : 'Please confirm to help the artisan receive their earnings'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex flex-wrap justify-end gap-3">
+              {/* Patron: Confirm Receipt Button */}
+              {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
+                <button
+                  onClick={handleConfirmReceipt}
+                  disabled={isLoading}
+                  className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md flex items-center gap-2"
+                >
+                  <CheckCircleIcon className="w-5 h-5" />
+                  {isLoading ? '⏳ Confirming...' : `✅ Confirm ${order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'}`}
+                </button>
+              )}
+              
+              {/* Patron: Cancel Order Button */}
               {userRole === 'patron' && order.status === 'pending' && (
                 <button
                   onClick={handleCancelOrder}

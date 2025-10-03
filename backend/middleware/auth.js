@@ -1,16 +1,16 @@
 /**
  * Authentication Middleware
- * Handles JWT token validation and user authentication
+ * JWT verification and role-based access control
  */
 
 const jwt = require('jsonwebtoken');
-const { DatabaseManager } = require('../config/database');
-const { CacheService } = require('../services/cacheService');
+const { ObjectId } = require('mongodb');
+const { USER_ROLES } = require('../config/constants');
 
 /**
- * Main authentication middleware
+ * Verify JWT token and attach user to request
  */
-const authMiddleware = async (req, res, next) => {
+const verifyJWT = (req, res, next) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     
@@ -20,64 +20,170 @@ const authMiddleware = async (req, res, next) => {
         message: 'No token provided'
       });
     }
-
-    // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Check cache first for user data
-    const cacheKey = `user:${decoded.userId}`;
-    let user = await CacheService.get(cacheKey, async () => {
-      const db = await DatabaseManager.connect();
-      const usersCollection = db.collection('users');
-      return await usersCollection.findOne({ 
-        _id: new (require('mongodb')).ObjectId(decoded.userId) 
-      });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    let message = 'Invalid token';
+    
+    if (error.name === 'TokenExpiredError') {
+      message = 'Token expired';
+    } else if (error.name === 'JsonWebTokenError') {
+      message = 'Invalid token';
+    } else if (error.name === 'NotBeforeError') {
+      message = 'Token not active';
+    }
+    
+    return res.status(401).json({
+      success: false,
+      message
     });
+  }
+};
 
+/**
+ * Verify user has artisan role and attach artisan profile to request
+ */
+const verifyArtisanRole = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const db = req.db;
+    
+    console.log('🔍 verifyArtisanRole: userId =', userId);
+    
+    // Validate userId is a valid ObjectId
+    if (!ObjectId.isValid(userId)) {
+      console.log('❌ verifyArtisanRole: Invalid ObjectId format');
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+    
+    // Get user from database to check role
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    console.log('🔍 verifyArtisanRole: user found =', user ? 'yes' : 'no');
+    
     if (!user) {
-      return res.status(401).json({
+      console.log('❌ verifyArtisanRole: User not found');
+      return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({
+    
+    console.log('🔍 verifyArtisanRole: user.role =', user.role, 'user.userType =', user.userType);
+    
+    // Check if user has artisan role
+    const isArtisan = user.role === USER_ROLES.ARTISAN || user.userType === USER_ROLES.ARTISAN;
+    console.log('🔍 verifyArtisanRole: isArtisan =', isArtisan);
+    
+    if (!isArtisan) {
+      console.log('❌ verifyArtisanRole: User is not an artisan');
+      return res.status(403).json({
         success: false,
-        message: 'Account is deactivated'
+        message: 'Artisan privileges required'
       });
     }
-
-    // Attach user data to request
-    req.user = user;
-    req.userId = decoded.userId;
-    req.token = token;
     
+    // Find artisan profile using user ID
+    const artisan = await db.collection('artisans').findOne({ user: new ObjectId(userId) });
+    console.log('🔍 verifyArtisanRole: artisan profile found =', artisan ? 'yes' : 'no');
+    
+    if (!artisan) {
+      console.log('❌ verifyArtisanRole: Artisan profile not found');
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    console.log('🔍 verifyArtisanRole: artisan._id =', artisan._id);
+    console.log('✅ verifyArtisanRole: All checks passed');
+    
+    // Add both user and artisan info to request for use in endpoints
+    req.artisan = artisan;
+    req.artisanId = artisan._id; // This is the artisan ID we need for order lookups
+    req.user = user;
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired'
-      });
-    }
-    
-    return res.status(500).json({
+    console.error('❌ verifyArtisanRole: Error:', error);
+    res.status(500).json({
       success: false,
-      message: 'Authentication failed',
+      message: 'Failed to verify artisan role',
       error: error.message
     });
   }
 };
 
-module.exports = authMiddleware;
+/**
+ * Verify user has admin role
+ */
+const verifyAdminRole = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const db = req.db;
+    
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+    
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    const isAdmin = user.role === USER_ROLES.ADMIN || user.userType === USER_ROLES.ADMIN;
+    
+    if (!isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin privileges required'
+      });
+    }
+    
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('❌ verifyAdminRole: Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify admin role',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Optional JWT verification - doesn't fail if no token provided
+ */
+const optionalJWT = (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+    }
+    
+    next();
+  } catch (error) {
+    // Continue without user info if token is invalid
+    next();
+  }
+};
+
+module.exports = {
+  verifyJWT,
+  verifyArtisanRole,
+  verifyAdminRole,
+  optionalJWT
+};

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   MapPinIcon, 
@@ -262,7 +263,8 @@ export default function ArtisanShop() {
       toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add to cart');
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
     }
   };
 
@@ -316,30 +318,6 @@ export default function ArtisanShop() {
     }
   };
 
-  const getImageUrl = (image) => {
-    if (!image) return null;
-    if (typeof image === 'string') {
-      // Handle base64 data URLs
-      if (image.startsWith('data:')) return image;
-      
-      // Handle HTTP URLs
-      if (image.startsWith('http')) return image;
-      
-      // Check if the image path already contains /uploads/products/
-      if (image.startsWith('/uploads/products/')) {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${image}`;
-      }
-      
-      // Check if the image path starts with uploads/products/ (without leading slash)
-      if (image.startsWith('uploads/products/')) {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${image}`;
-      }
-      
-      // Default case: add /uploads/products/ prefix
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/uploads/products/${image}`;
-    }
-    return null;
-  };
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-CA', {
@@ -365,11 +343,11 @@ export default function ArtisanShop() {
     const hasHalfStar = rating % 1 !== 0;
 
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-amber-400" />);
+      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-primary-400" />);
     }
 
     if (hasHalfStar) {
-      stars.push(<StarIcon key={fullStars} className="w-4 h-4 text-amber-400" />);
+      stars.push(<StarIcon key={fullStars} className="w-4 h-4 text-primary-400" />);
     }
 
     const emptyStars = 5 - Math.ceil(rating);
@@ -552,13 +530,10 @@ export default function ArtisanShop() {
                     src={getImageUrl(artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner)} 
                     alt={`${artisan.artisanName} business`}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
+                    onError={(e) => handleImageError(e, 'artisan-banner')}
                   />
                 ) : null}
-                <div className={`w-full h-full bg-gradient-to-br from-orange-300 to-amber-400 flex items-center justify-center ${artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
+                <div className={`w-full h-full bg-gradient-to-br from-orange-300 to-primary-400 flex items-center justify-center ${artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
                   <CameraIcon className="w-16 h-16 text-white opacity-50" />
                 </div>
                 
@@ -667,6 +642,7 @@ export default function ArtisanShop() {
                       showDistance={false}
                       showImagePreview={true}
                       showRating={false}
+                      showVisitShop={false}
                     />
                   ))}
                 </div>

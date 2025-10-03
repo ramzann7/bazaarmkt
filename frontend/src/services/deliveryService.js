@@ -1,4 +1,5 @@
 // src/services/deliveryService.js
+import { estimateDeliveryTime as calculateDeliveryTime, getDeliveryTimeRange } from '../utils/deliveryTimeEstimator';
 
 export const deliveryService = {
   // Calculate delivery fee based on distance and artisan settings
@@ -198,8 +199,9 @@ export const deliveryService = {
     return { valid: true, distance: null };
   },
 
-  // Get estimated delivery time
-  getEstimatedDeliveryTime: (deliveryOption, artisanHours) => {
+  // Get estimated delivery time based on distance and driving speed
+  // Only calculates for personal delivery - professional delivery uses API times
+  getEstimatedDeliveryTime: (deliveryOption, distanceKm, artisanHours) => {
     const now = new Date();
     const currentHour = now.getHours();
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
@@ -213,12 +215,12 @@ export const deliveryService = {
       return { available: false, message: 'Artisan is closed today' };
     }
 
+    const openHour = parseInt(todayHours.open.split(':')[0]);
+    const closeHour = parseInt(todayHours.close.split(':')[0]);
+    const isCurrentlyOpen = currentHour >= openHour && currentHour < closeHour;
+
     if (deliveryOption === 'pickup') {
-      // For pickup, check if artisan is currently open
-      const openHour = parseInt(todayHours.open.split(':')[0]);
-      const closeHour = parseInt(todayHours.close.split(':')[0]);
-      
-      if (currentHour >= openHour && currentHour < closeHour) {
+      if (isCurrentlyOpen) {
         return { 
           available: true, 
           estimatedTime: '1-2 hours',
@@ -230,12 +232,33 @@ export const deliveryService = {
           message: `Artisan is open ${todayHours.open} - ${todayHours.close}` 
         };
       }
-    } else if (deliveryOption === 'delivery') {
-      // For delivery, add extra time
+    } else if (deliveryOption === 'personalDelivery') {
+      // Calculate time for personal delivery based on distance and car driving speed
+      if (distanceKm && distanceKm > 0) {
+        const timeEstimate = calculateDeliveryTime(distanceKm, deliveryOption);
+        
+        if (timeEstimate) {
+          return {
+            available: true,
+            estimatedTime: timeEstimate.formattedTime,
+            message: `Estimated delivery in ${timeEstimate.formattedTime}`
+          };
+        }
+      }
+      
+      // Fallback if no distance available
       return { 
         available: true, 
-        estimatedTime: '2-4 hours',
-        message: 'Estimated delivery in 2-4 hours'
+        estimatedTime: '30-60 minutes',
+        message: 'Estimated delivery in 30-60 minutes'
+      };
+    } else if (deliveryOption === 'professionalDelivery' || deliveryOption === 'delivery') {
+      // Professional delivery time comes from API (Uber Direct)
+      // Don't calculate here - will be provided by the delivery service
+      return { 
+        available: true, 
+        estimatedTime: 'TBD',
+        message: 'Time will be provided by delivery service'
       };
     }
 
@@ -282,6 +305,24 @@ export const deliveryService = {
       default:
         return '📦';
     }
+  },
+
+  // Calculate delivery time based on distance (using car driving speeds)
+  // Only for personal delivery - professional delivery uses API
+  calculateDeliveryTime: (distanceKm, deliveryMethod = 'personalDelivery') => {
+    // Only calculate for personal delivery
+    if (deliveryMethod !== 'personalDelivery') {
+      return null;
+    }
+    return calculateDeliveryTime(distanceKm, deliveryMethod);
+  },
+
+  // Get delivery time range (min-max estimate) - for personal delivery only
+  getDeliveryTimeRange: (distanceKm, deliveryMethod = 'personalDelivery') => {
+    if (deliveryMethod !== 'personalDelivery') {
+      return null;
+    }
+    return getDeliveryTimeRange(distanceKm, deliveryMethod);
   },
 
   // Structure delivery options for consistent use across components

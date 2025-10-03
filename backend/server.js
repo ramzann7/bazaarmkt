@@ -7,8 +7,8 @@ const path = require('path');
 // Load environment variables
 dotenv.config();
 
-// Import the optimized microservices implementation
-const serverlessApp = require('./server-optimized.js'); // Optimized server
+// Import the serverless implementation (server-vercel.js)
+const serverlessApp = require('./server-vercel.js'); // Serverless server for Vercel
 
 // For development, we'll use the same serverless architecture
 // This ensures consistency between development and production

@@ -13,7 +13,9 @@ import {
   XMarkIcon,
   HeartIcon,
   StarIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  InformationCircleIcon,
+  CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -52,7 +54,7 @@ export default function Profile() {
     { id: 'delivery', name: 'Delivery', icon: MapPinIcon },
     { id: 'personal', name: 'Personal Info', icon: UserIcon },
     { id: 'notifications', name: 'Notifications', icon: BellIcon },
-    { id: 'payment', name: 'Payment', icon: CreditCardIcon },
+    { id: 'payment', name: 'Bank Information', icon: CreditCardIcon },
     { id: 'security', name: 'Security', icon: ShieldCheckIcon }
   ];
 
@@ -81,16 +83,15 @@ export default function Profile() {
   // Use user from AuthContext as profile
   const profile = user;
 
-  // Debug effect to track user data changes
+  // Debug effect to track user data changes (reduced logging)
   useEffect(() => {
-    console.log('🔄 Profile component: User data changed:', {
-      hasUser: !!user,
-      userId: user?._id,
-      userEmail: user?.email,
-      userRole: user?.role,
-      timestamp: new Date().toISOString()
-    });
-  }, [user]);
+    if (user?._id) {
+      console.log('🔄 Profile component: User data updated:', {
+        userId: user._id,
+        userType: user.userType || user.role
+      });
+    }
+  }, [user?._id, user?.userType, user?.role]);
 
   // Handle URL tab parameter
   useEffect(() => {
@@ -104,8 +105,11 @@ export default function Profile() {
   const determineTabs = useMemo(() => {
     if (!profile) return patronTabs;
     
+    // Use userType instead of role for consistency with AuthContext
+    const userRole = profile.userType || profile.role;
+    
     // Map all possible roles to appropriate tabs
-    switch (profile.role) {
+    switch (userRole) {
       case 'artisan':
         return artisanTabs;
       case 'admin':
@@ -116,7 +120,7 @@ export default function Profile() {
       default:
         return patronTabs;
     }
-  }, [profile?.role]);
+  }, [profile?.userType, profile?.role]);
 
   // Manual refresh function for explicit data refresh
   const forceRefreshProfile = async () => {
@@ -136,20 +140,12 @@ export default function Profile() {
   // Load artisan profile data - now using the enhanced profile endpoint
   const loadArtisanProfile = useCallback(async () => {
     try {
-      console.log('🔄 Loading artisan profile from enhanced profile data...');
-      console.log('🔄 User role:', profile?.role);
-      console.log('🔄 User ID:', profile?._id);
-      console.log('🔄 User artisan data:', profile?.artisan);
-      
       // The artisan data is now included in the main profile response
       if (profile?.artisan) {
-        console.log('✅ Artisan profile found in user data:', profile.artisan);
         if (isMountedRef.current) {
           setArtisanProfile(profile.artisan);
-          console.log('✅ Artisan profile state updated from user data');
         }
       } else {
-        console.log('⚠️ No artisan data found in user profile');
         if (isMountedRef.current) {
           setArtisanProfile(null);
         }
@@ -180,14 +176,6 @@ export default function Profile() {
         .finally(() => {
           setIsLoading(false);
         });
-    } else {
-      console.log('🔄 Profile component: Skipping profile refresh - conditions not met:', {
-        isProfilePage: location.pathname === '/profile',
-        isProviderReady,
-        hasUser: !!user,
-        isLoading,
-        hasRefreshedOnMount
-      });
     }
   }, [location.pathname, isProviderReady, navigate]); // Removed refreshUser, user, isLoading from dependencies
 
@@ -227,8 +215,10 @@ export default function Profile() {
   // Update tabs when profile changes
   useEffect(() => {
     if (profile) {
-      const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
-      const isArtisanUser = profile.role === 'artisan';
+      // Use userType instead of role for consistency with AuthContext
+      const userRole = profile.userType || profile.role;
+      const isPatron = userRole === 'patron' || userRole === 'customer' || userRole === 'buyer';
+      const isArtisanUser = userRole === 'artisan';
       
       if (isPatron) {
         setTabs(patronTabs);
@@ -236,34 +226,27 @@ export default function Profile() {
       } else if (isArtisanUser) {
         setTabs(artisanTabs);
         setIsArtisan(true);
-        // Set overview as default tab for artisans
-        setActiveTab('overview');
+        // Only set overview as default tab if no tab is currently active
+        if (!activeTab) {
+          setActiveTab('overview');
+        }
       } else {
         setTabs(patronTabs);
         setIsArtisan(false);
       }
       
-      setNeedsSetup(profile.role === 'setup');
+      setNeedsSetup(userRole === 'setup');
     }
   }, [profile]);
 
   // Load artisan profile when user is an artisan
   useEffect(() => {
-    console.log('🔄 Profile useEffect triggered:', {
-      hasProfile: !!profile,
-      profileRole: profile?.role,
-      profileId: profile?._id,
-      isArtisan: profile?.role === 'artisan'
-    });
+    // Use userType instead of role for consistency with AuthContext
+    const userRole = profile?.userType || profile?.role;
+    const isArtisanUser = userRole === 'artisan';
     
-    if (profile && profile.role === 'artisan') {
-      console.log('🔄 Loading artisan profile for user:', profile._id);
+    if (profile && isArtisanUser) {
       loadArtisanProfile();
-    } else {
-      console.log('🔄 Not loading artisan profile - conditions not met:', {
-        hasProfile: !!profile,
-        isArtisan: profile?.role === 'artisan'
-      });
     }
   }, [profile, loadArtisanProfile]);
 
@@ -326,6 +309,30 @@ export default function Profile() {
     };
   }, [location.pathname, profile]);
 
+  // Refresh profile data when switching tabs (optimized)
+  useEffect(() => {
+    const handleTabChange = () => {
+      // Only refresh if profile is older than 30 seconds
+      const profileAge = profile?.updatedAt ? Date.now() - new Date(profile.updatedAt).getTime() : 0;
+      
+      if (profile && activeTab && profileAge > 30000) { // 30 seconds
+        console.log('🔄 Tab changed, profile is stale, refreshing...');
+        // Trigger a gentle refresh without showing loading state
+        refreshUser().catch(err => {
+          console.error('❌ Failed to refresh profile on tab change:', err);
+        });
+      }
+    };
+
+    // Listen for tab changes
+    const handleFocus = () => handleTabChange();
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [activeTab, profile]);
+
   // Memoized save handler
   const handleSave = useMemo(() => {
     return async (data) => {
@@ -335,8 +342,26 @@ export default function Profile() {
         const updatedProfile = await profileService.updateProfile(data);
         console.log('✅ Profile updated successfully:', updatedProfile);
         
-        // Update the user in AuthContext
-        await updateUser();
+        // Clear profile cache to ensure fresh data
+        const token = localStorage.getItem('token');
+        if (token) {
+          const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+          cacheService.delete(cacheKey);
+          console.log('🧹 Cleared profile cache');
+        }
+        
+        // Update the user in AuthContext with the returned profile data
+        if (updatedProfile?.data?.user) {
+          // Use the fresh data from the server response
+          await updateUser(updatedProfile.data.user);
+        } else {
+          // Fallback to refreshing from server
+          if (refreshUser) {
+            await refreshUser();
+          } else {
+            await updateUser();
+          }
+        }
         
         // Mark onboarding as completed for new users
         if (profile && onboardingService.isNewUser(profile._id)) {
@@ -350,6 +375,9 @@ export default function Profile() {
         }));
         
         toast.success('Profile updated successfully!');
+        
+        // Return the updated profile so calling components can use it
+        return updatedProfile;
       } catch (error) {
         console.error('❌ Error updating profile:', error);
         toast.error('Failed to update profile');
@@ -358,7 +386,7 @@ export default function Profile() {
         setIsSaving(false);
       }
     };
-  }, [updateUser]);
+  }, [updateUser, refreshUser, profile]);
 
   // Handle address updates
   const handleAddressUpdate = async (addresses) => {
@@ -368,8 +396,20 @@ export default function Profile() {
       const updatedProfile = await profileService.updateAddresses(addresses);
       console.log('✅ Addresses updated successfully:', updatedProfile);
       
-      // Update the user in AuthContext
-      await updateUser();
+      // Clear profile cache to force fresh load
+      const token = localStorage.getItem('token');
+      if (token) {
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+        cacheService.delete(cacheKey);
+        console.log('🧹 Cleared profile cache');
+      }
+      
+      // Update the user in AuthContext with fresh data
+      if (updatedProfile?.data?.user) {
+        await updateUser(updatedProfile.data.user);
+      } else {
+        await refreshUser(); // Force refresh from server
+      }
       
       // Dispatch profile update event for cart and other components
       window.dispatchEvent(new CustomEvent('profileUpdated', { 
@@ -393,8 +433,19 @@ export default function Profile() {
       const updatedProfile = await profileService.updatePaymentMethods(paymentMethods);
       console.log('✅ Payment methods updated, new profile:', updatedProfile);
       
-      // Update the user in AuthContext
-      await updateUser();
+      // Clear profile cache to ensure fresh data
+      const token = localStorage.getItem('token');
+      if (token) {
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+        cacheService.delete(cacheKey);
+      }
+      
+      // Force AuthContext to refresh user data from backend
+      if (refreshUser) {
+        await refreshUser();
+      } else {
+        await updateUser();
+      }
       
       // Dispatch profile update event for cart and other components
       window.dispatchEvent(new CustomEvent('profileUpdated', { 
@@ -596,9 +647,6 @@ export default function Profile() {
   const renderTabContent = () => {
     // Combine user profile and artisan profile data
     const combinedProfile = artisanProfile ? { ...profile, ...artisanProfile } : profile;
-    console.log('🔄 Profile component - profile:', profile);
-    console.log('🔄 Profile component - artisanProfile:', artisanProfile);
-    console.log('🔄 Profile component - combinedProfile:', combinedProfile);
     
     switch (activeTab) {
       // Artisan-specific tabs
@@ -640,7 +688,17 @@ export default function Profile() {
   const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
 
   return (
-    <div className="min-h-screen bg-[#F5F1EA]">
+    <div className="min-h-screen bg-[#F5F1EA] relative">
+      {/* Saving overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 shadow-lg flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D77A61]"></div>
+            <span className="text-gray-700">Saving changes...</span>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Enhanced Header */}
         <div className="mb-8 text-center">
@@ -710,13 +768,21 @@ export default function Profile() {
         {/* Enhanced Tabs */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           <div className="bg-gradient-to-r from-[#F5F1EA] to-[#E6B655] border-b border-[#E6B655]">
-            <nav className="flex space-x-1 px-6" aria-label="Tabs">
-              {tabs.map((tab) => (
+            <nav className="flex space-x-1 px-6 overflow-x-auto scrollbar-hide" aria-label="Tabs">
+              {tabs
+                .filter(tab => {
+                  // Hide setup tab once profile is complete
+                  if (tab.id === 'setup' && !needsSetup) {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`
-                    py-4 px-6 font-medium text-sm rounded-t-lg transition-all duration-200 flex items-center space-x-2
+                    py-4 px-6 font-medium text-sm rounded-t-lg transition-all duration-200 flex items-center space-x-2 whitespace-nowrap flex-shrink-0
                     ${activeTab === tab.id
                       ? 'bg-white text-[#D77A61] shadow-sm border-b-2 border-[#D77A61]'
                       : 'text-gray-600 hover:text-[#D77A61] hover:bg-[#F5F1EA]'
@@ -757,7 +823,6 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
       lastName: profile?.lastName,
       phone: profile?.phone
     });
-    console.log('🔍 PersonalInfoTab: Full profile object:', profile);
     
     // Ensure we have valid profile data
     if (profile && typeof profile === 'object') {
@@ -767,7 +832,7 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
         phone: profile.phone || ''
       });
     }
-  }, [profile]);
+  }, [profile, profile?.firstName, profile?.lastName, profile?.phone, profile?.updatedAt]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -830,14 +895,13 @@ function AddressesTab({ profile, onSave, isSaving }) {
 
   // Update addresses when profile changes
   useEffect(() => {
-    console.log('🔄 AddressesTab: Profile updated, syncing addresses:', profile?.addresses);
-    console.log('🔍 AddressesTab: Full profile object:', profile);
+    console.log('🔄 AddressesTab: Profile updated, syncing addresses:', profile?.addresses?.length || 0, 'address(es)');
     
     // Ensure we have valid profile data
     if (profile && typeof profile === 'object') {
       setAddresses(profile.addresses || []);
     }
-  }, [profile]);
+  }, [profile, profile?.addresses, profile?.updatedAt]);
 
   const addAddress = () => {
     setAddresses([...addresses, {
@@ -1064,39 +1128,236 @@ function FavoritesTab({ favoriteArtisans, isLoading }) {
 }
 
 function NotificationsTab({ profile, onSave, isSaving }) {
-  const [preferences, setPreferences] = useState(profile.notificationPreferences || {});
+  const [preferences, setPreferences] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load notification preferences whenever profile changes
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        setIsLoading(true);
+        
+        console.log('📧 NotificationsTab: Loading preferences for profile:', profile?._id);
+        
+        // Try to get preferences from profile first
+        if (profile?.notificationPreferences && Object.keys(profile.notificationPreferences).length > 0) {
+          console.log('📧 Loading preferences from profile:', profile.notificationPreferences);
+          console.log('📧 Profile notificationPreferences keys:', Object.keys(profile.notificationPreferences));
+          
+          // Merge with defaults to ensure complete structure
+          const mergedPreferences = {
+            email: {
+              marketing: profile.notificationPreferences.email?.marketing ?? true,
+              orderUpdates: profile.notificationPreferences.email?.orderUpdates ?? true,
+              promotions: profile.notificationPreferences.email?.promotions ?? true,
+              security: profile.notificationPreferences.email?.security ?? true
+            },
+            push: {
+              orderUpdates: profile.notificationPreferences.push?.orderUpdates ?? true,
+              promotions: profile.notificationPreferences.push?.promotions ?? true,
+              newArtisans: profile.notificationPreferences.push?.newArtisans ?? true,
+              nearbyOffers: profile.notificationPreferences.push?.nearbyOffers ?? true
+            }
+          };
+          
+          console.log('📧 Merged preferences with defaults:', mergedPreferences);
+          setPreferences(mergedPreferences);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Load from backend if not in profile
+        const response = await fetch('http://localhost:4000/api/notifications/preferences', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('📧 Loaded preferences from API:', data.data);
+          setPreferences(data.data || {});
+        } else {
+            // Use default preferences if loading fails
+            setPreferences({
+              email: {
+                marketing: true,
+                orderUpdates: true,
+                promotions: true,
+                security: true
+              },
+              push: {
+                orderUpdates: true,
+                promotions: true,
+                newArtisans: true,
+                nearbyOffers: true
+              }
+            });
+        }
+      } catch (error) {
+        console.error('Error loading notification preferences:', error);
+        // Use default preferences on error
+        setPreferences({
+          email: {
+            marketing: true,
+            orderUpdates: true,
+            promotions: true,
+            security: true
+          },
+          push: {
+            orderUpdates: true,
+            promotions: true,
+            newArtisans: true,
+            nearbyOffers: true
+          }
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Only load if we have a profile
+    if (profile?._id) {
+      loadPreferences();
+    }
+  }, [profile?._id, profile?.notificationPreferences, profile?.updatedAt]); // Reload when profile or preferences change
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await onSave({ notificationPreferences: preferences });
+    try {
+      // Ensure we always send complete notification preferences structure
+      const completePreferences = {
+        email: {
+          marketing: preferences.email?.marketing ?? true,
+          orderUpdates: preferences.email?.orderUpdates ?? true,
+          promotions: preferences.email?.promotions ?? true,
+          security: preferences.email?.security ?? true
+        },
+        push: {
+          orderUpdates: preferences.push?.orderUpdates ?? true,
+          promotions: preferences.push?.promotions ?? true,
+          newArtisans: preferences.push?.newArtisans ?? true,
+          nearbyOffers: preferences.push?.nearbyOffers ?? true
+        }
+      };
+      
+      console.log('📧 Saving complete preferences:', completePreferences);
+      const result = await onSave({ notificationPreferences: completePreferences });
+      console.log('📧 Preferences saved successfully:', result);
+      
+      // Update local state with the saved preferences from the response
+      if (result?.data?.user?.notificationPreferences) {
+        console.log('📧 Updating local state with server response:', result.data.user.notificationPreferences);
+        setPreferences(result.data.user.notificationPreferences);
+      } else {
+        console.log('📧 No notificationPreferences in response, keeping current state');
+      }
+    } catch (error) {
+      console.error('📧 Error saving preferences:', error);
+    }
   };
+
+  // Ensure preferences are properly structured - matches current database structure
+  const defaultPreferences = {
+    email: {
+      marketing: true,           // Marketing emails
+      orderUpdates: true,        // Order status changes
+      promotions: true,          // Special offers and discounts
+      security: true             // Account security alerts
+    },
+    push: {
+      orderUpdates: true,        // Order status changes
+      promotions: true,          // Special offers and discounts
+      newArtisans: true,         // New artisan notifications
+      nearbyOffers: true         // Nearby offers
+    }
+  };
+
+  // Merge with defaults to ensure all keys exist
+  const finalPreferences = {
+    email: { ...defaultPreferences.email, ...(preferences.email || {}) },
+    push: { ...defaultPreferences.push, ...(preferences.push || {}) }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <h3 className="text-lg font-medium text-gray-900">Notification Preferences</h3>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+          <span className="ml-2 text-gray-600">Loading preferences...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <h3 className="text-lg font-medium text-gray-900">Notification Preferences</h3>
       
       <div className="space-y-6">
+        {/* Email Notifications */}
         <div>
           <h4 className="font-medium text-gray-900 mb-4">Email Notifications</h4>
           <div className="space-y-3">
-            {Object.entries(preferences.email || {}).map(([key, value]) => (
-              <label key={key} className="flex items-center">
+            {Object.entries(finalPreferences.email || {}).map(([key, value]) => (
+              <label key={key} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 capitalize">
+                    {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                  </span>
+                  <p className="text-xs text-gray-500">
+                    {key === 'marketing' && 'Receive marketing emails and newsletters'}
+                    {key === 'orderUpdates' && 'Get notified about your order status changes'}
+                    {key === 'promotions' && 'Receive special offers, discounts, and promotional updates'}
+                    {key === 'security' && 'Get security alerts and account notifications'}
+                  </p>
+                </div>
                 <input
                   type="checkbox"
                   checked={value}
                   onChange={(e) => setPreferences({
                     ...preferences,
-                    email: { ...preferences.email, [key]: e.target.checked }
+                    email: { ...finalPreferences.email, [key]: e.target.checked }
                   })}
                   className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                 />
-                <span className="ml-2 text-sm text-gray-700 capitalize">
-                  {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
-                </span>
               </label>
             ))}
           </div>
         </div>
+
+        {/* Push Notifications */}
+        <div>
+          <h4 className="font-medium text-gray-900 mb-4">Push Notifications</h4>
+          <div className="space-y-3">
+            {Object.entries(finalPreferences.push || {}).map(([key, value]) => (
+              <label key={key} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <div>
+                  <span className="text-sm font-medium text-gray-900 capitalize">
+                    {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                  </span>
+                  <p className="text-xs text-gray-500">
+                    {key === 'orderUpdates' && 'Real-time order notifications'}
+                    {key === 'promotions' && 'Push notifications for offers and discounts'}
+                    {key === 'newArtisans' && 'New artisan and business notifications'}
+                    {key === 'nearbyOffers' && 'Local deals and nearby offers'}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={(e) => setPreferences({
+                    ...preferences,
+                    push: { ...finalPreferences.push, [key]: e.target.checked }
+                  })}
+                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
       </div>
 
       <div className="flex justify-end">
@@ -1113,16 +1374,43 @@ function NotificationsTab({ profile, onSave, isSaving }) {
 }
 
 function PaymentTab({ profile, onSave, isSaving }) {
+  const isArtisan = profile.role === 'artisan';
+  
+  // State for patrons (payment methods)
   const [paymentMethods, setPaymentMethods] = useState(profile.paymentMethods || []);
+  
+  // State for artisans (bank information)
+  const [bankInfo, setBankInfo] = useState(profile.bankInfo || {
+    accountHolderName: '',
+    bankName: '',
+    institutionNumber: '',
+    transitNumber: '',
+    accountNumber: '',
+    accountType: 'checking' // checking or savings
+  });
   
   // Update payment methods when profile changes
   useEffect(() => {
+    if (!isArtisan) {
     console.log('🔄 PaymentTab: Profile payment methods updated:', profile.paymentMethods);
     setPaymentMethods(profile.paymentMethods || []);
-  }, [profile.paymentMethods]);
+    } else {
+      console.log('🔄 PaymentTab: Profile bank info updated:', profile.bankInfo);
+      setBankInfo(profile.bankInfo || {
+        accountHolderName: '',
+        bankName: '',
+        institutionNumber: '',
+        transitNumber: '',
+        accountNumber: '',
+        accountType: 'checking'
+      });
+    }
+  }, [profile.paymentMethods, profile.bankInfo, isArtisan]);
+  
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState({
     type: 'credit_card',
+    cardNumber: '',  // Store full card number temporarily for validation
     last4: '',
     brand: '',
     expiryMonth: '',
@@ -1132,8 +1420,14 @@ function PaymentTab({ profile, onSave, isSaving }) {
   });
 
   const addPaymentMethod = async () => {
-    if (!newPaymentMethod.last4 || !newPaymentMethod.brand) {
-      toast.error('Please fill in all required fields');
+    // Validate all fields
+    if (!newPaymentMethod.cardNumber) {
+      toast.error('Please enter card number');
+      return;
+    }
+    
+    if (!newPaymentMethod.brand) {
+      toast.error('Please select card brand');
       return;
     }
     
@@ -1148,16 +1442,46 @@ function PaymentTab({ profile, onSave, isSaving }) {
     }
     
     try {
+      // Validate and extract last 4 digits from full card number
+      const cardDigitsOnly = newPaymentMethod.cardNumber.replace(/\D/g, '');
+      
+      // Validate card number length (typically 13-19 digits)
+      if (cardDigitsOnly.length < 13 || cardDigitsOnly.length > 19) {
+        toast.error('Invalid card number length. Card numbers are typically 13-19 digits.');
+        return;
+      }
+      
+      // Extract last 4 digits
+      const last4Only = cardDigitsOnly.slice(-4);
+      
+      console.log('💳 Card validation:', {
+        fullLength: cardDigitsOnly.length,
+        last4: last4Only,
+        brand: newPaymentMethod.brand
+      });
+      
+      // Validate expiry date
+      const currentYear = new Date().getFullYear();
+      const expiryYear = parseInt(newPaymentMethod.expiryYear, 10);
+      const expiryMonth = parseInt(newPaymentMethod.expiryMonth, 10);
+      
+      if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < (new Date().getMonth() + 1))) {
+        toast.error('Card has expired');
+        return;
+      }
+      
       // Convert string values to proper types for backend
       const paymentMethodToAdd = {
         type: newPaymentMethod.type,
-        last4: newPaymentMethod.last4,
-        brand: newPaymentMethod.brand,
-        expiryMonth: parseInt(newPaymentMethod.expiryMonth, 10),
-        expiryYear: parseInt(newPaymentMethod.expiryYear, 10),
-        cardholderName: newPaymentMethod.cardholderName,
-        isDefault: newPaymentMethod.isDefault
+        last4: last4Only,
+        brand: newPaymentMethod.brand.toLowerCase(), // Ensure consistent lowercase
+        expiryMonth: expiryMonth,
+        expiryYear: expiryYear,
+        cardholderName: newPaymentMethod.cardholderName.trim(),
+        isDefault: paymentMethods.length === 0 ? true : newPaymentMethod.isDefault // First card is always default
       };
+      
+      console.log('💳 Adding payment method:', paymentMethodToAdd);
       
       // Create a clean array of payment methods for the backend
       const cleanPaymentMethods = paymentMethods.map(method => ({
@@ -1181,6 +1505,7 @@ function PaymentTab({ profile, onSave, isSaving }) {
       
       setNewPaymentMethod({
         type: 'credit_card',
+        cardNumber: '',
         last4: '',
         brand: '',
         expiryMonth: '',
@@ -1227,8 +1552,228 @@ function PaymentTab({ profile, onSave, isSaving }) {
     }
   };
 
+  // Bank info functions for artisans
+  const saveBankInfo = async () => {
+    try {
+      // Validate Canadian bank account format
+      if (!bankInfo.accountHolderName) {
+        toast.error('Please enter account holder name');
+        return;
+      }
+      
+      if (!bankInfo.institutionNumber || bankInfo.institutionNumber.length !== 3) {
+        toast.error('Institution number must be 3 digits');
+        return;
+      }
+      
+      if (!bankInfo.transitNumber || bankInfo.transitNumber.length !== 5) {
+        toast.error('Transit number must be 5 digits');
+        return;
+      }
+      
+      if (!bankInfo.accountNumber || bankInfo.accountNumber.length < 7) {
+        toast.error('Please enter a valid account number');
+        return;
+      }
 
+      console.log('💳 Saving bank information for payouts');
+      
+      // Save bank info to artisan profile
+      await profileService.updateArtisanProfile({
+        bankInfo: {
+          accountHolderName: bankInfo.accountHolderName.trim(),
+          bankName: bankInfo.bankName.trim(),
+          institutionNumber: bankInfo.institutionNumber.trim(),
+          transitNumber: bankInfo.transitNumber.trim(),
+          accountNumber: bankInfo.accountNumber.trim(), // Backend will encrypt this
+          accountType: bankInfo.accountType,
+          lastUpdated: new Date()
+        }
+      });
+      
+      toast.success('Bank information saved successfully');
+    } catch (error) {
+      console.error('Error saving bank info:', error);
+      toast.error('Failed to save bank information');
+    }
+  };
 
+  // If artisan, show bank information form
+  if (isArtisan) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <InformationCircleIcon className="h-6 w-6 text-blue-600 mt-0.5 mr-3" />
+            <div>
+              <h4 className="text-sm font-medium text-blue-900 mb-1">Bank Information for Payouts</h4>
+              <p className="text-sm text-blue-700">
+                Enter your Canadian bank account details to receive weekly payouts. Your information is securely encrypted and used only for transferring your earnings.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Bank Account Details</h3>
+          
+          <div className="space-y-4">
+            {/* Account Holder Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Account Holder Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={bankInfo.accountHolderName}
+                onChange={(e) => setBankInfo({ ...bankInfo, accountHolderName: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="John Doe"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Name as it appears on your bank account</p>
+            </div>
+
+            {/* Bank Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bank Name
+              </label>
+              <input
+                type="text"
+                value={bankInfo.bankName}
+                onChange={(e) => setBankInfo({ ...bankInfo, bankName: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="TD Canada Trust, RBC, Scotiabank, etc."
+              />
+            </div>
+
+            {/* Institution Number */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Institution Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={bankInfo.institutionNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                    setBankInfo({ ...bankInfo, institutionNumber: value });
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono"
+                  placeholder="001"
+                  maxLength="3"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">3-digit code (e.g., 001 for BMO)</p>
+              </div>
+
+              {/* Transit Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Transit Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={bankInfo.transitNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                    setBankInfo({ ...bankInfo, transitNumber: value });
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono"
+                  placeholder="12345"
+                  maxLength="5"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">5-digit branch code</p>
+              </div>
+            </div>
+
+            {/* Account Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Account Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={bankInfo.accountNumber}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  setBankInfo({ ...bankInfo, accountNumber: value });
+                }}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono"
+                placeholder="1234567890"
+                maxLength="20"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Your bank account number (7-12 digits typically)</p>
+            </div>
+
+            {/* Account Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Account Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={bankInfo.accountType}
+                onChange={(e) => setBankInfo({ ...bankInfo, accountType: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              >
+                <option value="checking">Checking Account</option>
+                <option value="savings">Savings Account</option>
+              </select>
+            </div>
+
+            {/* Save Button */}
+            <div className="pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={saveBankInfo}
+                disabled={isSaving}
+                className="w-full px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isSaving ? 'Saving...' : 'Save Bank Information'}
+              </button>
+            </div>
+
+            {/* Security Notice */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <ShieldCheckIcon className="h-5 w-5 text-green-600 mt-0.5 mr-2" />
+                <div className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-900 mb-1">Secure & Encrypted</p>
+                  <p>Your bank information is encrypted and stored securely. It will only be used for weekly payout transfers to your account.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Current Bank Info Display (if saved) */}
+            {profile.bankInfo && profile.bankInfo.accountNumber && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <CheckCircleIcon className="h-5 w-5 text-accent mt-0.5 mr-2" />
+                  <div className="text-sm">
+                    <p className="font-medium text-emerald-900 mb-2">Bank Account Configured</p>
+                    <div className="space-y-1 text-gray-700">
+                      <p><span className="font-medium">Bank:</span> {profile.bankInfo.bankName || 'Not specified'}</p>
+                      <p><span className="font-medium">Account Holder:</span> {profile.bankInfo.accountHolderName}</p>
+                      <p><span className="font-medium">Account:</span> ****{profile.bankInfo.accountNumber?.slice(-4)}</p>
+                      <p><span className="font-medium">Institution:</span> {profile.bankInfo.institutionNumber}</p>
+                      <p><span className="font-medium">Transit:</span> {profile.bankInfo.transitNumber}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Patron payment methods UI (existing code)
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1247,20 +1792,52 @@ function PaymentTab({ profile, onSave, isSaving }) {
         <div className="border border-gray-200 rounded-lg p-4">
           <h4 className="font-medium mb-4">Add New Payment Method</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">Card Number *</label>
               <input
                 type="text"
-                value={newPaymentMethod.last4}
-                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, last4: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="**** **** **** ****"
-                maxLength="19"
+                value={newPaymentMethod.cardNumber}
+                onChange={(e) => {
+                  // Format card number with spaces every 4 digits
+                  const value = e.target.value.replace(/\D/g, '');
+                  const formatted = value.replace(/(\d{4})/g, '$1 ').trim();
+                  
+                  // Auto-detect card brand based on first digits
+                  let detectedBrand = newPaymentMethod.brand;
+                  if (value.length >= 2) {
+                    if (value.startsWith('4')) {
+                      detectedBrand = 'visa';
+                    } else if (value.startsWith('5')) {
+                      detectedBrand = 'mastercard';
+                    } else if (value.startsWith('34') || value.startsWith('37')) {
+                      detectedBrand = 'amex';
+                    } else if (value.startsWith('6')) {
+                      detectedBrand = 'discover';
+                    }
+                  }
+                  
+                  setNewPaymentMethod({ 
+                    ...newPaymentMethod, 
+                    cardNumber: formatted,
+                    brand: detectedBrand
+                  });
+                }}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 font-mono"
+                placeholder="1234 5678 9012 3456"
+                maxLength="23"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter full card number (only last 4 digits will be stored for security)
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Card Brand *</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Card Brand * 
+                {newPaymentMethod.brand && (
+                  <span className="ml-2 text-xs text-green-600">(Auto-detected)</span>
+                )}
+              </label>
               <select
                 value={newPaymentMethod.brand}
                 onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, brand: e.target.value })}
@@ -1270,9 +1847,11 @@ function PaymentTab({ profile, onSave, isSaving }) {
                 <option value="">Select brand</option>
                 <option value="visa">Visa</option>
                 <option value="mastercard">Mastercard</option>
-                <option value="amex">American Express</option>
+                <option value="amex">Amex</option>
                 <option value="discover">Discover</option>
+                <option value="other">Other</option>
               </select>
+              <p className="text-xs text-gray-500 mt-1">Card brand is auto-detected from card number</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Expiry Month *</label>
@@ -1330,23 +1909,28 @@ function PaymentTab({ profile, onSave, isSaving }) {
         </div>
       )}
 
-      {paymentMethods.map((method) => (
-        <div key={method._id} className="border border-gray-200 rounded-lg p-4">
+      {paymentMethods.map((method, index) => (
+        <div key={method._id || `payment-${index}`} className="border border-gray-200 rounded-lg p-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <CreditCardIcon className="w-6 h-6 text-gray-400" />
               <div>
-                <p className="font-medium">
+                <p className="font-medium capitalize">
                   {method.brand} •••• {method.last4}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Expires {method.expiryMonth}/{method.expiryYear}
+                  Expires {method.expiryMonth?.toString().padStart(2, '0')}/{method.expiryYear}
                 </p>
+                {method.cardholderName && (
+                  <p className="text-xs text-gray-500">
+                    {method.cardholderName}
+                  </p>
+                )}
               </div>
             </div>
             <button
               type="button"
-              onClick={() => removePaymentMethod(method._id)}
+              onClick={() => removePaymentMethod(method._id || index)}
               className="text-red-600 hover:text-red-700"
             >
               <TrashIcon className="w-4 h-4" />
@@ -1370,22 +1954,48 @@ function SecurityTab({ profile, onSave, isSaving }) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+    
     if (newPassword !== confirmPassword) {
       toast.error('New passwords do not match');
       return;
     }
     
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+    
+    setIsChangingPassword(true);
     try {
       await profileService.changePassword({ currentPassword, newPassword });
+      
+      // Clear profile cache
+      const token = localStorage.getItem('token');
+      if (token) {
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+        cacheService.delete(cacheKey);
+        console.log('🧹 Cleared profile cache after password change');
+      }
+      
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      toast.success('Password changed successfully');
+      toast.success('Password changed successfully!');
     } catch (error) {
-      toast.error('Failed to change password');
+      console.error('Error changing password:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to change password';
+      toast.error(errorMessage);
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -1432,10 +2042,17 @@ function SecurityTab({ profile, onSave, isSaving }) {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isSaving}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            disabled={isChangingPassword}
+            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center"
           >
-            {isSaving ? 'Changing...' : 'Change Password'}
+            {isChangingPassword ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Changing...
+              </>
+            ) : (
+              'Change Password'
+            )}
           </button>
         </div>
       </form>
@@ -1444,7 +2061,18 @@ function SecurityTab({ profile, onSave, isSaving }) {
 }
 
 function SettingsTab({ profile, onSave, isSaving }) {
-  const [settings, setSettings] = useState(profile.accountSettings || {});
+  const [settings, setSettings] = useState(profile?.accountSettings || {});
+
+  // Update settings when profile changes
+  useEffect(() => {
+    console.log('⚙️ SettingsTab: Profile updated, syncing settings:', profile?.accountSettings);
+    if (profile && typeof profile === 'object') {
+      setSettings(profile.accountSettings || {
+        language: 'en',
+        currency: 'CAD'
+      });
+    }
+  }, [profile, profile?.accountSettings, profile?.updatedAt]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,361 +1,6209 @@
-/**
- * Optimized Microservices Server - Production Ready
- * Efficient, scalable, and cost-effective microservices architecture
- */
+// Load environment variables
+require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
-const helmet = require('helmet');
+const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
-const dotenv = require('dotenv');
-const path = require('path');
-
-// Load environment variables
-dotenv.config();
+const cron = require('node-cron');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
 
-// ============================================================================
-// OPTIMIZED MIDDLEWARE SETUP
-// ============================================================================
+// Trust proxy for Vercel deployment
+app.set('trust proxy', 1);
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable for API
-  crossOriginEmbedderPolicy: false
-}));
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://bazarmkt.vercel.app', 'https://www.bazarmkt.com']
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5180'],
-  credentials: true
-}));
-
-// Compression for better performance
+// Middleware
 app.use(compression());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use('/api/', limiter);
-
-// Body parsing with optimized limits
-app.use(express.json({ 
-  limit: '4.5mb',
-  verify: (req, res, buf) => {
-    // Add request size validation
-    if (buf.length > 4.5 * 1024 * 1024) {
-      throw new Error('Request too large');
-    }
-  }
-}));
+app.use(express.json({ limit: '4.5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '4.5mb' }));
 
-// Serve static files
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+// CORS configuration
+const allowedOrigins = [
+  'http://localhost:5180',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'https://bazaarmkt.ca',
+  'https://www.bazaarmkt.ca',
+  /^https:\/\/bazaarmkt-.*\.vercel\.app$/
+];
 
-// ============================================================================
-// MICROSERVICES INTEGRATION (OPTIMIZED)
-// ============================================================================
+if (process.env.CORS_ORIGIN) {
+  allowedOrigins.push(process.env.CORS_ORIGIN);
+}
 
-let MicroservicesIntegration = null;
-let isMicroservicesReady = false;
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
-// Optimized microservices initialization
-const initializeMicroservices = async () => {
+// Static file serving for uploads (development only)
+if (process.env.NODE_ENV !== 'production') {
+  const path = require('path');
+  app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+  console.log('📁 Static files served from:', path.join(__dirname, 'public/uploads'));
+}
+
+// Database connection middleware for serverless
+// Database connection pool for efficient connection management
+const { MongoClient, ObjectId } = require('mongodb');
+
+// Rate limiting configuration - more lenient for development
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'development' ? 100000 : 100, // Very lenient in development for testing
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip health checks, debug endpoints, auth endpoints, and product endpoints
+  skip: (req) => {
+    const path = req.path;
+    return path === '/api/health' || 
+           path === '/api/debug' || 
+           path === '/api/test-db' || 
+           path === '/api/test-mongo' || 
+           path === '/api/env-check' ||
+           path.startsWith('/api/auth/') ||
+           path.startsWith('/api/products/') ||
+           path.startsWith('/api/promotional/') ||
+           path.startsWith('/api/artisans/') ||
+           path.startsWith('/api/spotlight/') ||
+           path.startsWith('/api/orders/') ||
+           path.startsWith('/api/profile/') ||
+           path.startsWith('/api/community/'); // Community engagement space - no rate limiting
+  },
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  }
+});
+
+// Apply rate limiting
+app.use('/api', limiter);
+
+let client = null;
+let db = null;
+let connectionPromise = null;
+let connectionAttempts = 0;
+
+const getDB = async () => {
+  // Return existing healthy connection immediately
+  if (db && client && client.topology && client.topology.isConnected && client.topology.isConnected()) {
+    return db;
+  }
+  
+  // Reset if connection exists but is unhealthy
+  if (db && client && (!client.topology || !client.topology.isConnected || !client.topology.isConnected())) {
+    console.log('⚠️  Connection unhealthy, resetting...');
+    client = null;
+    db = null;
+    connectionPromise = null;
+  }
+  
+  // Wait for existing connection attempt (without logging spam)
+  if (connectionPromise) {
+    try {
+      const result = await connectionPromise;
+      return result;
+    } catch (error) {
+      // Connection failed, reset and retry
+      client = null;
+      db = null;
+      connectionPromise = null;
+      throw error;
+    }
+  }
+  
+  // Start new connection
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI not set');
+  }
+  
+  // Create connection promise that all waiting requests will share
+  connectionPromise = (async () => {
+    try {
+      console.log('🔄 Connecting to MongoDB Atlas...');
+      
+      client = new MongoClient(mongoUri, {
+        maxPoolSize: 20, // Increased for better concurrent handling
+        minPoolSize: 5,  // Keep more connections ready
+        serverSelectionTimeoutMS: 10000, // Reduced timeout for faster failure detection
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+        maxIdleTimeMS: 300000, // 5 minutes
+        heartbeatFrequencyMS: 30000, // Check every 30 seconds
+        retryWrites: true,
+        retryReads: true,
+        monitorCommands: false,
+        compressors: ['zlib'] // Enable compression for better performance
+      });
+      
+      await client.connect();
+      db = client.db('bazarmkt');
+      
+      console.log('✅ MongoDB connected successfully to database: bazarmkt');
+      console.log('📊 Connection pool: min=5, max=20');
+      
+      connectionAttempts = 0; // Reset on success
+      return db;
+    } catch (error) {
+      connectionAttempts++;
+      console.error(`❌ MongoDB connection failed (attempt ${connectionAttempts}):`, error.message);
+      
+      client = null;
+      db = null;
+      connectionPromise = null;
+      
+      throw error;
+    }
+  })();
+  
+  // Wait for and return the connection
+  const result = await connectionPromise;
+  return result;
+};
+
+// Helper function for JWT verification with proper error handling
+const verifyJWT = (req, res, next) => {
   try {
-    console.log('🚀 Initializing Microservices (Optimized)...');
+    const token = req.headers.authorization?.replace('Bearer ', '');
     
-    // Import optimized microservices integration
-    MicroservicesIntegration = require('./middleware/microservicesIntegration');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
     
-    // Initialize with timeout to prevent hanging
-    const initPromise = MicroservicesIntegration.initialize();
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Microservices initialization timeout')), 30000)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    let message = 'Invalid token';
+    
+    if (error.name === 'TokenExpiredError') {
+      message = 'Token expired';
+    } else if (error.name === 'JsonWebTokenError') {
+      message = 'Invalid token';
+    } else if (error.name === 'NotBeforeError') {
+      message = 'Token not active';
+    }
+    
+    return res.status(401).json({
+      success: false,
+      message
+    });
+  }
+};
+
+// Helper function to verify artisan role
+const verifyArtisanRole = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const db = req.db;
+    
+    console.log('🔍 verifyArtisanRole: userId =', userId);
+    
+    // Validate userId is a valid ObjectId
+    if (!ObjectId.isValid(userId)) {
+      console.log('❌ verifyArtisanRole: Invalid ObjectId format');
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format'
+      });
+    }
+    
+    // Get user from database to check role
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    console.log('🔍 verifyArtisanRole: user found =', user ? 'yes' : 'no');
+    
+    if (!user) {
+      console.log('❌ verifyArtisanRole: User not found');
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    console.log('🔍 verifyArtisanRole: user.role =', user.role, 'user.userType =', user.userType);
+    
+    // Check if user has artisan role
+    const isArtisan = user.role === 'artisan' || user.userType === 'artisan';
+    console.log('🔍 verifyArtisanRole: isArtisan =', isArtisan);
+    
+    if (!isArtisan) {
+      console.log('❌ verifyArtisanRole: User is not an artisan');
+      return res.status(403).json({
+        success: false,
+        message: 'Artisan privileges required'
+      });
+    }
+    
+    // Find artisan profile using user ID
+    const artisan = await db.collection('artisans').findOne({ user: new ObjectId(userId) });
+    console.log('🔍 verifyArtisanRole: artisan profile found =', artisan ? 'yes' : 'no');
+    
+    if (!artisan) {
+      console.log('❌ verifyArtisanRole: Artisan profile not found');
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    console.log('🔍 verifyArtisanRole: artisan._id =', artisan._id);
+    console.log('✅ verifyArtisanRole: All checks passed');
+    
+    // Add both user and artisan info to request for use in endpoints
+    req.artisan = artisan;
+    req.artisanId = artisan._id; // This is the artisan ID we need for order lookups
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('❌ verifyArtisanRole: Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify artisan role',
+      error: error.message
+    });
+  }
+};
+
+// Make database available to all routes (except health check)
+app.use(async (req, res, next) => {
+  // Skip database connection for health check and static files
+  if (req.path === '/api/health' || req.path.startsWith('/uploads')) {
+    return next();
+  }
+  
+  try {
+    req.db = await getDB();
+    next();
+  } catch (error) {
+    console.error('❌ Database middleware error:', error.message);
+    res.status(503).json({ 
+      success: false, 
+      message: 'Database temporarily unavailable',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Middleware to ensure database connection
+// MongoDB connection middleware - temporarily disabled for testing
+// app.use(async (req, res, next) => {
+//   if (!isConnected) {
+//     await connectDB();
+//   }
+//   next();
+// });
+
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    const db = await getDB();
+    await db.admin().ping();
+    
+  res.json({
+    status: 'OK',
+    message: 'bazaar API is running',
+    timestamp: new Date().toISOString(),
+      database: 'connected'
+    });
+  } catch (error) {
+    console.error('Health check database error:', error);
+    res.status(503).json({
+      status: 'ERROR',
+      message: 'bazaar API is running but database connection failed',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Database connection failed'
+    });
+  }
+});
+
+// Debug endpoint
+app.get('/api/debug', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Debug endpoint working',
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+        databaseConnection: 'unknown'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Test database connection endpoint
+
+
+// Direct MongoDB connection test
+app.get('/api/test-mongo', async (req, res) => {
+  try {
+    console.log('🧪 Direct MongoDB connection test...');
+    
+    // Test connection without mongoose
+    const { MongoClient } = require('mongodb');
+    const db = req.db; // Use shared connection from middleware
+    const artisansCollection = db.collection('artisans');
+
+    // If bankInfo is being updated, mask the account number for storage
+    if (updateData.bankInfo) {
+      console.log('💳 Updating bank information for payouts');
+      
+      // Store the full account number (should be encrypted in production)
+      const bankInfo = {
+        ...updateData.bankInfo,
+        accountNumberLast4: updateData.bankInfo.accountNumber?.slice(-4),
+        // In production, encrypt the account number here
+        encryptedAccountNumber: updateData.bankInfo.accountNumber,
+        lastUpdated: new Date()
+      };
+      
+      updateData.bankInfo = bankInfo;
+    }
+
+    updateData.updatedAt = new Date();
+
+    const result = await artisansCollection.updateOne(
+      { _id: artisanId },
+      { $set: updateData }
+    );
+
+    if (result.matchedCount === 0) {
+      // Connection managed by middleware - no close needed
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    // Get updated artisan profile
+    const updatedArtisan = await artisansCollection.findOne({ _id: artisanId });
+
+    // Remove sensitive data before sending response
+    if (updatedArtisan.bankInfo) {
+      updatedArtisan.bankInfo = {
+        ...updatedArtisan.bankInfo,
+        encryptedAccountNumber: undefined, // Don't send encrypted number
+        accountNumber: `****${updatedArtisan.bankInfo.accountNumberLast4}` // Send masked version
+      };
+    }
+
+    // Connection managed by middleware - no close needed
+
+    console.log('✅ Artisan profile updated successfully');
+
+    res.json({
+      success: true,
+      message: 'Artisan profile updated successfully',
+      data: { artisan: updatedArtisan }
+    });
+  } catch (error) {
+    console.error('Update artisan profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update artisan profile',
+      error: error.message
+    });
+  }
+});
+
+app.put('/api/profile/artisan/delivery', verifyJWT, verifyArtisanRole, async (req, res) => {
+  try {
+    const db = req.db;
+    const userId = req.user.userId;
+    const deliveryData = req.body;
+
+    // Update artisan delivery options
+    const artisansCollection = db.collection('artisans');
+    const result = await artisansCollection.updateOne(
+      { user: new ObjectId(userId) },
+      { 
+        $set: {
+          ...deliveryData,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    // Get updated profile
+    const updatedArtisan = await artisansCollection.findOne({ user: new ObjectId(userId) });
+
+    res.json({
+      success: true,
+      message: 'Delivery options updated successfully',
+      data: updatedArtisan
+    });
+  } catch (error) {
+    console.error('Update artisan delivery error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating delivery options',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Get single product by ID - DISABLED: Handled by products router
+// app.get('/api/products/:id', async (req, res) => {
+//   try {
+//     const db = req.db;
+//     const productsCollection = db.collection('products');
+//     
+//     // Validate ObjectId before using it
+//     if (!ObjectId.isValid(req.params.id)) {
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: 'Invalid product ID format' 
+//       });
+//     }
+//     
+//     // Get product with artisan population
+//     const products = await productsCollection.aggregate([
+//       { $match: { _id: new ObjectId(req.params.id), status: 'active' } },
+//       {
+//         $addFields: {
+//           artisanObjectId: { $toObjectId: '$artisan' }
+//         }
+//       },
+//       {
+//         $lookup: {
+//           from: 'artisans',
+//           localField: 'artisanObjectId',
+//           foreignField: '_id',
+//           as: 'artisanInfo',
+//           pipeline: [
+//             { $project: { 
+//               artisanName: 1, 
+//               businessName: 1, 
+//               type: 1, 
+//               address: 1, 
+//               coordinates: 1,
+//               deliveryOptions: 1, 
+//               pickupLocation: 1,
+//               pickupAddress: 1,
+//               pickupInstructions: 1,
+//               pickupHours: 1,
+//               deliveryInstructions: 1,
+//               rating: 1,
+//               businessImage: 1
+//             }}
+//           ]
+//         }
+//       },
+//       {
+//         $addFields: {
+//           artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+//         }
+//       },
+//       { $unset: ['artisanInfo', 'artisanObjectId'] }
+//     ]).toArray();
+//     
+//     if (!products || products.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Product not found'
+//       });
+//     }
+    
+//     res.json({
+//       success: true,
+//       data: products[0]
+//     });
+//   } catch (error) {
+//     console.error('Error fetching product:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching product',
+//       error: error.message
+//     });
+//   }
+// });
+
+// Get product categories - DISABLED: Handled by products router
+// app.get('/api/products/categories/list', async (req, res) => {
+//   try {
+//     const db = req.db;
+//     const productsCollection = db.collection('products');
+//     
+//     // Get unique categories
+//     const categories = await productsCollection.distinct('category', { status: 'active' });
+//     const subcategories = await productsCollection.distinct('subcategory', { status: 'active' });
+//     
+//     res.json({
+//       success: true,
+//       data: {
+//         categories: categories,
+//         subcategories: subcategories
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Error fetching categories:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching categories',
+//       error: error.message
+//     });
+//   }
+// });
+
+
+// ============================================================================
+// AUTHENTICATION ENDPOINTS
+// ============================================================================
+
+// Helper function to calculate profile completion
+const calculateProfileCompletion = (addresses, phone, paymentMethods) => {
+  let completion = 30; // Base for name and email
+  if (phone && phone.length > 0) completion += 10;
+  if (addresses && addresses.length > 0) completion += 20;
+  if (paymentMethods && paymentMethods.length > 0) completion += 20;
+  return Math.min(completion, 100);
+};
+
+// User registration
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    
+    const { 
+      email, password, firstName, lastName, phone, 
+      userType = 'patron',
+      role,
+      addresses = [],
+      street, city, state, zipCode, country,
+      artisanData
+    } = req.body;
+    
+    if (!email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, password, first name, and last name are required'
+      });
+    }
+    
+    // Determine the actual role
+    const actualRole = role || userType || 'patron';
+    
+    // Validate that only artisan and patron roles are allowed
+    if (!['artisan', 'patron'].includes(actualRole)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user type. Only "artisan" and "patron" registrations are allowed.'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
+    
+    // If user exists as a guest, upgrade their account to patron/artisan
+    if (existingUser && (existingUser.role === 'guest' || existingUser.isGuest)) {
+      console.log('🔄 Upgrading guest account to', actualRole, ':', email);
+      
+      // Hash the new password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      
+      // Process addresses
+      let userAddresses = addresses || [];
+      if (userAddresses.length === 0 && street && city) {
+        userAddresses = [{
+          type: 'home',
+          label: 'Home',
+          street, city, state: state || '', zipCode: zipCode || '',
+          country: country || 'Canada',
+          isDefault: true,
+          createdAt: new Date()
+        }];
+      }
+      
+      // Update guest to full account
+      await usersCollection.updateOne(
+        { _id: existingUser._id },
+        { 
+          $set: { 
+            password: hashedPassword,
+            firstName: firstName || existingUser.firstName,
+            lastName: lastName || existingUser.lastName,
+            phone: phone || existingUser.phone,
+            role: actualRole,
+            isGuest: false,
+            addresses: userAddresses,
+            defaultAddressId: userAddresses.length > 0 ? 0 : null,
+            favoriteArtisans: [],
+            favoriteProducts: [],
+            paymentMethods: [],
+            defaultPaymentMethodId: null,
+            profileCompletion: calculateProfileCompletion(userAddresses, phone, []),
+            updatedAt: new Date()
+          }
+        }
+      );
+      
+      // If upgrading to artisan, create artisan profile
+      if (actualRole === 'artisan' && artisanData) {
+        const artisansCollection = db.collection('artisans');
+        const artisanProfile = {
+          user: existingUser._id,
+          artisanName: artisanData.artisanName || `${firstName} ${lastName}`,
+          type: artisanData.type || 'other',
+          description: artisanData.description || '',
+          category: artisanData.category || [artisanData.type || 'other'],
+          address: artisanData.address || (userAddresses[0] || {}),
+          deliveryOptions: { pickup: true, delivery: false, deliveryRadius: 0, deliveryFee: 0 },
+          status: 'pending',
+          createdAt: new Date()
+        };
+        await artisansCollection.insertOne(artisanProfile);
+      }
+      
+      const updatedUser = await usersCollection.findOne({ _id: existingUser._id });
+      const token = jwt.sign(
+        { userId: updatedUser._id.toString(), email: updatedUser.email, userType: updatedUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Guest account upgraded successfully!',
+        data: { user: updatedUser, token, upgraded: true }
+      });
+    }
+    
+    // If user exists and is NOT a guest, reject registration
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+    
+    // Hash password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    // Process addresses - from addresses array or individual fields
+    let userAddresses = addresses || [];
+    if (userAddresses.length === 0 && street && city) {
+      userAddresses = [{
+        type: 'home',
+        label: 'Home',
+        street, city,
+        state: state || '',
+        zipCode: zipCode || '',
+        country: country || 'Canada',
+        isDefault: true,
+        createdAt: new Date()
+      }];
+    }
+    
+    // Create user with complete profile
+    const user = {
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      firstName,
+      lastName,
+      phone: phone || '',
+      role: actualRole,
+      isActive: true,
+      isVerified: false,
+      
+      // Address management
+      addresses: userAddresses,
+      defaultAddressId: userAddresses.length > 0 ? 0 : null,
+      coordinates: null,
+      
+      // Favorites
+      favoriteArtisans: [],
+      favoriteProducts: [],
+      
+      // Payment methods
+      paymentMethods: [],
+      defaultPaymentMethodId: null,
+      
+      // Notification preferences
+      notificationPreferences: {
+        email: { marketing: true, orderUpdates: true, promotions: true, security: true },
+        push: { orderUpdates: true, promotions: true, newArtisans: true, nearbyOffers: true },
+        sms: { orderUpdates: false, promotions: false }
+      },
+      
+      // Security settings
+      security: {
+        twoFactorEnabled: false,
+        loginNotifications: true,
+        passwordChangedAt: new Date(),
+        lastLoginAt: null,
+        loginHistory: []
+      },
+      
+      // Account settings
+      accountSettings: {
+        language: 'en',
+        currency: 'CAD',
+        timezone: 'America/Toronto',
+        marketingConsent: false,
+        dataSharing: false
+      },
+      
+      // Profile metadata
+      profileCompletion: calculateProfileCompletion(userAddresses, phone, []),
+      lastActive: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await usersCollection.insertOne(user);
+    const userId = result.insertedId;
+    
+    // If registering as artisan, create artisan profile
+    if (actualRole === 'artisan' && artisanData) {
+      try {
+        const artisansCollection = db.collection('artisans');
+        const artisanProfile = {
+          user: userId,
+          artisanName: artisanData.artisanName || `${firstName} ${lastName}`,
+          type: artisanData.type || 'other',
+          description: artisanData.description || '',
+          category: artisanData.category || [artisanData.type || 'other'],
+          specialties: artisanData.specialties || [],
+          address: artisanData.address || (userAddresses.length > 0 ? {
+            street: userAddresses[0].street,
+            city: userAddresses[0].city,
+            state: userAddresses[0].state,
+            zipCode: userAddresses[0].zipCode,
+            country: userAddresses[0].country
+          } : {}),
+          deliveryOptions: {
+            pickup: true,
+            delivery: false,
+            deliveryRadius: 0,
+            deliveryFee: 0,
+            freeDeliveryThreshold: 0
+          },
+          status: 'pending',
+          isVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        await artisansCollection.insertOne(artisanProfile);
+        console.log('✅ Artisan profile created for user:', userId.toString());
+      } catch (artisanError) {
+        console.error('⚠️ Error creating artisan profile:', artisanError);
+      }
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: userId.toString(), email: user.email, userType: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
     );
     
-    await Promise.race([initPromise, timeoutPromise]);
-    
-    isMicroservicesReady = true;
-    console.log('✅ Microservices Integration initialized successfully');
-    console.log('📊 Services: http://localhost:' + PORT + '/api/services');
-    console.log('🔍 Gateway: http://localhost:' + PORT + '/api/gateway/status');
-    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      data: {
+        user: {
+          _id: userId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          userType: user.role, // Frontend expects userType
+          isActive: user.isActive,
+          isVerified: user.isVerified
+        },
+        token
+      }
+    });
   } catch (error) {
-    console.error('❌ Microservices initialization failed:', error.message);
-    console.log('⚠️ Server will continue without microservices (graceful degradation)');
-    isMicroservicesReady = false;
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed',
+      error: error.message
+    });
   }
+});
+
+// User login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and password are required'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Find user
+    const user = await usersCollection.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+    
+    // Check if this is a guest account (no password)
+    if (!user.password || user.role === 'guest' || user.isGuest) {
+      return res.status(401).json({
+        success: false,
+        message: 'This is a guest account. Please create a full account to login.'
+      });
+    }
+    
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id.toString(), email: user.email, userType: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      data: {
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          userType: user.role, // Frontend expects userType
+          isActive: user.isActive,
+          isVerified: user.isVerified
+        },
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Login failed',
+      error: error.message
+    });
+  }
+});
+
+// Update user role (for testing)
+app.put('/api/auth/update-role', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const { role } = req.body;
+    
+    const usersCollection = db.collection('users');
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: { role: role } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'User role updated successfully',
+      data: { role }
+    });
+  } catch (error) {
+    console.error('Update role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating user role',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Get user profile
+app.get('/api/auth/profile', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    const user = await usersCollection.findOne({ _id: new ObjectId(req.user.userId) });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Initialize user data with ALL fields
+    const userData = {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          userType: user.role, // Frontend expects userType
+          role: user.role,
+          isActive: user.isActive,
+          isVerified: user.isVerified,
+          addresses: user.addresses || [],
+          defaultAddressId: user.defaultAddressId,
+          paymentMethods: user.paymentMethods || [],
+          defaultPaymentMethodId: user.defaultPaymentMethodId,
+          favoriteArtisans: user.favoriteArtisans || [],
+          favoriteProducts: user.favoriteProducts || [],
+          coordinates: user.coordinates,
+          notificationPreferences: user.notificationPreferences || {
+            email: {
+              marketing: true,
+              orderUpdates: true,
+              promotions: true,
+              security: true
+            },
+            push: {
+              orderUpdates: true,
+              promotions: true,
+              newArtisans: true,
+              nearbyOffers: true
+            }
+          },
+          accountSettings: user.accountSettings || {
+            language: 'en',
+            currency: 'CAD',
+            timezone: 'America/Toronto',
+            marketingConsent: false,
+            dataSharing: false
+          },
+          security: user.security,
+          profileCompletion: user.profileCompletion,
+          lastActive: user.lastActive,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+    };
+    
+    // If user is an artisan, fetch artisan-specific information
+    if (user.role === 'artisan') {
+      const artisansCollection = db.collection('artisans');
+      
+      // Look up artisan by user ID - the artisan document has a 'user' field that references the user ID
+      const artisan = await artisansCollection.findOne({ user: new ObjectId(req.user.userId) });
+      
+      if (artisan) {
+        // Include the artisan ID in the user data for frontend use
+        userData.artisanId = artisan._id;
+        
+        userData.artisan = {
+          _id: artisan._id,
+          artisanName: artisan.artisanName,
+          businessName: artisan.businessName,
+          type: artisan.type,
+          description: artisan.description,
+          profileImage: artisan.profileImage,
+          coverImage: artisan.coverImage,
+          location: artisan.location,
+          address: artisan.address,
+          phone: artisan.phone,
+          email: artisan.email,
+          website: artisan.website,
+          socialMedia: artisan.socialMedia,
+          specialties: artisan.specialties,
+          certifications: artisan.certifications,
+          experience: artisan.experience,
+          availability: artisan.availability,
+          deliveryRadius: artisan.deliveryRadius,
+          pickupAvailable: artisan.pickupAvailable,
+          deliveryAvailable: artisan.deliveryAvailable,
+          paymentMethods: artisan.paymentMethods,
+          isSpotlight: artisan.isSpotlight,
+          isFeatured: artisan.isFeatured,
+          status: artisan.status,
+          isVerified: artisan.isVerified,
+          rating: artisan.rating,
+          reviewCount: artisan.reviewCount,
+          joinedDate: artisan.joinedDate,
+          lastActive: artisan.lastActive,
+          settings: artisan.settings,
+          preferences: artisan.preferences,
+          artisanHours: artisan.artisanHours,
+          deliveryInstructions: artisan.deliveryInstructions,
+          pickupAddress: artisan.pickupAddress,
+          // Additional fields expected by frontend artisan tabs
+          deliveryOptions: artisan.deliveryOptions || {
+            pickup: artisan.pickupAvailable || false,
+            delivery: artisan.deliveryAvailable || false,
+            deliveryRadius: artisan.deliveryRadius || 10,
+            deliveryFee: artisan.deliveryFee || 5,
+            freeDeliveryThreshold: artisan.freeDeliveryThreshold || 50
+          },
+          pickupLocation: artisan.pickupLocation || '',
+          pickupInstructions: artisan.pickupInstructions || '',
+          pickupHours: artisan.pickupHours || '',
+          pickupUseBusinessAddress: artisan.pickupUseBusinessAddress !== false,
+          pickupSchedule: artisan.pickupSchedule || {},
+          deliveryTimeSlots: artisan.deliveryTimeSlots || [],
+          professionalDelivery: artisan.professionalDelivery || {
+            enabled: false,
+            uberDirectEnabled: false,
+            serviceRadius: 25,
+            regions: [],
+            packaging: '',
+            restrictions: ''
+          },
+          // Business operations fields
+          category: artisan.category || '',
+          businessHours: artisan.businessHours || artisan.artisanHours || {},
+          serviceArea: artisan.serviceArea || [],
+          minimumOrderAmount: artisan.minimumOrderAmount || 0,
+          maxDeliveryDistance: artisan.maxDeliveryDistance || 25,
+          deliveryTime: artisan.deliveryTime || '30-60 minutes',
+          preparationTime: artisan.preparationTime || '15-30 minutes',
+          // Additional operational fields
+          equipment: artisan.equipment || [],
+          certifications: artisan.certifications || [],
+          insurance: artisan.insurance || {},
+          permits: artisan.permits || [],
+          compliance: artisan.compliance || {},
+          createdAt: artisan.createdAt,
+          updatedAt: artisan.updatedAt
+        };
+      }
+    }
+    
+    
+    res.json({
+      success: true,
+      data: {
+        user: userData
+      }
+    });
+  } catch (error) {
+    console.error('Profile error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile',
+      error: error.message
+    });
+  }
+});
+
+// Update user profile
+app.put('/api/auth/profile', verifyJWT, async (req, res) => {
+  try {
+    const { firstName, lastName, phone, notificationPreferences } = req.body;
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    const updateData = {
+      updatedAt: new Date()
+    };
+    
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (notificationPreferences) {
+      // Keep the current database structure
+      updateData.notificationPreferences = notificationPreferences;
+    }
+    
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(req.user.userId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(req.user.userId) });
+    
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          _id: updatedUser._id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          phone: updatedUser.phone,
+          userType: updatedUser.role, // Frontend expects userType
+          role: updatedUser.role,
+          isActive: updatedUser.isActive,
+          isVerified: updatedUser.isVerified,
+          addresses: updatedUser.addresses || [],
+          defaultAddressId: updatedUser.defaultAddressId,
+          paymentMethods: updatedUser.paymentMethods || [],
+          defaultPaymentMethodId: updatedUser.defaultPaymentMethodId,
+          notificationPreferences: updatedUser.notificationPreferences || {
+            email: {
+              marketing: true,
+              orderUpdates: true,
+              promotions: true,
+              security: true
+            },
+            push: {
+              orderUpdates: true,
+              promotions: true,
+              newArtisans: true,
+              nearbyOffers: true
+            }
+          },
+          accountSettings: updatedUser.accountSettings,
+          favoriteArtisans: updatedUser.favoriteArtisans || [],
+          favoriteProducts: updatedUser.favoriteProducts || [],
+          createdAt: updatedUser.createdAt,
+          updatedAt: updatedUser.updatedAt
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message
+    });
+  }
+});
+
+// Note: Address updates are handled by /api/profile/addresses in routes/profile/index.js
+// The endpoint is mounted via: app.use('/api/profile', profileRoutes)
+
+// ============================================================================
+// ORDER MANAGEMENT ENDPOINTS
+// ============================================================================
+
+/**
+ * Calculate delivery fee based on delivery method and artisan settings
+ * BUSINESS LOGIC:
+ * - Pickup: $0 (free)
+ * - Personal Delivery: Artisan's configured fee (with free delivery threshold)
+ * - Professional Delivery: $0 (professional service handles their own fees)
+ * 
+ * @param {string} deliveryMethod - 'pickup', 'personalDelivery', 'professional_delivery'
+ * @param {Object} artisan - Artisan object with deliveryOptions
+ * @param {number} orderTotal - Total order amount (for free delivery threshold)
+ * @returns {number} Calculated delivery fee
+ */
+const calculateDeliveryFee = (deliveryMethod, artisan, orderTotal = 0) => {
+  // Pickup = Free
+  if (!deliveryMethod || deliveryMethod === 'pickup') {
+    return 0;
+  }
+  
+  // Professional delivery = Free to artisan (service handles their own fees)
+  if (deliveryMethod === 'professional_delivery' || deliveryMethod === 'professionalDelivery') {
+    return 0;
+  }
+  
+  // Personal delivery = Artisan's configured fee
+  if (deliveryMethod === 'personal_delivery' || deliveryMethod === 'personalDelivery' || deliveryMethod === 'delivery') {
+    const baseFee = artisan?.deliveryOptions?.deliveryFee || 5; // Default $5 if not set
+    const freeThreshold = artisan?.deliveryOptions?.freeDeliveryThreshold || 0;
+    
+    // Free delivery if order exceeds threshold
+    if (freeThreshold > 0 && orderTotal >= freeThreshold) {
+      console.log(`🎁 Free delivery applied (order $${orderTotal} >= threshold $${freeThreshold})`);
+      return 0;
+    }
+    
+    console.log(`🚚 Personal delivery fee: $${baseFee} (order: $${orderTotal}, threshold: $${freeThreshold})`);
+    return baseFee;
+  }
+  
+  // Default to free for unknown methods
+  return 0;
 };
 
-// ============================================================================
-// CORE INFRASTRUCTURE ENDPOINTS
-// ============================================================================
-
-// Health check endpoint (always available)
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    port: PORT,
-    microservices: isMicroservicesReady ? 'ready' : 'not-ready'
-  });
-});
-
-// Environment check endpoint
-app.get('/api/env-check', (req, res) => {
-  const EnvironmentConfig = require('./config/environment');
-  res.json({
-    success: true,
-    data: {
-      environment: EnvironmentConfig.getEnvironmentInfo(),
-      warnings: EnvironmentConfig.getProductionWarnings(),
-      required: {
-        MONGODB_URI: !!process.env.MONGODB_URI,
-        JWT_SECRET: !!process.env.JWT_SECRET,
-        NODE_ENV: process.env.NODE_ENV || 'development'
+// Create new order
+app.post('/api/orders', verifyJWT, async (req, res) => {
+  try {
+    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentMethodId, deliveryMethodDetails } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order items are required'
+      });
+    }
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    
+    // Group items by artisan to create separate orders
+    const ordersByArtisan = new Map();
+    
+    for (const item of items) {
+      const product = await productsCollection.findOne({ 
+        _id: new ObjectId(item.productId),
+        status: 'active'
+      });
+      
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: `Product ${item.productId} not found or inactive`
+        });
+      }
+      
+      // Check inventory based on product type
+      let hasEnoughInventory = false;
+      let inventoryError = '';
+      
+      if (product.productType === 'ready_to_ship') {
+        const availableStock = product.stock || 0;
+        hasEnoughInventory = availableStock >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient stock for ${product.name}. Only ${availableStock} available.`;
+        }
+      } else if (product.productType === 'made_to_order') {
+        const remainingCapacity = product.remainingCapacity || product.totalCapacity || 0;
+        hasEnoughInventory = remainingCapacity >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient capacity for ${product.name}. Only ${remainingCapacity} slots available.`;
+        }
+      } else if (product.productType === 'scheduled_order') {
+        const availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient quantity for ${product.name}. Only ${availableQuantity} available.`;
+        }
+      } else {
+        // Fallback for unknown types
+        const availableQuantity = product.availableQuantity || product.stock || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient quantity for ${product.name}`;
+        }
+      }
+      
+      if (!hasEnoughInventory) {
+        return res.status(400).json({
+          success: false,
+          message: inventoryError
+        });
+      }
+      
+      const artisanId = product.artisan?.toString();
+      if (!artisanId) {
+        return res.status(400).json({
+          success: false,
+          message: `Product ${product.name} has no associated artisan`
+        });
+      }
+      
+      if (!ordersByArtisan.has(artisanId)) {
+        ordersByArtisan.set(artisanId, {
+          artisan: new ObjectId(artisanId),
+          items: [],
+          totalAmount: 0
+        });
+      }
+      
+      const itemTotal = product.price * item.quantity;
+      ordersByArtisan.get(artisanId).totalAmount += itemTotal;
+      ordersByArtisan.get(artisanId).items.push({
+        product: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        totalPrice: itemTotal,
+        productType: item.productType || 'ready_to_ship'
+      });
+    }
+    
+    // Get platform settings for commission rate
+    const platformSettings = await getPlatformSettings(db);
+    const platformCommissionRate = platformSettings.platformFeePercentage / 100; // Convert percentage to decimal
+    
+    console.log(`💰 Using platform commission rate: ${platformSettings.platformFeePercentage}% (${platformCommissionRate})`);
+    
+    // Create orders for each artisan
+    const createdOrders = [];
+    
+    for (const [artisanId, orderData] of ordersByArtisan) {
+      // Get artisan details first (needed for delivery fee calculation)
+      const artisan = await db.collection('artisans').findOne({ _id: new ObjectId(artisanId) });
+      
+      // Calculate delivery fee (only for personal delivery)
+      const deliveryFee = calculateDeliveryFee(deliveryMethod, artisan, orderData.totalAmount);
+      
+      // Calculate revenue breakdown using admin-configurable rate (ONLY on product total, not delivery)
+      const platformCommission = Math.round(orderData.totalAmount * platformCommissionRate * 100) / 100; // Round to 2 decimals
+      const artisanProductEarnings = Math.round((orderData.totalAmount - platformCommission) * 100) / 100; // Round to 2 decimals
+      const artisanDeliveryEarnings = deliveryFee; // 100% of delivery fee goes to artisan
+      const totalArtisanEarnings = artisanProductEarnings + artisanDeliveryEarnings;
+      
+      console.log(`💰 Patron Order revenue breakdown:`);
+      console.log(`   Products: $${orderData.totalAmount} (Platform: $${platformCommission} @ ${platformSettings.platformFeePercentage}%, Artisan: $${artisanProductEarnings})`);
+      console.log(`   Delivery: $${deliveryFee} (Platform: $0, Artisan: $${artisanDeliveryEarnings})`);
+      console.log(`   Total to Artisan: $${totalArtisanEarnings}`);
+      
+      // Auto-geocode delivery address for delivery orders
+      let geocodedDeliveryAddress = deliveryAddress || {};
+      if (deliveryMethod === 'personalDelivery' && deliveryAddress && deliveryAddress.street && deliveryAddress.city) {
+        console.log('🗺️  Auto-geocoding delivery address for patron order...');
+        try {
+          const geocodingService = require('./services/geocodingService');
+          const addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zipCode}`.trim();
+          const geocodeResult = await geocodingService.geocodeAddress(addressString);
+          
+          if (geocodeResult) {
+            geocodedDeliveryAddress = {
+              ...deliveryAddress,
+              latitude: geocodeResult.latitude,
+              longitude: geocodeResult.longitude,
+              geocoded: true,
+              geocodedAt: new Date()
+            };
+            console.log(`✅ Delivery address geocoded: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
+          }
+        } catch (geoError) {
+          console.error('⚠️  Delivery address geocoding error (non-fatal):', geoError.message);
+        }
+      }
+      
+      // Create order matching actual database structure
+    const order = {
+        userId: new ObjectId(req.user.userId),
+        artisan: orderData.artisan,
+        items: orderData.items,
+        totalAmount: orderData.totalAmount,
+      status: 'pending',
+        readyToShipStatus: 'pending',
+        madeToOrderStatus: 'pending',
+        scheduledOrderStatus: 'pending',
+        preparationStage: 'order_received',
+        deliveryAddress: geocodedDeliveryAddress,
+        deliveryInstructions: deliveryInstructions || '',
+        deliveryMethod: deliveryMethod || 'pickup',
+        deliveryFee: deliveryFee,
+        paymentStatus: 'pending',
+        paymentMethod: paymentMethod || 'credit_card',
+        paymentMethodId: paymentMethodId || null,
+        pickupTimeWindows: pickupTimeWindows || {},
+        deliveryMethodDetails: deliveryMethodDetails || [],
+        revenue: {
+          // Product revenue (commission applies)
+          grossAmount: orderData.totalAmount,
+          platformCommission,
+          artisanEarnings: artisanProductEarnings,
+          commissionRate: platformCommissionRate,
+          platformFeePercentage: platformSettings.platformFeePercentage,
+          
+          // Delivery revenue (NO commission - 100% to artisan)
+          deliveryFee: deliveryFee,
+          deliveryMethod: deliveryMethod || 'pickup',
+          deliveryEarnings: artisanDeliveryEarnings,
+          deliveryCommission: 0,
+          
+          // Combined totals
+          totalGross: orderData.totalAmount + deliveryFee,
+          totalCommission: platformCommission,
+          totalArtisanRevenue: totalArtisanEarnings
+        },
+        orderDate: new Date(),
+        notes: deliveryInstructions || '',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await ordersCollection.insertOne(order);
+    const orderId = result.insertedId;
+    
+    // Update product quantities based on product type
+      for (const item of orderData.items) {
+        const product = await productsCollection.findOne({ _id: item.product });
+        
+        // Prepare update based on product type
+        const updateFields = {
+          soldCount: item.quantity
+        };
+        
+        if (product.productType === 'ready_to_ship') {
+          // Decrement stock for ready-to-ship products
+          updateFields.stock = -item.quantity;
+        } else if (product.productType === 'made_to_order') {
+          // Decrement remaining capacity for made-to-order products
+          updateFields.remainingCapacity = -item.quantity;
+        } else if (product.productType === 'scheduled_order') {
+          // Decrement available quantity for scheduled products
+          updateFields.availableQuantity = -item.quantity;
+        } else {
+          // Fallback: decrement stock for unknown types
+          updateFields.stock = -item.quantity;
+        }
+        
+        await productsCollection.updateOne(
+          { _id: item.product },
+          { $inc: updateFields }
+        );
+    }
+    
+      // Get populated order with artisan info
+      const populatedOrder = await ordersCollection.findOne({ _id: orderId });
+      if (artisan) {
+        populatedOrder.artisan = {
+          _id: artisan._id,
+          artisanName: artisan.artisanName,
+          firstName: artisan.firstName || '',
+          lastName: artisan.lastName || '',
+          email: artisan.email || '',
+          phone: artisan.phone || '',
+          address: artisan.address || {},
+          coordinates: artisan.coordinates || {},
+          pickupLocation: artisan.pickupLocation || '',
+          pickupAddress: artisan.pickupAddress || {}
+        };
+      }
+      
+      createdOrders.push(populatedOrder);
+    }
+    
+    // Send order completion notifications
+    for (const order of createdOrders) {
+      if (order.userId) {
+        // For PATRONS: Send email confirmation AND in-app notification
+        const notificationData = {
+          type: 'order_completion',
+          title: 'Order Confirmed',
+          message: `Your order has been confirmed and is being prepared`,
+          orderId: order._id,
+          orderNumber: order._id.toString().slice(-8).toUpperCase(),
+          status: 'confirmed',
+          updateType: 'order_created',
+          updateDetails: {
+            totalAmount: order.totalAmount,
+            itemsCount: order.items?.length || 0,
+            artisanName: order.artisan?.artisanName || 'Artisan'
+          }
+        };
+        
+        try {
+          const axios = require('axios');
+          // This will send both email AND in-app notification based on preferences
+          await axios.post('http://localhost:4000/api/notifications/send-preference-based', {
+            userId: order.userId.toString(),
+            notificationData: notificationData
+          });
+          console.log(`✅ Patron order confirmation sent (email + in-app) for order ${order._id}`);
+        } catch (error) {
+          console.error('❌ Error sending patron order confirmation:', error.message);
+        }
+      }
+      
+      // For ARTISANS: Send email notification about new order
+      if (order.artisan) {
+        try {
+          const axios = require('axios');
+          const artisanUserId = await db.collection('artisans').findOne(
+            { _id: order.artisan }
+          ).then(a => a?.user?.toString());
+          
+          if (artisanUserId) {
+            const artisanNotificationData = {
+              type: 'new_order',
+              title: 'New Order Received!',
+              message: `You have a new order (${order._id.toString().slice(-8).toUpperCase()}) for $${order.totalAmount}`,
+              orderId: order._id,
+              orderNumber: order._id.toString().slice(-8).toUpperCase(),
+              status: 'pending',
+              updateType: 'new_order',
+              updateDetails: {
+                totalAmount: order.totalAmount,
+                itemsCount: order.items?.length || 0,
+                customerName: order.userId ? 'Registered Customer' : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName}`
+              }
+            };
+            
+            // Send email to artisan about new order
+            await axios.post('http://localhost:4000/api/notifications/send-preference-based', {
+              userId: artisanUserId,
+              notificationData: artisanNotificationData
+            });
+            console.log(`✅ Artisan email sent for new order ${order._id}`);
+          }
+        } catch (error) {
+          console.error('❌ Error sending artisan new order email:', error.message);
+        }
       }
     }
-  });
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdOrders.length} order${createdOrders.length > 1 ? 's' : ''}`,
+      orders: createdOrders
+    });
+  } catch (error) {
+    console.error('Order creation error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create order',
+      error: error.message
+    });
+  }
 });
 
-// Database connection test
-app.get('/api/test-db', async (req, res) => {
+// Create guest order (no authentication required)
+app.post('/api/orders/guest', async (req, res) => {
   try {
-    const dbManager = require('./config/database');
-    const db = await dbManager.connect();
-    const collections = await db.listCollections().toArray();
+    const { items, deliveryAddress, deliveryInstructions, deliveryMethod, pickupTimeWindows, paymentMethod, paymentDetails, deliveryMethodDetails, guestInfo } = req.body;
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order items are required'
+      });
+    }
+    
+    if (!guestInfo || !guestInfo.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Guest information is required'
+      });
+    }
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    
+    // Group items by artisan to create separate orders
+    const ordersByArtisan = new Map();
+    
+    for (const item of items) {
+      const product = await productsCollection.findOne({ 
+        _id: new ObjectId(item.productId),
+        status: 'active'
+      });
+      
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: `Product ${item.productId} not found or inactive`
+        });
+      }
+      
+      // Check inventory based on product type
+      let hasEnoughInventory = false;
+      let inventoryError = '';
+      
+      if (product.productType === 'ready_to_ship') {
+        const availableStock = product.stock || 0;
+        hasEnoughInventory = availableStock >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient stock for ${product.name}. Only ${availableStock} available.`;
+        }
+      } else if (product.productType === 'made_to_order') {
+        const remainingCapacity = product.remainingCapacity || product.totalCapacity || 0;
+        hasEnoughInventory = remainingCapacity >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient capacity for ${product.name}. Only ${remainingCapacity} slots available.`;
+        }
+      } else if (product.productType === 'scheduled_order') {
+        const availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient quantity for ${product.name}. Only ${availableQuantity} available.`;
+        }
+      } else {
+        // Fallback for unknown types
+        const availableQuantity = product.availableQuantity || product.stock || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+        if (!hasEnoughInventory) {
+          inventoryError = `Insufficient quantity for ${product.name}`;
+        }
+      }
+      
+      if (!hasEnoughInventory) {
+        return res.status(400).json({
+          success: false,
+          message: inventoryError
+        });
+      }
+      
+      const artisanId = product.artisan?.toString();
+      if (!artisanId) {
+        return res.status(400).json({
+          success: false,
+          message: `Product ${product.name} has no associated artisan`
+        });
+      }
+      
+      if (!ordersByArtisan.has(artisanId)) {
+        ordersByArtisan.set(artisanId, {
+          artisan: new ObjectId(artisanId),
+          items: [],
+          totalAmount: 0
+        });
+      }
+      
+      const itemTotal = product.price * item.quantity;
+      ordersByArtisan.get(artisanId).totalAmount += itemTotal;
+      ordersByArtisan.get(artisanId).items.push({
+        product: product._id,
+        productName: product.name,
+        quantity: item.quantity,
+        unitPrice: product.price,
+        totalPrice: itemTotal,
+        productType: item.productType || 'ready_to_ship'
+      });
+    }
+    
+    // Get platform settings for commission rate
+    const platformSettingsGuest = await getPlatformSettings(db);
+    const platformCommissionRateGuest = platformSettingsGuest.platformFeePercentage / 100; // Convert percentage to decimal
+    
+    console.log(`💰 Using platform commission rate for guest orders: ${platformSettingsGuest.platformFeePercentage}% (${platformCommissionRateGuest})`);
+    
+    // Create orders for each artisan
+    const createdOrders = [];
+    
+    for (const [artisanId, orderData] of ordersByArtisan) {
+      // Get artisan details first (needed for delivery fee calculation)
+      const artisan = await db.collection('artisans').findOne({ _id: new ObjectId(artisanId) });
+      
+      // Calculate delivery fee (only for personal delivery)
+      const deliveryFee = calculateDeliveryFee(deliveryMethod, artisan, orderData.totalAmount);
+      
+      // Calculate revenue breakdown using admin-configurable rate (ONLY on product total, not delivery)
+      const platformCommission = Math.round(orderData.totalAmount * platformCommissionRateGuest * 100) / 100; // Round to 2 decimals
+      const artisanProductEarnings = Math.round((orderData.totalAmount - platformCommission) * 100) / 100; // Round to 2 decimals
+      const artisanDeliveryEarnings = deliveryFee; // 100% of delivery fee goes to artisan
+      const totalArtisanEarnings = artisanProductEarnings + artisanDeliveryEarnings;
+      
+      console.log(`💰 Guest Order revenue breakdown:`);
+      console.log(`   Products: $${orderData.totalAmount} (Platform: $${platformCommission} @ ${platformSettingsGuest.platformFeePercentage}%, Artisan: $${artisanProductEarnings})`);
+      console.log(`   Delivery: $${deliveryFee} (Platform: $0, Artisan: $${artisanDeliveryEarnings})`);
+      console.log(`   Total to Artisan: $${totalArtisanEarnings}`);
+      
+      // Auto-geocode delivery address for delivery orders
+      let geocodedDeliveryAddress = deliveryAddress || {};
+      if (deliveryMethod === 'personalDelivery' && deliveryAddress && deliveryAddress.street && deliveryAddress.city) {
+        console.log('🗺️  Auto-geocoding delivery address for guest order...');
+        try {
+          const geocodingService = require('./services/geocodingService');
+          const addressString = `${deliveryAddress.street}, ${deliveryAddress.city}, ${deliveryAddress.state} ${deliveryAddress.zipCode}`.trim();
+          const geocodeResult = await geocodingService.geocodeAddress(addressString);
+          
+          if (geocodeResult) {
+            geocodedDeliveryAddress = {
+              ...deliveryAddress,
+              latitude: geocodeResult.latitude,
+              longitude: geocodeResult.longitude,
+              geocoded: true,
+              geocodedAt: new Date()
+            };
+            console.log(`✅ Guest delivery address geocoded: ${geocodeResult.latitude}, ${geocodeResult.longitude}`);
+          }
+        } catch (geoError) {
+          console.error('⚠️  Guest delivery address geocoding error (non-fatal):', geoError.message);
+        }
+      }
+      
+      // Create order matching actual database structure
+      const order = {
+        userId: null, // Guest order
+        artisan: orderData.artisan,
+        items: orderData.items,
+        totalAmount: orderData.totalAmount,
+        status: 'pending',
+        readyToShipStatus: 'pending',
+        madeToOrderStatus: 'pending',
+        scheduledOrderStatus: 'pending',
+        preparationStage: 'order_received',
+        deliveryAddress: geocodedDeliveryAddress,
+        deliveryInstructions: deliveryInstructions || '',
+        deliveryMethod: deliveryMethod || 'pickup',
+        deliveryFee: deliveryFee,
+        paymentStatus: 'pending',
+        paymentMethod: paymentMethod || 'credit_card',
+        paymentDetails: paymentDetails || {},
+        pickupTimeWindows: pickupTimeWindows || {},
+        deliveryMethodDetails: deliveryMethodDetails || [],
+        guestInfo: {
+          firstName: guestInfo.firstName || 'Guest',
+          lastName: guestInfo.lastName || 'User',
+          email: guestInfo.email,
+          phone: guestInfo.phone || '',
+          guestId: guestInfo.guestId || `guest_${Date.now()}`
+        },
+        revenue: {
+          // Product revenue (commission applies)
+          grossAmount: orderData.totalAmount,
+          platformCommission,
+          artisanEarnings: artisanProductEarnings,
+          commissionRate: platformCommissionRateGuest,
+          platformFeePercentage: platformSettingsGuest.platformFeePercentage,
+          
+          // Delivery revenue (NO commission - 100% to artisan)
+          deliveryFee: deliveryFee,
+          deliveryMethod: deliveryMethod || 'pickup',
+          deliveryEarnings: artisanDeliveryEarnings,
+          deliveryCommission: 0,
+          
+          // Combined totals
+          totalGross: orderData.totalAmount + deliveryFee,
+          totalCommission: platformCommission,
+          totalArtisanRevenue: totalArtisanEarnings
+        },
+        orderDate: new Date(),
+        notes: deliveryInstructions || '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const result = await ordersCollection.insertOne(order);
+      const orderId = result.insertedId;
+      
+      // Update product quantities based on product type
+      for (const item of orderData.items) {
+        const product = await productsCollection.findOne({ _id: item.product });
+        
+        // Prepare update based on product type
+        const updateFields = {
+          soldCount: item.quantity
+        };
+        
+        if (product.productType === 'ready_to_ship') {
+          // Decrement stock for ready-to-ship products
+          updateFields.stock = -item.quantity;
+        } else if (product.productType === 'made_to_order') {
+          // Decrement remaining capacity for made-to-order products
+          updateFields.remainingCapacity = -item.quantity;
+        } else if (product.productType === 'scheduled_order') {
+          // Decrement available quantity for scheduled products
+          updateFields.availableQuantity = -item.quantity;
+        } else {
+          // Fallback: decrement stock for unknown types
+          updateFields.stock = -item.quantity;
+        }
+        
+        await productsCollection.updateOne(
+          { _id: item.product },
+          { $inc: updateFields }
+        );
+      }
+      
+      // Get populated order with artisan info
+      const populatedOrder = await ordersCollection.findOne({ _id: orderId });
+      if (artisan) {
+        populatedOrder.artisan = {
+          _id: artisan._id,
+          artisanName: artisan.artisanName,
+          firstName: artisan.firstName || '',
+          lastName: artisan.lastName || '',
+          email: artisan.email || '',
+          phone: artisan.phone || '',
+          address: artisan.address || {},
+          coordinates: artisan.coordinates || {},
+          pickupLocation: artisan.pickupLocation || '',
+          pickupAddress: artisan.pickupAddress || {}
+        };
+      }
+      
+      createdOrders.push(populatedOrder);
+    }
+    
+    // Send notifications for guest orders
+    for (const order of createdOrders) {
+      // For GUESTS: ALWAYS send email confirmation
+      if (order.guestInfo && order.guestInfo.email) {
+        const guestNotificationData = {
+          type: 'order_completion',
+          updateType: 'order_created',
+          title: 'Order Confirmed!',
+          message: `Hello ${order.guestInfo.firstName},\n\nYour order has been confirmed! Order Number: ${order._id.toString().slice(-8).toUpperCase()}`,
+          orderId: order._id.toString(),
+          orderNumber: order._id.toString().slice(-8).toUpperCase(),
+          updateDetails: {
+            totalAmount: order.totalAmount,
+            itemsCount: order.items?.length || 0,
+            orderStatus: 'confirmed'
+          }
+        };
+        
+        try {
+          const axios = require('axios');
+          await axios.post('http://localhost:4000/api/notifications/send-guest-email', {
+            guestEmail: order.guestInfo.email,
+            guestName: `${order.guestInfo.firstName} ${order.guestInfo.lastName}`,
+            notificationData: guestNotificationData
+          });
+          console.log(`✅ Guest order confirmation email sent to ${order.guestInfo.email}`);
+        } catch (error) {
+          console.error('❌ Error sending guest order confirmation:', error.message);
+        }
+      }
+      
+      // For ARTISANS: Send email notification about new order
+      if (order.artisan) {
+        try {
+          const axios = require('axios');
+          const artisan = await db.collection('artisans').findOne({ _id: order.artisan });
+          
+          if (artisan && artisan.user) {
+            const artisanNotificationData = {
+              type: 'new_order',
+              title: 'New Order Received!',
+              message: `You have a new order (${order._id.toString().slice(-8).toUpperCase()}) for $${order.totalAmount}`,
+              orderId: order._id,
+              orderNumber: order._id.toString().slice(-8).toUpperCase(),
+              status: 'pending',
+              updateType: 'new_order',
+              updateDetails: {
+                totalAmount: order.totalAmount,
+                itemsCount: order.items?.length || 0,
+                customerName: `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`
+              }
+            };
+            
+            // Send email to artisan about new order
+            await axios.post('http://localhost:4000/api/notifications/send-preference-based', {
+              userId: artisan.user.toString(),
+              notificationData: artisanNotificationData
+            });
+            console.log(`✅ Artisan email sent for new guest order ${order._id}`);
+          }
+        } catch (error) {
+          console.error('❌ Error sending artisan new order email:', error.message);
+        }
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      message: `Successfully created ${createdOrders.length} order${createdOrders.length > 1 ? 's' : ''}`,
+      orders: createdOrders,
+      totalOrders: createdOrders.length
+    });
+  } catch (error) {
+    console.error('Guest order creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create guest order',
+      error: error.message
+    });
+  }
+});
+
+// Get user orders
+app.get('/api/orders', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    // Auto-confirm any pending orders past deadline (on-demand check)
+    try {
+      await autoConfirmPendingOrders(db);
+    } catch (autoConfirmError) {
+      console.warn('⚠️ Auto-confirm check failed (non-fatal):', autoConfirmError.message);
+    }
+    
+    const orders = await ordersCollection
+      .find({ userId: new ObjectId(req.user.userId) })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
     
     res.json({
       success: true,
-      message: 'Database connection successful',
       data: {
-        collections: collections.map(c => c.name),
-        count: collections.length
+        orders,
+        count: orders.length
       }
     });
   } catch (error) {
-    console.error('Database test error:', error);
+    console.error('Get orders error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Database connection failed',
+      message: 'Failed to get orders',
       error: error.message
     });
   }
 });
 
 // ============================================================================
-// MICROSERVICES ENDPOINTS (WITH GRACEFUL DEGRADATION)
+// ARTISAN-SPECIFIC ENDPOINTS
 // ============================================================================
 
-// Microservices status endpoints
-app.get('/api/services', async (req, res) => {
+// Get artisan orders
+app.get('/api/orders/artisan', verifyJWT, verifyArtisanRole, async (req, res) => {
+  console.log('🚀 ENDPOINT HIT: /api/orders/artisan');
   try {
-    if (!isMicroservicesReady || !MicroservicesIntegration) {
-      return res.status(503).json({
+    const artisanId = req.artisanId; // Use artisan ID instead of user ID
+    const db = req.db; // Get database connection
+    
+    // Auto-confirm any pending orders past deadline (on-demand check)
+    try {
+      await autoConfirmPendingOrders(db);
+    } catch (autoConfirmError) {
+      console.warn('⚠️ Auto-confirm check failed (non-fatal):', autoConfirmError.message);
+    }
+    
+    console.log('🔍 GET /api/orders/artisan: artisanId =', artisanId);
+    console.log('🔍 GET /api/orders/artisan: artisanId type =', typeof artisanId);
+    console.log('🔍 GET /api/orders/artisan: artisanId toString =', artisanId.toString());
+    
+    // Convert ObjectId to string and back to ensure proper format
+    const artisanIdString = artisanId.toString();
+    const artisanObjectId = new ObjectId(artisanIdString);
+    
+    console.log('🔍 GET /api/orders/artisan: artisanObjectId =', artisanObjectId);
+    
+    // Find orders where the artisan is the seller
+    // Based on actual database structure, orders have 'artisan' field, not 'items.artisanId'
+    const orders = await db.collection('orders').find({
+      'artisan': artisanObjectId
+    }).sort({ createdAt: -1 }).toArray();
+    
+    console.log('🔍 GET /api/orders/artisan: found', orders.length, 'orders');
+    
+    // Populate buyer, artisan, AND product information for each order
+    const populatedOrders = await Promise.all(orders.map(async (order) => {
+      // Get buyer info
+      const buyer = order.userId ? await db.collection('users').findOne({ _id: new ObjectId(order.userId) }) : null;
+      
+      // Get artisan info (important for distance calculations on frontend)
+      const artisan = await db.collection('artisans').findOne({ _id: artisanObjectId });
+      
+      // Populate product information for each item
+      const populatedItems = await Promise.all(order.items.map(async (item) => {
+        if (item.product && ObjectId.isValid(item.product)) {
+          const product = await db.collection('products').findOne({ _id: new ObjectId(item.product) });
+          return {
+            ...item,
+            product: product ? {
+              _id: product._id,
+              name: product.name,
+              images: product.images,
+              price: product.price
+            } : null,
+            productName: product?.name || item.productName || 'Unknown Product'
+          };
+        }
+        return item;
+      }));
+      
+      return {
+        ...order,
+        items: populatedItems, // Replace items with populated version
+        buyer: buyer ? {
+          _id: buyer._id,
+          firstName: buyer.firstName,
+          lastName: buyer.lastName,
+          email: buyer.email,
+          phone: buyer.phone
+        } : null,
+        // Populate artisan data with location info
+        artisan: artisan ? {
+          _id: artisan._id,
+          artisanName: artisan.artisanName,
+          businessName: artisan.businessName,
+          type: artisan.type,
+          address: artisan.address,
+          coordinates: artisan.coordinates,
+          pickupLocation: artisan.pickupLocation,
+          deliveryOptions: artisan.deliveryOptions,
+          phone: artisan.phone,
+          email: artisan.email
+        } : order.artisan, // Fallback to original if not found
+        // Add missing fields that frontend expects
+        deliveryFee: order.deliveryFee || 0,
+        deliveryMethod: order.deliveryMethod || 'pickup',
+        paymentStatus: order.paymentStatus || 'pending',
+        rating: order.rating || 0
+      };
+    }));
+    
+    console.log('🔍 GET /api/orders/artisan: returning', populatedOrders.length, 'orders');
+    console.log('🔍 GET /api/orders/artisan: first order sample:', populatedOrders[0] ? {
+      _id: populatedOrders[0]._id,
+      status: populatedOrders[0].status,
+      totalAmount: populatedOrders[0].totalAmount,
+      buyer: populatedOrders[0].buyer ? 'present' : 'missing'
+    } : 'no orders');
+    
+    res.json({
+      success: true,
+      data: { orders: populatedOrders },
+      count: populatedOrders.length
+    });
+  } catch (error) {
+    console.error('Get artisan orders error:', error);
+    res.status(500).json({
         success: false,
-        message: 'Microservices not yet initialized',
-        status: 'initializing'
+      message: 'Failed to fetch artisan orders',
+      error: error.message
+    });
+  }
+});
+
+// Get artisan statistics
+app.get('/api/orders/artisan/stats', verifyJWT, verifyArtisanRole, async (req, res) => {
+  try {
+    const artisanId = req.artisanId; // Use artisan ID instead of user ID
+    const db = req.db; // Get database connection
+    
+    console.log('🔍 GET /api/orders/artisan/stats: artisanId =', artisanId);
+    
+    // Convert ObjectId to string and back to ensure proper format
+    const artisanIdString = artisanId.toString();
+    const artisanObjectId = new ObjectId(artisanIdString);
+    
+    // Get all orders for this artisan
+    // Based on actual database structure, orders have 'artisan' field, not 'items.artisanId'
+    const orders = await db.collection('orders').find({
+      'artisan': artisanObjectId
+    }).toArray();
+    
+    console.log('🔍 GET /api/orders/artisan/stats: found', orders.length, 'orders');
+    
+    // Calculate statistics
+    const totalOrders = orders.length;
+    const completedOrders = orders.filter(order => 
+      order.status === 'delivered' || order.status === 'completed'
+    );
+    
+    const totalRevenue = completedOrders.reduce((sum, order) => {
+      return sum + (order.totalAmount || 0);
+    }, 0);
+    
+    // Orders this month
+    const thisMonth = new Date();
+    thisMonth.setDate(1);
+    const ordersThisMonth = orders.filter(order => 
+      new Date(order.createdAt) >= thisMonth
+    ).length;
+    
+    const revenueThisMonth = completedOrders
+      .filter(order => new Date(order.createdAt) >= thisMonth)
+      .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+    
+    res.json({
+      success: true,
+      data: {
+        totalOrders,
+        completedOrders: completedOrders.length,
+        totalRevenue,
+        ordersThisMonth,
+        revenueThisMonth,
+        pendingOrders: orders.filter(order => 
+          order.status === 'pending' || order.status === 'confirmed'
+        ).length
+      }
+    });
+  } catch (error) {
+    console.error('Get artisan stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch artisan statistics',
+      error: error.message
+    });
+  }
+});
+
+// Get orders for buyer/patron (alias for general orders endpoint)
+app.get('/api/orders/buyer', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    const orders = await ordersCollection
+      .find({ userId: new ObjectId(req.user.userId) })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    // Populate artisan AND product information for each order
+    const populatedOrders = await Promise.all(orders.map(async (order) => {
+      // Get artisan info from the order's artisan field
+      let artisan = null;
+      if (order.artisan) {
+        artisan = await db.collection('artisans').findOne({ _id: new ObjectId(order.artisan) });
+      }
+      
+      // Populate product information for each item
+      const populatedItems = await Promise.all(order.items.map(async (item) => {
+        if (item.product && ObjectId.isValid(item.product)) {
+          const product = await db.collection('products').findOne({ _id: new ObjectId(item.product) });
+          return {
+            ...item,
+            product: product ? {
+              _id: product._id,
+              name: product.name,
+              images: product.images,
+              price: product.price
+            } : null,
+            productName: product?.name || item.productName || 'Unknown Product'
+          };
+        }
+        return item;
+      }));
+      
+      return {
+        ...order,
+        items: populatedItems, // Replace items with populated version
+        artisan: artisan ? {
+          _id: artisan._id,
+          artisanName: artisan.artisanName,
+          businessName: artisan.businessName,
+          type: artisan.type,
+          address: artisan.address,
+          pickupAddress: artisan.pickupAddress,
+          pickupLocation: artisan.pickupLocation,
+          coordinates: artisan.coordinates,
+          phone: artisan.phone,
+          email: artisan.email,
+          rating: artisan.rating,
+          reviewCount: artisan.reviewCount
+        } : null,
+        // Add buyer info
+        buyer: {
+          _id: order.userId,
+          // Add buyer info if needed
+        }
+      };
+    }));
+    
+    res.json({
+      success: true,
+      data: {
+        orders: populatedOrders,
+        count: populatedOrders.length
+      }
+    });
+  } catch (error) {
+    console.error('Get buyer orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get buyer orders',
+      error: error.message
+    });
+  }
+});
+
+// Get single order
+app.get('/api/orders/:id', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
       });
     }
     
-    const status = MicroservicesIntegration.getStatus();
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    const order = await ordersCollection.findOne({
+      _id: new ObjectId(req.params.id),
+      userId: new ObjectId(req.user.userId)
+    });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: { order }
+    });
+  } catch (error) {
+    console.error('Get order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order',
+      error: error.message
+    });
+  }
+});
+
+// Update order status (for artisans/admin)
+app.put('/api/orders/:id/status', verifyJWT, async (req, res) => {
+  try {
+    const { status, updateReason } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+    
+    const validStatuses = [
+      'pending', 'confirmed', 'preparing', 
+      'ready_for_pickup', 'ready_for_delivery', 'ready',
+      'out_for_delivery', 'picked_up', 'delivered', 'completed', 'cancelled', 'declined'
+    ];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status'
+      });
+    }
+    
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const notificationsCollection = db.collection('notifications');
+    const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get the order first to check permissions and get user info
+    const order = await ordersCollection.findOne({ 
+      _id: new ObjectId(req.params.id) 
+    });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Check if user has permission to update this order
+    // First check if the user is an artisan
+    const user = await usersCollection.findOne({ _id: new ObjectId(req.user.userId) });
+    const isUserArtisan = user && (user.role === 'artisan' || user.userType === 'artisan');
+    
+    let isArtisan = false;
+    let artisan = null;
+    
+    if (isUserArtisan) {
+      // Get the artisan profile to compare with the order's artisan
+      artisan = await artisansCollection.findOne({ user: new ObjectId(req.user.userId) });
+      if (artisan && order.artisan) {
+        // Handle both cases: artisan as ObjectId or as populated object with _id
+        const orderArtisanId = order.artisan._id 
+          ? order.artisan._id.toString() 
+          : order.artisan.toString();
+        const artisanIdToCompare = artisan._id.toString();
+        
+        console.log('🔍 Comparing artisan IDs:', {
+          orderArtisanId,
+          artisanIdToCompare,
+          match: artisanIdToCompare === orderArtisanId
+        });
+        
+        isArtisan = artisanIdToCompare === orderArtisanId;
+      }
+    }
+    
+    // Check if the user is the order owner (patron)
+    const isOwner = order.userId && order.userId.toString() === req.user.userId;
+    
+    // Determine if this is a guest order
+    const isGuestOrder = !order.userId && order.guestInfo;
+    
+    // Log for debugging
+    console.log('🔍 Order status update permission check:', {
+      orderId: req.params.id,
+      userId: req.user.userId,
+      userRole: user?.role,
+      isUserArtisan,
+      isArtisan,
+      isOwner,
+      isGuestOrder,
+      orderArtisanRaw: order.artisan,
+      orderArtisanType: typeof order.artisan,
+      orderArtisanHasId: !!order.artisan?._id,
+      orderArtisanString: order.artisan?.toString(),
+      orderUserId: order.userId?.toString(),
+      artisanIdFromProfile: artisan?._id?.toString()
+    });
+    
+    // Allow if:
+    // 1. User is the artisan who owns this order, OR
+    // 2. User is the order owner (patron)
+    // Note: Guest orders can only be updated by the artisan
+    if (!isArtisan && !isOwner) {
+      console.log('❌ Permission denied: User is neither the artisan nor the order owner');
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update this order'
+      });
+    }
+    
+    console.log('✅ Permission granted:', isArtisan ? 'artisan' : 'owner');
+    
+    // Calculate order priority based on status and age
+    const calculatePriority = (order, newStatus) => {
+      let priority = 0;
+      const ageInHours = (new Date() - new Date(order.createdAt)) / (1000 * 60 * 60);
+      
+      // Status-based priority
+      if (newStatus === 'pending') priority += 50;
+      if (newStatus === 'confirmed') priority += 40;
+      if (newStatus === 'preparing') priority += 30;
+      if (newStatus === 'ready_for_pickup' || newStatus === 'ready_for_delivery') priority += 20;
+      if (newStatus === 'out_for_delivery') priority += 10;
+      
+      // Age-based priority
+      if (ageInHours > 24) priority += 30;
+      if (ageInHours > 12) priority += 20;
+      if (ageInHours > 6) priority += 10;
+      if (ageInHours > 2) priority += 5;
+      
+      // Delivery method priority
+      if (order.deliveryMethod === 'pickup') priority += 10;
+      
+      return priority;
+    };
+
+    // Calculate new priority
+    const newPriority = calculatePriority(order, status);
+    
+    // Update the order status
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { 
+        $set: { 
+          status,
+          priority: newPriority,
+          updatedAt: new Date(),
+          lastStatusUpdate: {
+            status,
+            updatedBy: req.user.userId,
+            updatedAt: new Date(),
+            reason: updateReason || null
+          },
+          statusHistory: {
+            $push: {
+              status,
+              updatedBy: req.user.userId,
+              updatedAt: new Date(),
+              reason: updateReason || null
+            }
+          }
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    const updatedOrder = await ordersCollection.findOne({ 
+      _id: new ObjectId(req.params.id) 
+    });
+    
+    // Create notification for the order owner (customer)
+    if (order.userId) {
+      // For registered users: use preference-based notification system
+      const notificationData = {
+        type: 'order_update',
+        title: 'Order Status Updated',
+        message: `Your order status has been updated to: ${status}`,
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-8).toUpperCase(),
+        status: status,
+        updateType: 'status_change',
+        updateDetails: {
+          oldStatus: order.status,
+          newStatus: status,
+          reason: updateReason || null
+        }
+      };
+      
+      // Send preference-based notification via HTTP call to notification service
+      try {
+        const axios = require('axios');
+        await axios.post('http://localhost:4000/api/notifications/send-preference-based', {
+          userId: order.userId.toString(),
+          notificationData: notificationData
+        });
+        console.log(`✅ Preference-based notification sent for order ${order._id} status update`);
+      } catch (error) {
+        console.error('❌ Error sending preference-based notification:', error);
+        // Fallback to direct notification if preference system fails
+        const notification = {
+          userId: order.userId,
+          type: 'order_update',
+          title: 'Order Status Updated',
+          message: `Your order status has been updated to: ${status}`,
+          orderId: order._id,
+          orderNumber: order._id.toString().slice(-8).toUpperCase(),
+          status: status,
+          isRead: false,
+          createdAt: new Date()
+        };
+        
+        await notificationsCollection.insertOne(notification);
+        console.log(`📝 Fallback notification created for order ${order._id}`);
+      }
+    } else if (order.guestInfo && order.guestInfo.email) {
+      // For guest orders: ALWAYS send email notification for ALL status changes
+      console.log(`📧 Sending guest email for order status update to: ${order.guestInfo.email}`);
+      
+      const notificationData = {
+        type: 'order_update',
+        updateType: 'status_change',
+        title: `Order ${order._id.toString().slice(-8).toUpperCase()} - Status Update`,
+        message: `Hello ${order.guestInfo.firstName},\n\nYour order status has been updated to: ${status}`,
+        orderId: order._id.toString(),
+        orderNumber: order._id.toString().slice(-8).toUpperCase(),
+        updateDetails: {
+          oldStatus: order.status,
+          newStatus: status,
+          totalAmount: order.totalAmount,
+          reason: updateReason || null,
+          message: `Status changed from ${order.status} to ${status}`
+        }
+      };
+      
+      try {
+        const axios = require('axios');
+        await axios.post('http://localhost:4000/api/notifications/send-guest-email', {
+          guestEmail: order.guestInfo.email,
+          guestName: `${order.guestInfo.firstName} ${order.guestInfo.lastName}`,
+          notificationData: notificationData
+        });
+        console.log(`✅ Guest email sent successfully to ${order.guestInfo.email}`);
+      } catch (error) {
+        console.error('❌ Error sending guest email:', error.message);
+      }
+    }
+    
+    // ============================================================================
+    // WALLET CREDIT LOGIC - Only for artisan-initiated status changes
+    // ============================================================================
+    // Credit wallet ONLY when artisan marks order as delivered/picked_up
+    // For registered patrons: wallet credit is pending until patron confirms (or 48h timeout)
+    // For guest orders: wallet credit immediately (no confirmation needed)
+    if (['delivered', 'picked_up'].includes(status) && isArtisan) {
+      console.log('💰 Processing potential wallet credit for order:', order._id);
+      
+      const artisanId = order.artisan._id || order.artisan;
+      
+      // Calculate total artisan earnings (product + delivery)
+      const productEarnings = order.revenue?.artisanEarnings || 0;
+      const deliveryEarnings = order.deliveryFee || 0;
+      const totalEarnings = productEarnings + deliveryEarnings;
+      
+      console.log(`💰 Total earnings to credit: $${totalEarnings} (Products: $${productEarnings} + Delivery: $${deliveryEarnings})`);
+      
+      const isGuestOrder = !order.userId && order.guestInfo;
+      const isPickupOrder = order.deliveryMethod === 'pickup';
+      
+      if (totalEarnings > 0) {
+        // For GUEST orders: Credit immediately (no confirmation needed)
+        if (isGuestOrder) {
+          console.log('💰 Guest order - crediting wallet immediately');
+          
+          try {
+            // Get or create wallet
+            const walletsCollection = db.collection('wallets');
+            let wallet = await walletsCollection.findOne({ artisanId: new ObjectId(artisanId) });
+            
+            if (!wallet) {
+              // Create new wallet
+              wallet = {
+                artisanId: new ObjectId(artisanId),
+                balance: 0,
+                currency: 'CAD',
+                pendingBalance: 0,
+                isActive: true,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+              await walletsCollection.insertOne(wallet);
+            }
+            
+            // Credit wallet (product + delivery earnings)
+            await walletsCollection.updateOne(
+              { artisanId: new ObjectId(artisanId) },
+              { 
+                $inc: { 
+                  balance: totalEarnings,
+                  'metadata.totalProductRevenue': productEarnings,
+                  'metadata.totalDeliveryRevenue': deliveryEarnings,
+                  'metadata.totalEarnings': totalEarnings
+                },
+                $set: { updatedAt: new Date() }
+              }
+            );
+            
+            // Create transaction record with full breakdown
+            await db.collection('wallet_transactions').insertOne({
+              walletId: wallet._id || artisanId,
+              artisanId: new ObjectId(artisanId),
+              type: 'revenue',
+              amount: totalEarnings,
+              orderId: order._id,
+              orderNumber: order._id.toString().slice(-8).toUpperCase(),
+              description: `Order #${order._id.toString().slice(-8)} completed (Guest order - auto-credited)`,
+              status: 'completed',
+              metadata: {
+                isGuestOrder: true,
+                deliveryMethod: order.deliveryMethod,
+                
+                // Product revenue
+                productGross: order.revenue?.grossAmount || 0,
+                platformCommission: order.revenue?.platformCommission || 0,
+                productEarnings: productEarnings,
+                
+                // Delivery revenue
+                deliveryFee: deliveryEarnings,
+                deliveryEarnings: deliveryEarnings,
+                deliveryCommission: 0,
+                
+                // Totals
+                totalGross: order.revenue?.totalGross || 0,
+                totalEarnings: totalEarnings
+              },
+              createdAt: new Date()
+            });
+            
+            // Mark order as wallet credited
+            await ordersCollection.updateOne(
+              { _id: new ObjectId(req.params.id) },
+              { 
+                $set: { 
+                  'walletCredit.credited': true,
+                  'walletCredit.amount': totalEarnings,
+                  'walletCredit.productEarnings': productEarnings,
+                  'walletCredit.deliveryEarnings': deliveryEarnings,
+                  'walletCredit.creditedAt': new Date(),
+                  'walletCredit.confirmationType': 'guest_auto'
+                }
+              }
+            );
+            
+            console.log(`✅ Wallet credited $${totalEarnings.toFixed(2)} for guest order (Products: $${productEarnings}, Delivery: $${deliveryEarnings})`);
+          } catch (walletError) {
+            console.error('❌ Error crediting wallet for guest order:', walletError);
+          }
+        } 
+        // For REGISTERED PATRONS: Mark as pending confirmation
+        else {
+          console.log('💰 Registered patron order - marking for pending confirmation');
+          
+          // Calculate auto-confirm deadline (48 hours for pickup, immediate for delivery confirmation)
+          const autoConfirmDeadline = new Date();
+          if (isPickupOrder) {
+            autoConfirmDeadline.setHours(autoConfirmDeadline.getHours() + 48);
+          }
+          
+          try {
+            // Mark order as pending patron confirmation
+            await ordersCollection.updateOne(
+              { _id: new ObjectId(req.params.id) },
+              { 
+                $set: { 
+                  'walletCredit.pendingConfirmation': true,
+                  'walletCredit.amount': totalEarnings,
+                  'walletCredit.productEarnings': productEarnings,
+                  'walletCredit.deliveryEarnings': deliveryEarnings,
+                  'walletCredit.artisanConfirmedAt': new Date(),
+                  'walletCredit.autoConfirmDeadline': autoConfirmDeadline,
+                  'walletCredit.confirmationType': isPickupOrder ? 'pickup_pending' : 'delivery_pending'
+                }
+              }
+            );
+            
+            // Add to pending balance
+            const walletsCollection = db.collection('wallets');
+            await walletsCollection.updateOne(
+              { artisanId: new ObjectId(artisanId) },
+              { 
+                $inc: { pendingBalance: totalEarnings },
+                $set: { updatedAt: new Date() }
+              },
+              { upsert: true }
+            );
+            
+            console.log(`⏳ Wallet credit pending patron confirmation - $${totalEarnings.toFixed(2)} (Products: $${productEarnings}, Delivery: $${deliveryEarnings})`);
+            console.log(`⏰ Auto-confirm deadline: ${autoConfirmDeadline.toISOString()}`);
+          } catch (walletError) {
+            console.error('❌ Error setting pending wallet credit:', walletError);
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      data: { order: updatedOrder }
+    });
+  } catch (error) {
+    console.error('Update order status error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update order status',
+      error: error.message
+    });
+  }
+});
+
+// Patron cancels order (only before artisan confirms)
+app.put('/api/orders/:id/cancel', verifyJWT, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const orderId = req.params.id;
+    const userId = req.user.userId;
+    
+    if (!ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    const usersCollection = db.collection('users');
+    
+    // Get the order
+    const order = await ordersCollection.findOne({ _id: new ObjectId(orderId) });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // RULE 1: Verify user is the order owner (patron)
+    if (!order.userId || order.userId.toString() !== userId) {
+      console.log('🚨 Cancel attempt by non-owner:', { orderId, userId, orderUserId: order.userId?.toString() });
+      return res.status(403).json({
+        success: false,
+        message: 'You can only cancel your own orders'
+      });
+    }
+    
+    // RULE 2: Can only cancel if order is still 'pending' (not confirmed by artisan)
+    if (order.status !== 'pending') {
+      console.log('❌ Cancel blocked - order already confirmed:', { orderId, status: order.status });
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel order. Order is already ${order.status}. You can only cancel pending orders before the artisan confirms.`
+      });
+    }
+    
+    // RULE 3: Restore inventory for all products in the order
+    console.log('♻️ Restoring inventory for cancelled order:', orderId);
+    for (const item of order.items) {
+      const product = await productsCollection.findOne({ _id: new ObjectId(item.product || item.productId) });
+      
+      if (product) {
+        const updateField = {};
+        
+        if (product.productType === 'ready_to_ship') {
+          updateField.stock = (product.stock || 0) + item.quantity;
+          console.log(`  ✅ Restored stock for ${product.name}: +${item.quantity} (new: ${updateField.stock})`);
+        } else if (product.productType === 'made_to_order') {
+          updateField.remainingCapacity = (product.remainingCapacity || 0) + item.quantity;
+          console.log(`  ✅ Restored capacity for ${product.name}: +${item.quantity} (new: ${updateField.remainingCapacity})`);
+        } else if (product.productType === 'scheduled_order') {
+          updateField.availableQuantity = (product.availableQuantity || 0) + item.quantity;
+          console.log(`  ✅ Restored quantity for ${product.name}: +${item.quantity} (new: ${updateField.availableQuantity})`);
+        }
+        
+        // Update product inventory
+        if (Object.keys(updateField).length > 0) {
+          await productsCollection.updateOne(
+            { _id: product._id },
+            { 
+              $set: updateField,
+              $inc: { soldCount: -item.quantity } // Reverse sold count
+            }
+          );
+        }
+      }
+    }
+    
+    // Update order status to 'cancelled'
+    const updateData = {
+      status: 'cancelled',
+      cancelledAt: new Date(),
+      cancelledBy: 'patron',
+      cancellationReason: reason || 'Cancelled by customer',
+      lastStatusUpdate: {
+        status: 'cancelled',
+        updatedAt: new Date(),
+        updatedBy: userId,
+        reason: reason || 'Cancelled by customer'
+      },
+      updatedAt: new Date()
+    };
+    
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(orderId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    console.log(`✅ Order cancelled successfully: ${orderId}`);
+    
+    // Get artisan info for notification
+    const artisan = await artisansCollection.findOne({ _id: order.artisan });
+    const artisanUser = artisan ? await usersCollection.findOne({ _id: artisan.user }) : null;
+    
+    // Send notification to artisan
+    if (artisanUser && artisanUser.email) {
+      try {
+        const axios = require('axios');
+        await axios.post('http://localhost:4000/api/notifications/send-preference-based', {
+          userId: artisanUser._id.toString(),
+          notificationData: {
+            type: 'order_update',
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber || order._id.toString().slice(-8).toUpperCase(),
+            status: 'cancelled',
+            title: 'Order Cancelled by Customer',
+            message: `Order #${order.orderNumber || order._id.toString().slice(-8).toUpperCase()} has been cancelled by the customer.`,
+            reason: reason || 'Cancelled by customer',
+            timestamp: new Date().toISOString()
+          }
+        });
+        console.log('✅ Cancellation notification sent to artisan');
+      } catch (notifError) {
+        console.error('⚠️ Failed to send artisan notification (non-fatal):', notifError.message);
+      }
+    }
+    
+    // Send confirmation to patron
+    const patronUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    if (patronUser && patronUser.email) {
+      try {
+        const axios = require('axios');
+        await axios.post('http://localhost:4000/api/notifications/send-preference-based', {
+          userId: userId,
+          notificationData: {
+            type: 'order_update',
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber || order._id.toString().slice(-8).toUpperCase(),
+            status: 'cancelled',
+            title: 'Order Cancelled Successfully',
+            message: `Your order #${order.orderNumber || order._id.toString().slice(-8).toUpperCase()} has been cancelled. Inventory has been restored.`,
+            timestamp: new Date().toISOString()
+          }
+        });
+        console.log('✅ Cancellation confirmation sent to patron');
+      } catch (notifError) {
+        console.error('⚠️ Failed to send patron notification (non-fatal):', notifError.message);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully',
+      data: {
+        orderId: order._id,
+        status: 'cancelled',
+        inventoryRestored: true,
+        cancelledAt: updateData.cancelledAt
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error cancelling order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel order',
+      error: error.message
+    });
+  }
+});
+
+// Patron confirms order receipt (triggers wallet credit)
+app.post('/api/orders/:id/confirm-receipt', verifyJWT, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.user.userId;
+    
+    if (!ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID'
+      });
+    }
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const walletsCollection = db.collection('wallets');
+    
+    // Get the order
+    const order = await ordersCollection.findOne({ _id: new ObjectId(orderId) });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // FRAUD PREVENTION: Verify user is the order owner
+    if (!order.userId || order.userId.toString() !== userId) {
+      console.log('🚨 FRAUD ATTEMPT: User trying to confirm someone else\'s order');
+      return res.status(403).json({
+        success: false,
+        message: 'You can only confirm your own orders'
+      });
+    }
+    
+    // FRAUD PREVENTION: Check if order status is valid for confirmation
+    const validStatuses = ['delivered', 'picked_up', 'ready_for_pickup', 'out_for_delivery'];
+    if (!validStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be confirmed with status: ${order.status}. Order must be delivered or picked up first.`
+      });
+    }
+    
+    // FRAUD PREVENTION: Check if already confirmed
+    if (order.walletCredit?.credited && order.walletCredit?.patronConfirmedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order already confirmed',
+        data: { confirmedAt: order.walletCredit.patronConfirmedAt }
+      });
+    }
+    
+    // FRAUD PREVENTION: Check if wallet credit is pending
+    if (!order.walletCredit?.pendingConfirmation) {
+      return res.status(400).json({
+        success: false,
+        message: 'No pending wallet credit for this order'
+      });
+    }
+    
+    const artisanId = order.artisan._id || order.artisan;
+    const totalEarnings = order.walletCredit.amount;
+    const productEarnings = order.walletCredit.productEarnings || order.revenue?.artisanEarnings || 0;
+    const deliveryEarnings = order.walletCredit.deliveryEarnings || order.deliveryFee || 0;
+    
+    console.log(`💰 Patron confirmed order ${orderId} - processing wallet credit of $${totalEarnings.toFixed(2)} (Products: $${productEarnings}, Delivery: $${deliveryEarnings})`);
+    
+    // Get or create wallet
+    let wallet = await walletsCollection.findOne({ artisanId: new ObjectId(artisanId) });
+    
+    if (!wallet) {
+      wallet = {
+        artisanId: new ObjectId(artisanId),
+        balance: 0,
+        currency: 'CAD',
+        pendingBalance: 0,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      await walletsCollection.insertOne(wallet);
+    }
+    
+    // Move from pending to confirmed balance
+    await walletsCollection.updateOne(
+      { artisanId: new ObjectId(artisanId) },
+      { 
+        $inc: { 
+          balance: totalEarnings,
+          pendingBalance: -totalEarnings,  // Remove from pending
+          'metadata.totalProductRevenue': productEarnings,
+          'metadata.totalDeliveryRevenue': deliveryEarnings,
+          'metadata.totalEarnings': totalEarnings
+        },
+        $set: { updatedAt: new Date() }
+      }
+    );
+    
+    // Create transaction record with full breakdown
+    await db.collection('wallet_transactions').insertOne({
+      walletId: wallet._id || artisanId,
+      artisanId: new ObjectId(artisanId),
+      type: 'revenue',
+      amount: totalEarnings,
+      orderId: order._id,
+      orderNumber: order._id.toString().slice(-8).toUpperCase(),
+      description: `Order #${order._id.toString().slice(-8)} completed (Patron confirmed)`,
+      status: 'completed',
+      metadata: {
+        isGuestOrder: false,
+        deliveryMethod: order.deliveryMethod,
+        
+        // Product revenue
+        productGross: order.revenue?.grossAmount || 0,
+        platformCommission: order.revenue?.platformCommission || 0,
+        productEarnings: productEarnings,
+        
+        // Delivery revenue
+        deliveryFee: deliveryEarnings,
+        deliveryEarnings: deliveryEarnings,
+        deliveryCommission: 0,
+        
+        // Totals
+        totalGross: order.revenue?.totalGross || 0,
+        totalEarnings: totalEarnings,
+        
+        confirmedBy: 'patron',
+        confirmedAt: new Date()
+      },
+      createdAt: new Date()
+    });
+    
+    // Update order to mark as confirmed and credited
+    await ordersCollection.updateOne(
+      { _id: new ObjectId(orderId) },
+      { 
+        $set: { 
+          'walletCredit.credited': true,
+          'walletCredit.patronConfirmedAt': new Date(),
+          'walletCredit.creditedAt': new Date(),
+          'walletCredit.pendingConfirmation': false,
+          'walletCredit.confirmationType': order.deliveryMethod === 'pickup' ? 'pickup_confirmed' : 'delivery_confirmed'
+        }
+      }
+    );
+    
+    console.log(`✅ Wallet credited $${totalEarnings.toFixed(2)} after patron confirmation (Products: $${productEarnings}, Delivery: $${deliveryEarnings})`);
+    
+    res.json({
+      success: true,
+      message: 'Order receipt confirmed successfully',
+      data: {
+        orderId: orderId,
+        creditedAmount: earnings,
+        confirmedAt: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Confirm receipt error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm order receipt',
+      error: error.message
+    });
+  }
+});
+
+// Helper function to auto-confirm pending orders (used by multiple endpoints)
+async function autoConfirmPendingOrders(db) {
+  const ordersCollection = db.collection('orders');
+  const walletsCollection = db.collection('wallets');
+  
+  // Find orders pending confirmation past their deadline
+  const now = new Date();
+  const pendingOrders = await ordersCollection.find({
+    'walletCredit.pendingConfirmation': true,
+    'walletCredit.credited': { $ne: true },
+    'walletCredit.autoConfirmDeadline': { $lte: now }
+  }).toArray();
+  
+  console.log(`⏰ Auto-confirm: Found ${pendingOrders.length} orders to auto-confirm`);
+  
+  let confirmedCount = 0;
+  let totalCredited = 0;
+  
+  for (const order of pendingOrders) {
+    try {
+      const artisanId = order.artisan._id || order.artisan;
+      const totalEarnings = order.walletCredit.amount;
+      const productEarnings = order.walletCredit.productEarnings || order.revenue?.artisanEarnings || 0;
+      const deliveryEarnings = order.walletCredit.deliveryEarnings || order.deliveryFee || 0;
+      
+      // Move from pending to confirmed balance
+      await walletsCollection.updateOne(
+        { artisanId: new ObjectId(artisanId) },
+        { 
+          $inc: { 
+            balance: totalEarnings,
+            pendingBalance: -totalEarnings,
+            'metadata.totalProductRevenue': productEarnings,
+            'metadata.totalDeliveryRevenue': deliveryEarnings,
+            'metadata.totalEarnings': totalEarnings
+          },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: true }
+      );
+      
+      // Create transaction record with full breakdown
+      const wallet = await walletsCollection.findOne({ artisanId: new ObjectId(artisanId) });
+      await db.collection('wallet_transactions').insertOne({
+        walletId: wallet._id || artisanId,
+        artisanId: new ObjectId(artisanId),
+        type: 'revenue',
+        amount: totalEarnings,
+        orderId: order._id,
+        orderNumber: order._id.toString().slice(-8).toUpperCase(),
+        description: `Order #${order._id.toString().slice(-8)} auto-confirmed (48h timeout)`,
+        status: 'completed',
+        metadata: {
+          isGuestOrder: false,
+          deliveryMethod: order.deliveryMethod,
+          
+          // Product revenue
+          productGross: order.revenue?.grossAmount || 0,
+          platformCommission: order.revenue?.platformCommission || 0,
+          productEarnings: productEarnings,
+          
+          // Delivery revenue
+          deliveryFee: deliveryEarnings,
+          deliveryEarnings: deliveryEarnings,
+          deliveryCommission: 0,
+          
+          // Totals
+          totalGross: order.revenue?.totalGross || 0,
+          totalEarnings: totalEarnings,
+          
+          confirmedBy: 'auto_timeout',
+          confirmedAt: new Date(),
+          deadline: order.walletCredit.autoConfirmDeadline
+        },
+        createdAt: new Date()
+      });
+      
+      // Update order
+      await ordersCollection.updateOne(
+        { _id: order._id },
+        { 
+          $set: { 
+            'walletCredit.credited': true,
+            'walletCredit.autoConfirmed': true,
+            'walletCredit.creditedAt': new Date(),
+            'walletCredit.pendingConfirmation': false,
+            'walletCredit.confirmationType': 'auto_timeout'
+          }
+        }
+      );
+      
+      confirmedCount++;
+      totalCredited += totalEarnings;
+      console.log(`✅ Auto-confirmed order ${order._id.toString().slice(-8)} - credited $${totalEarnings.toFixed(2)} (Products: $${productEarnings}, Delivery: $${deliveryEarnings})`);
+    } catch (orderError) {
+      console.error(`❌ Error auto-confirming order ${order._id}:`, orderError);
+    }
+  }
+  
+  return { confirmedCount, totalCredited };
+}
+
+// Auto-confirm orders and credit wallet (Vercel cron endpoint)
+app.post('/api/orders/auto-confirm-pending', async (req, res) => {
+  try {
+    // SECURITY: Vercel Cron sends authorization header
+    const authHeader = req.headers['authorization'];
+    const cronSecret = req.headers['x-cron-secret'];
+    
+    // Accept either Vercel's cron authorization or custom secret
+    const isVercelCron = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+    const isValidSecret = cronSecret === process.env.CRON_SECRET;
+    
+    if (!isVercelCron && !isValidSecret) {
+      console.log('🚨 Unauthorized cron attempt - invalid credentials');
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+    
+    const db = req.db;
+    
+    // Use helper function to auto-confirm pending orders
+    const result = await autoConfirmPendingOrders(db);
+    
+    res.json({
+      success: true,
+      message: `Auto-confirmed ${result.confirmedCount} orders`,
+      data: {
+        confirmedCount: result.confirmedCount,
+        totalCredited: result.totalCredited.toFixed(2),
+        processedAt: new Date()
+      }
+    });
+  } catch (error) {
+    console.error('Auto-confirm error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to auto-confirm orders',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// ORDER ANALYTICS ENDPOINTS
+// ============================================================================
+
+// Get comprehensive order analytics for artisans
+app.get('/api/orders/artisan/analytics', verifyJWT, verifyArtisanRole, async (req, res) => {
+  try {
+    const artisanId = req.artisanId;
+    const db = req.db;
+    const { period = 'month', startDate, endDate } = req.query;
+    
+    console.log('🔍 GET /api/orders/artisan/analytics: artisanId =', artisanId);
+    
+    // Calculate date range
+    let dateFilter = {};
+    const now = new Date();
+    
+    if (startDate && endDate) {
+      dateFilter = {
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        }
+      };
+    } else {
+      switch (period) {
+        case 'week':
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateFilter = { createdAt: { $gte: weekAgo } };
+          break;
+        case 'month':
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          dateFilter = { createdAt: { $gte: monthAgo } };
+          break;
+        case 'year':
+          const yearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          dateFilter = { createdAt: { $gte: yearAgo } };
+          break;
+        default:
+          // All time
+          break;
+      }
+    }
+    
+    // Get all orders for this artisan
+    const orders = await db.collection('orders').find({
+      'artisan': new ObjectId(artisanId),
+      ...dateFilter
+    }).toArray();
+    
+    console.log('🔍 GET /api/orders/artisan/analytics: found', orders.length, 'orders');
+    
+    // Calculate analytics
+    const analytics = {
+      overview: {
+        totalOrders: orders.length,
+        totalRevenue: orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
+        totalEarnings: orders.reduce((sum, order) => sum + (order.revenue?.artisanEarnings || 0), 0),
+        totalCommission: orders.reduce((sum, order) => sum + (order.revenue?.platformCommission || 0), 0),
+        averageOrderValue: orders.length > 0 ? orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0) / orders.length : 0
+      },
+      statusBreakdown: {},
+      deliveryMethodBreakdown: {},
+      dailyStats: {},
+      topProducts: {},
+      customerInsights: {
+        totalCustomers: new Set(orders.map(order => order.userId?.toString()).filter(Boolean)).size,
+        repeatCustomers: 0,
+        newCustomers: 0
+      },
+      performance: {
+        averageFulfillmentTime: 0,
+        onTimeDelivery: 0,
+        customerSatisfaction: 0
+      }
+    };
+    
+    // Status breakdown
+    orders.forEach(order => {
+      const status = order.status || 'unknown';
+      analytics.statusBreakdown[status] = (analytics.statusBreakdown[status] || 0) + 1;
+    });
+    
+    // Delivery method breakdown
+    orders.forEach(order => {
+      const method = order.deliveryMethod || 'unknown';
+      analytics.deliveryMethodBreakdown[method] = (analytics.deliveryMethodBreakdown[method] || 0) + 1;
+    });
+    
+    // Daily stats (last 30 days)
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const recentOrders = orders.filter(order => new Date(order.createdAt) >= last30Days);
+    
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayOrders = recentOrders.filter(order => 
+        order.createdAt && order.createdAt.toISOString().split('T')[0] === dateStr
+      );
+      
+      analytics.dailyStats[dateStr] = {
+        orders: dayOrders.length,
+        revenue: dayOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
+        earnings: dayOrders.reduce((sum, order) => sum + (order.revenue?.artisanEarnings || 0), 0)
+      };
+    }
+    
+    // Top products
+    const productStats = {};
+    orders.forEach(order => {
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach(item => {
+          const productId = item.product?.toString() || item.productId;
+          const productName = item.productName || 'Unknown Product';
+          
+          if (!productStats[productId]) {
+            productStats[productId] = {
+              name: productName,
+              orders: 0,
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          
+          productStats[productId].orders += 1;
+          productStats[productId].quantity += item.quantity || 0;
+          productStats[productId].revenue += item.totalPrice || 0;
+        });
+      }
+    });
+    
+    // Convert to sorted array
+    analytics.topProducts = Object.entries(productStats)
+      .map(([id, stats]) => ({ id, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+    
+    // Customer insights
+    const customerOrderCounts = {};
+    orders.forEach(order => {
+      if (order.userId) {
+        const userId = order.userId.toString();
+        customerOrderCounts[userId] = (customerOrderCounts[userId] || 0) + 1;
+      }
+    });
+    
+    analytics.customerInsights.repeatCustomers = Object.values(customerOrderCounts).filter(count => count > 1).length;
+    analytics.customerInsights.newCustomers = analytics.customerInsights.totalCustomers - analytics.customerInsights.repeatCustomers;
+    
+    // Performance metrics
+    const completedOrders = orders.filter(order => 
+      ['delivered', 'completed', 'picked_up'].includes(order.status)
+    );
+    
+    if (completedOrders.length > 0) {
+      const fulfillmentTimes = completedOrders.map(order => {
+        if (order.createdAt && order.lastStatusUpdate?.updatedAt) {
+          return new Date(order.lastStatusUpdate.updatedAt) - new Date(order.createdAt);
+        }
+        return 0;
+      }).filter(time => time > 0);
+      
+      if (fulfillmentTimes.length > 0) {
+        analytics.performance.averageFulfillmentTime = 
+          fulfillmentTimes.reduce((sum, time) => sum + time, 0) / fulfillmentTimes.length / (1000 * 60 * 60); // in hours
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: analytics,
+      period,
+      dateRange: {
+        start: startDate || (dateFilter.createdAt?.$gte ? dateFilter.createdAt.$gte.toISOString() : null),
+        end: endDate || now.toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Get order analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order analytics',
+      error: error.message
+    });
+  }
+});
+
+// Get order performance metrics
+app.get('/api/orders/artisan/performance', verifyJWT, verifyArtisanRole, async (req, res) => {
+  try {
+    const artisanId = req.artisanId;
+    const db = req.db;
+    
+    const orders = await db.collection('orders').find({
+      'artisan': new ObjectId(artisanId)
+    }).toArray();
+    
+    const performance = {
+      fulfillmentRate: 0,
+      averageFulfillmentTime: 0,
+      customerSatisfaction: 0,
+      onTimeDelivery: 0,
+      orderAccuracy: 0,
+      revenueGrowth: 0,
+      orderGrowth: 0
+    };
+    
+    if (orders.length > 0) {
+      // Fulfillment rate
+      const completedOrders = orders.filter(order => 
+        ['delivered', 'completed', 'picked_up'].includes(order.status)
+      );
+      performance.fulfillmentRate = (completedOrders.length / orders.length) * 100;
+      
+      // Average fulfillment time
+      const fulfillmentTimes = completedOrders.map(order => {
+        if (order.createdAt && order.lastStatusUpdate?.updatedAt) {
+          return new Date(order.lastStatusUpdate.updatedAt) - new Date(order.createdAt);
+        }
+        return 0;
+      }).filter(time => time > 0);
+      
+      if (fulfillmentTimes.length > 0) {
+        performance.averageFulfillmentTime = 
+          fulfillmentTimes.reduce((sum, time) => sum + time, 0) / fulfillmentTimes.length / (1000 * 60 * 60);
+      }
+      
+      // Calculate growth (compare last 30 days vs previous 30 days)
+      const now = new Date();
+      const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const previous30Days = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+      
+      const recentOrders = orders.filter(order => new Date(order.createdAt) >= last30Days);
+      const previousOrders = orders.filter(order => 
+        new Date(order.createdAt) >= previous30Days && new Date(order.createdAt) < last30Days
+      );
+      
+      if (previousOrders.length > 0) {
+        const recentRevenue = recentOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+        const previousRevenue = previousOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+        
+        performance.revenueGrowth = ((recentRevenue - previousRevenue) / previousRevenue) * 100;
+        performance.orderGrowth = ((recentOrders.length - previousOrders.length) / previousOrders.length) * 100;
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: performance
+    });
+  } catch (error) {
+    console.error('Get order performance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order performance',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// PLATFORM SETTINGS ENDPOINTS
+// ============================================================================
+
+// Helper function to get platform settings
+async function getPlatformSettings(db) {
+  const settingsCollection = db.collection('platform_settings');
+  let settings = await settingsCollection.findOne({ type: 'global' });
+  
+  // Create default settings if not exists
+  if (!settings) {
+    settings = {
+      type: 'global',
+      platformFeePercentage: 10, // Default 10%
+      currency: 'CAD',
+      paymentProcessingFee: 2.9,
+      minimumOrderAmount: 5.00,
+      payoutSettings: {
+        minimumPayoutAmount: 25.00,
+        payoutFrequency: 'weekly',
+        payoutDelay: 7
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    await settingsCollection.insertOne(settings);
+  }
+  
+  return settings;
+}
+
+// Get platform settings (public - for calculating fees)
+app.get('/api/admin/platform-settings', async (req, res) => {
+  try {
+    const db = req.db;
+    const settings = await getPlatformSettings(db);
+    
+    res.json({
+      success: true,
+      data: settings
+    });
+  } catch (error) {
+    console.error('Get platform settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get platform settings',
+      error: error.message
+    });
+  }
+});
+
+// Update platform settings (admin only)
+app.put('/api/admin/platform-settings', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Verify user is admin
+    const user = await usersCollection.findOne({ _id: new ObjectId(req.user.userId) });
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin access required'
+      });
+    }
+    
+    const { platformFeePercentage, currency, paymentProcessingFee, minimumOrderAmount, payoutSettings } = req.body;
+    
+    // Validate platform fee percentage
+    if (platformFeePercentage !== undefined && (platformFeePercentage < 0 || platformFeePercentage > 50)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Platform fee percentage must be between 0 and 50'
+      });
+    }
+    
+    const settingsCollection = db.collection('platform_settings');
+    
+    const updateData = {
+      ...(platformFeePercentage !== undefined && { platformFeePercentage }),
+      ...(currency && { currency }),
+      ...(paymentProcessingFee !== undefined && { paymentProcessingFee }),
+      ...(minimumOrderAmount !== undefined && { minimumOrderAmount }),
+      ...(payoutSettings && { payoutSettings }),
+      updatedAt: new Date(),
+      updatedBy: req.user.userId
+    };
+    
+    const result = await settingsCollection.updateOne(
+      { type: 'global' },
+      { $set: updateData },
+      { upsert: true }
+    );
+    
+    const updatedSettings = await getPlatformSettings(db);
+    
+    console.log(`✅ Platform settings updated by admin ${req.user.userId}`);
+    console.log(`   Platform fee: ${updatedSettings.platformFeePercentage}%`);
+    
+    res.json({
+      success: true,
+      message: 'Platform settings updated successfully',
+      data: updatedSettings
+    });
+  } catch (error) {
+    console.error('Update platform settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update platform settings',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// WALLET ENDPOINTS
+// ============================================================================
+
+// Get wallet balance
+app.get('/api/wallet/balance', verifyJWT, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Get user's wallet balance from users collection
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    const balance = user.walletBalance || 0;
+    
+    res.json({
+      success: true,
+      data: { balance }
+    });
+  } catch (error) {
+    console.error('Get wallet balance error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch wallet balance',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// SPOTLIGHT ENDPOINTS
+// ============================================================================
+
+// Get spotlight status for artisan
+app.get('/api/spotlight/status', verifyJWT, verifyArtisanRole, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Get artisan profile
+    const artisan = await db.collection('artisans').findOne({ user: new ObjectId(userId) });
+    
+    if (!artisan) {
+      return res.json({
+        success: true,
+        data: {
+          hasActiveSpotlight: false,
+          spotlight: null
+        }
+      });
+    }
+    
+    const now = new Date();
+    const hasActiveSpotlight = artisan.spotlightEndDate && new Date(artisan.spotlightEndDate) > now;
+    
+    let spotlight = null;
+    if (hasActiveSpotlight) {
+      const endDate = new Date(artisan.spotlightEndDate);
+      const remainingDays = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+      
+      spotlight = {
+        startDate: artisan.spotlightStartDate,
+        endDate: artisan.spotlightEndDate,
+        remainingDays
+      };
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        hasActiveSpotlight,
+        spotlight
+      }
+    });
+  } catch (error) {
+    console.error('Get spotlight status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch spotlight status',
+      error: error.message
+    });
+  }
+});
+
+// Purchase spotlight subscription
+app.post('/api/spotlight/purchase', verifyJWT, verifyArtisanRole, async (req, res) => {
+  try {
+    const { days, paymentMethod } = req.body;
+    const userId = req.user.userId;
+    
+    if (!days || days < 1 || days > 30) {
+      return res.status(400).json({
+        success: false,
+        message: 'Days must be between 1 and 30'
+      });
+    }
+    
+    // Check if user already has an active spotlight
+    const artisan = await db.collection('artisans').findOne({ user: new ObjectId(userId) });
+    
+    if (artisan && artisan.spotlightEndDate && new Date(artisan.spotlightEndDate) > new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active spotlight subscription',
+        error: 'ACTIVE_SPOTLIGHT_EXISTS',
+        existingSpotlight: {
+          endDate: artisan.spotlightEndDate
+        }
+      });
+    }
+    
+    // Calculate cost (simplified pricing)
+    const costPerDay = 10; // $10 per day
+    const totalCost = days * costPerDay;
+    
+    // Check wallet balance
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    const currentBalance = user?.walletBalance || 0;
+    
+    if (currentBalance < totalCost) {
+      const shortfall = totalCost - currentBalance;
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient wallet balance',
+        error: 'INSUFFICIENT_FUNDS',
+        currentBalance,
+        requiredAmount: totalCost,
+        shortfall
+      });
+    }
+    
+    // Deduct from wallet
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $inc: { walletBalance: -totalCost } }
+    );
+    
+    // Set spotlight dates
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + days);
+    
+    // Update or create artisan record
+    await db.collection('artisans').updateOne(
+      { user: new ObjectId(userId) },
+      {
+        $set: {
+          spotlightStartDate: startDate,
+          spotlightEndDate: endDate,
+          isSpotlight: true
+        }
+      },
+      { upsert: true }
+    );
+    
+    res.json({
+      success: true,
+      message: `Spotlight activated for ${days} day${days > 1 ? 's' : ''}`,
+      data: {
+        startDate,
+        endDate,
+        days,
+        cost: totalCost
+      }
+    });
+  } catch (error) {
+    console.error('Purchase spotlight error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to purchase spotlight',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// FILE UPLOAD ENDPOINTS
+// ============================================================================
+
+// Upload image (using Vercel Blob in production, local filesystem in development)
+app.post('/api/upload', async (req, res) => {
+  try {
+    const multer = require('multer');
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Configure multer for memory storage
+    const upload = multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+      },
+      fileFilter: (req, file, cb) => {
+        // Check file type
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      }
+    });
+    
+    // Use multer middleware
+    upload.single('image')(req, res, async (err) => {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded'
+        });
+      }
+      
+      try {
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const fileExtension = req.file.originalname.split('.').pop();
+        const filename = `image-${timestamp}-${randomString}.${fileExtension}`;
+        
+        if (process.env.NODE_ENV === 'production') {
+          // Production: Upload to Vercel Blob
+          try {
+            const { put } = require('@vercel/blob');
+        const blob = await put(filename, req.file.buffer, {
+          access: 'public',
+          contentType: req.file.mimetype
+        });
+        
+        res.json({
+          success: true,
+          message: 'File uploaded successfully',
+          data: {
+            url: blob.url,
+            filename: filename,
+            size: req.file.size,
+            mimetype: req.file.mimetype
+          }
+        });
+          } catch (blobError) {
+            console.error('Vercel Blob upload failed:', blobError);
+            // Fallback to base64 if Vercel Blob fails
+            const base64Image = req.file.buffer.toString('base64');
+            res.json({
+              success: true,
+              message: 'File uploaded successfully (fallback mode)',
+              data: {
+                url: `data:${req.file.mimetype};base64,${base64Image}`,
+                filename: filename,
+                size: req.file.size,
+                mimetype: req.file.mimetype
+              }
+            });
+          }
+        } else {
+          // Development: Save to local filesystem
+          const uploadDir = path.join(__dirname, 'public/uploads');
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          
+          const filePath = path.join(uploadDir, filename);
+          fs.writeFileSync(filePath, req.file.buffer);
+          
+          res.json({
+            success: true,
+            message: 'File uploaded successfully',
+            data: {
+              url: `/uploads/${filename}`,
+              filename: filename,
+              size: req.file.size,
+              mimetype: req.file.mimetype
+            }
+          });
+        }
+      } catch (uploadError) {
+        console.error('Upload error:', uploadError);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to upload file',
+          error: uploadError.message
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Upload endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Upload failed',
+      error: error.message
+    });
+  }
+});
+
+// Upload multiple images
+app.post('/api/upload/multiple', async (req, res) => {
+  try {
+    const multer = require('multer');
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Configure multer for memory storage
+    const upload = multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit per file
+        files: 10 // Maximum 10 files
+      },
+      fileFilter: (req, file, cb) => {
+        // Check file type
+        if (file.mimetype.startsWith('image/')) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed'), false);
+        }
+      }
+    });
+    
+    // Use multer middleware
+    upload.array('images', 10)(req, res, async (err) => {
+      if (err) {
+        console.error('Upload error:', err);
+        return res.status(400).json({
+          success: false,
+          message: err.message
+        });
+      }
+      
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No files uploaded'
+        });
+      }
+      
+      try {
+        const uploadPromises = req.files.map(async (file) => {
+          // Generate unique filename
+          const timestamp = Date.now();
+          const randomString = Math.random().toString(36).substring(2, 15);
+          const fileExtension = file.originalname.split('.').pop();
+          const filename = `image-${timestamp}-${randomString}.${fileExtension}`;
+          
+          if (process.env.NODE_ENV === 'production') {
+            // Production: Upload to Vercel Blob
+            try {
+              const { put } = require('@vercel/blob');
+          const blob = await put(filename, file.buffer, {
+            access: 'public',
+            contentType: file.mimetype
+          });
+          
+          return {
+            url: blob.url,
+            filename: filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            originalName: file.originalname
+          };
+            } catch (blobError) {
+              console.error('Vercel Blob upload failed for file:', filename, blobError);
+              // Fallback to base64
+              const base64Image = file.buffer.toString('base64');
+              return {
+                url: `data:${file.mimetype};base64,${base64Image}`,
+                filename: filename,
+                size: file.size,
+                mimetype: file.mimetype,
+                originalName: file.originalname
+              };
+            }
+          } else {
+            // Development: Save to local filesystem
+            const uploadDir = path.join(__dirname, 'public/uploads');
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            
+            const filePath = path.join(uploadDir, filename);
+            fs.writeFileSync(filePath, file.buffer);
+            
+            return {
+              url: `/uploads/${filename}`,
+              filename: filename,
+              size: file.size,
+              mimetype: file.mimetype,
+              originalName: file.originalname
+            };
+          }
+        });
+        
+        const uploadedFiles = await Promise.all(uploadPromises);
+        
+        res.json({
+          success: true,
+          message: 'Files uploaded successfully',
+          data: {
+            files: uploadedFiles,
+            count: uploadedFiles.length
+          }
+        });
+      } catch (uploadError) {
+        console.error('Upload error:', uploadError);
+        res.status(500).json({
+          success: false,
+          message: 'Failed to upload files',
+          error: uploadError.message
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Upload endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Upload failed',
+      error: error.message
+    });
+  }
+});
+
+// Delete uploaded file
+app.delete('/api/upload/:filename', async (req, res) => {
+  try {
+    const { del } = require('@vercel/blob');
+    
+    const { filename } = req.params;
+    if (!filename) {
+      return res.status(400).json({
+        success: false,
+        message: 'Filename is required'
+      });
+    }
+    
+    // Delete from Vercel Blob
+    await del(filename);
+    
+    res.json({
+      success: true,
+      message: 'File deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete file error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete file',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// ARTISAN ENDPOINTS
+// ============================================================================
+
+// Get all artisans
+app.get('/api/artisans', async (req, res) => {
+  try {
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    
+    // Build query - remove status filter to see all artisans
+    const query = {};
+    
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
+    if (req.query.type) {
+      query.type = req.query.type;
+    }
+    if (req.query.search) {
+      query.$or = [
+        { artisanName: { $regex: req.query.search, $options: 'i' } },
+        { businessName: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    
+    const artisans = await artisansCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    res.json({
+      success: true,
+      data: artisans,
+      count: artisans.length
+    });
+  } catch (error) {
+    console.error('Error fetching artisans:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching artisans',
+      error: error.message
+    });
+  }
+});
+
+// Get single artisan by ID
+app.get('/api/artisans/:id', async (req, res) => {
+  try {
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    const productsCollection = db.collection('products');
+    
+    // Validate ObjectId before using it
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid artisan ID format' 
+      });
+    }
+    
+    const artisan = await artisansCollection.findOne({ 
+      _id: new ObjectId(req.params.id)
+      // Removed status filter since artisans have status: null
+    });
+    
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan not found'
+      });
+    }
+    
+    // Get artisan's products if requested
+    if (req.query.includeProducts === 'true') {
+      const products = await productsCollection
+        .find({ 
+          artisan: new ObjectId(req.params.id),
+          status: 'active'
+        })
+        .toArray();
+      artisan.products = products;
+    }
+    
+    res.json({
+      success: true,
+      data: artisan
+    });
+  } catch (error) {
+    console.error('Error fetching artisan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching artisan',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// SPOTLIGHT ENDPOINTS
+// ============================================================================
+
+// Get active spotlights
+app.get('/api/spotlight/active-public', async (req, res) => {
+  try {
+    const db = req.db;
+    
+    // Get active spotlights from artisans collection
+    const spotlights = await db.collection('artisans').aggregate([
+      {
+        $match: {
+          isSpotlight: true,
+          status: 'active'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userData',
+          pipeline: [
+            { $project: { firstName: 1, lastName: 1, profilePicture: 1, email: 1 } }
+          ]
+        }
+      },
+      { $unwind: '$userData' },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: 'artisan',
+          as: 'featuredProducts',
+          pipeline: [
+            { $match: { status: 'active' } },
+            { $limit: 3 },
+            { $project: { name: 1, price: 1, primaryImage: 1, category: 1 } }
+          ]
+        }
+      },
+      {
+        $project: {
+          artisanName: 1,
+          businessName: 1,
+          type: 1,
+          description: 1,
+          profileImage: 1,
+          location: 1,
+          user: '$userData',
+          featuredProducts: 1,
+          spotlightStartDate: 1,
+          spotlightEndDate: 1,
+          isSpotlight: 1
+        }
+      },
+      { $sort: { spotlightStartDate: -1 } },
+      { $limit: 10 }
+    ]).toArray();
+
+    res.json({
+      success: true,
+      data: spotlights,
+      count: spotlights.length
+    });
+  } catch (error) {
+    console.error('Error fetching active spotlights:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching active spotlights',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// ============================================================================
+// INVENTORY RESTORATION SERVICE
+// ============================================================================
+
+// Initialize Inventory Restoration Service
+const InventoryRestorationService = require('./services/inventoryRestorationService');
+
+// Manual inventory restoration endpoint (admin only)
+app.post('/api/inventory/restore', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const restorationService = new InventoryRestorationService(db);
+    
+    console.log('🔄 Manual inventory restoration triggered by user:', req.user.userId);
+    
+    const result = await restorationService.processAllRestorations();
+    
+    res.json({
+      success: true,
+      message: `Successfully restored ${result.total} product(s)`,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error in manual inventory restoration:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error restoring inventory',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Check restoration status for specific product
+app.get('/api/inventory/restore/status/:productId', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const { productId } = req.params;
+    const restorationService = new InventoryRestorationService(db);
+    
+    const status = await restorationService.checkProductRestorationStatus(productId);
+    
     res.json({
       success: true,
       data: status
     });
   } catch (error) {
-    console.error('Services status error:', error);
+    console.error('Error checking restoration status:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get services status',
-      error: error.message
+      message: 'Error checking restoration status',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
 
-app.get('/api/services/health', async (req, res) => {
+// Automatic inventory restoration cron job
+// Runs once per day at midnight (00:00)
+cron.schedule('0 0 * * *', async () => {
   try {
-    if (!isMicroservicesReady || !MicroservicesIntegration) {
-      return res.status(503).json({
-        success: false,
-        message: 'Microservices not yet initialized'
+    console.log('🔄 Daily inventory restoration started at', new Date().toISOString());
+    
+    // Get database connection
+    const db = await getDB();
+    const restorationService = new InventoryRestorationService(db);
+    
+    const result = await restorationService.processAllRestorations();
+    
+    if (result.total > 0) {
+      console.log(`✅ Auto-restored ${result.total} product(s)`);
+    } else {
+      console.log('✅ No products needed restoration');
+    }
+  } catch (error) {
+    console.error('❌ Error in automatic inventory restoration:', error);
+  }
+});
+
+// Weekly payout processing cron job
+// Runs every Friday at 9:00 AM
+cron.schedule('0 9 * * 5', async () => {
+  try {
+    console.log('💰 Weekly payout processing started at', new Date().toISOString());
+    
+    const db = await getDB();
+    const walletsCollection = db.collection('wallets');
+    const transactionsCollection = db.collection('wallet_transactions');
+    const artisansCollection = db.collection('artisans');
+    
+    // Find all wallets eligible for payout
+    const eligibleWallets = await walletsCollection.find({
+      'payoutSettings.enabled': true,
+      'payoutSettings.schedule': 'weekly',
+      balance: { $gte: 50 }, // Default minimum, can be overridden per wallet
+      $expr: {
+        $lte: ['$payoutSettings.nextPayoutDate', new Date()]
+      }
+    }).toArray();
+    
+    console.log(`💰 Found ${eligibleWallets.length} wallets eligible for payout`);
+    
+    let processedCount = 0;
+    let totalPaidOut = 0;
+    
+    for (const wallet of eligibleWallets) {
+      try {
+        const minimumPayout = wallet.payoutSettings?.minimumPayout || 50;
+        
+        // Check if balance meets minimum
+        if (wallet.balance < minimumPayout) {
+          console.log(`⏭️ Skipping wallet ${wallet.artisanId} - balance $${wallet.balance} < minimum $${minimumPayout}`);
+          continue;
+        }
+        
+        const payoutAmount = wallet.balance;
+        
+        // Create payout transaction
+        const transaction = {
+          artisanId: wallet.artisanId,
+          type: 'payout',
+          amount: -payoutAmount, // Negative for deduction
+          currency: wallet.currency || 'CAD',
+          status: 'completed',
+          description: 'Weekly payout to bank account',
+          metadata: {
+            schedule: 'weekly',
+            bankInfo: {
+              accountNumberLast4: wallet.payoutSettings?.bankInfo?.accountNumberLast4,
+              institutionNumber: wallet.payoutSettings?.bankInfo?.institutionNumber,
+              transitNumber: wallet.payoutSettings?.bankInfo?.transitNumber
+            },
+            previousBalance: wallet.balance,
+            newBalance: 0
+          },
+          createdAt: new Date()
+        };
+        
+        // Deduct from wallet balance
+        await walletsCollection.updateOne(
+          { _id: wallet._id },
+          {
+            $set: {
+              balance: 0,
+              'payoutSettings.lastPayoutDate': new Date(),
+              'payoutSettings.nextPayoutDate': getNextFriday(),
+              updatedAt: new Date()
+            }
+          }
+        );
+        
+        // Record transaction
+        await transactionsCollection.insertOne(transaction);
+        
+        processedCount++;
+        totalPaidOut += payoutAmount;
+        
+        console.log(`✅ Payout processed: $${payoutAmount} for artisan ${wallet.artisanId}`);
+        
+        // TODO: Send email notification to artisan
+        // TODO: Integrate with Stripe Connect for automatic bank transfer
+        
+      } catch (error) {
+        console.error(`❌ Error processing payout for wallet ${wallet.artisanId}:`, error);
+      }
+    }
+    
+    console.log(`✅ Weekly payout complete: ${processedCount} payouts, $${totalPaidOut.toFixed(2)} total`);
+    
+  } catch (error) {
+    console.error('❌ Error in weekly payout processing:', error);
+  }
+});
+
+// Helper function to get next Friday
+function getNextFriday() {
+  const now = new Date();
+  const nextFriday = new Date(now);
+  nextFriday.setDate(now.getDate() + ((5 + 7 - now.getDay()) % 7 || 7));
+  nextFriday.setHours(0, 0, 0, 0);
+  return nextFriday;
+}
+
+// ============================================================================
+// PROMOTIONAL ENDPOINTS
+// ============================================================================
+
+// Get promotional pricing configuration
+app.get('/api/promotional/pricing', async (req, res) => {
+  try {
+    const db = req.db;
+    
+    // Check if pricing configuration exists in database
+    const pricingConfig = await db.collection('promotionalPricing').findOne({});
+    
+    if (pricingConfig && pricingConfig.data) {
+      return res.json({
+        success: true,
+        data: pricingConfig.data
       });
     }
     
-    const healthReport = await MicroservicesIntegration.getHealthSummary();
+    // Return default pricing if not configured in database
+    const defaultPricing = {
+      featured_product: {
+        pricePerDay: 5,
+        currency: 'USD',
+        description: 'Featured on homepage with distance-based ranking',
+        benefits: [
+          'Homepage visibility',
+          'Distance-based ranking',
+          'Priority placement',
+          'Admin approval required'
+        ],
+        isActive: true
+      },
+      sponsored_product: {
+        pricePerDay: 10,
+        currency: 'USD',
+        description: 'Enhanced search visibility and ranking',
+        benefits: [
+          'Search result boost',
+          'Keyword targeting',
+          'Category boost',
+          'Proximity boost',
+          'Admin approval required'
+        ],
+        isActive: true
+      }
+    };
+    
     res.json({
       success: true,
-      data: healthReport
+      data: defaultPricing
     });
   } catch (error) {
-    console.error('Overall health check error:', error);
+    console.error('Error fetching promotional pricing:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get overall health',
-      error: error.message
+      message: 'Error fetching promotional pricing',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
 
-app.get('/api/health/:service', async (req, res) => {
+// Get promotional featured products
+app.get('/api/promotional/products/featured', async (req, res) => {
   try {
-    if (!isMicroservicesReady || !MicroservicesIntegration) {
-      return res.status(503).json({
-        success: false,
-        message: 'Microservices not yet initialized'
-      });
-    }
+    const db = req.db;
+    const productsCollection = db.collection('products');
     
-    const serviceName = req.params.service;
-    const ServiceRegistry = require('./services/serviceRegistry');
-    const health = await ServiceRegistry.performHealthCheck(serviceName);
+    // Get limit from query params (default 6, max 50)
+    const limit = Math.min(parseInt(req.query.limit) || 6, 50);
+    
+    // Get promotional featured products with artisan population
+    const featuredProducts = await productsCollection.aggregate([
+      { $match: { status: 'active', isFeatured: true } },
+      { $sort: { createdAt: -1 } }, // Sort by latest first
+      { $limit: limit },
+      {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanObjectId',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              coordinates: 1,
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupAddress: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
+    ]).toArray();
     
     res.json({
       success: true,
-      data: { service: serviceName, health }
+      data: featuredProducts,
+      products: featuredProducts, // Frontend compatibility
+      count: featuredProducts.length
     });
   } catch (error) {
-    console.error(`Health check for ${req.params.service} error:`, error);
+    console.error('Error fetching promotional featured products:', error);
     res.status(500).json({
       success: false,
-      message: `Failed to get health for ${req.params.service}`,
+      message: 'Error fetching promotional featured products',
       error: error.message
     });
   }
 });
 
-// API Gateway status
-app.get('/api/gateway/status', (req, res) => {
+// Get promotional sponsored products
+app.get('/api/promotional/products/sponsored', async (req, res) => {
   try {
-    if (!isMicroservicesReady || !MicroservicesIntegration) {
-      return res.status(503).json({
-        success: false,
-        message: 'API Gateway not yet initialized'
-      });
-    }
+    const db = req.db;
+    const productsCollection = db.collection('products');
     
-    const APIGateway = require('./middleware/apiGateway');
-    const status = APIGateway.getStatus();
+    // Get limit from query params (default 3, max 50)
+    const limit = Math.min(parseInt(req.query.limit) || 3, 50);
+    
+    // Get sponsored products with artisan population
+    const sponsoredProducts = await productsCollection.aggregate([
+      { 
+        $match: { 
+          status: 'active',
+          'promotionalFeatures.0': { $exists: true }
+        }
+      },
+      { $sort: { createdAt: -1 } }, // Sort by latest first
+      { $limit: limit },
+      {
+        $addFields: {
+          artisanObjectId: { $toObjectId: '$artisan' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanObjectId',
+          foreignField: '_id',
+          as: 'artisanInfo',
+          pipeline: [
+            { $project: { 
+              artisanName: 1, 
+              businessName: 1, 
+              type: 1, 
+              address: 1, 
+              coordinates: 1,
+              deliveryOptions: 1, 
+              pickupLocation: 1,
+              pickupAddress: 1,
+              pickupInstructions: 1,
+              pickupHours: 1,
+              deliveryInstructions: 1,
+              rating: 1,
+              businessImage: 1
+            }}
+          ]
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      { $unset: ['artisanInfo', 'artisanObjectId'] }
+    ]).toArray();
     
     res.json({
       success: true,
-      data: status
+      data: sponsoredProducts,
+      count: sponsoredProducts.length
     });
   } catch (error) {
-    console.error('API Gateway status error:', error);
+    console.error('Error fetching sponsored products:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get API Gateway status',
+      message: 'Error fetching sponsored products',
       error: error.message
     });
   }
 });
 
-app.get('/api/gateway/routes', (req, res) => {
+// Get bulk promotional features for artisans
+app.get('/api/promotional/artisans/bulk', async (req, res) => {
   try {
-    if (!isMicroservicesReady || !MicroservicesIntegration) {
-      return res.status(503).json({
+    const { artisanIds } = req.query;
+    
+    if (!artisanIds) {
+      return res.status(400).json({
         success: false,
-        message: 'API Gateway not yet initialized'
+        message: 'artisanIds parameter is required'
       });
     }
     
-    const APIGateway = require('./middleware/apiGateway');
-    const routes = APIGateway.getRoutes();
+    // For now, return empty promotional features to avoid 404 errors
+    // This endpoint can be enhanced later when the promotional features system is implemented
+    const artisanIdArray = artisanIds.split(',');
+    const featuresByArtisan = {};
+    
+    artisanIdArray.forEach(id => {
+      const trimmedId = id.trim();
+      featuresByArtisan[trimmedId] = {
+        isSpotlight: false,
+        isFeatured: false,
+        promotionalFeatures: [],
+        featuredUntil: null,
+        spotlightUntil: null
+      };
+    });
     
     res.json({
       success: true,
-      data: { 
-        routes: Array.from(routes.keys()),
-        count: routes.size 
+      data: featuresByArtisan,
+      count: Object.keys(featuresByArtisan).length
+    });
+  } catch (error) {
+    console.error('Error fetching bulk promotional features:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching bulk promotional features',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// ============================================================================
+// MISSING FEATURES - RESTORED
+// ============================================================================
+
+// Import route modules
+const reviewsRoutes = require('./routes/reviews');
+const favoritesRoutes = require('./routes/favorites');
+const notificationsRoutes = require('./routes/notifications');
+const communityRoutes = require('./routes/community');
+const profileRoutes = require('./routes/profile');
+const adminRoutes = require('./routes/admin');
+const revenueRoutes = require('./routes/revenue');
+
+// ============================================================================
+// REVIEWS ENDPOINTS
+// ============================================================================
+
+// Reviews routes
+app.use('/api/reviews', reviewsRoutes);
+
+// ============================================================================
+// FAVORITES ENDPOINTS
+// ============================================================================
+
+// Favorites routes
+app.use('/api/favorites', favoritesRoutes);
+
+// ============================================================================
+// NOTIFICATIONS ENDPOINTS
+// ============================================================================
+
+// Notifications routes
+app.use('/api/notifications', notificationsRoutes);
+
+// ============================================================================
+// COMMUNITY ENDPOINTS
+// ============================================================================
+
+// Community posts - Direct implementation for reliability
+app.get('/api/community/posts', async (req, res) => {
+  try {
+    const { type, category, limit = 20, offset = 0, populate } = req.query;
+    
+    const db = req.db;
+    const postsCollection = db.collection('communityposts');
+
+    // Build query with filters
+    const matchQuery = { status: 'published' };
+    if (type && type !== 'all') matchQuery.type = type;
+    if (category) matchQuery.category = category;
+
+    // Build pipeline
+    const pipeline = [
+      { $match: matchQuery },
+      { $sort: { createdAt: -1, isPinned: -1 } },
+      { $skip: parseInt(offset) },
+      { $limit: parseInt(limit) }
+    ];
+
+    // Always populate artisan information (this is the post author)
+    pipeline.push({
+      $lookup: {
+        from: 'artisans',
+        localField: 'artisan',
+        foreignField: '_id',
+        as: 'artisanInfo',
+        pipeline: [
+          { $project: { artisanName: 1, businessName: 1, type: 1, profileImage: 1, user: 1 } },
+          // Get the user info for the artisan
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'userInfo',
+              pipeline: [
+                { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+              ]
+            }
+          },
+          { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } }
+        ]
+      }
+    });
+    pipeline.push({ $unwind: { path: '$artisanInfo', preserveNullAndEmptyArrays: true } });
+
+    // Add likes count
+    if (populate && populate.includes('likes')) {
+      pipeline.push({
+        $addFields: {
+          likesCount: { $size: '$likes' }
+        }
+      });
+    }
+
+    // Populate comments if requested
+    if (populate && populate.includes('comments')) {
+      pipeline.push({
+        $lookup: {
+          from: 'communitycomments',
+          localField: 'comments',
+          foreignField: '_id',
+          as: 'commentsData',
+          pipeline: [
+            { $sort: { createdAt: -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'author',
+                foreignField: '_id',
+                as: 'authorInfo',
+                pipeline: [
+                  { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+                ]
+              }
+            },
+            { $unwind: { path: '$authorInfo', preserveNullAndEmptyArrays: true } },
+            { $addFields: { author: '$authorInfo' } }
+          ]
+        }
+      });
+      pipeline.push({
+        $addFields: {
+          commentsCount: { $size: '$comments' }
+        }
+      });
+    }
+
+    const posts = await postsCollection.aggregate(pipeline).toArray();
+    
+    // Transform for frontend - artisan IS the post author
+    const transformedPosts = posts.map((post) => ({
+      ...post,
+      // Frontend expects artisan info in the artisan field
+      artisan: post.artisanInfo || post.artisan,
+      // Also provide author info for any components that might need it
+      author: post.artisanInfo || post.artisan,
+      comments: post.commentsData || post.comments,
+      likes: post.likes || []
+    }));
+    
+
+    res.json({
+      success: true,
+      data: transformedPosts,
+      count: transformedPosts.length
+    });
+  } catch (error) {
+    console.error('Get posts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get posts',
+      error: error.message
+    });
+  }
+});
+// Community routes
+app.use('/api/community', communityRoutes);
+
+// ============================================================================
+// PROFILE MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Profile routes
+app.use('/api/profile', profileRoutes);
+
+// ============================================================================
+// ADDITIONAL SERVICES ENDPOINTS
+// ============================================================================
+
+// Admin routes (includes spotlight, wallet, geocoding, revenue, analytics)
+app.use('/api/admin', adminRoutes);
+
+// Revenue routes
+app.use('/api/revenue', revenueRoutes);
+
+// ============================================================================
+// EMAIL VALIDATION ENDPOINTS
+// ============================================================================
+
+// Check if email already exists
+app.post('/api/auth/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ 
+      email: email.toLowerCase() 
+    });
+    
+    res.json({
+      success: true,
+      exists: !!existingUser,
+      message: existingUser ? 'Email already registered' : 'Email is available'
+    });
+  } catch (error) {
+    console.error('Email check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking email',
+      error: error.message
+    });
+  }
+});
+
+// Create guest profile
+app.post('/api/auth/guest', async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required for guest checkout'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ 
+      email: email.toLowerCase() 
+    });
+    
+    if (existingUser) {
+      // User already exists - return existing user with new token
+      const token = jwt.sign(
+        { userId: existingUser._id.toString(), email: existingUser.email, userType: existingUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      return res.json({
+        success: true,
+        message: 'Using existing guest account',
+        user: {
+          id: existingUser._id.toString(),
+          _id: existingUser._id,
+          email: existingUser.email,
+          firstName: existingUser.firstName,
+          lastName: existingUser.lastName,
+          phone: existingUser.phone,
+          role: existingUser.role,
+          isGuest: existingUser.role === 'guest'
+        },
+        token
+      });
+    }
+    
+    // Create new guest user
+    const guestUser = {
+      email: email.toLowerCase(),
+      firstName: firstName || 'Guest',
+      lastName: lastName || 'User',
+      phone: phone || '',
+      role: 'guest',
+      isGuest: true,
+      isActive: true,
+      isVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await usersCollection.insertOne(guestUser);
+    const userId = result.insertedId;
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: userId.toString(), email: guestUser.email, userType: 'guest' },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Guest profile created successfully',
+      user: {
+        id: userId.toString(),
+        _id: userId,
+        email: guestUser.email,
+        firstName: guestUser.firstName,
+        lastName: guestUser.lastName,
+        phone: guestUser.phone,
+        role: 'guest',
+        isGuest: true
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Guest profile creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create guest profile',
+      error: error.message
+    });
+  }
+});
+
+// Check if email already exists (GET version with user role information)
+app.get('/api/auth/check-email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ 
+      email: email.toLowerCase() 
+    });
+    
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        exists: false,
+        message: 'Email not found'
+      });
+    }
+    
+    // Determine if user is a guest or a patron (registered user)
+    const isGuest = existingUser.role === 'guest' || existingUser.isGuest === true;
+    const isPatron = existingUser.role === 'buyer' || existingUser.role === 'patron';
+    
+    res.json({
+      success: true,
+      exists: true,
+      user: {
+        _id: existingUser._id,
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        role: existingUser.role,
+        isGuest: isGuest,
+        isPatron: isPatron
+      },
+      message: isPatron 
+        ? 'This email is registered as a patron account' 
+        : 'This email exists as a guest user'
+    });
+  } catch (error) {
+    console.error('Email check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking email',
+      error: error.message
+    });
+  }
+});
+
+// ============================================================================
+// GEOCODING ENDPOINTS
+// ============================================================================
+
+// Geocode an address to coordinates
+app.post('/api/geocoding/geocode', async (req, res) => {
+  try {
+    const { address } = req.body;
+    
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Address is required'
+      });
+    }
+    
+    const geocodingService = require('./services/geocodingService');
+    const result = await geocodingService.geocodeAddress(address);
+    
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Address could not be geocoded'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        latitude: result.latitude,
+        longitude: result.longitude,
+        display_name: result.display_name,
+        confidence: result.confidence
       }
     });
   } catch (error) {
-    console.error('API Gateway routes error:', error);
+    console.error('Geocode error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get API Gateway routes',
+      message: 'Error geocoding address',
+      error: error.message
+    });
+  }
+});
+
+// Reverse geocode coordinates to address
+app.post('/api/geocoding/reverse', async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required'
+      });
+    }
+    
+    const geocodingService = require('./services/geocodingService');
+    const result = await geocodingService.reverseGeocode(latitude, longitude);
+    
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Coordinates could not be reverse geocoded'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Reverse geocode error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error reverse geocoding coordinates',
+      error: error.message
+    });
+  }
+});
+
+// Calculate distance between two points
+app.post('/api/geocoding/distance', async (req, res) => {
+  try {
+    const { lat1, lon1, lat2, lon2 } = req.body;
+    
+    if (!lat1 || !lon1 || !lat2 || !lon2) {
+      return res.status(400).json({
+        success: false,
+        message: 'All coordinates (lat1, lon1, lat2, lon2) are required'
+      });
+    }
+    
+    const geocodingService = require('./services/geocodingService');
+    const distance = geocodingService.calculateDistance(lat1, lon1, lat2, lon2);
+    
+    res.json({
+      success: true,
+      data: {
+        distance: distance,
+        formatted: geocodingService.formatDistance(distance),
+        unit: 'km'
+      }
+    });
+  } catch (error) {
+    console.error('Distance calculation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error calculating distance',
+      error: error.message
+    });
+  }
+});
+
+// Get nearby artisans
+app.get('/api/geocoding/nearby-artisans', async (req, res) => {
+  try {
+    const { latitude, longitude, maxDistance = 50 } = req.query;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required'
+      });
+    }
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    const geocodingService = require('./services/geocodingService');
+    
+    // Get all artisans with coordinates
+    const artisans = await artisansCollection.find({
+      'coordinates.latitude': { $exists: true },
+      'coordinates.longitude': { $exists: true }
+    }).toArray();
+    
+    // Calculate distances and filter
+    const nearbyArtisans = artisans
+      .map(artisan => {
+        const distance = geocodingService.calculateDistance(
+          parseFloat(latitude),
+          parseFloat(longitude),
+          artisan.coordinates.latitude,
+          artisan.coordinates.longitude
+        );
+        
+        return {
+          artisan: artisan,
+          distance: distance,
+          formattedDistance: geocodingService.formatDistance(distance)
+        };
+      })
+      .filter(item => item.distance <= parseFloat(maxDistance))
+      .sort((a, b) => a.distance - b.distance);
+    
+    res.json({
+      success: true,
+      data: nearbyArtisans,
+      count: nearbyArtisans.length,
+      maxDistance: parseFloat(maxDistance)
+    });
+  } catch (error) {
+    console.error('Nearby artisans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error finding nearby artisans',
       error: error.message
     });
   }
 });
 
 // ============================================================================
-// ERROR HANDLING MIDDLEWARE
+// ADDITIONAL MISSING ENDPOINTS
 // ============================================================================
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found',
-    path: req.originalUrl,
-    method: req.method
-  });
+// Get user orders (alias for compatibility)
+app.get('/api/user/orders', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const limit = parseInt(req.query.limit) || 20;
+
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    const orders = await ordersCollection
+      .find({ userId: new ObjectId(decoded.userId) })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+    
+    
+    res.json({
+      success: true,
+      orders: orders,
+      count: orders.length
+    });
+  } catch (error) {
+    console.error('Get user orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user orders',
+      error: error.message
+    });
+  }
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-  res.status(err.status || 500).json({
+// Get user statistics
+app.get('/api/user/stats', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = req.db;
+    
+    // Get user stats
+    const ordersCount = await db.collection('orders').countDocuments({
+      userId: new ObjectId(decoded.userId)
+    });
+    
+    const favoritesCount = await db.collection('favorites').countDocuments({
+      userId: new ObjectId(decoded.userId)
+    });
+    
+    const reviewsCount = await db.collection('reviews').countDocuments({
+      userId: new ObjectId(decoded.userId)
+    });
+    
+    
+    res.json({
+      success: true,
+      data: {
+        ordersCount,
+        favoritesCount,
+        reviewsCount
+      }
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user statistics',
+      error: error.message
+    });
+  }
+});
+
+// Get artisan dashboard stats
+app.get('/api/artisan/dashboard', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = req.db;
+    
+    // Get artisan profile
+    const artisan = await db.collection('artisans').findOne({
+      user: new ObjectId(decoded.userId)
+    });
+    
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Get stats
+    const productsCount = await db.collection('products').countDocuments({
+      artisan: artisan._id,
+      status: 'active'
+    });
+    
+    const ordersCount = await db.collection('orders').countDocuments({
+      artisan: artisan._id
+    });
+    
+    const reviewsStats = await db.collection('reviews').aggregate([
+      { $match: { artisan: artisan._id } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 }
+        }
+      }
+    ]).toArray();
+    
+    const reviews = reviewsStats.length > 0 ? reviewsStats[0] : { averageRating: 0, totalReviews: 0 };
+    
+    
+    res.json({
+      success: true,
+      data: {
+        productsCount,
+        ordersCount,
+        averageRating: Math.round(reviews.averageRating * 10) / 10,
+        totalReviews: reviews.totalReviews
+      }
+    });
+  } catch (error) {
+    console.error('Get artisan dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get artisan dashboard',
+      error: error.message
+    });
+  }
+});
+
+// Test endpoint for debugging community posts
+
+// All routes are now implemented directly in this file
+
+// Error handling middleware
+app.use((error, req, res, next) => {
+  console.error('Server error:', error);
+  res.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
   });
 });
 
-// ============================================================================
-// OPTIMIZED SERVER STARTUP
-// ============================================================================
-
-const startServer = async () => {
+// Community CRUD endpoints
+app.post('/api/community/posts', verifyJWT, async (req, res) => {
   try {
-    console.log('🚀 Starting Optimized Microservices Server...');
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔧 Port: ${PORT}`);
+    const db = req.db;
+    const postData = {
+      ...req.body,
+      author: ObjectId(req.user.userId),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      views: 0,
+      status: 'published'
+    };
     
-    // Start the server first
-    app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
-      console.log(`📊 Services: http://localhost:${PORT}/api/services`);
-      console.log(`🔍 Gateway: http://localhost:${PORT}/api/gateway/status`);
-      
-      // Initialize microservices asynchronously (non-blocking)
-      if (!process.env.VERCEL) {
-        console.log('🔄 Initializing microservices in background...');
-        initializeMicroservices().catch(error => {
-          console.error('❌ Background microservices initialization failed:', error.message);
-        });
-      } else {
-        console.log('⚠️ Running on Vercel - microservices initialization skipped');
+    const result = await db.collection('communityposts').insertOne(postData);
+    res.json({
+      success: true,
+      data: { ...postData, _id: result.insertedId }
+    });
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating post',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.put('/api/community/posts/:id', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    const db = req.db;
+    const updateData = {
+      ...req.body,
+      updatedAt: new Date()
+    };
+    
+    const result = await db.collection('communityposts').updateOne(
+      { _id: ObjectId(req.params.id), author: ObjectId(req.user.userId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found or unauthorized'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Post updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating post',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.delete('/api/community/posts/:id', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    const db = req.db;
+    const result = await db.collection('communityposts').deleteOne(
+      { _id: ObjectId(req.params.id), author: ObjectId(req.user.userId) }
+    );
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found or unauthorized'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Post deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting post',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Like/Unlike endpoints
+app.post('/api/community/posts/:id/like', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    const db = req.db;
+    
+    // Check if user already liked the post
+    const post = await db.collection('communityposts').findOne(
+      { _id: ObjectId(req.params.id) },
+      { projection: { likes: 1 } }
+    );
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    const userId = ObjectId(req.user.userId);
+    const alreadyLiked = post.likes && post.likes.some(like => like.user.equals(userId));
+    
+    if (alreadyLiked) {
+      return res.status(400).json({
+        success: false,
+        message: 'Post already liked'
+      });
+    }
+    
+    // Add like object to likes array
+    const likeData = {
+      _id: new ObjectId(),
+      user: userId,
+      likedAt: new Date()
+    };
+    
+    await db.collection('communityposts').updateOne(
+      { _id: ObjectId(req.params.id) },
+      { $push: { likes: likeData } }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Post liked successfully',
+      data: likeData
+    });
+  } catch (error) {
+    console.error('Error liking post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error liking post',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.delete('/api/community/posts/:id/like', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    const db = req.db;
+    const userId = ObjectId(req.user.userId);
+    
+    // Remove like object from likes array where user matches
+    const result = await db.collection('communityposts').updateOne(
+      { _id: ObjectId(req.params.id) },
+      { $pull: { likes: { user: userId } } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Post unliked successfully'
+    });
+  } catch (error) {
+    console.error('Error unliking post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error unliking post',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Comments endpoints
+app.get('/api/community/posts/:id/comments', async (req, res) => {
+  try {
+    console.log('Comments endpoint called with ID:', req.params.id);
+    console.log('ObjectId.isValid result:', ObjectId.isValid(req.params.id));
+    
+    // Temporarily bypass ObjectId validation for debugging
+    // if (!ObjectId.isValid(req.params.id)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'Invalid post ID format'
+    //   });
+    // }
+    
+    const db = req.db;
+    
+    // Verify post exists
+    const post = await db.collection('communityposts').findOne(
+      { _id: ObjectId(req.params.id) },
+      { projection: { _id: 1 } }
+    );
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    // Fetch comments directly from communitycomments collection using post field
+    const comments = await db.collection('communitycomments').find({
+      post: ObjectId(req.params.id)
+    }).sort({ createdAt: -1 }).toArray();
+    
+    res.json({
+      success: true,
+      data: comments
+    });
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching comments',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.post('/api/community/posts/:id/comments', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    const db = req.db;
+    
+    // Verify post exists
+    const post = await db.collection('communityposts').findOne(
+      { _id: ObjectId(req.params.id) },
+      { projection: { _id: 1 } }
+    );
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    // Create the comment document in communitycomments collection
+    const commentData = {
+      ...req.body,
+      post: ObjectId(req.params.id),
+      author: ObjectId(req.user.userId),
+      artisan: null,
+      parentComment: null,
+      replies: [],
+      mentions: [],
+      isEdited: false,
+      status: 'active',
+      moderation: { isModerated: false },
+      likes: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const commentResult = await db.collection('communitycomments').insertOne(commentData);
+    
+    // Add the comment ID to the post's comments array
+    await db.collection('communityposts').updateOne(
+      { _id: ObjectId(req.params.id) },
+      { $push: { comments: commentResult.insertedId } }
+    );
+    
+    res.json({
+      success: true,
+      data: { ...commentData, _id: commentResult.insertedId }
+    });
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating comment',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Engagement leaderboard endpoint
+app.get('/api/community/leaderboard/engagement', async (req, res) => {
+  try {
+    const db = req.db;
+    const { limit = 10, period = 'all' } = req.query;
+    
+    // Calculate engagement scores for ARTISANS based on their posts, likes, and comments
+    const pipeline = [
+      // Start with artisans collection
+      {
+        $lookup: {
+          from: 'communityposts',
+          localField: '_id',
+          foreignField: 'artisan', // Posts reference artisan directly
+          as: 'posts'
+        }
+      },
+      {
+        $lookup: {
+          from: 'communitycomments',
+          localField: '_id',
+          foreignField: 'artisan', // Comments reference artisan directly
+          as: 'comments'
+        }
+      },
+      // Calculate likes from posts (likes are embedded in posts)
+      {
+        $addFields: {
+          totalLikes: {
+            $reduce: {
+              input: '$posts',
+              initialValue: 0,
+              in: { $add: ['$$value', { $size: { $ifNull: ['$$this.likes', []] } }] }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          engagementScore: {
+            $add: [
+              { $multiply: [{ $size: '$posts' }, 10] }, // Posts worth 10 points
+              { $multiply: ['$totalLikes', 2] },        // Likes worth 2 points
+              { $multiply: [{ $size: '$comments' }, 5] } // Comments worth 5 points
+            ]
+          },
+          postsCount: { $size: '$posts' },
+          likesCount: '$totalLikes',
+          commentsCount: { $size: '$comments' }
+        }
+      },
+      {
+        $match: {
+          engagementScore: { $gt: 0 } // Only include artisans with some engagement
+        }
+      },
+      {
+        $sort: { engagementScore: -1 }
+      },
+      {
+        $limit: parseInt(limit)
+      },
+      // Populate user information for artisan
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userData',
+          pipeline: [
+            { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+          ]
+        }
+      },
+      { $unwind: { path: '$userData', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          artisanName: 1,
+          businessName: 1,
+          type: 1,
+          profileImage: 1,
+          user: '$userData',
+          engagementScore: 1,
+          postsCount: 1,
+          likesCount: 1,
+          commentsCount: 1
+        }
+      }
+    ];
+
+    const leaderboard = await db.collection('artisans').aggregate(pipeline).toArray();
+    
+    res.json({
+      success: true,
+      data: leaderboard,
+      count: leaderboard.length
+    });
+  } catch (error) {
+    console.error('Error fetching engagement leaderboard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching engagement leaderboard',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Community stats endpoint
+app.get('/api/community/stats', async (req, res) => {
+  try {
+    const db = req.db;
+    
+    const [postsCount, usersCount, commentsCount] = await Promise.all([
+      db.collection('communityposts').countDocuments({ status: 'published' }),
+      db.collection('users').countDocuments(),
+      db.collection('communitycomments').countDocuments()
+    ]);
+    
+    res.json({
+      success: true,
+      data: {
+        totalPosts: postsCount,
+        totalComments: commentsCount,
+        totalUsers: usersCount,
+        engagementRate: postsCount > 0 ? Math.round((commentsCount / postsCount) * 100) / 100 : 0
       }
     });
-    
   } catch (error) {
-    console.error('❌ Server startup failed:', error);
-    process.exit(1);
+    console.error('Error fetching community stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching community stats',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
-};
+});
 
-// Export for Vercel and development
-module.exports = app;
+// General leaderboard endpoint
+app.get('/api/community/leaderboard', async (req, res) => {
+  try {
+    const db = req.db;
+    const { limit = 10 } = req.query;
+    
+    // Calculate engagement scores for ARTISANS based on their posts, likes, and comments
+    const pipeline = [
+      // Start with artisans collection
+      {
+        $lookup: {
+          from: 'communityposts',
+          localField: '_id',
+          foreignField: 'artisan', // Posts reference artisan directly
+          as: 'posts'
+        }
+      },
+      {
+        $lookup: {
+          from: 'communitycomments',
+          localField: '_id',
+          foreignField: 'artisan', // Comments reference artisan directly
+          as: 'comments'
+        }
+      },
+      // Calculate likes from posts (likes are embedded in posts)
+      {
+        $addFields: {
+          totalLikes: {
+            $reduce: {
+              input: '$posts',
+              initialValue: 0,
+              in: { $add: ['$$value', { $size: { $ifNull: ['$$this.likes', []] } }] }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          engagementScore: {
+            $add: [
+              { $multiply: [{ $size: '$posts' }, 10] }, // Posts worth 10 points
+              { $multiply: ['$totalLikes', 2] },        // Likes worth 2 points
+              { $multiply: [{ $size: '$comments' }, 5] } // Comments worth 5 points
+            ]
+          },
+          postsCount: { $size: '$posts' },
+          likesCount: '$totalLikes',
+          commentsCount: { $size: '$comments' }
+        }
+      },
+      {
+        $match: {
+          engagementScore: { $gt: 0 } // Only include artisans with some engagement
+        }
+      },
+      {
+        $sort: { engagementScore: -1 }
+      },
+      {
+        $limit: parseInt(limit)
+      },
+      // Populate user information for artisan
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userData',
+          pipeline: [
+            { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+          ]
+        }
+      },
+      { $unwind: { path: '$userData', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          artisanName: 1,
+          type: 1,
+          user: {
+            _id: '$userData._id',
+            firstName: '$userData.firstName',
+            lastName: '$userData.lastName',
+            profilePicture: '$userData.profilePicture'
+          },
+          engagementScore: 1,
+          postsCount: 1,
+          likesCount: 1,
+          commentsCount: 1
+        }
+      }
+    ];
 
-// Only auto-start if running directly (not imported)
+    const leaderboard = await db.collection('artisans').aggregate(pipeline).toArray();
+    
+    res.json({
+      success: true,
+      data: leaderboard,
+      count: leaderboard.length
+    });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching leaderboard',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Community incentives endpoints
+app.get('/api/community/incentives', async (req, res) => {
+  try {
+    const db = req.db;
+    const incentives = await db.collection('communityincentives').find({ active: true }).toArray();
+    
+    res.json({
+      success: true,
+      data: incentives
+    });
+  } catch (error) {
+    console.error('Error fetching incentives:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching incentives',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.post('/api/community/incentives/redeem', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    const { rewardId } = req.body;
+    
+    // For now, return a simple success response
+    res.json({
+      success: true,
+      message: 'Reward redemption feature coming soon',
+      data: { rewardId, userId: req.user.userId }
+    });
+  } catch (error) {
+    console.error('Error redeeming reward:', error);
+  res.status(500).json({
+    success: false,
+      message: 'Error redeeming reward',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Community badges endpoint
+app.get('/api/community/badges', async (req, res) => {
+  try {
+    const db = req.db;
+    const badges = await db.collection('communitybadges').find({}).toArray();
+    
+    res.json({
+      success: true,
+      data: badges
+    });
+  } catch (error) {
+    console.error('Error fetching badges:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching badges',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Community points endpoint
+app.get('/api/community/points', verifyJWT, async (req, res) => {
+  try {
+    const db = req.db;
+    
+    // For now, return a simple response
+    res.json({
+      success: true,
+      data: {
+        userId: req.user.userId,
+        totalPoints: 0,
+        level: 1,
+        nextLevelPoints: 100
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching points:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching points',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// RSVP endpoints for events
+app.post('/api/community/posts/:id/rsvp', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    const db = req.db;
+    
+    // For now, return a simple success response
+    res.json({
+      success: true,
+      message: 'RSVP feature coming soon',
+      data: { postId: req.params.id, userId: req.user.userId }
+    });
+  } catch (error) {
+    console.error('Error RSVPing to event:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error RSVPing to event',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.delete('/api/community/posts/:id/rsvp', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'RSVP cancellation feature coming soon',
+      data: { postId: req.params.id, userId: req.user.userId }
+    });
+  } catch (error) {
+    console.error('Error cancelling RSVP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error cancelling RSVP',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.get('/api/community/posts/:id/rsvps', async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: [],
+      message: 'RSVP list feature coming soon'
+    });
+  } catch (error) {
+    console.error('Error fetching RSVPs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching RSVPs',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Poll endpoints
+app.post('/api/community/posts/:id/poll/vote', verifyJWT, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Poll voting feature coming soon',
+      data: { postId: req.params.id, userId: req.user.userId }
+    });
+  } catch (error) {
+    console.error('Error voting on poll:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error voting on poll',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+app.get('/api/community/posts/:id/poll/results', async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid post ID format'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {},
+      message: 'Poll results feature coming soon'
+    });
+  } catch (error) {
+    console.error('Error fetching poll results:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching poll results',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// ============================================================================
+// ROUTES ALREADY MOUNTED ABOVE
+// ============================================================================
+// Note: Routes are already mounted earlier in this file around lines 4660-4860
+// - app.use('/api/reviews', reviewsRoutes)
+// - app.use('/api/favorites', favoritesRoutes)
+// - app.use('/api/profile', profileRoutes)
+// - app.use('/api/admin', adminRoutes)
+// - app.use('/api/revenue', revenueRoutes)
+// - app.use('/api/notifications', notificationsRoutes)
+// - app.use('/api/community', communityRoutes)
+// 
+// Missing route modules need to be imported and mounted:
+const productsRoutes = require('./routes/products');
+const artisansRoutes = require('./routes/artisans');
+const authRoutes = require('./routes/auth');
+const ordersRoutes = require('./routes/orders');
+const uploadRoutes = require('./routes/upload');
+const promotionalRoutes = require('./routes/promotional');
+
+// Mount the missing routes
+app.use('/api/products', productsRoutes);
+app.use('/api/artisans', artisansRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/orders', ordersRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/promotional', promotionalRoutes);
+
+// Start server for local development
 if (require.main === module) {
-  startServer();
+  const PORT = process.env.PORT || 4000;
+  const server = app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
+  });
+  
+  server.on('error', (err) => {
+    console.error('Server error:', err);
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use`);
+    }
+  });
 }
+
+// Export for Vercel
+module.exports = app;

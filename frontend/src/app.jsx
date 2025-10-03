@@ -23,8 +23,10 @@ const ArtisanOnlyRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
   
-  // Check if user is an artisan
-  if (user.role !== 'artisan') {
+  // Check if user is an artisan (check both role and userType for compatibility)
+  const isArtisan = user.role === 'artisan' || user.userType === 'artisan';
+  
+  if (!isArtisan) {
     // Redirect patrons to home page
     return <Navigate to="/" replace />;
   }
@@ -43,16 +45,12 @@ const Profile = lazy(() => import("./components/Profile.jsx"));
 const Account = lazy(() => import("./components/Account.jsx"));
 const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
 
-
 const Products = lazy(() => import("./components/Products.jsx"));
 const Orders = lazy(() => import("./components/Orders.jsx"));
 const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const Search = lazy(() => import("./components/Search.jsx"));
 const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
-const SimpleTest = lazy(() => import("./components/SimpleTest.jsx"));
-const SearchTrackingTest = lazy(() => import("./components/SearchTrackingTest.jsx"));
-const BrevoTest = lazy(() => import("./components/BrevoTest.jsx"));
 
 const DashboardTest = lazy(() => import("./components/dashboard/DashboardTest.jsx"));
 const UserRoleCheck = lazy(() => import("./components/dashboard/UserRoleCheck.jsx"));
@@ -84,6 +82,7 @@ const AdminGeographicSettings = lazy(() => import("./components/AdminGeographicS
 const GeographicSettingsTest = lazy(() => import("./components/GeographicSettingsTest.jsx"));
 const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
 const ArtisanProductManagement = lazy(() => import("./components/ArtisanProductManagement.jsx"));
+const ArtisanRevenueDashboard = lazy(() => import("./components/ArtisanRevenueDashboard.jsx"));
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
@@ -99,18 +98,25 @@ function AppRoutes() {
       preloadProfileFast();
     }
     
-    // Preload critical data for current route
-    const currentPath = window.location.pathname;
-    preloadService.preloadForRoute(currentPath);
-    
-    // Initialize order notification service for artisans
-    if (isAuthenticated) {
-      orderNotificationService.connect();
-    }
-    
-    // Initialize Brevo notification service
-    // API key will be loaded from environment variable or use fallback
-    initializeNotificationService();
+    // Initialize services in non-blocking way
+    setTimeout(() => {
+      try {
+        // Preload critical data for current route
+        const currentPath = window.location.pathname;
+        preloadService.preloadForRoute(currentPath);
+        
+        // Initialize order notification service for artisans
+        if (isAuthenticated) {
+          orderNotificationService.connect();
+        }
+        
+        // Initialize Brevo notification service
+        // API key will be loaded from environment variable or use fallback
+        initializeNotificationService();
+      } catch (error) {
+        console.error('Error initializing services:', error);
+      }
+    }, 50); // Small delay to ensure UI is responsive
     
     return () => {
       performanceService.endTimer('app_mount');
@@ -156,10 +162,7 @@ function AppRoutes() {
           path="/account"
           element={isAuthenticated ? <Account /> : <Navigate to="/login" />}
         />
-        <Route
-          path="/products"
-          element={isAuthenticated ? <Products /> : <Navigate to="/login" />}
-        />
+        <Route path="/products" element={<Products />} />
         <Route
           path="/orders"
           element={isAuthenticated ? <Orders /> : <Navigate to="/login" />}
@@ -168,9 +171,6 @@ function AppRoutes() {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/search-page" element={<Search />} />
         <Route path="/test-reference" element={<TestReferenceData />} />
-        <Route path="/simple-test" element={<SimpleTest />} />
-        <Route path="/search-tracking-test" element={<SearchTrackingTest />} />
-        <Route path="/brevo-test" element={<BrevoTest />} />
 
         <Route path="/dashboard-test" element={<DashboardTest />} />
         <Route path="/user-role-check" element={<UserRoleCheck />} />
@@ -196,6 +196,14 @@ function AppRoutes() {
           element={
             <ArtisanOnlyRoute>
               <MyWallet />
+            </ArtisanOnlyRoute>
+          }
+        />
+        <Route
+          path="/revenue-dashboard"
+          element={
+            <ArtisanOnlyRoute>
+              <ArtisanRevenueDashboard />
             </ArtisanOnlyRoute>
           }
         />

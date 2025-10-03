@@ -93,7 +93,7 @@ export default function PromotionalDashboard() {
           <select
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
           >
             <option value="7">Last 7 days</option>
             <option value="30">Last 30 days</option>
@@ -107,8 +107,8 @@ export default function PromotionalDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-amber-600" />
+            <div className="p-2 bg-primary-100 rounded-lg">
+              <CurrencyDollarIcon className="w-6 h-6 text-primary" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Spotlight Revenue</p>
@@ -166,7 +166,7 @@ export default function PromotionalDashboard() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <SparklesIcon className="w-5 h-5 mr-2 text-amber-500" />
+            <SparklesIcon className="w-5 h-5 mr-2 text-primary-500" />
             Active Spotlight Subscriptions
           </h3>
         </div>
@@ -279,9 +279,9 @@ export default function PromotionalDashboard() {
       )}
 
       {/* Summary */}
-      <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border border-amber-200 p-6">
+      <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg border border-primary-200 p-6">
         <div className="flex items-center mb-4">
-          <ArrowTrendingUpIcon className="w-6 h-6 text-amber-600 mr-2" />
+          <ArrowTrendingUpIcon className="w-6 h-6 text-primary mr-2" />
           <h3 className="text-lg font-semibold text-gray-900">Performance Summary</h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

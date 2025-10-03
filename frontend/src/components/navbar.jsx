@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import OptimizedLink from "./OptimizedLink";
 import Logo from "./Logo";
+import CartDropdown from "./CartDropdown";
 import { 
   ShoppingBagIcon, 
   UserIcon, 
@@ -28,6 +29,8 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const [isGuest, setIsGuest] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showCartDropdown, setShowCartDropdown] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,6 +64,15 @@ export default function Navbar() {
       return true;
     });
   }, [popularSearches]);
+
+  // Scroll detection for navbar effects
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Update cart count when user changes - optimized to prevent excessive calls
   useOptimizedEffect(() => {
@@ -355,52 +367,46 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="bg-[#D77A61] shadow-lg sticky top-0 z-50">
+    <nav className={`sticky top-0 z-50 transition-all duration-300 ${
+      scrolled 
+        ? 'bg-white shadow-md' 
+        : 'bg-white/90 backdrop-blur-sm shadow-soft'
+    }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <OptimizedLink to="/" className="flex items-center flex-shrink-0">
-            <Logo showText={true} className="w-10 h-10" textColor="text-white" />
+          {/* Logo + BazaarMkt Text */}
+          <OptimizedLink to="/" className="flex items-center gap-3 flex-shrink-0">
+            <Logo showText={false} className="w-10 h-10" />
+            <span className="text-xl font-display font-bold text-primary">BazaarMkt</span>
           </OptimizedLink>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6 ml-8 flex-shrink-0">
-            <OptimizedLink to="/" className="text-white hover:text-[#E6B655] transition-colors font-medium text-base">
-              Home
-            </OptimizedLink>
-              <OptimizedLink to="/find-artisans" className="text-white hover:text-[#E6B655] transition-colors font-medium text-base">
-                Find Artisan
-              </OptimizedLink>
-            <Link to="/community" className="text-white hover:text-[#E6B655] transition-colors font-medium text-base">
-              Community
-            </Link>
-          </div>
-
-          {/* Enhanced Search Bar with Category Dropdown */}
-          <div className="hidden md:flex flex-1 max-w-lg mx-6 search-container">
+          {/* Search Bar (Desktop) */}
+          <div className="hidden lg:flex items-center flex-1 ml-12">
+            {/* Compact Search */}
+            <div className="flex-1 max-w-md ml-8 search-container">
             <form onSubmit={handleSearch} className="w-full">
               <div className="relative">
                 <div className="flex shadow-lg">
-                  {/* Category Dropdown */}
+                  {/* Category Dropdown - More Subtle */}
                   <div className="relative">
                     <button
                       type="button"
                       onClick={toggleCategoryDropdown}
-                      className={`flex items-center space-x-2 px-3 py-2 border border-r-0 border-[#E6B655] rounded-l-full transition-all duration-200 min-w-[140px] font-medium ${
+                      className={`flex items-center space-x-1 px-2 py-1.5 border border-r-0 rounded-l-lg transition-all duration-200 min-w-[90px] ${
                         selectedCategory !== 'all' || selectedSubcategory 
-                          ? 'bg-[#E6B655] text-white border-[#E6B655] hover:bg-[#3C6E47] hover:border-[#3C6E47]' 
-                          : 'bg-white text-gray-700 hover:bg-[#F5F1EA] hover:border-[#3C6E47]'
+                          ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20' 
+                          : 'bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100'
                       }`}
                     >
-                      <span className="text-base">
+                      <span className="text-sm">
                         {selectedSubcategory ? selectedSubcategory.icon : 
-                         selectedCategory === 'all' ? '🌟' : 
-                         categories.find(c => c.key === selectedCategory)?.icon || '🌟'}
+                         selectedCategory === 'all' ? '🔍' : 
+                         categories.find(c => c.key === selectedCategory)?.icon || '🔍'}
                       </span>
-                      <span className="text-xs font-medium truncate">
+                      <span className="text-xs truncate">
                         {selectedSubcategory ? selectedSubcategory.name : 
-                         selectedCategory === 'all' ? 'All Products' : 
-                         categories.find(c => c.key === selectedCategory)?.name || 'All Products'}
+                         selectedCategory === 'all' ? 'All' : 
+                         categories.find(c => c.key === selectedCategory)?.name || 'All'}
                       </span>
                       <ChevronDownIcon className="w-3 h-3 flex-shrink-0" />
                     </button>
@@ -479,31 +485,30 @@ export default function Navbar() {
                     </div>
                   )}
                   
-                  {/* Search Input */}
+                  {/* Search Input - Compact, no icon */}
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={togglePopularSearches}
-                    placeholder="Search for products..."
-                    className="flex-1 px-4 py-2 border border-[#E6B655] rounded-r-full focus:ring-2 focus:ring-[#E6B655]/20 focus:border-[#3C6E47] transition-all duration-200 text-sm placeholder-gray-500"
+                    placeholder="Search for bread, jam, jewelry, artisans..."
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-primary-100 focus:border-gray-400 transition-all duration-200 placeholder-gray-400 bg-white"
                   />
                 </div>
                 
                 {/* Popular Searches Dropdown */}
                 {showPopularSearches && searchQuery === '' && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-[#E6B655] rounded-xl shadow-2xl z-50">
-                    <div className="p-6">
-                      <p className="text-base font-semibold text-gray-800 mb-4 flex items-center">
-                        <SparklesIcon className="w-5 h-5 text-[#E6B655] mr-2" />
-                        Popular product searches:
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+                    <div className="p-3">
+                      <p className="text-xs font-semibold text-secondary mb-2">
+                        Popular searches:
                       </p>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-2">
                         {deduplicatedPopularSearches.map((search, index) => (
                           <button
                             key={`${search}-${index}`}
                             onClick={() => handlePopularSearch(search)}
-                            className="px-4 py-2 bg-[#F5F1EA] hover:bg-[#E6B655] text-gray-700 hover:text-white rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 border border-[#E6B655]"
+                            className="px-2 py-1 bg-gray-100 hover:bg-primary text-gray-700 hover:text-white rounded text-xs font-medium transition-all duration-200"
                           >
                             {search}
                           </button>
@@ -512,92 +517,104 @@ export default function Navbar() {
                     </div>
                   </div>
                 )}
-                
-                <MagnifyingGlassIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[#E6B655] pointer-events-none" />
               </div>
             </form>
+            </div>
           </div>
 
-          {/* Right side actions */}
-          <div className="flex items-center space-x-3 flex-shrink-0">
+          {/* Nav Links - Between search and cart */}
+          <div className="hidden lg:flex items-center gap-10 ml-auto mr-20">
+            <Link to="/find-artisans" className="text-secondary/90 hover:text-primary font-semibold text-sm transition-colors whitespace-nowrap">
+              Shop
+            </Link>
+            <Link to="/community" className="text-secondary/90 hover:text-primary font-semibold text-sm transition-colors whitespace-nowrap">
+              Community
+            </Link>
+          </div>
+
+          {/* Right side CTAs */}
+          <div className="flex items-center gap-3 flex-shrink-0">
             {/* Cart - Available for all users except artisans */}
-            {(!user || user?.role !== 'artisan') && (
-              <Link to="/cart" className="relative p-2 text-white hover:text-[#E6B655] transition-colors duration-300">
-                <ShoppingBagIcon className="w-5 h-5" />
+            {(!user || (user?.role !== 'artisan' && user?.userType !== 'artisan')) && (
+              <button 
+                onClick={() => setShowCartDropdown(!showCartDropdown)}
+                className="relative p-2 text-secondary hover:text-primary transition-colors duration-200"
+              >
+                <ShoppingBagIcon className="w-6 h-6" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#3C6E47] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
-              </Link>
+              </button>
             )}
 
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (
-              <div className="flex items-center space-x-2">
-                <Link to="/login" className="text-white hover:text-[#E6B655] transition-colors text-sm font-semibold px-3 py-2 rounded-lg hover:bg-white/10">
+              <>
+                <Link to="/login" className="hidden sm:block text-secondary/80 hover:text-primary transition-colors text-sm font-semibold">
                   Sign In
                 </Link>
-                <Link to="/register" className="bg-[#3C6E47] text-white px-4 py-2 rounded-lg hover:bg-[#2E2E2E] transition-all duration-200 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105">
+                <Link to="/register" className="btn-primary text-sm px-5 py-2">
                   Join Now
                 </Link>
-              </div>
+              </>
             ) : (
               <div className="relative group">
-                <button className="flex items-center space-x-2 p-2 text-stone-700 hover:text-amber-600 transition-colors duration-300">
+                <button className="flex items-center space-x-2 p-2 text-secondary/80 hover:text-primary transition-colors duration-200">
                   <UserIcon className="w-6 h-6" />
-                  <span className="hidden sm:block text-sm font-medium">
+                  <span className="hidden xl:block text-sm font-medium">
                     {isGuest ? 'Guest Checkout' : 'My Account'}
                   </span>
                 </button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-stone-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   {!isGuest && (
                     <>
                       {/* Admin Dashboard Link */}
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.userType === 'admin') && (
                         <>
                           <Link to="/admin" className="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium">
                             Admin Dashboard
                           </Link>
-                          <hr className="my-2 border-stone-200" />
+                          <hr className="my-2 border-gray-200" />
                         </>
                       )}
-                      {user?.role !== 'admin' && (
+                      {(user?.role !== 'admin' && user?.userType !== 'admin') && (
                         <>
-                          {user?.role === 'artisan' && (
+                          {(user?.role === 'artisan' || user?.userType === 'artisan') && (
                             <>
-                              <Link to="/dashboard" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/dashboard" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
                                 Dashboard
                               </Link>
-                              <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/profile" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
                                 My Profile
                               </Link>
-                              <Link to="/my-products" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/my-products" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
                                 My Products
                               </Link>
-                              <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/orders" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
                                 My Orders
                               </Link>
                             </>
                           )}
-                          {user?.role !== 'artisan' && (
+                          {(user?.role !== 'artisan' && user?.userType !== 'artisan') && (
                             <>
-                              <Link to="/profile" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/profile" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
                                 My Profile
                               </Link>
-                              <Link to="/orders" className="block px-4 py-2 text-sm text-stone-700 hover:bg-stone-50">
+                              <Link to="/orders" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
                                 My Orders
                               </Link>
                             </>
                           )}
                         </>
                       )}
-                      <hr className="my-2 border-stone-200" />
+                      <hr className="my-2 border-gray-200" />
                     </>
                   )}
                   <button
                     onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50"
+                    className="block w-full text-left px-4 py-2 text-sm text-secondary hover:bg-gray-50"
                   >
                     {isGuest ? 'Clear Session' : 'Sign Out'}
                   </button>
@@ -605,17 +622,17 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* Mobile menu button */}
-            <button
-              onClick={toggleMobileMenu}
-              className="md:hidden p-2 text-stone-700 hover:text-amber-600 transition-colors duration-300"
-            >
-              {isMobileMenuOpen ? (
-                <XMarkIcon className="w-6 h-6" />
-              ) : (
-                <Bars3Icon className="w-6 h-6" />
-              )}
-            </button>
+          {/* Mobile menu button */}
+          <button
+            onClick={toggleMobileMenu}
+            className="lg:hidden p-2 text-secondary hover:text-primary transition-colors duration-200"
+          >
+            {isMobileMenuOpen ? (
+              <XMarkIcon className="w-6 h-6" />
+            ) : (
+              <Bars3Icon className="w-6 h-6" />
+            )}
+          </button>
           </div>
         </div>
 
@@ -631,7 +648,7 @@ export default function Navbar() {
                     onClick={toggleCategoryDropdown}
                     className={`flex items-center space-x-1 px-2 py-2 border border-r-0 border-gray-300 rounded-l-lg text-sm ${
                       selectedCategory !== 'all' || selectedSubcategory 
-                        ? 'bg-amber-50 border-amber-300' 
+                        ? 'bg-primary-50 border-primary-300' 
                         : 'bg-gray-50'
                     }`}
                   >
@@ -717,7 +734,7 @@ export default function Navbar() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={togglePopularSearches}
                   placeholder="Search products..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
               
@@ -731,7 +748,7 @@ export default function Navbar() {
                         <button
                           key={`mobile-${search}-${index}`}
                           onClick={() => handlePopularSearch(search)}
-                          className="px-2 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-700 rounded text-xs transition-colors"
+                          className="px-2 py-1 bg-gray-100 hover:bg-primary-100 text-gray-700 hover:text-primary-dark rounded text-xs transition-colors"
                         >
                           {search}
                         </button>
@@ -761,7 +778,7 @@ export default function Navbar() {
               className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
-              Find Artisan
+              Shop
             </OptimizedLink>
             <Link
               to="/community"
@@ -773,7 +790,7 @@ export default function Navbar() {
             {isAuthenticated && (
               <>
                 {/* Admin Dashboard Link */}
-                {user?.role === 'admin' && (
+                {(user?.role === 'admin' || user?.userType === 'admin') && (
                   <Link
                     to="/admin"
                     className="block px-3 py-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-300"
@@ -782,9 +799,9 @@ export default function Navbar() {
                     Admin Dashboard
                   </Link>
                 )}
-                                  {user?.role !== 'admin' && (
+                                  {(user?.role !== 'admin' && user?.userType !== 'admin') && (
                     <>
-                      {user?.role === 'artisan' && (
+                      {(user?.role === 'artisan' || user?.userType === 'artisan') && (
                         <>
                           <Link
                             to="/dashboard"
@@ -801,7 +818,7 @@ export default function Navbar() {
                             My Profile
                           </Link>
                           <Link
-                            to="/products"
+                            to="/my-products"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
@@ -823,7 +840,7 @@ export default function Navbar() {
                           </Link>
                         </>
                       )}
-                      {user?.role !== 'artisan' && (
+                      {(user?.role !== 'artisan' && user?.userType !== 'artisan') && (
                         <>
                           <Link
                             to="/profile"
@@ -872,28 +889,27 @@ export default function Navbar() {
                   Join Now
                 </Link>
                 {cartCount > 0 && (
-                  <>
-                    <Link
-                      to="/cart"
-                      className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#3C6E47] hover:bg-[#2E5A3A] rounded-lg transition-colors duration-300"
-                      onClick={toggleMobileMenu}
-                    >
-                      View Cart ({cartCount})
-                    </Link>
-                    <Link
-                      to="/guest-checkout"
-                      className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#E6B655] hover:bg-[#D4A545] rounded-lg transition-colors duration-300"
-                      onClick={toggleMobileMenu}
-                    >
-                      Guest Checkout ({cartCount})
-                    </Link>
-                  </>
+                  <button
+                    onClick={() => {
+                      toggleMobileMenu();
+                      setShowCartDropdown(true);
+                    }}
+                    className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#3C6E47] hover:bg-[#2E5A3A] rounded-lg transition-colors duration-300"
+                  >
+                    View Cart ({cartCount})
+                  </button>
                 )}
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Cart Dropdown */}
+      <CartDropdown 
+        isOpen={showCartDropdown} 
+        onClose={() => setShowCartDropdown(false)} 
+      />
     </nav>
   );
 }

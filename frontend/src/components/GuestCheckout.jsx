@@ -194,13 +194,13 @@ export default function GuestCheckout() {
 
   if (step === 'confirmation') {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckIcon className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-stone-900 mb-2">Order Confirmed!</h2>
-          <p className="text-stone-600 mb-6">
+          <p className="text-gray-600 mb-6">
             Thank you for your order! We'll send you updates via email. 
             Create an account to track your orders and save your information for future purchases.
           </p>
@@ -224,43 +224,43 @@ export default function GuestCheckout() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/cart')}
-            className="flex items-center text-stone-600 hover:text-amber-600 transition-colors duration-300 mb-4"
+            className="flex items-center text-gray-600 hover:text-primary transition-colors duration-300 mb-4"
           >
             <ArrowLeftIcon className="w-5 h-5 mr-2" />
             Back to Cart
           </button>
           <h1 className="text-3xl font-bold text-stone-900 mb-2">Guest Checkout</h1>
-          <p className="text-stone-600">Complete your purchase as a guest</p>
+          <p className="text-gray-600">Complete your purchase as a guest</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               {/* Progress Steps */}
               <div className="flex items-center justify-between mb-8">
-                <div className={`flex items-center ${step === 'info' ? 'text-amber-600' : 'text-stone-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'info' ? 'bg-amber-100' : 'bg-stone-100'}`}>
+                <div className={`flex items-center ${step === 'info' ? 'text-primary' : 'text-stone-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'info' ? 'bg-primary-100' : 'bg-gray-100'}`}>
                     <UserIcon className="w-4 h-4" />
                   </div>
                   <span className="ml-2 text-sm font-medium">Guest Info</span>
                 </div>
-                <div className={`flex-1 h-px mx-4 ${step === 'address' || step === 'payment' ? 'bg-amber-600' : 'bg-stone-200'}`}></div>
-                <div className={`flex items-center ${step === 'address' ? 'text-amber-600' : step === 'payment' ? 'text-stone-400' : 'text-stone-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'address' ? 'bg-amber-100' : 'bg-stone-100'}`}>
+                <div className={`flex-1 h-px mx-4 ${step === 'address' || step === 'payment' ? 'bg-primary' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center ${step === 'address' ? 'text-primary' : step === 'payment' ? 'text-stone-400' : 'text-stone-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'address' ? 'bg-primary-100' : 'bg-gray-100'}`}>
                     <MapPinIcon className="w-4 h-4" />
                   </div>
                   <span className="ml-2 text-sm font-medium">Address</span>
                 </div>
-                <div className={`flex-1 h-px mx-4 ${step === 'payment' ? 'bg-amber-600' : 'bg-stone-200'}`}></div>
-                <div className={`flex items-center ${step === 'payment' ? 'text-amber-600' : 'text-stone-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'payment' ? 'bg-amber-100' : 'bg-stone-100'}`}>
+                <div className={`flex-1 h-px mx-4 ${step === 'payment' ? 'bg-primary' : 'bg-gray-200'}`}></div>
+                <div className={`flex items-center ${step === 'payment' ? 'text-primary' : 'text-stone-400'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'payment' ? 'bg-primary-100' : 'bg-gray-100'}`}>
                     <CreditCardIcon className="w-4 h-4" />
                   </div>
                   <span className="ml-2 text-sm font-medium">Payment</span>
@@ -273,42 +273,42 @@ export default function GuestCheckout() {
                   <h2 className="text-xl font-semibold text-stone-900 mb-6">Guest Information</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">First Name *</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">First Name *</label>
                       <input
                         type="text"
                         value={guestInfo.firstName}
                         onChange={(e) => setGuestInfo({...guestInfo, firstName: e.target.value})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter your first name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">Last Name *</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">Last Name *</label>
                       <input
                         type="text"
                         value={guestInfo.lastName}
                         onChange={(e) => setGuestInfo({...guestInfo, lastName: e.target.value})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter your last name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">Email *</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">Email *</label>
                       <input
                         type="email"
                         value={guestInfo.email}
                         onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter your email"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">Phone</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
                       <input
                         type="tel"
                         value={guestInfo.phone}
                         onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter your phone number"
                       />
                     </div>
@@ -321,43 +321,43 @@ export default function GuestCheckout() {
                   <h2 className="text-xl font-semibold text-stone-900 mb-6">Delivery Address</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">Street Address *</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">Street Address *</label>
                       <input
                         type="text"
                         value={deliveryAddress.street}
                         onChange={(e) => setDeliveryAddress({...deliveryAddress, street: e.target.value})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Enter your street address"
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">City *</label>
+                        <label className="block text-sm font-medium text-secondary mb-2">City *</label>
                         <input
                           type="text"
                           value={deliveryAddress.city}
                           onChange={(e) => setDeliveryAddress({...deliveryAddress, city: e.target.value})}
-                          className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                           placeholder="City"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">State/Province *</label>
+                        <label className="block text-sm font-medium text-secondary mb-2">State/Province *</label>
                         <input
                           type="text"
                           value={deliveryAddress.state}
                           onChange={(e) => setDeliveryAddress({...deliveryAddress, state: e.target.value})}
-                          className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                           placeholder="State"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">ZIP/Postal Code *</label>
+                        <label className="block text-sm font-medium text-secondary mb-2">ZIP/Postal Code *</label>
                         <input
                           type="text"
                           value={deliveryAddress.zipCode}
                           onChange={(e) => setDeliveryAddress({...deliveryAddress, zipCode: e.target.value})}
-                          className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                           placeholder="ZIP Code"
                         />
                       </div>
@@ -371,33 +371,33 @@ export default function GuestCheckout() {
                   <h2 className="text-xl font-semibold text-stone-900 mb-6">Payment Information</h2>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">Card Number *</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">Card Number *</label>
                       <input
                         type="text"
                         value={paymentInfo.cardNumber}
                         onChange={(e) => setPaymentInfo({...paymentInfo, cardNumber: formatCardNumber(e.target.value)})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="1234 5678 9012 3456"
                         maxLength="19"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-stone-700 mb-2">Cardholder Name *</label>
+                      <label className="block text-sm font-medium text-secondary mb-2">Cardholder Name *</label>
                       <input
                         type="text"
                         value={paymentInfo.cardholderName}
                         onChange={(e) => setPaymentInfo({...paymentInfo, cardholderName: e.target.value})}
-                        className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="Name on card"
                       />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">Expiry Month *</label>
+                        <label className="block text-sm font-medium text-secondary mb-2">Expiry Month *</label>
                         <select
                           value={paymentInfo.expiryMonth}
                           onChange={(e) => setPaymentInfo({...paymentInfo, expiryMonth: e.target.value})}
-                          className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         >
                           <option value="">MM</option>
                           {Array.from({length: 12}, (_, i) => i + 1).map(month => (
@@ -408,11 +408,11 @@ export default function GuestCheckout() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">Expiry Year *</label>
+                        <label className="block text-sm font-medium text-secondary mb-2">Expiry Year *</label>
                         <select
                           value={paymentInfo.expiryYear}
                           onChange={(e) => setPaymentInfo({...paymentInfo, expiryYear: e.target.value})}
-                          className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                         >
                           <option value="">YYYY</option>
                           {Array.from({length: 10}, (_, i) => new Date().getFullYear() + i).map(year => (
@@ -421,12 +421,12 @@ export default function GuestCheckout() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">CVV *</label>
+                        <label className="block text-sm font-medium text-secondary mb-2">CVV *</label>
                         <input
                           type="text"
                           value={paymentInfo.cvv}
                           onChange={(e) => setPaymentInfo({...paymentInfo, cvv: e.target.value.replace(/\D/g, '').slice(0, 4)})}
-                          className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                           placeholder="123"
                           maxLength="4"
                         />
@@ -437,7 +437,7 @@ export default function GuestCheckout() {
               )}
 
               {/* Navigation */}
-              <div className="flex justify-between mt-8 pt-6 border-t border-stone-200">
+              <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
                 {step !== 'info' && (
                   <button
                     onClick={() => setStep(step === 'address' ? 'info' : 'address')}
@@ -459,7 +459,7 @@ export default function GuestCheckout() {
 
           {/* Order Summary */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 sticky top-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-8">
               <h3 className="text-lg font-semibold text-stone-900 mb-4">Order Summary</h3>
               
               <div className="space-y-3 mb-4">
@@ -476,15 +476,15 @@ export default function GuestCheckout() {
                 ))}
               </div>
               
-              <div className="border-t border-stone-200 pt-4">
+              <div className="border-t border-gray-200 pt-4">
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total:</span>
                   <span>{formatPrice(cartTotal)}</span>
                 </div>
               </div>
               
-              <div className="mt-4 p-3 bg-amber-50 rounded-lg">
-                <p className="text-xs text-amber-800">
+              <div className="mt-4 p-3 bg-primary-50 rounded-lg">
+                <p className="text-xs text-primary-800">
                   <strong>Guest Checkout:</strong> You'll receive order updates via email. 
                   Create an account after checkout to track orders and save your information.
                 </p>

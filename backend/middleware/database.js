@@ -3,7 +3,7 @@
  * Attaches database connection to request object
  */
 
-const { getDB } = require('../lib/database');
+const { getDB } = require('../config/database');
 
 /**
  * Middleware to attach database connection to request

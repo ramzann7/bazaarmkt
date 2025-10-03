@@ -77,7 +77,6 @@ app.use('/api', rateLimiter.apiRateLimiter);
 app.get('/api/health', async (req, res) => {
   try {
     const dbStats = database.getStats();
-    const envConfig = environment.getEnvironmentConfig();
     
     res.json({
       success: true,
@@ -85,8 +84,9 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
       database: {
-        connected: dbStats.isConnected,
-        lastConnected: dbStats.lastConnectedAt
+        connected: dbStats.connected,
+        connectionAttempts: dbStats.connectionAttempts,
+        databaseName: dbStats.databaseName
       },
       config: {
         corsOrigins: environment.getCorsOrigins().length,
@@ -113,7 +113,6 @@ app.get('/api/debug', async (req, res) => {
 
   try {
     const dbStats = database.getStats();
-    const envConfig = environment.getEnvironmentConfig();
     
     res.json({
       success: true,

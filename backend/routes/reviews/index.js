@@ -181,35 +181,25 @@ const getArtisanReviews = async (req, res) => {
     const reviewsCollection = db.collection('reviews');
 
     const reviews = await reviewsCollection.aggregate([
-      { $match: { artisanId: new ObjectId(artisanId) } },
+      { $match: { artisan: new ObjectId(artisanId) } },
       { $sort: { createdAt: -1 } },
       { $skip: offset },
       { $limit: limit },
       {
         $lookup: {
           from: 'users',
-          localField: 'userId',
+          localField: 'user',
           foreignField: '_id',
           as: 'user',
           pipeline: [{ $project: { firstName: 1, lastName: 1 } }]
         }
       },
-      { $unwind: '$user' },
-      {
-        $lookup: {
-          from: 'products',
-          localField: 'productId',
-          foreignField: '_id',
-          as: 'product',
-          pipeline: [{ $project: { name: 1 } }]
-        }
-      },
-      { $unwind: '$product' }
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } }
     ]).toArray();
 
     // Calculate average rating for artisan
     const avgResult = await reviewsCollection.aggregate([
-      { $match: { artisanId: new ObjectId(artisanId) } },
+      { $match: { artisan: new ObjectId(artisanId) } },
       {
         $group: {
           _id: null,

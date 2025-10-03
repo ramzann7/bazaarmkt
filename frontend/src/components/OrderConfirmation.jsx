@@ -474,7 +474,7 @@ export default function OrderConfirmation() {
                             {(item.product?.image || item.image) && (
                               <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 print:hidden">
                                 <img 
-                                  src={getImageUrl(item.product?.image || item.image)} 
+                                  src={getImageUrl(item.product?.image || item.image, { width: 64, height: 64, quality: 80 })} 
                                   alt={item.product?.name || item.name || 'Product'}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {

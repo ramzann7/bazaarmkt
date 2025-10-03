@@ -296,29 +296,8 @@ export default function Home() {
     loadUserLocation();
   }, [user]);
 
-  // Load nearby products on component mount and when user changes
-  useOptimizedEffect(() => {
-    // Load nearby products (depends on user location)
-    loadNearbyProducts();
-  }, [user], { skipFirstRender: false });
-
-  // Also load nearby products on component mount (independent of user)
-  useOptimizedEffect(() => {
-    // Load nearby products on initial mount
-    loadNearbyProducts();
-  }, [], { skipFirstRender: false });
-
-  // Retry loading nearby products if they fail to load (with retry limit)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (nearbyProducts.length === 0 && !isLoadingNearby && !userLocation) {
-        console.log('🔄 Retrying nearby products loading...');
-        loadNearbyProducts();
-      }
-    }, 5000); // Retry after 5 seconds, only if no user location
-
-    return () => clearTimeout(timer);
-  }, [nearbyProducts.length, isLoadingNearby, userLocation]);
+  // Note: Nearby products are no longer loaded automatically on home page
+  // They are only loaded when user clicks "Find Near Me" button
 
   // Handle user logout gracefully - preserve product data
   useEffect(() => {
@@ -326,9 +305,7 @@ export default function Home() {
       // User logged out - preserve existing product data but clear user-specific data
       console.log('🔄 User logged out - preserving product data, clearing user-specific data');
       
-      // Clear nearby products since they depend on user location
-      setNearbyProducts([]);
-      setIsLoadingNearby(false);
+      // Clear user location (nearby products are not loaded on home page)
       setUserLocation(null);
       
       // Clear product service cache to ensure fresh data
@@ -561,10 +538,8 @@ export default function Home() {
     setUserLocation(locationData);
     setShowLocationPrompt(false);
     
-    // Reload nearby products with new location
-    if (locationData.lat && locationData.lng) {
-      loadNearbyProducts(locationData.lat, locationData.lng);
-    }
+    // Note: Nearby products are not loaded on home page
+    // They will be loaded when user navigates to search page
   };
 
   const handleLocationDismiss = () => {
@@ -860,8 +835,8 @@ export default function Home() {
     setSelectedProduct(null);
   };
 
-  // Helper function to get image URL
-  const getImageUrl = (imagePath) => {
+  // Helper function to get optimized image URL
+  const getImageUrl = (imagePath, options = {}) => {
     if (!imagePath) return null;
     
     // Handle base64 data URLs
@@ -879,18 +854,22 @@ export default function Home() {
       return imagePath;
     }
     
-    // Handle relative paths (legacy support)
+    // Use optimized image endpoint for local uploads
     if (imagePath.startsWith('/uploads/')) {
-      return `${config.BASE_URL}${imagePath}`;
+      const { width = 400, height = 400, quality = 80 } = options;
+      const imagePathWithoutPrefix = imagePath.replace('/uploads/', '');
+      return `${config.BASE_URL}/api/images/optimize/${imagePathWithoutPrefix}?width=${width}&height=${height}&quality=${quality}`;
     }
     
     // Handle paths that need /uploads prefix (legacy support)
     if (imagePath.startsWith('/')) {
-      return `${config.BASE_URL}${imagePath}`;
+      const { width = 400, height = 400, quality = 80 } = options;
+      return `${config.BASE_URL}/api/images/optimize/${imagePath.substring(1)}?width=${width}&height=${height}&quality=${quality}`;
     }
     
     // Handle paths without leading slash (legacy support)
-    return `${config.BASE_URL}/${imagePath}`;
+    const { width = 400, height = 400, quality = 80 } = options;
+    return `${config.BASE_URL}/api/images/optimize/${imagePath}?width=${width}&height=${height}&quality=${quality}`;
   };
 
   const formatPrice = (price) => {
@@ -1049,7 +1028,7 @@ export default function Home() {
             <HorizontalProductScroll
               title="Featured Products"
               products={availableFeaturedProducts}
-              backgroundColor="#F5F1EA"
+              backgroundColor="#FCFBF8"
             />
           )}
         </div>
@@ -1205,7 +1184,7 @@ export default function Home() {
               <div className="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
                 {selectedProduct.image ? (
                   <img
-                    src={getImageUrl(selectedProduct.image)}
+                    src={getImageUrl(selectedProduct.image, { width: 600, height: 400, quality: 85 })}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {

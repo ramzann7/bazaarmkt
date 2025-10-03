@@ -182,7 +182,7 @@ function AppRoutes() {
         <Route path="/login-debug" element={<LoginDebug />} />
         <Route path="/artisan/:id" element={<ArtisanShop />} />
         <Route path="/shop/:id" element={<ArtisanShop />} />
-        <Route path="/find-artisans" element={<FindArtisans />} />
+        <Route path="/find-artisans" element={<Artisans />} />
         <Route
           path="/my-products"
           element={

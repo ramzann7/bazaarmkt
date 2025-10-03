@@ -1183,7 +1183,7 @@ export default function Products() {
                     {product.image ? (
                       <>
                         <img 
-                          src={getImageUrl(product.image)} 
+                          src={getImageUrl(product.image, { width: 300, height: 224, quality: 80 })} 
                           alt={product.name}
                           className="w-full h-full object-cover"
                           onLoad={() => {
@@ -1932,7 +1932,7 @@ export default function Products() {
                         {(editingProduct.imagePreview || editingProduct.image) ? (
                           <div className="relative inline-block">
                             <img 
-                              src={editingProduct.imagePreview || getImageUrl(editingProduct.image)} 
+                              src={editingProduct.imagePreview || getImageUrl(editingProduct.image, { width: 128, height: 128, quality: 80 })} 
                               alt="Preview"
                               className="w-32 h-32 object-cover rounded-lg border border-gray-300 shadow-md"
                             />

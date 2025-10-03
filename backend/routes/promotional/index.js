@@ -20,6 +20,49 @@ router.get('/products/featured', async (req, res) => {
   }
 });
 
+// Get bulk promotional features for artisans
+router.get('/artisans/bulk', async (req, res) => {
+  try {
+    const { artisanIds } = req.query;
+    
+    if (!artisanIds) {
+      return res.status(400).json({
+        success: false,
+        message: 'artisanIds parameter is required'
+      });
+    }
+    
+    // For now, return empty promotional features to avoid 404 errors
+    // This endpoint can be enhanced later when the promotional features system is implemented
+    const artisanIdArray = artisanIds.split(',');
+    const featuresByArtisan = {};
+    
+    artisanIdArray.forEach(id => {
+      const trimmedId = id.trim();
+      featuresByArtisan[trimmedId] = {
+        isSpotlight: false,
+        isFeatured: false,
+        promotionalFeatures: [],
+        featuredUntil: null,
+        spotlightUntil: null
+      };
+    });
+    
+    res.json({
+      success: true,
+      data: featuresByArtisan,
+      count: Object.keys(featuresByArtisan).length
+    });
+  } catch (error) {
+    console.error('Error fetching bulk promotional features:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching bulk promotional features',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // Get promotional campaigns
 router.get('/campaigns', async (req, res) => {
   try {

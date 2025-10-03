@@ -16,6 +16,18 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Artisan not found' });
     }
     
+    // Get artisan's products if requested
+    if (req.query.includeProducts === 'true') {
+      const products = await db.collection('products')
+        .find({ 
+          artisan: new ObjectId(id),
+          status: 'active'
+        })
+        .sort({ createdAt: -1 })
+        .toArray();
+      artisan.products = products;
+    }
+    
     res.json({ success: true, data: artisan });
   } catch (error) {
     console.error('Get artisan error:', error);
@@ -28,6 +40,21 @@ router.get('/', async (req, res) => {
   try {
     const { db } = req;
     const artisans = await db.collection('artisans').find({}).toArray();
+    
+    // Get products for each artisan if requested
+    if (req.query.includeProducts === 'true') {
+      for (const artisan of artisans) {
+        const products = await db.collection('products')
+          .find({ 
+            artisan: artisan._id,
+            status: 'active'
+          })
+          .sort({ createdAt: -1 })
+          .limit(10) // Limit to 10 products per artisan for performance
+          .toArray();
+        artisan.products = products;
+      }
+    }
     
     res.json({ success: true, data: artisans });
   } catch (error) {

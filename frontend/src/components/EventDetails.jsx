@@ -192,7 +192,7 @@ export default function EventDetails() {
             <div className="relative mb-8">
               <div className="aspect-w-16 aspect-h-9 bg-gray-100 rounded-2xl overflow-hidden">
                 <img
-                  src={getImageUrl(event.images[currentImageIndex])}
+                  src={getImageUrl(event.images[currentImageIndex], { width: 800, height: 384, quality: 85 })}
                   alt={event.title}
                   className="w-full h-96 object-cover"
                   onError={(e) => {

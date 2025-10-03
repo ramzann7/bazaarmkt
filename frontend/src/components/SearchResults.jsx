@@ -604,7 +604,7 @@ export default function SearchResults() {
               <div className="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
                 {selectedProduct.image ? (
                   <img
-                    src={getImageUrl(selectedProduct.image)}
+                    src={getImageUrl(selectedProduct.image, { width: 600, height: 400, quality: 85 })}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {

@@ -370,7 +370,7 @@ export default function Navbar() {
     <nav className={`sticky top-0 z-50 transition-all duration-300 ${
       scrolled 
         ? 'bg-white shadow-md' 
-        : 'bg-white/90 backdrop-blur-sm shadow-soft'
+        : 'bg-gradient-to-r from-accent/8 to-orange-200/30 backdrop-blur-sm border-b border-black/5'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -525,7 +525,7 @@ export default function Navbar() {
           {/* Nav Links - Between search and cart */}
           <div className="hidden lg:flex items-center gap-10 ml-auto mr-20">
             <Link to="/find-artisans" className="text-secondary/90 hover:text-primary font-semibold text-sm transition-colors whitespace-nowrap">
-              Shop
+              Market
             </Link>
             <Link to="/community" className="text-secondary/90 hover:text-primary font-semibold text-sm transition-colors whitespace-nowrap">
               Community
@@ -778,7 +778,7 @@ export default function Navbar() {
               className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
-              Shop
+              Market
             </OptimizedLink>
             <Link
               to="/community"

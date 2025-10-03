@@ -97,7 +97,7 @@ const ProductCard = ({
         {/* Product Image */}
         <div className="relative w-full h-56 overflow-hidden">
           <img
-            src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
+            src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image, { width: 300, height: 224, quality: 80 })}
             alt={product.name}
             className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
             loading="lazy"
@@ -195,7 +195,7 @@ const ProductCard = ({
               <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden mb-4">
                 {(product.images && product.images.length > 0) || product.image ? (
                   <img
-                    src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
+                    src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image, { width: 300, height: 224, quality: 80 })}
                     alt={product.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {

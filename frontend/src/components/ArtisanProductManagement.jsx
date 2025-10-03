@@ -628,7 +628,7 @@ export default function ArtisanProductManagement() {
                       <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm">
                         {product.image ? (
                           <img
-                            src={getImageUrl(product.image)}
+                              src={getImageUrl(product.image, { width: 64, height: 64, quality: 80 })}
                             alt={product.name}
                             className="w-full h-full object-cover rounded-lg"
                             onError={(e) => handleImageError(e, 'product')}
@@ -816,7 +816,7 @@ export default function ArtisanProductManagement() {
                 <div className="flex items-center space-x-4">
                   {selectedProduct.image && (
                     <img
-                      src={getImageUrl(selectedProduct.image)}
+                      src={getImageUrl(selectedProduct.image, { width: 64, height: 64, quality: 80 })}
                       alt={selectedProduct.name}
                       className="w-16 h-16 object-cover rounded-lg"
                       onError={(e) => handleImageError(e, 'product-modal')}

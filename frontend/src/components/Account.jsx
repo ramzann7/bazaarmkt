@@ -388,7 +388,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
             {favoriteArtisans.map((artisan) => (
               <div key={artisan.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 <img
-                  src={getImageUrl(artisan.image)}
+                  src={getImageUrl(artisan.image, { width: 48, height: 48, quality: 80 })}
                   alt={artisan.name}
                   className="w-12 h-12 rounded-lg object-cover"
                   onError={(e) => {
@@ -707,7 +707,7 @@ function FavoritesTab({ favoriteArtisans }) {
           <div key={artisan.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
             <div className="relative h-48 bg-gray-100">
               <img
-                src={getImageUrl(artisan.image)}
+                src={getImageUrl(artisan.image, { width: 400, height: 192, quality: 80 })}
                 alt={artisan.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {

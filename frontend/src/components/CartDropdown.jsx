@@ -296,7 +296,7 @@ export default function CartDropdown({ isOpen, onClose }) {
                       {item.image && !hasImageError ? (
                         <>
                           <img
-                            src={getImageUrl(item.image)}
+                            src={getImageUrl(item.image, { width: 64, height: 64, quality: 80 })}
                             alt={item.name}
                             className="w-full h-full object-cover"
                             onError={(e) => handleImageError(e, item._id)}

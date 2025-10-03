@@ -49,6 +49,9 @@ export default function Search() {
   const urlSearchTerm = searchParams.get('q') || '';
   const urlCategory = searchParams.get('category') || '';
   const urlSubcategory = searchParams.get('subcategory') || '';
+  const isNearbySearch = searchParams.get('nearby') === 'true';
+  const userLat = searchParams.get('lat');
+  const userLng = searchParams.get('lng');
 
   // Get categories and subcategories from reference data
   const categories = useMemo(() => getAllCategories(), []);
@@ -84,7 +87,62 @@ export default function Search() {
         const isEnhancedSearch = searchParams.get('enhanced') === 'true';
         
         let data;
-        if (hasSearchParams && isEnhancedSearch) {
+        if (isNearbySearch) {
+          // Handle nearby search with location parameters
+          console.log('🔍 Loading nearby products with location:', { userLat, userLng });
+          
+          if (userLat && userLng) {
+            // Use enhanced search with specific location
+            const searchParams = new URLSearchParams({
+              userLat: userLat,
+              userLng: userLng,
+              proximityRadius: '25', // 25km radius
+              enhancedRanking: 'true',
+              includeDistance: 'true',
+              limit: '50' // Show more products for nearby search
+            });
+            
+            const response = await fetch(`${config.BASE_URL}/api/products/enhanced-search?${searchParams.toString()}`);
+            
+            if (response.ok) {
+              const searchData = await response.json();
+              data = searchData.products || [];
+              
+              // Process products and add distance information
+              data = data.map(product => {
+                if (product.distance === null || product.distance === undefined) {
+                  product.distance = 0;
+                  product.formattedDistance = null;
+                } else {
+                  product.distance = parseFloat(product.distance);
+                }
+                
+                // Ensure product has all required fields
+                if (!product.artisan) {
+                  product.artisan = {
+                    _id: null,
+                    artisanName: 'Unknown Artisan',
+                    type: 'other',
+                    address: null,
+                    deliveryOptions: null,
+                    rating: null
+                  };
+                }
+                
+                return product;
+              }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+              
+              console.log('✅ Nearby products loaded:', data.length);
+            } else {
+              console.error('Failed to load nearby products');
+              data = [];
+            }
+          } else {
+            // No location provided, load all products
+            console.log('⚠️ No location provided for nearby search, loading all products');
+            data = await getAllProducts();
+          }
+        } else if (hasSearchParams && isEnhancedSearch) {
           // Use enhanced search with complex parameters
           const filters = {};
           if (urlCategory) filters.category = urlCategory;
@@ -128,7 +186,7 @@ export default function Search() {
     };
 
     loadProducts();
-  }, [urlSearchTerm, urlCategory, urlSubcategory, searchParams]);
+  }, [urlSearchTerm, urlCategory, urlSubcategory, searchParams, isNearbySearch, userLat, userLng]);
 
   // No longer updating search parameters locally since search is handled by navbar
 
@@ -271,7 +329,62 @@ export default function Search() {
           const isEnhancedSearch = searchParams.get('enhanced') === 'true';
           
           let data;
-          if (hasSearchParams && isEnhancedSearch) {
+          if (isNearbySearch) {
+            // Handle nearby search with location parameters
+            console.log('🔍 Reloading nearby products with location:', { userLat, userLng });
+            
+            if (userLat && userLng) {
+              // Use enhanced search with specific location
+              const searchParams = new URLSearchParams({
+                userLat: userLat,
+                userLng: userLng,
+                proximityRadius: '25', // 25km radius
+                enhancedRanking: 'true',
+                includeDistance: 'true',
+                limit: '50' // Show more products for nearby search
+              });
+              
+              const response = await fetch(`${config.BASE_URL}/api/products/enhanced-search?${searchParams.toString()}`);
+              
+              if (response.ok) {
+                const searchData = await response.json();
+                data = searchData.products || [];
+                
+                // Process products and add distance information
+                data = data.map(product => {
+                  if (product.distance === null || product.distance === undefined) {
+                    product.distance = 0;
+                    product.formattedDistance = null;
+                  } else {
+                    product.distance = parseFloat(product.distance);
+                  }
+                  
+                  // Ensure product has all required fields
+                  if (!product.artisan) {
+                    product.artisan = {
+                      _id: null,
+                      artisanName: 'Unknown Artisan',
+                      type: 'other',
+                      address: null,
+                      deliveryOptions: null,
+                      rating: null
+                    };
+                  }
+                  
+                  return product;
+                }).sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+                
+                console.log('✅ Nearby products reloaded:', data.length);
+              } else {
+                console.error('Failed to reload nearby products');
+                data = [];
+              }
+            } else {
+              // No location provided, load all products
+              console.log('⚠️ No location provided for nearby search, loading all products');
+              data = await getAllProducts();
+            }
+          } else if (hasSearchParams && isEnhancedSearch) {
             // Use enhanced search with complex parameters
             const filters = {};
             if (urlCategory) filters.category = urlCategory;
@@ -315,14 +428,27 @@ export default function Search() {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [urlSearchTerm, urlCategory, urlSubcategory, searchParams]);
+  }, [urlSearchTerm, urlCategory, urlSubcategory, searchParams, isNearbySearch, userLat, userLng]);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Search Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Results</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            {isNearbySearch ? 'Products Near You' : 
+             urlSearchTerm ? `Search Results for "${urlSearchTerm}"` : 'All Products'}
+          </h1>
+          {isNearbySearch && (
+            <p className="text-gray-600 mb-4">
+              Showing products within 25km of your location
+              {userLat && userLng && (
+                <span className="text-sm text-gray-500 ml-2">
+                  (Lat: {parseFloat(userLat).toFixed(4)}, Lng: {parseFloat(userLng).toFixed(4)})
+                </span>
+              )}
+            </p>
+          )}
           {urlSearchTerm && (
             <p className="text-lg text-gray-600">Showing results for "{urlSearchTerm}"</p>
           )}
@@ -427,7 +553,7 @@ export default function Search() {
               <div className="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
                 {selectedProduct.image ? (
                   <img
-                    src={getImageUrl(selectedProduct.image)}
+                    src={getImageUrl(selectedProduct.image, { width: 600, height: 400, quality: 85 })}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                   />

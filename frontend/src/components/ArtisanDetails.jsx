@@ -1152,7 +1152,7 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
         <div className="relative h-32 bg-gray-100 group">
           {product.image ? (
             <img
-              src={getImageUrl(product.image)}
+              src={getImageUrl(product.image, { width: 400, height: 300, quality: 80 })}
               alt={product.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={(e) => {
@@ -1261,7 +1261,7 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
             <div className="relative h-48 bg-gray-100 rounded-lg mb-4">
               {product.image ? (
                 <img
-                  src={getImageUrl(product.image)}
+                  src={getImageUrl(product.image, { width: 400, height: 300, quality: 80 })}
                   alt={product.name}
                   className="w-full h-full object-cover rounded-lg"
                 />

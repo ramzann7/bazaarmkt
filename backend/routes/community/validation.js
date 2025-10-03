@@ -20,7 +20,7 @@ const validateCreatePost = [
     .withMessage('Content is required and must be less than 5000 characters'),
   body('type')
     .optional()
-    .isIn(['story', 'recipe', 'event', 'product_showcase', 'poll'])
+    .isIn(['story', 'recipe', 'event', 'product_showcase', 'poll', 'tip', 'question'])
     .withMessage('Invalid post type'),
   body('category')
     .optional()
@@ -101,7 +101,7 @@ const validateRedeemIncentive = [
 const validatePostsQuery = [
   query('type')
     .optional()
-    .isIn(['story', 'recipe', 'event', 'product_showcase', 'poll', 'all'])
+    .isIn(['story', 'recipe', 'event', 'product_showcase', 'poll', 'tip', 'question', 'all'])
     .withMessage('Invalid post type filter'),
   query('category')
     .optional()

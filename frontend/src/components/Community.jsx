@@ -32,6 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import communityService from '../services/communityService';
 import { authToken } from '../services/authservice';
+import AuthPopup from './AuthPopup';
 
 export default function Community() {
   const navigate = useNavigate();
@@ -94,6 +95,8 @@ export default function Community() {
     taggedArtisans: [],
     taggedProducts: []
   });
+  const [showAuthPopup, setShowAuthPopup] = useState(false);
+  const [authAction, setAuthAction] = useState('');
 
   const postTypes = [
     { id: 'all', name: 'All Posts', icon: '📝' },
@@ -337,7 +340,19 @@ export default function Community() {
     loadPosts();
   }, [selectedFilter]);
 
+  const showLoginPrompt = (action) => {
+    const actionText = action === 'like' ? 'like posts' : 'comment on posts';
+    setAuthAction(actionText);
+    setShowAuthPopup(true);
+  };
+
   const handleLikePost = async (postId) => {
+    // Check if user is logged in
+    if (!user) {
+      showLoginPrompt('like');
+      return;
+    }
+
     try {
       const response = await communityService.likePost(postId);
       if (response.success) {
@@ -603,6 +618,12 @@ export default function Community() {
   };
 
   const handleAddComment = async (postId) => {
+    // Check if user is logged in
+    if (!user) {
+      showLoginPrompt('comment');
+      return;
+    }
+
     if (!newComment[postId]?.trim()) return;
     
     try {
@@ -906,97 +927,54 @@ export default function Community() {
   };
 
   const renderPost = (post) => (
-    <div id={`post-${post._id}`} key={post._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+    <div id={`post-${post._id}`} key={post._id} className="bg-card rounded-xl shadow-soft border border-gray-100/30 overflow-hidden mb-6">
       {/* Post Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500 ring-2 ring-orange-200">
-            {(post.artisan?.profileImage || post.artisan?.businessImage) ? (
-              <img 
-                src={post.artisan.profileImage || post.artisan.businessImage} 
-                alt={post.artisan.artisanName}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.parentElement.innerHTML = `<span class="text-white font-bold text-lg">${post.artisan?.artisanName?.charAt(0) || 'A'}</span>`;
-                }}
-              />
-            ) : (
-              <span className="text-white font-bold text-lg">
-                {post.artisan?.artisanName?.charAt(0) || 'A'}
-              </span>
-            )}
-          </div>
-          <div>
-            <button
-              onClick={() => navigate(`/artisan/${post.artisan?._id}`)}
-              className="font-semibold text-gray-900 hover:text-orange-600 transition-colors text-left"
-            >
-              {post.artisan?.artisanName}
-            </button>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <span>{formatTimeAgo(post.createdAt)}</span>
-              {post.isEdited && (
-                <>
-                  <span>•</span>
-                  <span className="text-gray-400 italic">Edited</span>
-                </>
-              )}
-              <span>•</span>
-              <span className="capitalize">{post.type.replace('_', ' ')}</span>
-              {post.isFeatured && (
-                <>
-                  <span>•</span>
-                  <span className="text-orange-600 font-medium flex items-center gap-1">
-                    <StarIcon className="w-3 h-3" />
-                    Featured
-                  </span>
-                </>
-              )}
-              </div>
+      <div className="flex items-center gap-3 p-4">
+        <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500">
+          {(post.artisan?.profileImage || post.artisan?.businessImage) ? (
+            <img 
+              src={post.artisan.profileImage || post.artisan.businessImage} 
+              alt={post.artisan.artisanName}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.innerHTML = `<span class="text-white font-bold text-sm">${post.artisan?.artisanName?.charAt(0) || 'A'}</span>`;
+              }}
+            />
+          ) : (
+            <span className="text-white font-bold text-sm">
+              {post.artisan?.artisanName?.charAt(0) || 'A'}
+            </span>
+          )}
+        </div>
+        <div>
+          <button
+            onClick={() => navigate(`/artisan/${post.artisan?._id}`)}
+            className="font-semibold text-text hover:text-accent transition-colors text-left"
+          >
+            {post.artisan?.artisanName}
+          </button>
+          <div className="text-sm text-muted">
+            {formatTimeAgo(post.createdAt)} • {post.type.replace('_', ' ')}
           </div>
         </div>
-        {/* Dropdown Menu */}
-        {user && post.author?._id === user._id && (
-          <div className="relative">
-            <button
-              onClick={() => setOpenDropdown(openDropdown === post._id ? null : post._id)}
-              className="p-2 hover:bg-orange-50 rounded-full transition-colors"
-            >
-              <EllipsisHorizontalIcon className="w-5 h-5 text-gray-400" />
-            </button>
-            {openDropdown === post._id && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                <button
-                  onClick={() => {
-                    handleEditPostOpen(post);
-                    setOpenDropdown(null);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-orange-50 transition-colors"
-                >
-                  Edit Post
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this post?')) {
-                      handleDeletePost(post._id);
-                    }
-                    setOpenDropdown(null);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  Delete Post
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-            </div>
-            
+      </div>
+      
+      {/* Post Image */}
+      {post.images && post.images.length > 0 && (
+        <img 
+          src={post.images[0]} 
+          alt={post.title}
+          className="w-full h-56 object-cover"
+        />
+      )}
+      
+      {/* Post Title */}
+      <h2 className="text-xl font-semibold text-text px-4 mt-4 mb-2">{post.title}</h2>
+      
       {/* Post Content */}
-      <div className="mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">{post.title}</h2>
-        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+      <div className="px-4 pb-4">
+        <p className="text-muted leading-relaxed whitespace-pre-wrap">{post.content}</p>
         
         {/* Event Details */}
         {post.type === 'event' && post.event && (
@@ -1250,39 +1228,35 @@ export default function Community() {
           </div>
       )}
 
-      {/* Post Actions */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-        <div className="flex items-center space-x-6">
-          <button
-            onClick={() => handleLikePost(post._id)}
-            className={`flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors ${
-              post.isLiked ? 'text-red-500' : 'text-gray-500'
-            }`}
-          >
-            {post.isLiked ? (
-              <HeartIconSolid className="w-5 h-5" />
-            ) : (
-              <HeartIcon className="w-5 h-5" />
-            )}
-            <span>{post.likeCount || 0}</span>
-          </button>
-          
-          <button
-            onClick={() => toggleComments(post._id)}
-            className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors text-gray-500"
-          >
-            <ChatBubbleLeftIcon className="w-5 h-5" />
-            <span>{post.comments?.length || 0}</span>
-          </button>
-          
-          <button
-            onClick={() => handleCopyLink(post)}
-            className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors text-gray-500"
-            title="Copy formatted post link"
-          >
-            <ShareIcon className="w-5 h-5" />
-            <span>Copy Link</span>
-          </button>
+      {/* Post Footer */}
+      <div className="flex items-center gap-6 px-4 py-4 border-t border-gray-100/50 text-muted">
+        <button
+          onClick={() => handleLikePost(post._id)}
+          className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+            post.isLiked ? 'text-red-500' : 'text-muted hover:text-red-500'
+          }`}
+        >
+          {post.isLiked ? '❤️' : '🤍'} {post.likeCount || 0}
+        </button>
+        
+        <button
+          onClick={() => toggleComments(post._id)}
+          className="flex items-center gap-2 text-sm font-medium text-muted hover:text-accent transition-colors"
+        >
+          💬 {post.comments?.length || 0}
+        </button>
+        
+        <button
+          onClick={() => handleCopyLink(post)}
+          className="flex items-center gap-2 text-sm font-medium text-muted hover:text-accent transition-colors"
+          title="Copy formatted post link"
+        >
+          🔗 Share
+        </button>
+        
+        <button className="flex items-center gap-2 text-sm font-medium text-muted hover:text-accent transition-colors">
+          📌 Save
+        </button>
           
           {/* RSVP Button for Event Posts */}
           {post.type === 'event' && post.rsvpRequired && (
@@ -1320,13 +1294,8 @@ export default function Community() {
               </span>
             </button>
           )}
-          </div>
-
-        <button className="hover:bg-gray-100 p-2 rounded-lg transition-colors text-gray-500">
-          <BookmarkIcon className="w-5 h-5" />
-        </button>
-            </div>
-            
+      </div>
+      
       {/* Comments Section */}
       {expandedComments[post._id] && (
         <div className="mt-4 pt-4 border-t border-gray-100">
@@ -1407,59 +1376,44 @@ export default function Community() {
     );
 
   return (
-    <div className="min-h-screen bg-primary-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-primary-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Artisan Community</h1>
-              <p className="text-gray-600 mt-1">
-                Connect, share, and learn with fellow artisans
-              </p>
-            </div>
-            
-            {user && (
-              <button
-                onClick={() => setShowCreatePost(true)}
-                className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors font-medium flex items-center space-x-2"
-              >
-                <PlusIcon className="w-5 h-5" />
-                <span>Create Post</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background">
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-3">
-            {/* Filter Tabs */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Community Posts</h2>
-                <div className="text-sm text-gray-500">
-                  {posts.length} posts
+            {/* Filter Tabs - Updated to match marketplace style */}
+            <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
+              <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
+                {/* Category Filters - Horizontal Scroll */}
+                <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide flex-1 min-w-0">
+                  {postTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => setSelectedFilter(type.id)}
+                      className={`px-2.5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
+                        selectedFilter === type.id
+                          ? 'bg-accent text-white border-transparent'
+                          : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
+                      }`}
+                    >
+                      {type.name}
+                    </button>
+                  ))}
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                {postTypes.map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setSelectedFilter(type.id)}
-                    className={`flex flex-col items-center p-3 rounded-lg text-xs font-medium transition-colors ${
-                      selectedFilter === type.id
-                        ? 'bg-primary text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    <span className="text-lg mb-1">{type.icon}</span>
-                    <span className="text-center leading-tight">{type.name}</span>
-                  </button>
-                ))}
+
+                {/* Create Post Button */}
+                {user && (
+                  <div className="flex items-center gap-2.5 flex-shrink-0">
+                    <button
+                      onClick={() => setShowCreatePost(true)}
+                      className="bg-accent text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center gap-2"
+                    >
+                      <PlusIcon className="w-4 h-4" />
+                      Create Post
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1488,16 +1442,21 @@ export default function Community() {
                 {posts.map(renderPost)}
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-                <UserGroupIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No posts yet</h3>
-                <p className="text-gray-600 mb-6">
-                  Be the first to share something with the community!
+              <div className="bg-card rounded-xl shadow-soft border border-gray-100/30 p-12 text-center">
+                <UserGroupIcon className="w-16 h-16 text-muted mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-text mb-2">
+                  {selectedFilter === 'all' ? 'No posts yet' : `No ${postTypes.find(t => t.id === selectedFilter)?.name || 'posts'} yet`}
+                </h3>
+                <p className="text-muted mb-6">
+                  {selectedFilter === 'all' 
+                    ? 'Be the first to share something with the community!'
+                    : `No ${postTypes.find(t => t.id === selectedFilter)?.name?.toLowerCase() || 'posts'} have been shared yet.`
+                  }
                 </p>
                 {user && (
                   <button
                     onClick={() => setShowCreatePost(true)}
-                    className="bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors font-medium"
+                    className="bg-accent text-white px-6 py-3 rounded-lg hover:bg-accent/90 transition-colors font-medium"
                   >
                     Create First Post
                   </button>
@@ -2208,6 +2167,13 @@ export default function Community() {
           </div>
         </div>
       )}
+      {/* Authentication Popup */}
+      <AuthPopup
+        isOpen={showAuthPopup}
+        onClose={() => setShowAuthPopup(false)}
+        action={authAction}
+      />
+
     </div>
   );
 }

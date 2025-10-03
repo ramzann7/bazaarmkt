@@ -387,7 +387,7 @@ export default function AdminProductManagement() {
                         <div className="flex-shrink-0 h-12 w-12">
                           {product.image ? (
                             <img
-                              src={getImageUrl(product.image)}
+                              src={getImageUrl(product.image, { width: 48, height: 48, quality: 80 })}
                               alt={product.name}
                               className="h-12 w-12 rounded-lg object-cover"
                               onError={(e) => {

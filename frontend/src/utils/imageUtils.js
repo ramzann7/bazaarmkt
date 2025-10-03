@@ -8,9 +8,10 @@ import config from '../config/environment.js';
 /**
  * Get the appropriate image URL based on environment and image path
  * @param {string} imagePath - The image path from the database
+ * @param {Object} options - Optimization options {width, height, quality}
  * @returns {string|null} - The complete image URL or null if no image
  */
-export const getImageUrl = (imagePath) => {
+export const getImageUrl = (imagePath, options = {}) => {
   if (!imagePath) return null;
   
   // Handle base64 data URLs (already complete)
@@ -31,49 +32,55 @@ export const getImageUrl = (imagePath) => {
   // Environment-specific handling
   if (config.NODE_ENV === 'production') {
     // Production: Use Vercel Blob or CDN URLs
-    return getProductionImageUrl(imagePath);
+    return getProductionImageUrl(imagePath, options);
   } else {
-    // Development: Use local server URLs
-    return getDevelopmentImageUrl(imagePath);
+    // Development: Use optimized local server URLs
+    return getDevelopmentImageUrl(imagePath, options);
   }
 };
 
 /**
- * Get image URL for development environment
+ * Get image URL for development environment with optimization
  * @param {string} imagePath - The image path from the database
+ * @param {Object} options - Optimization options {width, height, quality}
  * @returns {string} - The complete development image URL
  */
-const getDevelopmentImageUrl = (imagePath) => {
-  // Handle relative paths starting with /uploads/
+const getDevelopmentImageUrl = (imagePath, options = {}) => {
+  const { width = 400, height = 400, quality = 80 } = options;
+  
+  // Use optimized image endpoint for local uploads
   if (imagePath.startsWith('/uploads/')) {
-    return `${config.BASE_URL}${imagePath}`;
+    const imagePathWithoutPrefix = imagePath.replace('/uploads/', '');
+    return `${config.BASE_URL}/api/images/optimize/${imagePathWithoutPrefix}?width=${width}&height=${height}&quality=${quality}`;
   }
   
   // Handle paths with leading slash
   if (imagePath.startsWith('/')) {
-    return `${config.BASE_URL}${imagePath}`;
+    return `${config.BASE_URL}/api/images/optimize/${imagePath.substring(1)}?width=${width}&height=${height}&quality=${quality}`;
   }
   
   // Handle paths without leading slash
-  return `${config.BASE_URL}/${imagePath}`;
+  return `${config.BASE_URL}/api/images/optimize/${imagePath}?width=${width}&height=${height}&quality=${quality}`;
 };
 
 /**
  * Get image URL for production environment
  * @param {string} imagePath - The image path from the database
+ * @param {Object} options - Optimization options {width, height, quality}
  * @returns {string} - The complete production image URL
  */
-const getProductionImageUrl = (imagePath) => {
+const getProductionImageUrl = (imagePath, options = {}) => {
   // If it's already a Vercel Blob URL, return as is
   if (imagePath.includes('.public.blob.vercel-storage.com')) {
     return imagePath;
   }
   
-  // For production, we'll use Vercel Blob or CDN
+  // For production, we'll use Vercel Blob or CDN with optimization
   // This will be implemented when Vercel Blob is set up
   if (imagePath.startsWith('/uploads/')) {
-    // Convert to Vercel Blob URL format
-    return `https://${process.env.VITE_VERCEL_BLOB_DOMAIN || 'blob.vercel-storage.com'}/uploads${imagePath.replace('/uploads', '')}`;
+    const { width = 400, height = 400, quality = 80 } = options;
+    // Convert to Vercel Blob URL format with optimization
+    return `https://${process.env.VITE_VERCEL_BLOB_DOMAIN || 'blob.vercel-storage.com'}/uploads${imagePath.replace('/uploads', '')}?w=${width}&h=${height}&q=${quality}`;
   }
   
   // Handle other paths

@@ -157,7 +157,7 @@ export default function BoostProduct({ product, onClose, onSuccess }) {
           <div className="flex items-center space-x-4">
             {product.image && (
               <img
-                src={getImageUrl(product.image)}
+                src={getImageUrl(product.image, { width: 64, height: 64, quality: 80 })}
                 alt={product.name}
                 className="w-16 h-16 object-cover rounded-lg"
                 onError={(e) => {

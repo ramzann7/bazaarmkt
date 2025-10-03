@@ -306,10 +306,201 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// Routes
+// ============================================================================
+// AUTH HELPER ENDPOINTS (Extracted from server-vercel.js)
+// ============================================================================
+
+// Check if email already exists
+const checkEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ 
+      email: email.toLowerCase() 
+    });
+    
+    res.json({
+      success: true,
+      exists: !!existingUser,
+      message: existingUser ? 'Email already registered' : 'Email is available'
+    });
+  } catch (error) {
+    console.error('Email check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking email',
+      error: error.message
+    });
+  }
+};
+
+// Create guest profile
+const createGuest = async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required for guest checkout'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ 
+      email: email.toLowerCase() 
+    });
+    
+    if (existingUser) {
+      // User already exists - return existing user with new token
+      const token = jwt.sign(
+        { userId: existingUser._id.toString(), email: existingUser.email, userType: existingUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      return res.json({
+        success: true,
+        message: 'Using existing guest account',
+        user: {
+          id: existingUser._id.toString(),
+          _id: existingUser._id,
+          email: existingUser.email,
+          firstName: existingUser.firstName,
+          lastName: existingUser.lastName,
+          phone: existingUser.phone,
+          role: existingUser.role,
+          isGuest: existingUser.role === 'guest'
+        },
+        token
+      });
+    }
+    
+    // Create new guest user
+    const guestUser = {
+      email: email.toLowerCase(),
+      firstName: firstName || 'Guest',
+      lastName: lastName || 'User',
+      phone: phone || '',
+      role: 'guest',
+      isGuest: true,
+      isActive: true,
+      isVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const result = await usersCollection.insertOne(guestUser);
+    const userId = result.insertedId;
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: userId.toString(), email: guestUser.email, userType: 'guest' },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Guest profile created successfully',
+      user: {
+        id: userId.toString(),
+        _id: userId,
+        email: guestUser.email,
+        firstName: guestUser.firstName,
+        lastName: guestUser.lastName,
+        phone: guestUser.phone,
+        role: 'guest',
+        isGuest: true
+      },
+      token
+    });
+  } catch (error) {
+    console.error('Guest profile creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create guest profile',
+      error: error.message
+    });
+  }
+};
+
+// Check if email already exists (GET version with user role information)
+const checkEmailGet = async (req, res) => {
+  try {
+    const { email } = req.params;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ 
+      email: email.toLowerCase() 
+    });
+    
+    if (!existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Email not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      exists: true,
+      user: {
+        id: existingUser._id.toString(),
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        role: existingUser.role,
+        isGuest: existingUser.role === 'guest'
+      }
+    });
+  } catch (error) {
+    console.error('Email check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking email',
+      error: error.message
+    });
+  }
+};
+
+// ============================================================================
+// ROUTES
+// ============================================================================
+
+// Main auth routes
 router.post('/register', register);
 router.post('/login', login);
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
+
+// Auth helper routes (extracted from server-vercel.js)
+router.post('/check-email', checkEmail);
+router.post('/guest', createGuest);
+router.get('/check-email/:email', checkEmailGet);
 
 module.exports = router;

@@ -5,8 +5,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { MongoClient, ObjectId } = require('mongodb');
-const jwt = require('jsonwebtoken');
+const { auth } = require('../../middleware');
+const handlers = require('./handlers');
+const validation = require('./validation');
 
 // ============================================================================
 // COMMUNITY POSTS ENDPOINTS
@@ -843,15 +844,36 @@ const getCommunityStats = async (req, res) => {
   }
 };
 
-// Routes
-router.get('/posts', getPosts);
-router.post('/posts', createPost);
-router.put('/posts/:postId', updatePost);
-router.delete('/posts/:postId', deletePost);
-router.post('/posts/:postId/like', likePost);
-router.get('/posts/:postId/comments', getComments);
-router.post('/posts/:postId/comments', createComment);
-router.get('/leaderboard', getEngagementLeaderboard);
-router.get('/stats', getCommunityStats);
+// ============================================================================
+// ROUTES
+// ============================================================================
+
+// Posts
+router.get('/posts', validation.validatePostsQuery, handlers.getPosts);
+router.post('/posts', auth.verifyJWT, validation.validateCreatePost, handlers.createPost);
+router.put('/posts/:id', auth.verifyJWT, validation.validateUpdatePost, handlers.updatePost);
+router.delete('/posts/:id', auth.verifyJWT, validation.validateObjectId('id'), handlers.deletePost);
+router.post('/posts/:id/like', auth.verifyJWT, validation.validateObjectId('id'), handlers.likePost);
+router.get('/posts/:id/comments', validation.validateObjectId('id'), handlers.getComments);
+router.post('/posts/:id/comments', auth.verifyJWT, validation.validateCreateComment, handlers.createComment);
+
+// Leaderboard
+router.get('/leaderboard/engagement', validation.validateLeaderboardQuery, handlers.getEngagementLeaderboard);
+router.get('/stats', handlers.getCommunityStats);
+
+// Incentives
+router.get('/incentives', handlers.getIncentives);
+router.post('/incentives/redeem', auth.verifyJWT, validation.validateRedeemIncentive, handlers.redeemIncentive);
+router.get('/badges', handlers.getBadges);
+router.get('/points', auth.verifyJWT, handlers.getPoints);
+
+// Events
+router.post('/posts/:id/rsvp', auth.verifyJWT, validation.validateObjectId('id'), handlers.rsvpToEvent);
+router.delete('/posts/:id/rsvp', auth.verifyJWT, validation.validateObjectId('id'), handlers.cancelRsvp);
+router.get('/posts/:id/rsvps', validation.validateObjectId('id'), handlers.getEventRsvps);
+
+// Polls
+router.post('/posts/:id/poll/vote', auth.verifyJWT, validation.validatePollVote, handlers.voteOnPoll);
+router.get('/posts/:id/poll/results', validation.validateObjectId('id'), handlers.getPollResults);
 
 module.exports = router;

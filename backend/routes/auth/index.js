@@ -1,6 +1,7 @@
 /**
  * Authentication Routes
  * Handles user authentication, registration, and profile management
+ * Updated to use service layer
  */
 
 const express = require('express');
@@ -8,6 +9,7 @@ const router = express.Router();
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { createAuthService } = require('../../services');
 
 // User registration
 const register = async (req, res) => {
@@ -322,18 +324,13 @@ const checkEmail = async (req, res) => {
       });
     }
     
-    const db = req.db;
-    const usersCollection = db.collection('users');
-    
-    // Check if user already exists
-    const existingUser = await usersCollection.findOne({ 
-      email: email.toLowerCase() 
-    });
+    const authService = await createAuthService();
+    const result = await authService.checkEmail(email);
     
     res.json({
       success: true,
-      exists: !!existingUser,
-      message: existingUser ? 'Email already registered' : 'Email is available'
+      exists: result.exists,
+      message: result.exists ? 'Email already registered' : 'Email is available'
     });
   } catch (error) {
     console.error('Email check error:', error);
@@ -357,55 +354,15 @@ const createGuest = async (req, res) => {
       });
     }
     
-    const db = req.db;
-    const usersCollection = db.collection('users');
-    
-    // Check if user already exists
-    const existingUser = await usersCollection.findOne({ 
-      email: email.toLowerCase() 
-    });
-    
-    if (existingUser) {
-      // User already exists - return existing user with new token
-      const token = jwt.sign(
-        { userId: existingUser._id.toString(), email: existingUser.email, userType: existingUser.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-      
-      return res.json({
-        success: true,
-        message: 'Using existing guest account',
-        user: {
-          id: existingUser._id.toString(),
-          _id: existingUser._id,
-          email: existingUser.email,
-          firstName: existingUser.firstName,
-          lastName: existingUser.lastName,
-          phone: existingUser.phone,
-          role: existingUser.role,
-          isGuest: existingUser.role === 'guest'
-        },
-        token
-      });
-    }
-    
-    // Create new guest user
-    const guestUser = {
-      email: email.toLowerCase(),
+    const authService = await createAuthService();
+    const guestUser = await authService.createGuest({
       firstName: firstName || 'Guest',
       lastName: lastName || 'User',
-      phone: phone || '',
-      role: 'guest',
-      isGuest: true,
-      isActive: true,
-      isVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      email,
+      phone: phone || ''
+    });
     
-    const result = await usersCollection.insertOne(guestUser);
-    const userId = result.insertedId;
+    const userId = guestUser._id;
     
     // Generate JWT token
     const token = jwt.sign(
@@ -451,15 +408,10 @@ const checkEmailGet = async (req, res) => {
       });
     }
     
-    const db = req.db;
-    const usersCollection = db.collection('users');
+    const authService = await createAuthService();
+    const result = await authService.checkEmail(email);
     
-    // Check if user already exists
-    const existingUser = await usersCollection.findOne({ 
-      email: email.toLowerCase() 
-    });
-    
-    if (!existingUser) {
+    if (!result.exists) {
       return res.status(404).json({
         success: false,
         message: 'Email not found'
@@ -470,12 +422,10 @@ const checkEmailGet = async (req, res) => {
       success: true,
       exists: true,
       user: {
-        id: existingUser._id.toString(),
-        email: existingUser.email,
-        firstName: existingUser.firstName,
-        lastName: existingUser.lastName,
-        role: existingUser.role,
-        isGuest: existingUser.role === 'guest'
+        id: result.userId.toString(),
+        email: email,
+        // Note: Additional user details would need to be fetched separately
+        // if needed, as checkEmail only returns existence and userId
       }
     });
   } catch (error) {

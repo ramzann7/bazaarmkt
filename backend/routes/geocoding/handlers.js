@@ -1,9 +1,11 @@
 /**
  * Geocoding Endpoints Handlers
  * Extracted from server-vercel.js inline endpoints
+ * Updated to use service layer
  */
 
 const { catchAsync } = require('../../middleware/errorHandler');
+const { createGeocodingService } = require('../../services');
 
 /**
  * Geocode an address to coordinates
@@ -18,24 +20,12 @@ const geocodeAddress = catchAsync(async (req, res) => {
     });
   }
   
-  const geocodingService = require('../../services/geocodingService');
+  const geocodingService = await createGeocodingService();
   const result = await geocodingService.geocodeAddress(address);
-  
-  if (!result) {
-    return res.status(404).json({
-      success: false,
-      message: 'Address could not be geocoded'
-    });
-  }
   
   res.json({
     success: true,
-    data: {
-      latitude: result.latitude,
-      longitude: result.longitude,
-      display_name: result.display_name,
-      confidence: result.confidence
-    }
+    data: result
   });
 });
 
@@ -52,15 +42,8 @@ const reverseGeocode = catchAsync(async (req, res) => {
     });
   }
   
-  const geocodingService = require('../../services/geocodingService');
+  const geocodingService = await createGeocodingService();
   const result = await geocodingService.reverseGeocode(latitude, longitude);
-  
-  if (!result) {
-    return res.status(404).json({
-      success: false,
-      message: 'Coordinates could not be reverse geocoded'
-    });
-  }
   
   res.json({
     success: true,
@@ -81,7 +64,7 @@ const calculateDistance = catchAsync(async (req, res) => {
     });
   }
   
-  const geocodingService = require('../../services/geocodingService');
+  const geocodingService = await createGeocodingService();
   const distance = geocodingService.calculateDistance(lat1, lon1, lat2, lon2);
   
   res.json({
@@ -107,44 +90,14 @@ const getNearbyArtisans = catchAsync(async (req, res) => {
     });
   }
   
-  const db = req.db;
-  const artisansCollection = db.collection('artisans');
-  const geocodingService = require('../../services/geocodingService');
-  
-  // Get all artisans with coordinates
-  const artisans = await artisansCollection.find({
-    'coordinates.latitude': { $exists: true },
-    'coordinates.longitude': { $exists: true }
-  }).toArray();
-  
-  // Calculate distances and filter
-  const nearbyArtisans = artisans
-    .map(artisan => {
-      const distance = geocodingService.calculateDistance(
-        parseFloat(latitude),
-        parseFloat(longitude),
-        artisan.coordinates.latitude,
-        artisan.coordinates.longitude
-      );
-      
-      return {
-        artisan: artisan,
-        distance: distance,
-        formattedDistance: geocodingService.formatDistance(distance)
-      };
-    })
-    .filter(item => item.distance <= parseFloat(maxDistance))
-    .sort((a, b) => a.distance - b.distance);
+  const geocodingService = await createGeocodingService();
+  const result = await geocodingService.getNearbyArtisans(latitude, longitude, maxDistance);
   
   res.json({
     success: true,
-    data: nearbyArtisans,
-    count: nearbyArtisans.length,
-    searchParams: {
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      maxDistance: parseFloat(maxDistance)
-    }
+    data: result.artisans,
+    count: result.count,
+    searchParams: result.searchParams
   });
 });
 

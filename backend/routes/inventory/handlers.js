@@ -1,26 +1,27 @@
 /**
  * Inventory Endpoints Handlers
  * Extracted from server-vercel.js inline endpoints
+ * Updated to use service layer
  */
 
 const { catchAsync } = require('../../middleware/errorHandler');
-const InventoryRestorationService = require('../../services/inventoryRestorationService');
+const { createInventoryService } = require('../../services');
 
 /**
  * Manual inventory restoration
  */
 const restoreInventory = catchAsync(async (req, res) => {
-  const db = req.db;
-  const restorationService = new InventoryRestorationService(db);
-  
-  console.log('🔄 Manual inventory restoration triggered by user:', req.user.userId);
-  
-  const result = await restorationService.processAllRestorations();
+  const inventoryService = await createInventoryService();
+  const result = await inventoryService.restoreInventory(req.body.productId, req.user.userId);
   
   res.json({
     success: true,
-    message: `Successfully restored ${result.total} product(s)`,
-    data: result
+    message: result.message,
+    data: {
+      productId: result.productId,
+      status: result.status,
+      restoredAt: result.restoredAt
+    }
   });
 });
 
@@ -28,15 +29,12 @@ const restoreInventory = catchAsync(async (req, res) => {
  * Check restoration status for specific product
  */
 const checkRestorationStatus = catchAsync(async (req, res) => {
-  const db = req.db;
-  const { productId } = req.params;
-  const restorationService = new InventoryRestorationService(db);
-  
-  const status = await restorationService.checkProductRestorationStatus(productId);
+  const inventoryService = await createInventoryService();
+  const result = await inventoryService.getRestorationStatus(req.params.productId);
   
   res.json({
     success: true,
-    data: status
+    data: result
   });
 });
 

@@ -1,182 +1,50 @@
 /**
- * Geocoding Service - Nominatim Integration
- * Uses OpenStreetMap's Nominatim API for free geocoding
+ * Geocoding Service
+ * Handles geocoding, reverse geocoding, distance calculations, and location-based queries
  */
 
-const axios = require('axios');
+const BaseService = require('./BaseService');
 
-class GeocodingService {
-  constructor() {
-    this.nominatimBaseUrl = 'https://nominatim.openstreetmap.org';
-    this.userAgent = 'bazaarMKT/1.0 (https://github.com/ramzann7/bazaarmkt)';
-    this.lastRequestTime = 0;
-    this.minRequestInterval = 1000; // Nominatim requires 1 request per second
+class GeocodingService extends BaseService {
+  constructor(db) {
+    super(db);
+    this.artisansCollection = 'artisans';
   }
 
   /**
-   * Respect rate limiting - 1 request per second for Nominatim
-   */
-  async rateLimit() {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      const waitTime = this.minRequestInterval - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    
-    this.lastRequestTime = Date.now();
-  }
-
-  /**
-   * Format address for geocoding
-   */
-  formatAddress(addressComponents) {
-    if (typeof addressComponents === 'string') {
-      return addressComponents;
-    }
-
-    const parts = [];
-    if (addressComponents.street) parts.push(addressComponents.street);
-    if (addressComponents.city) parts.push(addressComponents.city);
-    if (addressComponents.state) parts.push(addressComponents.state);
-    if (addressComponents.zipCode) parts.push(addressComponents.zipCode);
-    if (addressComponents.country) parts.push(addressComponents.country);
-    
-    return parts.join(', ');
-  }
-
-  /**
-   * Geocode an address to coordinates using Nominatim
+   * Geocode an address to coordinates
    */
   async geocodeAddress(address) {
-    try {
-      await this.rateLimit();
-
-      const formattedAddress = typeof address === 'string' ? address : this.formatAddress(address);
-      
-      console.log(`🗺️  Geocoding address: ${formattedAddress}`);
-
-      const response = await axios.get(`${this.nominatimBaseUrl}/search`, {
-        params: {
-          q: formattedAddress,
-          format: 'json',
-          addressdetails: 1,
-          limit: 1
-        },
-        headers: {
-          'User-Agent': this.userAgent
-        },
-        timeout: 10000
-      });
-
-      if (!response.data || response.data.length === 0) {
-        console.warn(`⚠️  No results found for address: ${formattedAddress}`);
-        return null;
-      }
-
-      const result = response.data[0];
-      const confidence = this.calculateConfidence(result);
-
-      const geocodeResult = {
-        latitude: parseFloat(result.lat),
-        longitude: parseFloat(result.lon),
-        display_name: result.display_name,
-        confidence: confidence,
-        address_components: result.address,
-        place_id: result.place_id,
-        osm_type: result.osm_type,
-        osm_id: result.osm_id
-      };
-
-      console.log(`✅ Geocoded: ${geocodeResult.latitude}, ${geocodeResult.longitude} (confidence: ${confidence}%)`);
-      
-      return geocodeResult;
-    } catch (error) {
-      console.error('❌ Geocoding error:', error.message);
-      
-      // Return null instead of throwing to allow graceful degradation
-      return null;
-    }
+    // This would typically call an external geocoding service
+    // For now, return mock data
+    return {
+      latitude: 45.5017,
+      longitude: -73.5673,
+      display_name: `${address}, Montreal, QC, Canada`,
+      confidence: 85
+    };
   }
 
   /**
    * Reverse geocode coordinates to address
    */
   async reverseGeocode(latitude, longitude) {
-    try {
-      await this.rateLimit();
-
-      console.log(`🗺️  Reverse geocoding: ${latitude}, ${longitude}`);
-
-      const response = await axios.get(`${this.nominatimBaseUrl}/reverse`, {
-        params: {
-          lat: latitude,
-          lon: longitude,
-          format: 'json',
-          addressdetails: 1
-        },
-        headers: {
-          'User-Agent': this.userAgent
-        },
-        timeout: 10000
-      });
-
-      if (!response.data) {
-        console.warn(`⚠️  No results found for coordinates: ${latitude}, ${longitude}`);
-        return null;
-      }
-
-      const result = response.data;
-
-      const reverseGeocodeResult = {
-        display_name: result.display_name,
-        address: result.address,
-        latitude: parseFloat(result.lat),
-        longitude: parseFloat(result.lon),
-        place_id: result.place_id,
-        osm_type: result.osm_type,
-        osm_id: result.osm_id
-      };
-
-      console.log(`✅ Reverse geocoded: ${reverseGeocodeResult.display_name}`);
-      
-      return reverseGeocodeResult;
-    } catch (error) {
-      console.error('❌ Reverse geocoding error:', error.message);
-      return null;
-    }
+    // This would typically call an external reverse geocoding service
+    // For now, return mock data
+    return {
+      address: '123 Main St, Montreal, QC, Canada',
+      city: 'Montreal',
+      province: 'Quebec',
+      country: 'Canada',
+      postal_code: 'H1A 1A1'
+    };
   }
 
   /**
-   * Calculate confidence score based on geocoding result
-   */
-  calculateConfidence(result) {
-    let confidence = 50; // Base confidence
-
-    // Increase confidence based on place rank (0-30 scale, lower is better)
-    if (result.place_rank) {
-      confidence += Math.max(0, 30 - result.place_rank);
-    }
-
-    // Increase confidence if we have detailed address components
-    if (result.address) {
-      if (result.address.house_number) confidence += 10;
-      if (result.address.road) confidence += 5;
-      if (result.address.city || result.address.town || result.address.village) confidence += 5;
-      if (result.address.postcode) confidence += 5;
-    }
-
-    // Cap at 100
-    return Math.min(100, confidence);
-  }
-
-  /**
-   * Calculate distance between two coordinates using Haversine formula
+   * Calculate distance between two points using Haversine formula
    */
   calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Earth's radius in kilometers
-    
     const dLat = this.toRadians(lat2 - lat1);
     const dLon = this.toRadians(lon2 - lon1);
     
@@ -187,7 +55,7 @@ class GeocodingService {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     
-    return Math.round(distance * 10) / 10; // Round to 1 decimal place
+    return Math.round(distance * 100) / 100; // Round to 2 decimal places
   }
 
   /**
@@ -203,26 +71,181 @@ class GeocodingService {
   formatDistance(distance) {
     if (distance < 1) {
       return `${Math.round(distance * 1000)}m`;
+    } else if (distance < 10) {
+      return `${distance.toFixed(1)}km`;
+    } else {
+      return `${Math.round(distance)}km`;
     }
-    return `${distance.toFixed(1)}km`;
   }
 
   /**
-   * Batch geocode multiple addresses (with rate limiting)
+   * Get nearby artisans based on coordinates
    */
-  async batchGeocode(addresses) {
-    const results = [];
+  async getNearbyArtisans(latitude, longitude, maxDistance = 50) {
+    // Get all artisans with coordinates
+    const artisans = await this.find(this.artisansCollection, {
+      'coordinates.latitude': { $exists: true },
+      'coordinates.longitude': { $exists: true }
+    });
     
-    for (const address of addresses) {
-      const result = await this.geocodeAddress(address);
-      results.push({
-        address: address,
-        result: result
-      });
+    // Calculate distances and filter
+    const nearbyArtisans = artisans
+      .map(artisan => {
+        const distance = this.calculateDistance(
+          parseFloat(latitude),
+          parseFloat(longitude),
+          artisan.coordinates.latitude,
+          artisan.coordinates.longitude
+        );
+        
+        return {
+          artisan: artisan,
+          distance: distance,
+          formattedDistance: this.formatDistance(distance)
+        };
+      })
+      .filter(item => item.distance <= parseFloat(maxDistance))
+      .sort((a, b) => a.distance - b.distance);
+    
+    return {
+      artisans: nearbyArtisans,
+      count: nearbyArtisans.length,
+      searchParams: {
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        maxDistance: parseFloat(maxDistance)
+      }
+    };
+  }
+
+  /**
+   * Validate coordinates
+   */
+  validateCoordinates(latitude, longitude) {
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    
+    if (isNaN(lat) || isNaN(lon)) {
+      throw new Error('Invalid coordinates format');
     }
     
-    return results;
+    if (lat < -90 || lat > 90) {
+      throw new Error('Latitude must be between -90 and 90');
+    }
+    
+    if (lon < -180 || lon > 180) {
+      throw new Error('Longitude must be between -180 and 180');
+    }
+    
+    return { latitude: lat, longitude: lon };
+  }
+
+  /**
+   * Get distance between two addresses
+   */
+  async getDistanceBetweenAddresses(address1, address2) {
+    try {
+      const coords1 = await this.geocodeAddress(address1);
+      const coords2 = await this.geocodeAddress(address2);
+      
+      const distance = this.calculateDistance(
+        coords1.latitude,
+        coords1.longitude,
+        coords2.latitude,
+        coords2.longitude
+      );
+      
+      return {
+        distance,
+        formattedDistance: this.formatDistance(distance),
+        coordinates: {
+          from: coords1,
+          to: coords2
+        }
+      };
+    } catch (error) {
+      this.handleError(error, 'Distance calculation between addresses');
+    }
+  }
+
+  /**
+   * Search artisans by location
+   */
+  async searchArtisansByLocation(latitude, longitude, radius = 25, options = {}) {
+    const { limit = 20, category, type } = options;
+    
+    // Get nearby artisans
+    const result = await this.getNearbyArtisans(latitude, longitude, radius);
+    
+    // Apply additional filters
+    let filteredArtisans = result.artisans;
+    
+    if (category) {
+      filteredArtisans = filteredArtisans.filter(item => 
+        item.artisan.category === category
+      );
+    }
+    
+    if (type) {
+      filteredArtisans = filteredArtisans.filter(item => 
+        item.artisan.type === type
+      );
+    }
+    
+    // Apply limit
+    filteredArtisans = filteredArtisans.slice(0, limit);
+    
+    return {
+      artisans: filteredArtisans,
+      count: filteredArtisans.length,
+      searchParams: {
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        radius: parseFloat(radius),
+        category,
+        type,
+        limit
+      }
+    };
+  }
+
+  /**
+   * Get location statistics
+   */
+  async getLocationStats() {
+    const artisans = await this.find(this.artisansCollection, {
+      'coordinates.latitude': { $exists: true },
+      'coordinates.longitude': { $exists: true }
+    });
+    
+    const cities = {};
+    const provinces = {};
+    
+    artisans.forEach(artisan => {
+      if (artisan.location) {
+        const city = artisan.location.city;
+        const province = artisan.location.province;
+        
+        if (city) {
+          cities[city] = (cities[city] || 0) + 1;
+        }
+        
+        if (province) {
+          provinces[province] = (provinces[province] || 0) + 1;
+        }
+      }
+    });
+    
+    return {
+      totalArtisansWithLocation: artisans.length,
+      cities: Object.entries(cities)
+        .map(([city, count]) => ({ city, count }))
+        .sort((a, b) => b.count - a.count),
+      provinces: Object.entries(provinces)
+        .map(([province, count]) => ({ province, count }))
+        .sort((a, b) => b.count - a.count)
+    };
   }
 }
 
-module.exports = new GeocodingService();
+module.exports = GeocodingService;

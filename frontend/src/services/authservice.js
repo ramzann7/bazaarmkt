@@ -48,8 +48,13 @@ export const authToken = {
   getToken: () => localStorage.getItem('token'),
   setToken: (token) => {
     localStorage.setItem('token', token);
-    // Clear user profile cache when token changes
-    cacheService.delete(CACHE_KEYS.USER_PROFILE);
+    // Clear all user profile caches when token changes (in case of user switch)
+    const cacheKeys = Object.keys(cacheService.cache || {});
+    cacheKeys.forEach(key => {
+      if (key.startsWith(CACHE_KEYS.USER_PROFILE)) {
+        cacheService.delete(key);
+      }
+    });
   },
   removeToken: () => {
     localStorage.removeItem('token');
@@ -58,10 +63,23 @@ export const authToken = {
   }
 };
 
+// Helper function to get user ID from token
+const getUserIdFromToken = (token) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.userId;
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+};
+
 // Optimized getProfile with caching - Performance focused
 export const getProfile = async (forceRefresh = false) => {
   const token = authToken.getToken();
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10)}`;
+  const userId = getUserIdFromToken(token);
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
   
   // Clear cache if force refresh is requested
   if (forceRefresh) {
@@ -81,8 +99,10 @@ export const getProfile = async (forceRefresh = false) => {
 
 // Preload profile data
 export const preloadProfile = () => {
-  if (authToken.getToken()) {
-    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+  const token = authToken.getToken();
+  if (token) {
+    const userId = getUserIdFromToken(token);
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
     cacheService.preload(cacheKey, async () => {
       const response = await api.get('/auth/profile');
       return response.data.data?.user || response.data.user;
@@ -116,7 +136,8 @@ export const loginUser = async (credentials) => {
     authToken.setToken(token);
     
     // Cache the profile immediately
-    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+    const userId = getUserIdFromToken(token);
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
     cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
     
     // Dispatch auth change event
@@ -168,7 +189,8 @@ export const registerUser = async (userData) => {
     authToken.setToken(token);
     
     // Cache the profile immediately
-    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+    const userId = getUserIdFromToken(token);
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
     cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
     
     // Mark user as new (they haven't completed onboarding yet)

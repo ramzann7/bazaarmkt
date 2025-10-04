@@ -5,6 +5,18 @@ import { getProfileFast, updateProfileCache } from '../services/profileService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import toast from 'react-hot-toast';
 
+// Helper function to get user ID from token
+const getUserIdFromToken = (token) => {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.userId;
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return null;
+  }
+};
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -53,7 +65,8 @@ export const AuthProvider = ({ children }) => {
           setIsProviderReady(true);
           
           // Try to get cached profile first (fast path)
-          const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+          const userId = getUserIdFromToken(token);
+          const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
           const cachedProfile = cacheService.getFast(cacheKey);
           
           if (cachedProfile) {

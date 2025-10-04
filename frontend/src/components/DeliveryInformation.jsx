@@ -52,16 +52,25 @@ const DeliveryInformation = ({
   const [showAddressOptions, setShowAddressOptions] = useState(false);
   const [useSavedAddress, setUseSavedAddress] = useState(true);
 
+  // Get the current artisan (assuming single artisan for now)
+  const currentArtisanId = Object.keys(cartByArtisan)[0];
+  const currentArtisan = cartByArtisan[currentArtisanId];
+
+  // Validate saved address when selected
+  const validateSavedAddress = async () => {
+    if (useSavedAddress && deliveryForm.deliveryAddress?.street) {
+      const address = deliveryForm.deliveryAddress;
+      const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
+      await validateAddress(fullAddress);
+    }
+  };
+
   // Validate saved address when selected
   useEffect(() => {
     if (useSavedAddress && deliveryForm.deliveryAddress?.street && selectedDeliveryMethods[currentArtisanId] !== 'pickup') {
       validateSavedAddress();
     }
   }, [useSavedAddress, selectedDeliveryMethods[currentArtisanId]]);
-
-  // Get the current artisan (assuming single artisan for now)
-  const currentArtisanId = Object.keys(cartByArtisan)[0];
-  const currentArtisan = cartByArtisan[currentArtisanId];
 
   // Calculate distance for pickup (only for authenticated users)
   useEffect(() => {
@@ -210,15 +219,6 @@ const DeliveryInformation = ({
   const validateCompleteAddress = async () => {
     const address = deliveryForm.deliveryAddress;
     if (address?.street && address?.city && address?.state && address?.zipCode) {
-      const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
-      await validateAddress(fullAddress);
-    }
-  };
-
-  // Validate saved address when selected
-  const validateSavedAddress = async () => {
-    if (useSavedAddress && deliveryForm.deliveryAddress?.street) {
-      const address = deliveryForm.deliveryAddress;
       const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
       await validateAddress(fullAddress);
     }

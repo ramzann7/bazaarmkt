@@ -49,6 +49,15 @@ const DeliveryInformation = ({
   const [pickupDistance, setPickupDistance] = useState(null);
   const [emailValidationTimeout, setEmailValidationTimeout] = useState(null);
   const [lastValidatedEmail, setLastValidatedEmail] = useState(null);
+  const [showAddressOptions, setShowAddressOptions] = useState(false);
+  const [useSavedAddress, setUseSavedAddress] = useState(true);
+
+  // Validate saved address when selected
+  useEffect(() => {
+    if (useSavedAddress && deliveryForm.deliveryAddress?.street && selectedDeliveryMethods[currentArtisanId] !== 'pickup') {
+      validateSavedAddress();
+    }
+  }, [useSavedAddress, selectedDeliveryMethods[currentArtisanId]]);
 
   // Get the current artisan (assuming single artisan for now)
   const currentArtisanId = Object.keys(cartByArtisan)[0];
@@ -197,6 +206,24 @@ const DeliveryInformation = ({
     }
   };
 
+  // Validate complete address when all fields are filled
+  const validateCompleteAddress = async () => {
+    const address = deliveryForm.deliveryAddress;
+    if (address?.street && address?.city && address?.state && address?.zipCode) {
+      const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
+      await validateAddress(fullAddress);
+    }
+  };
+
+  // Validate saved address when selected
+  const validateSavedAddress = async () => {
+    if (useSavedAddress && deliveryForm.deliveryAddress?.street) {
+      const address = deliveryForm.deliveryAddress;
+      const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
+      await validateAddress(fullAddress);
+    }
+  };
+
   // Validate and geocode address
   const validateAddress = async (address) => {
     if (!address || address.length < 10) return;
@@ -298,13 +325,15 @@ const DeliveryInformation = ({
   const methodSelected = selectedDeliveryMethods[currentArtisanId];
   const pickupTimeSelected = methodSelected !== 'pickup' || Boolean(selectedPickupTimes[currentArtisanId]);
   
-  // For pickup, no address required. For delivery, need complete address
-  const deliveryAddressComplete = methodSelected === 'pickup' || Boolean(
-    deliveryForm.deliveryAddress?.street && 
-    deliveryForm.deliveryAddress?.city &&
-    deliveryForm.deliveryAddress?.state &&
-    deliveryForm.deliveryAddress?.zipCode
-  );
+  // For pickup, no address required. For delivery, need complete address or saved address selected
+  const deliveryAddressComplete = methodSelected === 'pickup' || 
+    (methodSelected !== 'pickup' && useSavedAddress && deliveryForm.deliveryAddress?.street) ||
+    Boolean(
+      deliveryForm.deliveryAddress?.street && 
+      deliveryForm.deliveryAddress?.city &&
+      deliveryForm.deliveryAddress?.state &&
+      deliveryForm.deliveryAddress?.zipCode
+    );
   
   // For guest info, check if email is valid format and not a patron account
   const isEmailFormatValid = deliveryForm.email && isValidEmailFormat(deliveryForm.email);
@@ -331,11 +360,13 @@ const DeliveryInformation = ({
     
     // Show relevant sections based on selection
     if (method !== 'pickup') {
-      setShowDeliveryAddress(true);
+      setShowAddressOptions(true);
+      setShowDeliveryAddress(false); // Don't show address form immediately
       if (isGuest) {
         setShowPersonalInfo(true);
       }
     } else {
+      setShowAddressOptions(false);
       setShowDeliveryAddress(false);
       if (isGuest) {
         setShowPersonalInfo(true);
@@ -685,8 +716,100 @@ const DeliveryInformation = ({
               </div>
             )}
 
-            {/* Delivery Address Section */}
-            {selectedDeliveryMethods[currentArtisanId] !== 'pickup' && (
+            {/* Address Options Section - Show when delivery method is selected */}
+            {showAddressOptions && selectedDeliveryMethods[currentArtisanId] !== 'pickup' && (
+              <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                    <MapPinIcon className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-stone-800 font-display">Delivery Address</h3>
+                </div>
+
+                {/* Address Selection Options */}
+                {!isGuest && deliveryForm.deliveryAddress?.street ? (
+                  <div className="space-y-4">
+                    <p className="text-stone-600 mb-4">Choose how you'd like to provide your delivery address:</p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Use Saved Address Option */}
+                      <div 
+                        className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
+                          useSavedAddress 
+                            ? 'border-amber-500 bg-amber-50' 
+                            : 'border-stone-200 hover:border-amber-300'
+                        }`}
+                        onClick={() => {
+                          setUseSavedAddress(true);
+                          setShowDeliveryAddress(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <input
+                            type="radio"
+                            checked={useSavedAddress}
+                            onChange={() => {
+                              setUseSavedAddress(true);
+                              setShowDeliveryAddress(false);
+                            }}
+                            className="text-amber-600"
+                          />
+                          <CheckCircleIcon className="w-6 h-6 text-emerald-600" />
+                          <h4 className="font-semibold text-stone-800">Use Saved Address</h4>
+                        </div>
+                        <div className="text-sm text-stone-600">
+                          <p className="font-medium">{deliveryForm.deliveryAddress.street}</p>
+                          <p>{deliveryForm.deliveryAddress.city}, {deliveryForm.deliveryAddress.state} {deliveryForm.deliveryAddress.zipCode}</p>
+                        </div>
+                      </div>
+
+                      {/* Enter New Address Option */}
+                      <div 
+                        className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
+                          !useSavedAddress 
+                            ? 'border-amber-500 bg-amber-50' 
+                            : 'border-stone-200 hover:border-amber-300'
+                        }`}
+                        onClick={() => {
+                          setUseSavedAddress(false);
+                          setShowDeliveryAddress(true);
+                        }}
+                      >
+                        <div className="flex items-center gap-3 mb-3">
+                          <input
+                            type="radio"
+                            checked={!useSavedAddress}
+                            onChange={() => {
+                              setUseSavedAddress(false);
+                              setShowDeliveryAddress(true);
+                            }}
+                            className="text-amber-600"
+                          />
+                          <MapPinIcon className="w-6 h-6 text-amber-600" />
+                          <h4 className="font-semibold text-stone-800">Enter New Address</h4>
+                        </div>
+                        <p className="text-sm text-stone-600">Provide a different delivery address</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // For guests or when no saved address, show address form directly
+                  <div>
+                    <p className="text-stone-600 mb-4">Please provide your delivery address:</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeliveryAddress(true)}
+                      className="btn-primary"
+                    >
+                      Enter Delivery Address
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Delivery Address Form - Show when new address is selected or for guests */}
+            {showDeliveryAddress && selectedDeliveryMethods[currentArtisanId] !== 'pickup' && (
               <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -819,6 +942,7 @@ const DeliveryInformation = ({
                           ...deliveryForm.deliveryAddress,
                           zipCode: e.target.value
                         })}
+                        onBlur={validateCompleteAddress}
                         className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
                         placeholder="ZIP code"
                       />

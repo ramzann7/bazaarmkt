@@ -17,10 +17,12 @@ const InventoryManagement = ({
 
   // Initialize inventory model from product
   useEffect(() => {
-    if (product) {
+    if (product && product._id) {
       setInventoryModel(new InventoryModel(product));
+    } else {
+      setInventoryModel(null);
     }
-  }, [product._id, product.stock, product.totalCapacity, product.remainingCapacity, product.availableQuantity, product.capacityPeriod]);
+  }, [product?._id, product?.stock, product?.totalCapacity, product?.remainingCapacity, product?.availableQuantity, product?.capacityPeriod]);
 
   // Handle stock updates for ready-to-ship products
   const handleStockUpdate = async (newStock) => {
@@ -39,7 +41,7 @@ const InventoryManagement = ({
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      const updatedProduct = response.data.product;
+      const updatedProduct = response.data.data || response.data.product;
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);
@@ -74,7 +76,7 @@ const InventoryManagement = ({
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      const updatedProduct = response.data.product;
+      const updatedProduct = response.data.data || response.data.product;
       
       console.log('🔍 Updated product from API:', updatedProduct);
       
@@ -106,7 +108,7 @@ const InventoryManagement = ({
       }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      const updatedProduct = response.data.product;
+      const updatedProduct = response.data.data || response.data.product;
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);
@@ -120,7 +122,7 @@ const InventoryManagement = ({
 
   // Render inventory input based on product type
   const renderInventoryInput = () => {
-    if (!inventoryModel) return null;
+    if (!inventoryModel || !product) return null;
 
     const displayData = inventoryModel.getInventoryDisplayData();
     if (!displayData) return null;
@@ -226,6 +228,8 @@ const InventoryManagement = ({
 
   // Render inventory display for product list
   const renderInventoryDisplay = () => {
+    if (!product) return null;
+    
     switch (product.productType) {
       case 'ready_to_ship':
         return (

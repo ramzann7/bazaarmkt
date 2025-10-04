@@ -5,6 +5,9 @@
 
 class InventoryModel {
   constructor(product) {
+    if (!product) {
+      throw new Error('Product is required to create InventoryModel');
+    }
     this.product = product;
     this.inventoryData = this.initializeInventoryData();
   }
@@ -30,6 +33,10 @@ class InventoryModel {
    * Get inventory display data based on product type
    */
   getInventoryDisplayData() {
+    if (!this.product || !this.product.productType) {
+      return null;
+    }
+    
     switch (this.product.productType) {
       case 'ready_to_ship':
         return {

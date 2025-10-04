@@ -179,6 +179,11 @@ export default function ArtisanProductManagement() {
 
   // Unified inventory update handler using the new inventory system
   const handleInventoryUpdate = (updatedProduct) => {
+    if (!updatedProduct || !updatedProduct._id) {
+      console.error('Invalid updatedProduct in handleInventoryUpdate:', updatedProduct);
+      return;
+    }
+    
     // Create a new object reference to ensure React detects the change
     const updatedProducts = products.map(p => 
       p._id === updatedProduct._id ? { ...updatedProduct } : { ...p }

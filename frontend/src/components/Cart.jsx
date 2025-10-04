@@ -2448,45 +2448,25 @@ const Cart = () => {
                 console.log('🔍 selectedPaymentMethod:', selectedPaymentMethod);
                 console.log('🔍 Button should be enabled:', !isGuest && !!selectedPaymentMethod);
                 
-                // Process the order
-                if (isGuest) {
-                  await handleGuestCheckout();
-                } else {
-                  await handlePlaceOrder();
-                }
+                // Process the order using new Stripe payment flow
+                await handleCheckout();
               }}
-              disabled={
-                isLoading ||
-                (isGuest && (!guestPaymentForm.paymentMethod || 
-                  !guestPaymentForm.cardNumber || 
-                  !guestPaymentForm.expiryDate || 
-                  !guestPaymentForm.cvv || 
-                  !guestPaymentForm.cardholderName ||
-                  !guestPaymentForm.zipCode)) ||
-                (!isGuest && !selectedPaymentMethod) ||
-                (!isGuest && selectedPaymentMethod === 'new') // Disable if "Add New" is selected but not saved yet
-              }
+              disabled={isLoading || isCreatingPaymentIntent}
               className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all flex items-center gap-2 ${
-                !isLoading && ((isGuest && guestPaymentForm.paymentMethod && 
-                  guestPaymentForm.cardNumber && 
-                  guestPaymentForm.expiryDate && 
-                  guestPaymentForm.cvv && 
-                  guestPaymentForm.cardholderName &&
-                  guestPaymentForm.zipCode) || 
-                  (!isGuest && selectedPaymentMethod && selectedPaymentMethod !== 'new'))
-                  ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg hover:shadow-xl'
+                !isLoading && !isCreatingPaymentIntent
+                  ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg hover:shadow-xl'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-                    {isLoading ? (
+                    {isLoading || isCreatingPaymentIntent ? (
                       <>
                         <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Processing Order...
+                        {isCreatingPaymentIntent ? 'Preparing Payment...' : 'Processing Order...'}
                       </>
                     ) : (
                       <>
                         <ShieldCheckIcon className="w-5 h-5" />
-                        Complete & Pay Order
+                        Proceed to Payment
                       </>
                     )}
               </button>

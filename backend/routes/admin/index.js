@@ -271,7 +271,6 @@ const getWalletBalance = async (req, res) => {
       }
     };
 
-    console.log('💰 Wallet balance response:', JSON.stringify(responseData, null, 2));
     res.json(responseData);
   } catch (error) {
     console.error('Get wallet balance error:', error);

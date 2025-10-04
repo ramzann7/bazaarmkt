@@ -61,7 +61,6 @@ const WalletDashboard = () => {
       ]);
 
       if (balanceResponse.success) {
-        console.log('💰 Frontend received wallet data:', balanceResponse.data);
         setWalletData(balanceResponse.data);
       }
 
@@ -254,7 +253,6 @@ const WalletDashboard = () => {
           </h3>
           
           <div className="space-y-4">
-            {console.log('🔍 Rendering payout info, walletData:', walletData)}
             {walletData?.payoutSettings ? (
               <>
                 <div className="flex justify-between items-center">

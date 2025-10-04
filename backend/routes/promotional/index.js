@@ -76,6 +76,80 @@ router.get('/products/featured', async (req, res) => {
   }
 });
 
+// Get sponsored products (spotlight artisans' products)
+router.get('/products/sponsored', async (req, res) => {
+  try {
+    const { db } = req;
+    const { limit = 3, category, searchQuery, userLat, userLng } = req.query;
+    
+    // Get active spotlight subscriptions
+    const activeSpotlights = await db.collection('artisanspotlight')
+      .find({
+        status: 'active',
+        endDate: { $gt: new Date() }
+      })
+      .toArray();
+    
+    if (activeSpotlights.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+    
+    // Get artisan IDs with active spotlights
+    const spotlightArtisanIds = activeSpotlights.map(spotlight => spotlight.artisanId);
+    
+    // Build product query
+    const productQuery = {
+      artisan: { $in: spotlightArtisanIds },
+      status: 'active'
+    };
+    
+    if (category) {
+      productQuery.category = category;
+    }
+    
+    if (searchQuery) {
+      productQuery.$or = [
+        { name: { $regex: searchQuery, $options: 'i' } },
+        { description: { $regex: searchQuery, $options: 'i' } }
+      ];
+    }
+    
+    // Get products with artisan information
+    const products = await db.collection('products').aggregate([
+      { $match: productQuery },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] },
+          isSponsored: true,
+          spotlightPriority: 100 // High priority for spotlight products
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0,
+          'artisan.user': 0,
+          'artisan.createdAt': 0,
+          'artisan.updatedAt': 0
+        }
+      },
+      { $limit: parseInt(limit) }
+    ]).toArray();
+    
+    res.json({ success: true, data: products });
+  } catch (error) {
+    console.error('Get sponsored products error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get bulk promotional features for artisans
 router.get('/artisans/bulk', async (req, res) => {
   try {

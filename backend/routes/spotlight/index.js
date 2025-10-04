@@ -32,11 +32,27 @@ const getSpotlightStatus = async (req, res) => {
       status: 'active'
     });
 
+    // Calculate remaining days if subscription exists
+    let remainingDays = 0;
+    if (subscription && subscription.endDate) {
+      const now = new Date();
+      const endDate = new Date(subscription.endDate);
+      const diffTime = endDate - now;
+      remainingDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    }
+
     res.json({
       success: true,
       data: {
         hasActiveSpotlight: !!subscription,
-        subscription: subscription || null
+        subscription: subscription ? {
+          ...subscription,
+          remainingDays
+        } : null,
+        spotlight: subscription ? {
+          ...subscription,
+          remainingDays
+        } : null
       }
     });
   } catch (error) {
@@ -61,7 +77,7 @@ const purchaseSpotlight = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { days, paymentMethod = 'wallet' } = req.body;
+    const { days, paymentMethod = 'card' } = req.body;
 
     if (!days || days < 1 || days > 365) {
       return res.status(400).json({
@@ -92,7 +108,7 @@ const purchaseSpotlight = async (req, res) => {
     const totalCost = days * costPerDay;
 
     // Check wallet balance if using wallet payment
-    if (paymentMethod === 'wallet') {
+    if (paymentMethod === 'card' || paymentMethod === 'wallet') {
       const wallet = await walletsCollection.findOne({
         artisanId: artisan._id
       });
@@ -157,13 +173,33 @@ const purchaseSpotlight = async (req, res) => {
       await spotlightCollection.insertOne(spotlightData);
     }
 
+    // Update artisan's spotlight status
+    await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { 
+        $set: {
+          hasActiveSpotlight: true,
+          spotlightEndDate: endDate,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    // Get the updated subscription for response
+    const updatedSubscription = await spotlightCollection.findOne({
+      userId: new ObjectId(decoded.userId),
+      status: 'active'
+    });
+
     res.json({
       success: true,
       message: `Spotlight activated for ${days} day${days > 1 ? 's' : ''}`,
       data: {
+        subscription: updatedSubscription,
         days,
         cost: totalCost,
-        endDate
+        endDate,
+        hasActiveSpotlight: true
       }
     });
   } catch (error) {
@@ -303,12 +339,24 @@ const cancelSpotlight = async (req, res) => {
 
     const db = req.db;
     const spotlightCollection = db.collection('artisanspotlight');
+    const artisansCollection = db.collection('artisans');
 
+    // Get the subscription to find the artisan
+    const subscription = await spotlightCollection.findOne({
+      _id: new ObjectId(id),
+      userId: new ObjectId(decoded.userId)
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Spotlight subscription not found'
+      });
+    }
+
+    // Cancel the subscription
     const result = await spotlightCollection.updateOne(
-      { 
-        _id: new ObjectId(id),
-        userId: new ObjectId(decoded.userId)
-      },
+      { _id: new ObjectId(id) },
       { 
         $set: { 
           status: 'cancelled',
@@ -318,12 +366,17 @@ const cancelSpotlight = async (req, res) => {
       }
     );
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Spotlight subscription not found'
-      });
-    }
+    // Update artisan's spotlight status
+    await artisansCollection.updateOne(
+      { _id: subscription.artisanId },
+      { 
+        $set: {
+          hasActiveSpotlight: false,
+          spotlightEndDate: null,
+          updatedAt: new Date()
+        }
+      }
+    );
 
     res.json({
       success: true,

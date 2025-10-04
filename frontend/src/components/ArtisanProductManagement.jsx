@@ -296,6 +296,7 @@ export default function ArtisanProductManagement() {
       filtered = filtered.filter(product => product.status === selectedStatus);
     }
 
+
     // Apply sorting
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
@@ -396,26 +397,19 @@ export default function ArtisanProductManagement() {
   };
 
   const getPromotionStatus = (product) => {
-    if (!product.promotionalFeatures || product.promotionalFeatures.length === 0) {
+    // Check if product has promotional features based on the fields set by the backend
+    const isFeatured = product.isFeatured && product.featuredUntil && new Date(product.featuredUntil) > new Date();
+    const isSponsored = product.isSponsored && product.sponsoredUntil && new Date(product.sponsoredUntil) > new Date();
+
+    if (!isFeatured && !isSponsored) {
       return { status: 'none', text: 'No Promotions', color: 'text-gray-500' };
     }
 
-    const activeFeatures = product.promotionalFeatures.filter(feature => 
-      feature.status === 'active' || feature.status === 'pending'
-    );
-
-    if (activeFeatures.length === 0) {
-      return { status: 'none', text: 'No Active Promotions', color: 'text-gray-500' };
-    }
-
-    const featuredCount = activeFeatures.filter(f => f.featureType === 'featured_product').length;
-    const sponsoredCount = activeFeatures.filter(f => f.featureType === 'sponsored_product').length;
-
-    if (featuredCount > 0 && sponsoredCount > 0) {
+    if (isFeatured && isSponsored) {
       return { status: 'both', text: 'Featured + Sponsored', color: 'text-purple-600' };
-    } else if (featuredCount > 0) {
+    } else if (isFeatured) {
       return { status: 'featured', text: 'Featured Product', color: 'text-primary' };
-    } else if (sponsoredCount > 0) {
+    } else if (isSponsored) {
       return { status: 'sponsored', text: 'Sponsored Product', color: 'text-purple-600' };
     }
 
@@ -539,6 +533,7 @@ export default function ArtisanProductManagement() {
                     <option value="draft">Draft</option>
                   </select>
                 </div>
+                
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>

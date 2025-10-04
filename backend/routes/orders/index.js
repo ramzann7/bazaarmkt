@@ -340,7 +340,15 @@ const getArtisanOrders = async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const db = req.db; // Use shared connection from middleware
+    // Use shared database connection from middleware
+    const db = req.db;
+    if (!db) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection not available'
+      });
+    }
+    
     const ordersCollection = db.collection('orders');
     const artisansCollection = db.collection('artisans');
     
@@ -359,96 +367,96 @@ const getArtisanOrders = async (req, res) => {
       artisanIdString: artisan._id.toString()
     });
     
-    // Get orders where items contain artisan's products
-    // Use aggregation to properly match the artisanId in items array
-    const orders = await ordersCollection.aggregate([
-      {
-        $match: {
-          $or: [
-            { 'items.artisanId': artisan._id },
-            { 'items.artisanId': artisan._id.toString() },
-            { 'items.artisanId': new (require('mongodb')).ObjectId(artisan._id) }
-          ]
-        }
-      },
-      {
-        $addFields: {
-          // Add artisan info to each order
-          artisanInfo: artisan
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo'
-        }
-      },
-      {
-        $addFields: {
-          user: { $arrayElemAt: ['$userInfo', 0] }
-        }
-      },
-      {
-        $project: {
-          userInfo: 0,
-          'user.password': 0,
-          'user.__v': 0
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
-      {
-        $limit: parseInt(req.query.limit) || 50
-      }
-    ]).toArray();
+    // Verify database connection is working
+    console.log('🔍 Database connection status:', {
+      dbName: db.databaseName,
+      isConnected: true // If we got here, connection is working
+    });
     
-    console.log('🔍 Found orders for artisan:', orders.length);
-    console.log('🔍 Sample order items:', orders.length > 0 ? orders[0].items?.map(item => ({
-      productId: item.productId,
-      artisanId: item.artisanId,
-      artisanIdType: typeof item.artisanId
-    })) : 'No orders');
+    // First, let's check what orders exist in the database using shared connection
+    const allOrders = await ordersCollection.find({}).limit(5).toArray();
+    console.log('🔍 Sample orders in database:', allOrders.map(order => ({
+      _id: order._id,
+      userId: order.userId,
+      itemsCount: order.items?.length || 0,
+      items: order.items?.map(item => ({
+        productId: item.productId,
+        artisanId: item.artisanId,
+        artisanIdType: typeof item.artisanId
+      })) || []
+    })));
     
-    // If no orders found with aggregation, try a simpler approach
+    // Try multiple approaches to find orders for this artisan
+    let orders = [];
+    
+    // Approach 1: Direct match with ObjectId
+    console.log('🔍 Trying direct ObjectId match...');
+    orders = await ordersCollection
+      .find({
+        'items.artisanId': artisan._id
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    console.log('🔍 Direct ObjectId match found:', orders.length);
+    
+    // Approach 2: If no orders found, try string match
     if (orders.length === 0) {
-      console.log('🔍 No orders found with aggregation, trying simple find...');
-      const simpleOrders = await ordersCollection
+      console.log('🔍 Trying string match...');
+      orders = await ordersCollection
         .find({
-          'items.artisanId': artisan._id
+          'items.artisanId': artisan._id.toString()
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
         .toArray();
       
-      console.log('🔍 Simple find found orders:', simpleOrders.length);
-      
-      if (simpleOrders.length > 0) {
-        // Add artisan info to simple orders
-        const ordersWithArtisan = simpleOrders.map(order => ({
-          ...order,
-          artisanInfo: artisan
-        }));
-        
-        res.json({
-          success: true,
-          data: ordersWithArtisan,
-          orders: ordersWithArtisan, // Frontend compatibility
-          count: ordersWithArtisan.length
-        });
-        return;
-      }
+      console.log('🔍 String match found:', orders.length);
     }
     
-    // Connection managed by middleware - no close needed
+    // Approach 3: If still no orders, try to find any orders and filter manually
+    if (orders.length === 0) {
+      console.log('🔍 Trying manual filter approach...');
+      const allOrdersForFilter = await ordersCollection
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .toArray();
+      
+      orders = allOrdersForFilter.filter(order => {
+        return order.items && order.items.some(item => {
+          const itemArtisanId = item.artisanId;
+          return itemArtisanId && (
+            itemArtisanId.toString() === artisan._id.toString() ||
+            itemArtisanId.equals(artisan._id)
+          );
+        });
+      });
+      
+      console.log('🔍 Manual filter found:', orders.length);
+    }
+    
+    // Add artisan info to orders
+    const ordersWithArtisan = orders.map(order => ({
+      ...order,
+      artisanInfo: artisan
+    }));
+    
+    console.log('🔍 Final orders count:', ordersWithArtisan.length);
+    console.log('🔍 Sample order structure:', ordersWithArtisan.length > 0 ? {
+      _id: ordersWithArtisan[0]._id,
+      status: ordersWithArtisan[0].status,
+      totalAmount: ordersWithArtisan[0].totalAmount,
+      itemsCount: ordersWithArtisan[0].items?.length || 0,
+      createdAt: ordersWithArtisan[0].createdAt
+    } : 'No orders');
     
     res.json({
       success: true,
-      data: orders,
-      orders: orders, // Frontend compatibility
-      count: orders.length
+      data: ordersWithArtisan,
+      orders: ordersWithArtisan, // Frontend compatibility
+      count: ordersWithArtisan.length
     });
   } catch (error) {
     console.error('Get artisan orders error:', error);
@@ -946,6 +954,63 @@ const confirmOrderReceipt = async (req, res) => {
   }
 };
 
+// Debug endpoint to check database contents
+const debugOrders = async (req, res) => {
+  try {
+    // Use shared database connection from middleware
+    const db = req.db;
+    if (!db) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection not available'
+      });
+    }
+    
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get all orders
+    const allOrders = await ordersCollection.find({}).limit(10).toArray();
+    
+    // Get all artisans
+    const allArtisans = await artisansCollection.find({}).limit(10).toArray();
+    
+    res.json({
+      success: true,
+      debug: {
+        totalOrders: await ordersCollection.countDocuments({}),
+        totalArtisans: await artisansCollection.countDocuments({}),
+        sampleOrders: allOrders.map(order => ({
+          _id: order._id,
+          userId: order.userId,
+          status: order.status,
+          totalAmount: order.totalAmount,
+          itemsCount: order.items?.length || 0,
+          items: order.items?.map(item => ({
+            productId: item.productId,
+            artisanId: item.artisanId,
+            artisanIdType: typeof item.artisanId,
+            productName: item.productName
+          })) || [],
+          createdAt: order.createdAt
+        })),
+        sampleArtisans: allArtisans.map(artisan => ({
+          _id: artisan._id,
+          user: artisan.user,
+          businessName: artisan.businessName
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Debug orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug failed',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 router.post('/', createOrder);
 router.post('/guest', createGuestOrder);
@@ -953,6 +1018,7 @@ router.get('/', getUserOrders);
 router.get('/buyer', getPatronOrders);
 router.get('/artisan', getArtisanOrders);
 router.get('/artisan/stats', getArtisanStats);
+router.get('/debug', debugOrders);
 router.get('/:id', getOrderById);
 router.put('/:id/status', updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);

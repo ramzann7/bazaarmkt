@@ -382,8 +382,20 @@ const getArtisanOrders = async (req, res) => {
       items: order.items?.map(item => ({
         productId: item.productId,
         artisanId: item.artisanId,
-        artisanIdType: typeof item.artisanId
+        artisanIdType: typeof item.artisanId,
+        artisanIdString: item.artisanId?.toString()
       })) || []
+    })));
+    
+    // Let's also check what products exist for this artisan
+    const productsCollection = db.collection('products');
+    const artisanProducts = await productsCollection.find({ artisan: artisan._id }).limit(5).toArray();
+    console.log('🔍 Artisan products:', artisanProducts.map(product => ({
+      _id: product._id,
+      name: product.name,
+      artisan: product.artisan,
+      artisanType: typeof product.artisan,
+      artisanString: product.artisan?.toString()
     })));
     
     // Try multiple approaches to find orders for this artisan
@@ -424,14 +436,31 @@ const getArtisanOrders = async (req, res) => {
         .limit(100)
         .toArray();
       
+      console.log('🔍 All orders for manual filter:', allOrdersForFilter.length);
+      
       orders = allOrdersForFilter.filter(order => {
-        return order.items && order.items.some(item => {
+        if (!order.items) return false;
+        
+        const matchingItems = order.items.filter(item => {
           const itemArtisanId = item.artisanId;
-          return itemArtisanId && (
-            itemArtisanId.toString() === artisan._id.toString() ||
-            itemArtisanId.equals(artisan._id)
-          );
+          if (!itemArtisanId) return false;
+          
+          const matches = itemArtisanId.toString() === artisan._id.toString() ||
+                         (itemArtisanId.equals && itemArtisanId.equals(artisan._id));
+          
+          if (matches) {
+            console.log('🔍 Found matching item:', {
+              orderId: order._id,
+              itemArtisanId: itemArtisanId.toString(),
+              artisanId: artisan._id.toString(),
+              productName: item.productName
+            });
+          }
+          
+          return matches;
         });
+        
+        return matchingItems.length > 0;
       });
       
       console.log('🔍 Manual filter found:', orders.length);
@@ -968,6 +997,7 @@ const debugOrders = async (req, res) => {
     
     const ordersCollection = db.collection('orders');
     const artisansCollection = db.collection('artisans');
+    const productsCollection = db.collection('products');
     
     // Get all orders
     const allOrders = await ordersCollection.find({}).limit(10).toArray();
@@ -975,11 +1005,15 @@ const debugOrders = async (req, res) => {
     // Get all artisans
     const allArtisans = await artisansCollection.find({}).limit(10).toArray();
     
+    // Get all products
+    const allProducts = await productsCollection.find({}).limit(10).toArray();
+    
     res.json({
       success: true,
       debug: {
         totalOrders: await ordersCollection.countDocuments({}),
         totalArtisans: await artisansCollection.countDocuments({}),
+        totalProducts: await productsCollection.countDocuments({}),
         sampleOrders: allOrders.map(order => ({
           _id: order._id,
           userId: order.userId,
@@ -990,14 +1024,26 @@ const debugOrders = async (req, res) => {
             productId: item.productId,
             artisanId: item.artisanId,
             artisanIdType: typeof item.artisanId,
-            productName: item.productName
+            artisanIdString: item.artisanId?.toString(),
+            productName: item.productName,
+            quantity: item.quantity
           })) || [],
           createdAt: order.createdAt
         })),
         sampleArtisans: allArtisans.map(artisan => ({
           _id: artisan._id,
           user: artisan.user,
-          businessName: artisan.businessName
+          businessName: artisan.businessName,
+          artisanType: typeof artisan._id,
+          artisanString: artisan._id.toString()
+        })),
+        sampleProducts: allProducts.map(product => ({
+          _id: product._id,
+          name: product.name,
+          artisan: product.artisan,
+          artisanType: typeof product.artisan,
+          artisanString: product.artisan?.toString(),
+          status: product.status
         }))
       }
     });

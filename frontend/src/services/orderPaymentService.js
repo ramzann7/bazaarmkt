@@ -17,6 +17,9 @@ orderPaymentApi.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔍 OrderPaymentService - Token being sent:', token ? `${token.slice(0, 20)}...` : 'No token');
+    } else {
+      console.log('🔍 OrderPaymentService - No token found in localStorage');
     }
     return config;
   },

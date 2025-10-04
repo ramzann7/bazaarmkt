@@ -352,7 +352,7 @@ export default function OrderConfirmation() {
         }
       `}</style>
       
-      <div className="min-h-screen bg-[#F5F1EA] print:bg-white print:min-h-0">
+      <div className="min-h-screen bg-background print:bg-white print:min-h-0">
         {/* Print Header - Only visible when printing */}
         <div className="hidden print:block print:border-b print:border-gray-300 print:pb-4 print:mb-4">
           <div className="text-center">
@@ -364,24 +364,24 @@ export default function OrderConfirmation() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:max-w-none print:px-0 print:py-0">
         {/* Success Header */}
         <div className="text-center mb-8 print:mb-4 print:border-b print:border-gray-300 print:pb-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#3C6E47] rounded-full mb-6 shadow-lg print:hidden">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg print:hidden">
             <CheckCircleIcon className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3 font-serif print:text-2xl print:mb-2">
+          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display print:text-2xl print:mb-2">
             Order Confirmed! 🎉
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto print:text-base print:max-w-none">
+          <p className="text-xl text-stone-600 max-w-2xl mx-auto print:text-base print:max-w-none">
             Thank you for your order! We've received your request and our artisans are getting started.
           </p>
         </div>
 
         {/* Order Summary Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-[#E6B655] p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4">
+        <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4">
           <div className="flex items-center justify-between mb-6 print:mb-4">
-            <h2 className="text-2xl font-bold text-gray-900 font-serif print:text-xl">Order Summary</h2>
+            <h2 className="text-2xl font-bold text-stone-800 font-display print:text-xl">Order Summary</h2>
             <div className="text-right">
-              <p className="text-sm text-gray-600 print:text-xs">Total Orders</p>
-              <p className="text-3xl font-bold text-[#3C6E47] print:text-2xl">{totalOrders}</p>
+              <p className="text-sm text-stone-600 print:text-xs">Total Orders</p>
+              <p className="text-3xl font-bold text-amber-600 print:text-2xl">{totalOrders}</p>
             </div>
           </div>
 
@@ -396,12 +396,12 @@ export default function OrderConfirmation() {
               
               
               return (
-                <div key={orderId} className="bg-gray-50 rounded-xl p-6 border border-gray-200 print:bg-white print:rounded-none print:border print:border-gray-300 print:p-4 print:break-inside-avoid">
+                <div key={orderId} className="bg-stone-50 rounded-xl p-6 border border-stone-200 print:bg-white print:rounded-none print:border print:border-gray-300 print:p-4 print:break-inside-avoid">
                   {/* Simplified Order Header */}
-                  <div className="bg-white rounded-lg p-4 mb-4 border border-orange-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
+                  <div className="card p-4 mb-4 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-full flex items-center justify-center print:hidden">
+                        <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full flex items-center justify-center print:hidden">
                           <span className="text-white text-lg font-bold">A</span>
                         </div>
                         <div>

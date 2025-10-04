@@ -238,21 +238,21 @@ export default function CartDropdown({ isOpen, onClose }) {
       {/* Dropdown Panel */}
       <div className="fixed right-0 top-16 w-full max-w-md h-[calc(100vh-4rem)] bg-white shadow-2xl z-50 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-stone-200">
           <div className="flex items-center gap-2">
-            <ShoppingBagIcon className="w-6 h-6 text-gray-700" />
-            <h2 className="text-xl font-bold text-gray-900">Your Cart</h2>
+            <ShoppingBagIcon className="w-6 h-6 text-stone-700" />
+            <h2 className="text-xl font-bold text-stone-800 font-display">Your Cart</h2>
             {cart.length > 0 && (
-              <span className="bg-[#3C6E47] text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+              <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg">
                 {cart.length}
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-stone-100 rounded-full transition-colors"
           >
-            <XMarkIcon className="w-6 h-6 text-gray-700" />
+            <XMarkIcon className="w-6 h-6 text-stone-700" />
           </button>
         </div>
 
@@ -260,16 +260,16 @@ export default function CartDropdown({ isOpen, onClose }) {
         <div className="flex-1 overflow-y-auto p-4">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3C6E47]"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
             </div>
           ) : cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
-              <ShoppingBagIcon className="w-20 h-20 text-gray-300 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Your cart is empty</h3>
-              <p className="text-gray-500 mb-6">Add some products to get started!</p>
+              <ShoppingBagIcon className="w-20 h-20 text-stone-300 mb-4" />
+              <h3 className="text-lg font-semibold text-stone-800 mb-2 font-display">Your cart is empty</h3>
+              <p className="text-stone-500 mb-6">Add some products to get started!</p>
               <button
                 onClick={onClose}
-                className="px-6 py-2 bg-[#3C6E47] text-white rounded-lg hover:bg-[#2E5A3A] transition-colors"
+                className="btn-primary px-6 py-2"
               >
                 Continue Shopping
               </button>
@@ -286,13 +286,13 @@ export default function CartDropdown({ isOpen, onClose }) {
                 return (
                 <div 
                   key={item._id} 
-                  className={`bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-all ${
+                  className={`card p-3 hover:shadow-md transition-all ${
                     isUpdating ? 'opacity-70 pointer-events-none' : ''
                   }`}
                 >
                   <div className="flex gap-3">
                     {/* Product Image */}
-                    <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden relative">
+                    <div className="w-20 h-20 flex-shrink-0 bg-stone-100 rounded-lg overflow-hidden relative">
                       {item.image && !hasImageError ? (
                         <>
                           <img
@@ -306,27 +306,27 @@ export default function CartDropdown({ isOpen, onClose }) {
                           <div className="absolute inset-0 bg-gray-200 animate-pulse" style={{ display: 'none' }}></div>
                         </>
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                          <ShoppingBagIcon className="w-10 h-10 text-gray-400" />
+                        <div className="w-full h-full bg-gradient-to-br from-stone-200 to-stone-300 flex items-center justify-center">
+                          <ShoppingBagIcon className="w-10 h-10 text-stone-400" />
                         </div>
                       )}
                       {/* Updating spinner overlay */}
                       {isUpdating && (
                         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
-                          <div className="w-6 h-6 border-2 border-[#3C6E47] border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       )}
                     </div>
 
                     {/* Product Details */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">
+                      <h4 className="font-semibold text-stone-800 text-sm mb-1 line-clamp-2">
                         {item.name}
                       </h4>
                       
                       {/* Artisan Name */}
                       {(item.artisanName || item.artisan?.artisanName || item.artisan?.businessName) && (
-                        <p className="text-xs text-gray-500 mb-2">
+                        <p className="text-xs text-stone-500 mb-2">
                           by {item.artisanName || item.artisan?.artisanName || item.artisan?.businessName}
                         </p>
                       )}
@@ -349,7 +349,7 @@ export default function CartDropdown({ isOpen, onClose }) {
                               <MinusIcon className="w-3 h-3" />
                             )}
                           </button>
-                          <span className="text-sm font-semibold text-gray-900 w-8 text-center">
+                          <span className="text-sm font-semibold text-stone-800 w-8 text-center">
                             {isUpdating ? '...' : item.quantity}
                           </span>
                           <button
@@ -371,7 +371,7 @@ export default function CartDropdown({ isOpen, onClose }) {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-gray-900">
+                          <span className="font-bold text-stone-800">
                             ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                           </span>
                           <button
@@ -420,24 +420,24 @@ export default function CartDropdown({ isOpen, onClose }) {
 
         {/* Footer with Total and Checkout Button */}
         {cart.length > 0 && (
-          <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="border-t border-stone-200 p-4 bg-stone-50">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-lg font-semibold text-gray-900">Total:</span>
-              <span className="text-2xl font-bold text-[#3C6E47]">
+              <span className="text-lg font-semibold text-stone-800">Total:</span>
+              <span className="text-2xl font-bold text-amber-600">
                 ${calculateTotal().toFixed(2)}
               </span>
             </div>
             
             <button
               onClick={handleCheckout}
-              className="w-full py-3 bg-[#3C6E47] text-white font-semibold rounded-lg hover:bg-[#2E5A3A] transition-colors shadow-lg hover:shadow-xl transform hover:scale-105 transition-transform"
+              className="w-full py-3 btn-primary font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-transform"
             >
               Continue to Checkout
             </button>
             
             <button
               onClick={onClose}
-              className="w-full mt-2 py-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+              className="w-full mt-2 py-2 text-stone-600 hover:text-stone-800 font-medium transition-colors"
             >
               Continue Shopping
             </button>

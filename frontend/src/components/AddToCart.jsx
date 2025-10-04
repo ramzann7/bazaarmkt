@@ -210,12 +210,12 @@ const AddToCart = ({
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex items-center justify-center px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
-        <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+        <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
 {getStockMessage() || `Max ${maxQuantity} per order`}
         </div>
       </div>
@@ -231,29 +231,29 @@ const AddToCart = ({
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= 1}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-2 py-1 text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <MinusIcon className="w-4 h-4" />
             </button>
-            <span className="px-3 py-1 text-gray-900 font-medium min-w-[2rem] text-center text-sm">
+            <span className="px-3 py-1 text-stone-800 font-medium min-w-[2rem] text-center text-sm">
               {quantity}
             </span>
             <button
               onClick={() => handleQuantityChange(quantity + 1)}
               disabled={quantity >= maxQuantity}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-2 py-1 text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <PlusIcon className="w-4 h-4" />
             </button>
           </div>
         )}
-        <div className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+        <div className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
           {getStockMessage() || `Max ${maxQuantity}`}
         </div>
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex-1 flex items-center justify-center px-3 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
@@ -269,14 +269,14 @@ const AddToCart = ({
 
       {/* Stock Warning for Low Stock Items */}
       {product.productType === 'ready_to_ship' && maxQuantity > 0 && maxQuantity <= 5 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <div className="flex items-center space-x-2">
             <span className="text-lg">⚠️</span>
             <div>
-              <span className="text-sm font-medium text-orange-800">
+              <span className="text-sm font-medium text-amber-800">
                 Low Stock Warning
               </span>
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-amber-600">
                 Only {maxQuantity} {maxQuantity === 1 ? 'item' : 'items'} left in stock. Order soon!
               </p>
             </div>
@@ -286,15 +286,15 @@ const AddToCart = ({
 
       {/* Distance Information with Visit Shop */}
       {product?.artisan && (product.distance !== undefined || product.formattedDistance) && (
-        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+        <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-lg">📍</span>
               <div>
-                <span className="text-sm font-medium text-blue-800">
+                <span className="text-sm font-medium text-emerald-800">
                   {product.artisan.artisanName}
                 </span>
-                <p className="text-xs text-blue-600">
+                <p className="text-xs text-emerald-600">
                   {product.formattedDistance || 
                    (product.distance !== undefined && product.distance !== null 
                      ? `${product.distance.toFixed(1)} km away` 
@@ -305,7 +305,7 @@ const AddToCart = ({
             {product.artisan._id && (
               <Link
                 to={`/artisan/${product.artisan._id}`}
-                className="text-xs font-medium text-orange-600 hover:text-orange-700 hover:underline whitespace-nowrap"
+                className="text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline whitespace-nowrap"
               >
                 Visit Shop →
               </Link>
@@ -317,39 +317,39 @@ const AddToCart = ({
       {/* Simplified Quantity Selector */}
       {showQuantity && (
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-stone-700">
             Quantity
           </label>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= 1}
-              className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <MinusIcon className="w-4 h-4" />
             </button>
-            <span className="w-12 text-center text-lg font-medium text-gray-900">
+            <span className="w-12 text-center text-lg font-medium text-stone-800">
               {quantity}
             </span>
             <button
               onClick={() => handleQuantityChange(quantity + 1)}
               disabled={quantity >= maxQuantity}
-              className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <PlusIcon className="w-4 h-4" />
             </button>
           </div>
-          <p className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+          <p className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
             {getStockMessage() || `Max ${maxQuantity} per order`}
           </p>
         </div>
       )}
 
       {/* Total Price */}
-      <div className="bg-gray-50 rounded-lg p-3">
+      <div className="bg-stone-50 rounded-lg p-3">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Total:</span>
-          <span className="text-lg font-bold text-primary">
+          <span className="text-sm text-stone-600">Total:</span>
+          <span className="text-lg font-bold text-amber-600">
             ${(product.price * quantity).toFixed(2)}
           </span>
         </div>
@@ -360,7 +360,7 @@ const AddToCart = ({
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="w-full flex items-center justify-center px-6 py-4 bg-orange-600 text-white text-lg font-bold rounded-lg hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors shadow-lg"
+          className="w-full flex items-center justify-center px-6 py-4 bg-amber-600 text-white text-lg font-bold rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors shadow-lg"
         >
           <ShoppingCartIcon className="w-6 h-6 mr-2" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
@@ -369,8 +369,8 @@ const AddToCart = ({
 
       {/* Success Message */}
       {showSuccess && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-          <span className="text-green-800 text-sm font-medium">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+          <span className="text-emerald-800 text-sm font-medium">
             ✓ Added to cart successfully!
           </span>
         </div>

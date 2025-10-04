@@ -1728,18 +1728,18 @@ const Cart = () => {
   // Render loading skeleton
   if (cartLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="animate-pulse">
-            <div className="h-12 bg-[#E6B655] rounded-2xl w-1/3 mb-8"></div>
+            <div className="h-12 bg-amber-200 rounded-2xl w-1/3 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-48 bg-white rounded-2xl shadow-lg"></div>
+                  <div key={i} className="h-48 card"></div>
                 ))}
               </div>
               <div className="lg:col-span-1">
-                <div className="h-64 bg-white rounded-2xl shadow-lg"></div>
+                <div className="h-64 card"></div>
               </div>
             </div>
           </div>
@@ -1751,17 +1751,17 @@ const Cart = () => {
   // Render empty cart
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="mx-auto w-24 h-24 bg-[#D77A61] rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
+            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
               <ShoppingBagIcon className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in font-serif">Your Collection Awaits</h1>
-            <p className="text-gray-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
+            <h1 className="text-4xl font-bold text-stone-800 mb-4 animate-fade-in font-display">Your Collection Awaits</h1>
+            <p className="text-stone-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
             <button
               onClick={() => navigate('/')}
-              className="bg-[#D77A61] text-white text-lg px-8 py-4 rounded-full hover:bg-[#3C6E47] transition-colors hover:scale-105 transition-transform duration-200 animate-fade-in-delay-2"
+              className="btn-primary text-lg px-8 py-4 animate-fade-in-delay-2"
             >
               Discover Artisans
             </button>
@@ -1798,34 +1798,34 @@ const Cart = () => {
   // Render payment page
   if (checkoutStep === 'payment') {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
           <button
             onClick={() => setCheckoutStep('delivery')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors group"
+            className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
           >
             <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="font-medium">Back to Delivery</span>
           </button>
 
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Information</h1>
-            <p className="text-gray-600">Complete your order with secure payment</p>
+            <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment Information</h1>
+            <p className="text-stone-600">Complete your order with secure payment</p>
           </div>
           
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="card p-6">
             {isGuest ? (
               // Guest Payment Method Selection
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Select Payment Method</h2>
+                <h2 className="text-xl font-semibold text-stone-800 mb-6 font-display">Select Payment Method</h2>
                 
                 {/* Payment Method Options for Guests */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <label className={`flex items-center space-x-4 p-4 border-2 rounded-lg transition-colors cursor-pointer ${
                     guestPaymentForm.paymentMethod === 'credit_card' 
-                      ? 'border-green-500 bg-green-50' 
-                      : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                      ? 'border-amber-500 bg-amber-50' 
+                      : 'border-stone-200 hover:border-amber-300 hover:bg-amber-50'
                   }`}>
                     <input
                       type="radio"
@@ -1833,21 +1833,21 @@ const Cart = () => {
                       value="credit_card"
                       checked={guestPaymentForm.paymentMethod === 'credit_card'}
                       onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-green-600 w-5 h-5"
+                      className="text-amber-600 w-5 h-5"
                     />
                     <div className="flex items-center gap-3">
-                      <CreditCardIcon className="w-6 h-6 text-green-600" />
+                      <CreditCardIcon className="w-6 h-6 text-amber-600" />
                       <div>
-                        <span className="text-gray-900 font-medium">Credit Card</span>
-                        <p className="text-sm text-gray-600">Visa, Mastercard, Amex</p>
+                        <span className="text-stone-800 font-medium">Credit Card</span>
+                        <p className="text-sm text-stone-600">Visa, Mastercard, Amex</p>
                       </div>
                     </div>
                   </label>
                   
                   <label className={`flex items-center space-x-4 p-4 border-2 rounded-lg transition-colors cursor-pointer ${
                     guestPaymentForm.paymentMethod === 'debit_card' 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                      ? 'border-emerald-500 bg-emerald-50' 
+                      : 'border-stone-200 hover:border-emerald-300 hover:bg-emerald-50'
                   }`}>
                     <input
                       type="radio"
@@ -1855,13 +1855,13 @@ const Cart = () => {
                       value="debit_card"
                       checked={guestPaymentForm.paymentMethod === 'debit_card'}
                       onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-blue-600 w-5 h-5"
+                      className="text-emerald-600 w-5 h-5"
                     />
                     <div className="flex items-center gap-3">
-                      <CreditCardIcon className="w-6 h-6 text-blue-600" />
+                      <CreditCardIcon className="w-6 h-6 text-emerald-600" />
                       <div>
-                        <span className="text-gray-900 font-medium">Debit Card</span>
-                        <p className="text-sm text-gray-600">Direct bank transfer</p>
+                        <span className="text-stone-800 font-medium">Debit Card</span>
+                        <p className="text-sm text-stone-600">Direct bank transfer</p>
                       </div>
                     </div>
                   </label>
@@ -1869,12 +1869,12 @@ const Cart = () => {
 
                 {/* Card Details Form */}
                 {guestPaymentForm.paymentMethod && (
-                  <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Card Details</h3>
+                  <div className="border-t border-stone-200 pt-6">
+                    <h3 className="text-lg font-semibold text-stone-800 mb-4 font-display">Card Details</h3>
                     <div className="space-y-4">
                       {/* Card Number */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-stone-700 mb-2">
                           Card Number *
                         </label>
                         <input
@@ -1887,14 +1887,14 @@ const Cart = () => {
                           }}
                           placeholder="1234 5678 9012 3456"
                           maxLength="19"
-                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
+                          className="w-full px-4 py-3 border-2 border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 text-lg transition-all duration-200"
                         />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Expiry Date */}
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="block text-sm font-medium text-stone-700 mb-2">
                             Expiry Date *
                           </label>
                           <input
@@ -1909,7 +1909,7 @@ const Cart = () => {
                             }}
                             placeholder="MM/YY"
                             maxLength="5"
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
+                            className="w-full px-4 py-3 border-2 border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 text-lg transition-all duration-200"
                           />
                         </div>
 

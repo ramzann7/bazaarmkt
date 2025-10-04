@@ -190,6 +190,7 @@ const uploadRoutes = require('./routes/upload');
 const adminRoutes = require('./routes/admin');
 const revenueRoutes = require('./routes/revenue');
 const spotlightRoutes = require('./routes/spotlight');
+const geocodingRoutes = require('./routes/geocoding');
 
 // ============================================================================
 // WALLET TRANSACTION HELPER FUNCTIONS
@@ -253,6 +254,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/revenue', revenueRoutes);
 app.use('/api/spotlight', spotlightRoutes);
+app.use('/api/geocoding', geocodingRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS

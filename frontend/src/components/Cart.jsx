@@ -671,6 +671,44 @@ const Cart = () => {
     }
   };
 
+  // Load saved addresses and pre-populate delivery form
+  const loadSavedAddresses = async () => {
+    try {
+      if (!userProfile || !userProfile.addresses || userProfile.addresses.length === 0) {
+        console.log('📭 No saved addresses found for user');
+        return;
+      }
+
+      // Find the default address or use the first address
+      const defaultAddress = userProfile.addresses.find(addr => addr.isDefault) || userProfile.addresses[0];
+      
+      if (defaultAddress) {
+        console.log('🏠 Loading saved address:', defaultAddress);
+        
+        // Pre-populate delivery form with saved address
+        setDeliveryForm(prev => ({
+          ...prev,
+          firstName: userProfile.firstName || prev.firstName,
+          lastName: userProfile.lastName || prev.lastName,
+          email: userProfile.email || prev.email,
+          phone: userProfile.phone || prev.phone,
+          street: defaultAddress.street || prev.street,
+          city: defaultAddress.city || prev.city,
+          state: defaultAddress.state || prev.state,
+          zipCode: defaultAddress.zipCode || defaultAddress.postalCode || prev.zipCode,
+          country: defaultAddress.country || prev.country
+        }));
+
+        // Set the selected address
+        setSelectedAddress(defaultAddress);
+        
+        toast.success('Saved address loaded', { duration: 2000 });
+      }
+    } catch (error) {
+      console.error('❌ Error loading saved addresses:', error);
+    }
+  };
+
   // Check authentication status
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
@@ -1714,6 +1752,25 @@ const Cart = () => {
       });
     }
   }, [currentUserId, isGuest, userProfile]);
+
+  // Load saved addresses and pre-populate delivery form when user profile is loaded
+  useEffect(() => {
+    if (userProfile && !isGuest) {
+      loadSavedAddresses();
+    }
+  }, [userProfile, isGuest]);
+
+  // Set default payment method when payment methods are loaded
+  useEffect(() => {
+    if (paymentMethods.length > 0 && !selectedPaymentMethod && !isGuest) {
+      const defaultMethod = paymentMethods.find(method => method.isDefault) || paymentMethods[0];
+      if (defaultMethod) {
+        setSelectedPaymentMethod(defaultMethod);
+        console.log('💳 Auto-selected default payment method:', defaultMethod);
+        toast.success('Saved payment method loaded', { duration: 2000 });
+      }
+    }
+  }, [paymentMethods, selectedPaymentMethod, isGuest]);
 
 
   // Cleanup timeout on component unmount

@@ -2,6 +2,62 @@ const express = require('express');
 const router = express.Router();
 const { MongoClient, ObjectId } = require('mongodb');
 
+// Get promotional pricing
+router.get('/pricing', async (req, res) => {
+  try {
+    // Return promotional pricing configuration
+    const pricing = {
+      featured_product: {
+        pricePerDay: 5,
+        currency: 'USD',
+        description: 'Featured on homepage with distance-based ranking',
+        benefits: [
+          'Homepage visibility',
+          'Distance-based ranking',
+          'Priority placement',
+          'Admin approval required'
+        ],
+        isActive: true
+      },
+      sponsored_product: {
+        pricePerDay: 10,
+        currency: 'USD',
+        description: 'Sponsored placement with guaranteed visibility',
+        benefits: [
+          'Guaranteed visibility',
+          'Top placement priority',
+          'Enhanced product display',
+          'Analytics dashboard access'
+        ],
+        isActive: true
+      },
+      spotlight_artisan: {
+        pricePerDay: 15,
+        currency: 'USD',
+        description: 'Spotlight your entire artisan profile',
+        benefits: [
+          'Profile spotlight',
+          'Featured artisan badge',
+          'Priority in search results',
+          'Enhanced profile display'
+        ],
+        isActive: true
+      }
+    };
+    
+    res.json({ 
+      success: true, 
+      data: pricing 
+    });
+  } catch (error) {
+    console.error('Get promotional pricing error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
 // Get featured promotional products
 router.get('/products/featured', async (req, res) => {
   try {

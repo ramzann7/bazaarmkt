@@ -382,6 +382,536 @@ const getAdminStats = async (req, res) => {
   }
 };
 
+// Get all products for admin management
+const getAdminProducts = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = req.db;
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+
+    // Get all products with artisan information
+    const products = await productsCollection.aggregate([
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisan',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          artisanInfo: 0,
+          'artisan.user': 0,
+          'artisan.createdAt': 0,
+          'artisan.updatedAt': 0
+        }
+      },
+      {
+        $sort: { createdAt: -1 }
+      }
+    ]).toArray();
+
+    res.json({
+      success: true,
+      data: products,
+      count: products.length
+    });
+  } catch (error) {
+    console.error('Get admin products error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get products',
+      error: error.message
+    });
+  }
+};
+
+// Update product status
+const updateProductStatus = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean'
+      });
+    }
+
+    const db = req.db;
+    const productsCollection = db.collection('products');
+
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          status: isActive ? 'active' : 'inactive',
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Product ${isActive ? 'activated' : 'deactivated'} successfully`
+    });
+  } catch (error) {
+    console.error('Update product status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update product status',
+      error: error.message
+    });
+  }
+};
+
+// Set featured product
+const setFeaturedProduct = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const { isFeatured } = req.body;
+
+    if (typeof isFeatured !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isFeatured must be a boolean'
+      });
+    }
+
+    const db = req.db;
+    const productsCollection = db.collection('products');
+
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          isFeatured: isFeatured,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Product ${isFeatured ? 'featured' : 'unfeatured'} successfully`
+    });
+  } catch (error) {
+    console.error('Set featured product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update featured status',
+      error: error.message
+    });
+  }
+};
+
+// Delete product
+const deleteAdminProduct = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+
+    const db = req.db;
+    const productsCollection = db.collection('products');
+
+    const result = await productsCollection.deleteOne({ _id: new ObjectId(id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete product',
+      error: error.message
+    });
+  }
+};
+
+// Get all artisans for admin management
+const getAdminArtisans = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    const usersCollection = db.collection('users');
+
+    // Get all artisans with user information
+    const artisans = await artisansCollection.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $addFields: {
+          user: { $arrayElemAt: ['$userInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          userInfo: 0,
+          'user.password': 0,
+          'user.__v': 0
+        }
+      },
+      {
+        $sort: { createdAt: -1 }
+      }
+    ]).toArray();
+
+    res.json({
+      success: true,
+      data: artisans,
+      count: artisans.length
+    });
+  } catch (error) {
+    console.error('Get admin artisans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get artisans',
+      error: error.message
+    });
+  }
+};
+
+// Update artisan status
+const updateArtisanStatus = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean'
+      });
+    }
+
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+
+    const result = await artisansCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          isActive: isActive,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Artisan ${isActive ? 'activated' : 'deactivated'} successfully`
+    });
+  } catch (error) {
+    console.error('Update artisan status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update artisan status',
+      error: error.message
+    });
+  }
+};
+
+// Update artisan verification
+const updateArtisanVerification = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const { isVerified } = req.body;
+
+    if (typeof isVerified !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isVerified must be a boolean'
+      });
+    }
+
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+
+    const result = await artisansCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          isVerified: isVerified,
+          verifiedAt: isVerified ? new Date() : null,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Artisan ${isVerified ? 'verified' : 'unverified'} successfully`
+    });
+  } catch (error) {
+    console.error('Update artisan verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update artisan verification',
+      error: error.message
+    });
+  }
+};
+
+// Get all users for admin management
+const getAdminUsers = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = req.db;
+    const usersCollection = db.collection('users');
+
+    // Get all users (excluding passwords)
+    const users = await usersCollection.find({}, {
+      projection: { password: 0, __v: 0 }
+    }).sort({ createdAt: -1 }).toArray();
+
+    res.json({
+      success: true,
+      data: users,
+      count: users.length
+    });
+  } catch (error) {
+    console.error('Get admin users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get users',
+      error: error.message
+    });
+  }
+};
+
+// Update user status
+const updateUserStatus = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean'
+      });
+    }
+
+    const db = req.db;
+    const usersCollection = db.collection('users');
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          isActive: isActive,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`
+    });
+  } catch (error) {
+    console.error('Update user status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user status',
+      error: error.message
+    });
+  }
+};
+
+// Update user role
+const updateUserRole = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id } = req.params;
+    const { role } = req.body;
+
+    const validRoles = ['user', 'artisan', 'admin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Role must be one of: ${validRoles.join(', ')}`
+      });
+    }
+
+    const db = req.db;
+    const usersCollection = db.collection('users');
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          role: role,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `User role updated to ${role} successfully`
+    });
+  } catch (error) {
+    console.error('Update user role error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user role',
+      error: error.message
+    });
+  }
+};
+
 // ============================================================================
 // SEARCH & DISCOVERY ENDPOINTS
 // ============================================================================
@@ -828,5 +1358,17 @@ router.get('/revenue', getArtisanRevenue);
 router.get('/stats', getAdminStats);
 router.get('/search', enhancedSearch);
 router.get('/analytics', getBusinessAnalytics);
+
+// Admin management routes
+router.get('/products', getAdminProducts);
+router.patch('/products/:id/status', updateProductStatus);
+router.patch('/products/:id/featured', setFeaturedProduct);
+router.delete('/products/:id', deleteAdminProduct);
+router.get('/artisans', getAdminArtisans);
+router.patch('/artisans/:id/status', updateArtisanStatus);
+router.patch('/artisans/:id/verification', updateArtisanVerification);
+router.get('/users', getAdminUsers);
+router.patch('/users/:id/status', updateUserStatus);
+router.patch('/users/:id/role', updateUserRole);
 
 module.exports = router;

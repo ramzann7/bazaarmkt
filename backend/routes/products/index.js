@@ -705,13 +705,38 @@ const updateInventory = async (req, res) => {
     
     // Handle frontend format: { quantity: newStock, action: 'set' }
     if (quantity !== undefined && action === 'set') {
-      updateData.stock = quantity;
-      updateData.availableQuantity = quantity;
+      console.log('🔍 Inventory update - Product type:', currentProduct.productType);
+      console.log('🔍 Inventory update - Current product data:', {
+        stock: currentProduct.stock,
+        totalCapacity: currentProduct.totalCapacity,
+        remainingCapacity: currentProduct.remainingCapacity,
+        availableQuantity: currentProduct.availableQuantity
+      });
+      console.log('🔍 Inventory update - Requested quantity:', quantity);
       
-      // For made-to-order products, also update remaining capacity if totalCapacity exists
-      if (currentProduct.productType === 'made_to_order' && currentProduct.totalCapacity !== undefined) {
+      // Handle different product types appropriately
+      if (currentProduct.productType === 'ready_to_ship') {
+        updateData.stock = quantity;
+        updateData.availableQuantity = quantity;
+        console.log('🔍 Ready-to-ship update - Setting stock and availableQuantity to:', quantity);
+      } else if (currentProduct.productType === 'made_to_order') {
+        // For made-to-order, quantity represents totalCapacity
+        updateData.totalCapacity = quantity;
+        // Recalculate remaining capacity based on current usage
         const usedCapacity = (currentProduct.totalCapacity || 0) - (currentProduct.remainingCapacity || 0);
-        updateData.remainingCapacity = Math.max(0, (currentProduct.totalCapacity || 0) - usedCapacity);
+        updateData.remainingCapacity = Math.max(0, quantity - usedCapacity);
+        console.log('🔍 Made-to-order update - Setting totalCapacity to:', quantity);
+        console.log('🔍 Made-to-order update - Used capacity:', usedCapacity);
+        console.log('🔍 Made-to-order update - New remaining capacity:', updateData.remainingCapacity);
+      } else if (currentProduct.productType === 'scheduled_order') {
+        // For scheduled order, quantity represents availableQuantity
+        updateData.availableQuantity = quantity;
+        console.log('🔍 Scheduled order update - Setting availableQuantity to:', quantity);
+      } else {
+        // Fallback for unknown types
+        updateData.stock = quantity;
+        updateData.availableQuantity = quantity;
+        console.log('🔍 Unknown type update - Setting stock and availableQuantity to:', quantity);
       }
     }
     

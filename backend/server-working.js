@@ -30,6 +30,9 @@ const setCache = (key, data) => {
 const app = express();
 app.set('trust proxy', 1);
 
+// Make helper functions available to routes
+app.locals.recordWalletTransaction = recordWalletTransaction;
+
 // Middleware
 app.use(express.json({ limit: '4.5mb' }));
 
@@ -190,6 +193,50 @@ const uploadRoutes = require('./routes/upload');
 const adminRoutes = require('./routes/admin');
 const revenueRoutes = require('./routes/revenue');
 const spotlightRoutes = require('./routes/spotlight');
+
+// ============================================================================
+// WALLET TRANSACTION HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Record a wallet transaction
+ * @param {Object} db - Database connection
+ * @param {Object} transactionData - Transaction data
+ */
+const recordWalletTransaction = async (db, transactionData) => {
+  try {
+    const {
+      artisanId,
+      type,
+      amount,
+      description,
+      reference = null,
+      orderId = null,
+      status = 'completed',
+      balanceAfter = null
+    } = transactionData;
+
+    const transaction = {
+      walletId: artisanId, // Using artisanId as walletId for simplicity
+      artisanId: new ObjectId(artisanId),
+      type,
+      amount,
+      description,
+      reference,
+      orderId: orderId ? new ObjectId(orderId) : null,
+      status,
+      balanceAfter,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    await db.collection('wallettransactions').insertOne(transaction);
+    console.log(`💰 Wallet transaction recorded: ${type} - ${amount} - ${description}`);
+  } catch (error) {
+    console.error('Error recording wallet transaction:', error);
+    // Don't throw error to avoid breaking the main operation
+  }
+};
 
 // Mount routes
 app.use('/api/auth', authRoutes);

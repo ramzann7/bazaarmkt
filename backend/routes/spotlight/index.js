@@ -128,6 +128,20 @@ const purchaseSpotlight = async (req, res) => {
           $set: { updatedAt: new Date() }
         }
       );
+
+      // Record wallet transaction
+      await db.collection('wallettransactions').insertOne({
+        walletId: wallet._id || artisan._id,
+        artisanId: artisan._id,
+        type: 'purchase',
+        amount: -totalCost,
+        description: `Spotlight subscription for ${days} day${days > 1 ? 's' : ''}`,
+        reference: `spotlight_${days}days`,
+        status: 'completed',
+        balanceAfter: wallet.balance - totalCost,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
     }
 
     // Calculate dates
@@ -287,6 +301,20 @@ const extendSpotlight = async (req, res) => {
         $set: { updatedAt: new Date() }
       }
     );
+
+    // Record wallet transaction
+    await db.collection('wallettransactions').insertOne({
+      walletId: wallet._id || artisan._id,
+      artisanId: artisan._id,
+      type: 'purchase',
+      amount: -totalCost,
+      description: `Spotlight extension for ${days} day${days > 1 ? 's' : ''}`,
+      reference: `spotlight_extend_${days}days`,
+      status: 'completed',
+      balanceAfter: wallet.balance - totalCost,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
 
     // Extend subscription
     const newEndDate = new Date(subscription.endDate);

@@ -377,7 +377,7 @@ export default function Navbar() {
           {/* Logo + BazaarMkt Text */}
           <OptimizedLink to="/" className="flex items-center gap-3 flex-shrink-0">
             <Logo showText={false} className="w-10 h-10" />
-            <span className="text-xl font-display font-bold text-primary">BazaarMkt</span>
+            <span className="text-xl font-display font-bold text-amber-600">BazaarMkt</span>
           </OptimizedLink>
 
           {/* Search Bar (Desktop) */}
@@ -394,7 +394,7 @@ export default function Navbar() {
                       onClick={toggleCategoryDropdown}
                       className={`flex items-center space-x-1 px-2 py-1.5 border border-r-0 rounded-l-lg transition-all duration-200 min-w-[90px] ${
                         selectedCategory !== 'all' || selectedSubcategory 
-                          ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20' 
+                          ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100' 
                           : 'bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100'
                       }`}
                     >
@@ -508,7 +508,7 @@ export default function Navbar() {
                           <button
                             key={`${search}-${index}`}
                             onClick={() => handlePopularSearch(search)}
-                            className="px-2 py-1 bg-gray-100 hover:bg-primary text-gray-700 hover:text-white rounded text-xs font-medium transition-all duration-200"
+                            className="px-2 py-1 bg-gray-100 hover:bg-amber-600 text-gray-700 hover:text-white rounded text-xs font-medium transition-all duration-200"
                           >
                             {search}
                           </button>
@@ -524,10 +524,10 @@ export default function Navbar() {
 
           {/* Nav Links - Between search and cart */}
           <div className="hidden lg:flex items-center gap-10 ml-auto mr-20">
-            <Link to="/find-artisans" className="text-secondary/90 hover:text-primary font-semibold text-sm transition-colors whitespace-nowrap">
+            <Link to="/find-artisans" className="text-secondary/90 hover:text-amber-600 font-semibold text-sm transition-colors whitespace-nowrap">
               Market
             </Link>
-            <Link to="/community" className="text-secondary/90 hover:text-primary font-semibold text-sm transition-colors whitespace-nowrap">
+            <Link to="/community" className="text-secondary/90 hover:text-amber-600 font-semibold text-sm transition-colors whitespace-nowrap">
               Community
             </Link>
           </div>
@@ -538,12 +538,14 @@ export default function Navbar() {
             {(!user || (user?.role !== 'artisan' && user?.userType !== 'artisan')) && (
               <button 
                 onClick={() => setShowCartDropdown(!showCartDropdown)}
-                className="relative p-2 text-secondary hover:text-primary transition-colors duration-200"
+                className="relative p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
               >
                 <ShoppingBagIcon className="w-6 h-6" />
                 {cartCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {cartCount}
+                  <span className={`absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg ${
+                    cartCount > 99 ? 'w-6 h-6 text-[10px]' : 'w-5 h-5'
+                  }`}>
+                    {cartCount > 99 ? '99+' : cartCount}
                   </span>
                 )}
               </button>
@@ -552,7 +554,7 @@ export default function Navbar() {
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (
               <>
-                <Link to="/login" className="hidden sm:block text-secondary/80 hover:text-primary transition-colors text-sm font-semibold">
+                <Link to="/login" className="hidden sm:block text-secondary/80 hover:text-amber-600 transition-colors text-sm font-semibold">
                   Sign In
                 </Link>
                 <Link to="/register" className="btn-primary text-sm px-5 py-2">
@@ -561,7 +563,7 @@ export default function Navbar() {
               </>
             ) : (
               <div className="relative group">
-                <button className="flex items-center space-x-2 p-2 text-secondary/80 hover:text-primary transition-colors duration-200">
+                <button className="flex items-center space-x-2 p-2 text-secondary/80 hover:text-amber-600 transition-colors duration-200">
                   <UserIcon className="w-6 h-6" />
                   <span className="hidden xl:block text-sm font-medium">
                     {isGuest ? 'Guest Checkout' : 'My Account'}
@@ -625,7 +627,7 @@ export default function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={toggleMobileMenu}
-            className="lg:hidden p-2 text-secondary hover:text-primary transition-colors duration-200"
+            className="lg:hidden p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
           >
             {isMobileMenuOpen ? (
               <XMarkIcon className="w-6 h-6" />
@@ -648,7 +650,7 @@ export default function Navbar() {
                     onClick={toggleCategoryDropdown}
                     className={`flex items-center space-x-1 px-2 py-2 border border-r-0 border-gray-300 rounded-l-lg text-sm ${
                       selectedCategory !== 'all' || selectedSubcategory 
-                        ? 'bg-primary-50 border-primary-300' 
+                        ? 'bg-amber-50 border-amber-300' 
                         : 'bg-gray-50'
                     }`}
                   >
@@ -748,7 +750,7 @@ export default function Navbar() {
                         <button
                           key={`mobile-${search}-${index}`}
                           onClick={() => handlePopularSearch(search)}
-                          className="px-2 py-1 bg-gray-100 hover:bg-primary-100 text-gray-700 hover:text-primary-dark rounded text-xs transition-colors"
+                            className="px-2 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-800 rounded text-xs transition-colors"
                         >
                           {search}
                         </button>

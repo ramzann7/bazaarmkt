@@ -203,40 +203,22 @@ const DeliveryInformation = ({
     
     setIsValidatingAddress(true);
     try {
-      // Geocode the address
-      const geocodeResponse = await fetch('/api/geocoding/geocode', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ address })
-      });
+      // Geocode the address using the geocoding service
+      const geocodeResult = await geocodingService.geocodeAddress(address);
       
-      const geocodeResult = await geocodeResponse.json();
-      
-      if (geocodeResult.success) {
-        const { latitude, longitude, confidence } = geocodeResult.data;
+      if (geocodeResult && geocodeResult.latitude && geocodeResult.longitude) {
+        const { latitude, longitude, confidence } = geocodeResult;
         
         // Check if address is within delivery radius
         if (selectedDeliveryMethods[currentArtisanId] && selectedDeliveryMethods[currentArtisanId] !== 'pickup') {
           const artisanLocation = currentArtisan.artisan?.coordinates;
           if (artisanLocation) {
-            const distanceResponse = await fetch('/api/geocoding/distance', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                lat1: artisanLocation.latitude,
-                lon1: artisanLocation.longitude,
-                lat2: latitude,
-                lon2: longitude
-              })
-            });
+            const distance = geocodingService.calculateDistanceBetween(
+              artisanLocation,
+              { latitude, longitude }
+            );
             
-            const distanceResult = await distanceResponse.json();
-            if (distanceResult.success) {
-              const distance = distanceResult.data.distance;
+            if (distance !== null) {
               const method = selectedDeliveryMethods[currentArtisanId];
               let maxRadius = 0;
               

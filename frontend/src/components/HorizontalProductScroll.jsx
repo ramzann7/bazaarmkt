@@ -27,10 +27,10 @@ const HorizontalProductScroll = ({
   }
 
   return (
-    <div className="mb-12">
+    <div className="mb-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary">{title}</h2>
         {products.length > 4 && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}

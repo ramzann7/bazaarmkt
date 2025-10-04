@@ -28,12 +28,13 @@ const WalletDashboard = () => {
 
   const loadArtisanProfile = async () => {
     try {
-      const response = await profileService.getArtisanProfile();
-      if (response.data) {
-        setArtisanProfile(response.data);
+      // Use the main profile endpoint which now includes artisan data
+      const response = await profileService.getProfile();
+      if (response.data?.user?.artisan) {
+        setArtisanProfile(response.data.user.artisan);
         
         // Check if bank info is configured
-        const bankInfo = response.data.bankInfo;
+        const bankInfo = response.data.user.artisan.bankInfo;
         const isConfigured = bankInfo && 
           bankInfo.accountHolderName && 
           bankInfo.institutionNumber && 

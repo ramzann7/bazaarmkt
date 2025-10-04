@@ -188,6 +188,7 @@ const getProfile = async (req, res) => {
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
     
     const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
     if (!user) {
@@ -198,23 +199,48 @@ const getProfile = async (req, res) => {
       });
     }
     
+    // Build user profile object
+    const userProfile = {
+      _id: user._id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      userType: user.role, // Frontend expects userType
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      addresses: user.addresses || [],
+      notificationPreferences: user.notificationPreferences || {},
+      accountSettings: user.accountSettings || {},
+      paymentMethods: user.paymentMethods || []
+    };
+    
+    // If user is an artisan, fetch artisan data
+    if (user.role === 'artisan') {
+      const artisan = await artisansCollection.findOne({ user: user._id });
+      if (artisan) {
+        // Decrypt bank information if present
+        if (artisan.bankInfo) {
+          try {
+            const { decryptBankInfo } = require('../../utils/encryption');
+            artisan.bankInfo = decryptBankInfo(artisan.bankInfo);
+          } catch (error) {
+            // Keep encrypted data if decryption fails
+          }
+        }
+        userProfile.artisan = artisan;
+        userProfile.artisanId = artisan._id;
+      }
+    }
+    
     // Connection managed by middleware - no close needed
     
     res.json({
       success: true,
       data: {
-        user: {
-          _id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          userType: user.role, // Frontend expects userType
-          isActive: user.isActive,
-          isVerified: user.isVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        }
+        user: userProfile
       }
     });
   } catch (error) {

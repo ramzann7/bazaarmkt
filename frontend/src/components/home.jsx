@@ -961,7 +961,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
         <div className="grid lg:grid-cols-[1fr_420px] gap-6 sm:gap-8 items-stretch">
           {/* Hero Left - Text Content */}
           <div className="bg-white rounded-xl p-8 sm:p-10 shadow-soft flex flex-col justify-center">
@@ -1011,11 +1011,11 @@ export default function Home() {
       </section>
 
       {/* Featured Products - Horizontal Scroll */}
-      <section className="py-8 sm:py-12 lg:py-16 bg-background">
+      <section className="py-6 sm:py-8 lg:py-10 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {isLoadingFeatured ? (
             <>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif mb-6">Featured Products</h2>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary mb-4">Featured Products</h2>
               <div className="flex gap-6 overflow-hidden">
                 {[...Array(4)].map((_, index) => (
                   <div key={index} className="w-[280px] flex-shrink-0">
@@ -1035,11 +1035,11 @@ export default function Home() {
       </section>
 
       {/* Popular Products - Horizontal Scroll */}
-      <section className="py-16 bg-white">
+      <section className="py-4 sm:py-6 lg:py-8 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           {isLoadingPopular ? (
             <>
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 font-serif mb-6">Popular Products</h2>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary mb-4">Popular Products</h2>
               <div className="flex gap-6 overflow-hidden">
                 {[...Array(4)].map((_, index) => (
                   <div key={index} className="w-[280px] flex-shrink-0">
@@ -1059,9 +1059,9 @@ export default function Home() {
       </section>
 
       {/* Community Spotlight */}
-      <section className="py-16 bg-white">
+      <section className="py-4 sm:py-6 lg:py-8 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl font-bold text-secondary mb-8">Community Spotlight</h2>
+          <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary mb-4">Community Spotlight</h2>
           
           {isLoadingPosts ? (
             <div className="grid md:grid-cols-3 gap-6">

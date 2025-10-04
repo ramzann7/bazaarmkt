@@ -189,6 +189,7 @@ const profileRoutes = require('./routes/profile');
 const uploadRoutes = require('./routes/upload');
 const adminRoutes = require('./routes/admin');
 const revenueRoutes = require('./routes/revenue');
+const spotlightRoutes = require('./routes/spotlight');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -204,6 +205,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/revenue', revenueRoutes);
+app.use('/api/spotlight', spotlightRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS

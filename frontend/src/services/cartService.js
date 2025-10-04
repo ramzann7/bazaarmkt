@@ -173,9 +173,10 @@ export const cartService = {
           
           // Check if user is an artisan
           if (userProfile && ['artisan', 'producer', 'food_maker'].includes(userProfile.role)) {
-            // Get user's artisan profile
+            // Get user's artisan profile from main profile endpoint
             const { profileService } = await import('./profileService');
-            const artisanProfile = await profileService.getArtisanProfile();
+            const profileResponse = await profileService.getProfile();
+            const artisanProfile = profileResponse.data?.user?.artisan;
             
             // Check if the product's artisan matches the current user's artisan profile
             if (artisanProfile && product.artisan && 

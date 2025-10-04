@@ -27,12 +27,46 @@ import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
 import { OverviewTab, OperationsTab, HoursTab, DeliveryTab, SetupTab } from './ArtisanTabs';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
+import config from '../config/environment';
 
 export default function Profile() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, isProviderReady, refreshUser, updateUser } = useAuth();
+  
+  // Helper function to safely refresh user data
+  const safeRefreshUser = async () => {
+    if (typeof refreshUser === 'function') {
+      try {
+        await refreshUser();
+      } catch (error) {
+        console.error('refreshUser failed, trying fallback:', error);
+        // Fallback: manually refresh profile data
+        try {
+          const { clearProfileCache } = await import('../services/profileService');
+          clearProfileCache();
+          if (updateUser) {
+            await updateUser();
+          }
+        } catch (fallbackError) {
+          console.error('Fallback profile refresh failed:', fallbackError);
+        }
+      }
+    } else {
+      console.warn('refreshUser is not available, using fallback profile refresh');
+      // Fallback: manually refresh profile data
+      try {
+        const { clearProfileCache } = await import('../services/profileService');
+        clearProfileCache();
+        if (updateUser) {
+          await updateUser();
+        }
+      } catch (fallbackError) {
+        console.error('Fallback profile refresh failed:', fallbackError);
+      }
+    }
+  };
   
   // Different tabs for different user types
   const patronTabs = [
@@ -143,6 +177,7 @@ export default function Profile() {
       // The artisan data is now included in the main profile response
       if (profile?.artisan) {
         if (isMountedRef.current) {
+          // Set artisanProfile to the nested artisan data
           setArtisanProfile(profile.artisan);
         }
       } else {
@@ -669,7 +704,7 @@ export default function Profile() {
       case 'notifications':
         return <NotificationsTab key={`notifications-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
       case 'payment':
-        return <PaymentTab key={`payment-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handlePaymentMethodUpdate} isSaving={isSaving} />;
+        return <PaymentTab key={`payment-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handlePaymentMethodUpdate} isSaving={isSaving} safeRefreshUser={safeRefreshUser} />;
       case 'security':
         return <SecurityTab key={`security-${profile._id}-${profile.updatedAt}`} profile={profile} onSave={handleSave} isSaving={isSaving} />;
       case 'settings':
@@ -1373,14 +1408,15 @@ function NotificationsTab({ profile, onSave, isSaving }) {
   );
 }
 
-function PaymentTab({ profile, onSave, isSaving }) {
-  const isArtisan = profile.role === 'artisan';
+function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
+  // Check if user is an artisan - check both role and userType for compatibility
+  const isArtisan = profile.role === 'artisan' || profile.userType === 'artisan' || profile.artisan;
   
   // State for patrons (payment methods)
   const [paymentMethods, setPaymentMethods] = useState(profile.paymentMethods || []);
   
   // State for artisans (bank information)
-  const [bankInfo, setBankInfo] = useState(profile.bankInfo || {
+  const [bankInfo, setBankInfo] = useState(profile.artisan?.bankInfo || {
     accountHolderName: '',
     bankName: '',
     institutionNumber: '',
@@ -1395,8 +1431,7 @@ function PaymentTab({ profile, onSave, isSaving }) {
     console.log('🔄 PaymentTab: Profile payment methods updated:', profile.paymentMethods);
     setPaymentMethods(profile.paymentMethods || []);
     } else {
-      console.log('🔄 PaymentTab: Profile bank info updated:', profile.bankInfo);
-      setBankInfo(profile.bankInfo || {
+      setBankInfo(profile.artisan?.bankInfo || {
         accountHolderName: '',
         bankName: '',
         institutionNumber: '',
@@ -1405,7 +1440,14 @@ function PaymentTab({ profile, onSave, isSaving }) {
         accountType: 'checking'
       });
     }
-  }, [profile.paymentMethods, profile.bankInfo, isArtisan]);
+  }, [profile.paymentMethods, profile.artisan?.bankInfo, isArtisan]);
+
+  // Update Stripe Connect status when profile changes
+  useEffect(() => {
+    if (profile.artisan?.stripeConnectStatus) {
+      setStripeConnectStatus(profile.artisan.stripeConnectStatus);
+    }
+  }, [profile.artisan?.stripeConnectStatus]);
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState({
@@ -1552,6 +1594,47 @@ function PaymentTab({ profile, onSave, isSaving }) {
     }
   };
 
+  // Local state for Stripe Connect setup
+  const [isSettingUpStripe, setIsSettingUpStripe] = useState(false);
+  const [stripeConnectStatus, setStripeConnectStatus] = useState(profile.artisan?.stripeConnectStatus || 'not_setup');
+  
+  // Local state for editing bank info
+  const [isEditingBankInfo, setIsEditingBankInfo] = useState(false);
+
+  // Stripe Connect setup function
+  const setupStripeConnect = async () => {
+    try {
+      setIsSettingUpStripe(true);
+      
+      const response = await fetch(`${config.API_URL}/profile/artisan/stripe-connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Stripe Connect setup completed! You will receive payouts automatically.');
+        // Update local state to reflect Stripe Connect is now active
+        setStripeConnectStatus('active');
+        // Refresh profile to get updated Stripe Connect status
+        if (safeRefreshUser) {
+          await safeRefreshUser();
+        }
+      } else {
+        toast.error(result.message || 'Failed to setup Stripe Connect');
+      }
+    } catch (error) {
+      console.error('Error setting up Stripe Connect:', error);
+      toast.error('Failed to setup Stripe Connect');
+    } finally {
+      setIsSettingUpStripe(false);
+    }
+  };
+
   // Bank info functions for artisans
   const saveBankInfo = async () => {
     try {
@@ -1576,7 +1659,6 @@ function PaymentTab({ profile, onSave, isSaving }) {
         return;
       }
 
-      console.log('💳 Saving bank information for payouts');
       
       // Save bank info to artisan profile
       await profileService.updateArtisanProfile({
@@ -1590,6 +1672,12 @@ function PaymentTab({ profile, onSave, isSaving }) {
           lastUpdated: new Date()
         }
       });
+      
+      // Refresh profile to get updated data
+      await safeRefreshUser();
+      
+      // Reset editing state
+      setIsEditingBankInfo(false);
       
       toast.success('Bank information saved successfully');
     } catch (error) {
@@ -1614,8 +1702,20 @@ function PaymentTab({ profile, onSave, isSaving }) {
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Bank Account Details</h3>
+        {/* Bank Form - Only show if no bank info exists or when editing */}
+        {(!profile.artisan?.bankInfo?.accountNumber || isEditingBankInfo) && (
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Bank Account Details</h3>
+              {isEditingBankInfo && (
+                <button
+                  onClick={() => setIsEditingBankInfo(false)}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           
           <div className="space-y-4">
             {/* Account Holder Name */}
@@ -1748,27 +1848,67 @@ function PaymentTab({ profile, onSave, isSaving }) {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        )}
 
-            {/* Current Bank Info Display (if saved) */}
-            {profile.bankInfo && profile.bankInfo.accountNumber && (
+        {/* Current Bank Info Display (if saved) */}
+        {profile.artisan?.bankInfo && profile.artisan.bankInfo.accountNumber && !isEditingBankInfo && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <CheckCircleIcon className="h-5 w-5 text-accent mt-0.5 mr-2" />
-                  <div className="text-sm">
-                    <p className="font-medium text-emerald-900 mb-2">Bank Account Configured</p>
-                    <div className="space-y-1 text-gray-700">
-                      <p><span className="font-medium">Bank:</span> {profile.bankInfo.bankName || 'Not specified'}</p>
-                      <p><span className="font-medium">Account Holder:</span> {profile.bankInfo.accountHolderName}</p>
-                      <p><span className="font-medium">Account:</span> ****{profile.bankInfo.accountNumber?.slice(-4)}</p>
-                      <p><span className="font-medium">Institution:</span> {profile.bankInfo.institutionNumber}</p>
-                      <p><span className="font-medium">Transit:</span> {profile.bankInfo.transitNumber}</p>
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start">
+                    <CheckCircleIcon className="h-5 w-5 text-accent mt-0.5 mr-2" />
+                    <div className="text-sm">
+                      <p className="font-medium text-emerald-900 mb-2">Bank Account Configured</p>
+                      <div className="space-y-1 text-gray-700">
+                        <p><span className="font-medium">Bank:</span> {profile.artisan.bankInfo.bankName || 'Not specified'}</p>
+                        <p><span className="font-medium">Account Holder:</span> {profile.artisan.bankInfo.accountHolderName}</p>
+                        <p><span className="font-medium">Account:</span> ****{profile.artisan.bankInfo.accountNumber?.slice(-4)}</p>
+                        <p><span className="font-medium">Institution:</span> {profile.artisan.bankInfo.institutionNumber}</p>
+                        <p><span className="font-medium">Transit:</span> {profile.artisan.bankInfo.transitNumber}</p>
+                      </div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setIsEditingBankInfo(true)}
+                    className="ml-4 px-3 py-1 text-sm bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors"
+                  >
+                    Edit
+                  </button>
                 </div>
               </div>
             )}
+
+        {/* Stripe Connect Setup */}
+        {profile.artisan?.bankInfo && profile.artisan.bankInfo.accountNumber && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <CreditCardIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-2" />
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-blue-900 mb-1">Enable Automatic Payouts</h4>
+                <p className="text-sm text-blue-700 mb-3">
+                  Connect your bank account with Stripe to enable automatic weekly payouts of your earnings.
+                </p>
+                    <button
+                      onClick={setupStripeConnect}
+                      disabled={isSettingUpStripe || stripeConnectStatus === 'active'}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        stripeConnectStatus === 'active'
+                          ? 'bg-green-600 text-white cursor-default'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
+                    >
+                      {stripeConnectStatus === 'active' 
+                        ? '✅ Stripe Connect Active' 
+                        : isSettingUpStripe 
+                          ? 'Setting up...' 
+                          : 'Setup Stripe Connect'
+                      }
+                    </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }

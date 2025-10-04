@@ -19,6 +19,7 @@ const updateProfile = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { firstName, lastName, phone, bio, profileImage, notificationPreferences, accountSettings } = req.body;
     
@@ -99,6 +100,7 @@ const updateAddresses = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { addresses } = req.body;
     
@@ -158,6 +160,7 @@ const addAddress = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { address } = req.body;
     
@@ -443,6 +446,7 @@ const getBuyerOrders = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db; // Use shared connection from middleware
@@ -483,6 +487,7 @@ const getArtisanOrders = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db; // Use shared connection from middleware
@@ -729,6 +734,7 @@ const getPaymentMethods = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db; // Use shared connection from middleware
@@ -775,6 +781,7 @@ const updatePaymentMethods = async (req, res) => {
     }
 
     const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { paymentMethods } = req.body;
     
@@ -822,6 +829,106 @@ const updatePaymentMethods = async (req, res) => {
   }
 };
 
+// Update artisan profile
+const updateArtisanProfile = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db; // Use shared connection from middleware
+    const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get the user to verify they are an artisan
+    const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+    if (!user || user.role !== 'artisan') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only artisans can update artisan profiles'
+      });
+    }
+    
+    // Get the artisan record
+    const artisan = await artisansCollection.findOne({ user: user._id });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Prepare update data
+    const updateData = { updatedAt: new Date() };
+    
+    // Handle bank information with encryption
+    if (req.body.bankInfo) {
+      const { encryptBankInfo } = require('../../utils/encryption');
+      updateData.bankInfo = {
+        ...encryptBankInfo(req.body.bankInfo),
+        lastUpdated: new Date()
+      };
+    }
+    
+    // Handle other artisan profile fields
+    const allowedFields = [
+      'artisanName', 'businessName', 'description', 'category', 'specialties',
+      'address', 'contactInfo', 'businessImage', 'profileImage', 'photos',
+      'type', 'status', 'isActive', 'deliveryOptions', 'pickupSchedule',
+      'artisanHours', 'operationDetails', 'operations'
+    ];
+    
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+    
+    // Update the artisan record
+    const result = await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Get the updated artisan record
+    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
+    
+    res.json({
+      success: true,
+      message: 'Artisan profile updated successfully',
+      data: updatedArtisan
+    });
+  } catch (error) {
+    console.error('Update artisan profile error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update artisan profile',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 router.put('/', updateProfile);
 router.put('/addresses', updateAddresses);
@@ -837,5 +944,641 @@ router.post('/guest/convert', convertGuestToUser);
 router.get('/orders/buyer', getBuyerOrders);
 router.get('/orders/artisan', getArtisanOrders);
 router.post('/orders/guest', createGuestOrder);
+router.put('/artisan', updateArtisanProfile);
+
+// Stripe Connect endpoints for bank account setup
+const setupStripeConnect = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get user and artisan data
+    const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+    if (!user || user.role !== 'artisan') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only artisans can setup Stripe Connect'
+      });
+    }
+    
+    const artisan = await artisansCollection.findOne({ user: user._id });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+    
+    // Check if bank info is available
+    if (!artisan.bankInfo) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bank information is required before setting up Stripe Connect'
+      });
+    }
+    
+    // Decrypt bank info
+    const { decryptBankInfo } = require('../../utils/encryption');
+    const decryptedBankInfo = decryptBankInfo(artisan.bankInfo);
+    
+    const StripeService = require('../../services/stripeService');
+    const stripeService = new StripeService();
+    
+    // Create Stripe Connect account
+    const connectAccount = await stripeService.createConnectAccount(user, artisan);
+    
+    // Add bank account to Connect account
+    const externalAccount = await stripeService.addBankAccount(connectAccount.id, decryptedBankInfo);
+    
+    // Update artisan with Stripe Connect account ID
+    await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { 
+        $set: { 
+          stripeConnectAccountId: connectAccount.id,
+          stripeExternalAccountId: externalAccount.id,
+          stripeConnectStatus: 'active',
+          updatedAt: new Date()
+        } 
+      }
+    );
+    
+    
+    res.json({
+      success: true,
+      message: 'Stripe Connect account created successfully',
+      data: {
+        connectAccountId: connectAccount.id,
+        externalAccountId: externalAccount.id,
+        status: 'pending_verification'
+      }
+    });
+  } catch (error) {
+    console.error('Setup Stripe Connect error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to setup Stripe Connect',
+      error: error.message
+    });
+  }
+};
+
+// Get Stripe Connect account status
+const getStripeConnectStatus = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get user and artisan data
+    const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+    if (!user || user.role !== 'artisan') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only artisans can access Stripe Connect status'
+      });
+    }
+    
+    const artisan = await artisansCollection.findOne({ user: user._id });
+    if (!artisan || !artisan.stripeConnectAccountId) {
+      return res.json({
+        success: true,
+        data: {
+          connected: false,
+          message: 'Stripe Connect not set up'
+        }
+      });
+    }
+    
+    const StripeService = require('../../services/stripeService');
+    const stripeService = new StripeService();
+    
+    // Get account status from Stripe
+    const accountStatus = await stripeService.getAccountStatus(artisan.stripeConnectAccountId);
+    
+    res.json({
+      success: true,
+      data: {
+        connected: true,
+        accountId: artisan.stripeConnectAccountId,
+        status: accountStatus,
+        payoutsEnabled: accountStatus.payouts_enabled,
+        chargesEnabled: accountStatus.charges_enabled
+      }
+    });
+  } catch (error) {
+    console.error('Get Stripe Connect status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get Stripe Connect status',
+      error: error.message
+    });
+  }
+};
+
+router.post('/artisan/stripe-connect', setupStripeConnect);
+router.get('/artisan/stripe-connect', getStripeConnectStatus);
+
+// Get artisan profile
+const getArtisanProfile = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    
+    const artisan = await artisansCollection.findOne({ user: new ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: artisan
+    });
+  } catch (error) {
+    console.error('Error getting artisan profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Update artisan operations
+const updateArtisanOperations = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    
+    const artisan = await artisansCollection.findOne({ user: new ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    const updateData = { updatedAt: new Date() };
+    
+    // Handle operations data
+    if (req.body.operations) {
+      updateData.operations = req.body.operations;
+    }
+    
+    // Handle pickup schedule
+    if (req.body.pickupSchedule) {
+      updateData.pickupSchedule = req.body.pickupSchedule;
+    }
+
+    await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { $set: updateData }
+    );
+
+    res.json({
+      success: true,
+      message: 'Artisan operations updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating artisan operations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Update artisan hours
+const updateArtisanHours = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    
+    const artisan = await artisansCollection.findOne({ user: new ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    const updateData = { updatedAt: new Date() };
+    
+    // Handle artisan hours
+    if (req.body.artisanHours) {
+      updateData.artisanHours = req.body.artisanHours;
+    }
+
+    await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { $set: updateData }
+    );
+
+    res.json({
+      success: true,
+      message: 'Artisan hours updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating artisan hours:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Update artisan delivery options
+const updateArtisanDelivery = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    
+    const artisan = await artisansCollection.findOne({ user: new ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    const updateData = { updatedAt: new Date() };
+    
+    // Handle delivery options
+    if (req.body.deliveryOptions) {
+      updateData.deliveryOptions = req.body.deliveryOptions;
+    }
+
+    await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { $set: updateData }
+    );
+
+    res.json({
+      success: true,
+      message: 'Artisan delivery options updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating artisan delivery options:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Update artisan photos and contact
+const updateArtisanPhotosContact = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    
+    const artisan = await artisansCollection.findOne({ user: new ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    const updateData = { updatedAt: new Date() };
+    
+    // Handle photos
+    if (req.body.photos) {
+      updateData.photos = req.body.photos;
+    }
+    
+    // Handle contact info
+    if (req.body.contactInfo) {
+      updateData.contactInfo = req.body.contactInfo;
+    }
+    
+    // Handle business image
+    if (req.body.businessImage) {
+      updateData.businessImage = req.body.businessImage;
+    }
+    
+    // Handle profile image
+    if (req.body.profileImage) {
+      updateData.profileImage = req.body.profileImage;
+    }
+
+    await artisansCollection.updateOne(
+      { _id: artisan._id },
+      { $set: updateData }
+    );
+
+    res.json({
+      success: true,
+      message: 'Artisan photos and contact updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating artisan photos and contact:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Add payment method
+const addPaymentMethod = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const { paymentMethod } = req.body;
+    if (!paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method data is required'
+      });
+    }
+
+    // Add payment method to user's payment methods array
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { 
+        $push: { paymentMethods: paymentMethod },
+        $set: { updatedAt: new Date() }
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to add payment method'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment method added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding payment method:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Delete payment method
+const deletePaymentMethod = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    
+    const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const { paymentMethodId } = req.params;
+    if (!paymentMethodId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method ID is required'
+      });
+    }
+
+    // Remove payment method from user's payment methods array
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { 
+        $pull: { paymentMethods: { id: paymentMethodId } },
+        $set: { updatedAt: new Date() }
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method not found or already removed'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment method deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting payment method:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Create artisan profile
+const createArtisanProfile = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const { ObjectId } = require('mongodb');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    const usersCollection = db.collection('users');
+    
+    // Check if artisan profile already exists
+    const existingArtisan = await artisansCollection.findOne({ user: new ObjectId(decoded.userId) });
+    if (existingArtisan) {
+      return res.status(400).json({
+        success: false,
+        message: 'Artisan profile already exists'
+      });
+    }
+
+    // Create new artisan profile
+    const artisanData = {
+      user: new ObjectId(decoded.userId),
+      artisanName: req.body.artisanName || '',
+      businessName: req.body.businessName || '',
+      description: req.body.description || '',
+      category: req.body.category || '',
+      specialties: req.body.specialties || [],
+      address: req.body.address || {},
+      contactInfo: req.body.contactInfo || {},
+      businessImage: req.body.businessImage || '',
+      profileImage: req.body.profileImage || '',
+      photos: req.body.photos || [],
+      artisanHours: req.body.artisanHours || {},
+      deliveryOptions: req.body.deliveryOptions || {},
+      pickupSchedule: req.body.pickupSchedule || {},
+      operations: req.body.operations || {},
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await artisansCollection.insertOne(artisanData);
+    
+    // Update user role to artisan
+    await usersCollection.updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { 
+        $set: { 
+          role: 'artisan',
+          userType: 'artisan',
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Artisan profile created successfully',
+      data: { _id: result.insertedId }
+    });
+  } catch (error) {
+    console.error('Error creating artisan profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Add the new routes
+router.get('/artisan', getArtisanProfile);
+router.post('/artisan', createArtisanProfile);
+router.put('/artisan/operations', updateArtisanOperations);
+router.put('/artisan/hours', updateArtisanHours);
+router.put('/artisan/delivery', updateArtisanDelivery);
+router.put('/artisan/photos-contact', updateArtisanPhotosContact);
+router.post('/payment-methods', addPaymentMethod);
+router.delete('/payment-methods/:paymentMethodId', deletePaymentMethod);
 
 module.exports = router;

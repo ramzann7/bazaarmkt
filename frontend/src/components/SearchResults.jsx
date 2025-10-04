@@ -37,7 +37,9 @@ export default function SearchResults() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [artisans, setArtisans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingArtisans, setIsLoadingArtisans] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -420,86 +422,55 @@ export default function SearchResults() {
   }
 
   return (
-    <div className="min-h-screen bg-primary-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-primary-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              {subcategoryParam && categoryParam ? (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    {subcategoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Products
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
-                    {autoSearch && <span className="text-primary font-medium"> • Auto-selected for you</span>}
-                  </p>
-                </>
-              ) : query ? (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    Search Results for "{query}"
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} found from your neighbors
-                  </p>
-                </>
-              ) : categoryParam ? (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    {categoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Products
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
-                    {autoSearch && <span className="text-primary font-medium"> • Auto-selected for you</span>}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    All Products
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} available
-                  </p>
-                </>
-              )}
-            </div>
-            
-            {/* Sort and Filter Controls */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 border border-primary-200 rounded-lg hover:bg-primary-50"
-              >
-                <FunnelIcon className="w-5 h-5" />
-                <span>Filters</span>
-              </button>
-              
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Subtle Filter Bar */}
+        <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
+          <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold transition-all ${
+                showFilters 
+                  ? 'bg-accent text-white border-transparent' 
+                  : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
+              }`}
+            >
+              <FunnelIcon className="w-4 h-4" />
+              Filters
+            </button>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center bg-white px-2.5 py-2 rounded-full border border-gray-100">
+              <span className="text-sm font-semibold text-gray-600">Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-primary-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="border-none bg-transparent text-sm font-semibold text-gray-900 focus:outline-none cursor-pointer ml-1.5"
               >
-                <option value="distance">Sort by Distance</option>
+                <option value="distance">Distance</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
                 <option value="newest">Newest First</option>
               </select>
             </div>
+
+            {/* Results Count */}
+            <div className="flex items-center gap-2.5 flex-shrink-0 ml-auto">
+              <span className="text-sm text-muted">
+                {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <div className="bg-white border-b border-primary-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100/30 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Categories */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Categories</h3>
+                <h3 className="text-sm font-semibold text-text mb-3">Categories</h3>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {categories.map((category) => (
                     <label key={category.id} className="flex items-center">
@@ -513,9 +484,9 @@ export default function SearchResults() {
                             setSelectedCategories(selectedCategories.filter(c => c !== category.id));
                           }
                         }}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                        className="rounded border-gray-300 text-accent focus:ring-accent"
                       />
-                      <span className="ml-2 text-sm text-gray-700">{category.icon} {category.name}</span>
+                      <span className="ml-2 text-sm text-muted">{category.icon} {category.name}</span>
                     </label>
                   ))}
                 </div>
@@ -523,19 +494,19 @@ export default function SearchResults() {
 
               {/* Price Range */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Price Range</h3>
+                <h3 className="text-sm font-semibold text-text mb-3">Price Range</h3>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">$0</span>
+                    <span className="text-sm text-muted">$0</span>
                     <input
                       type="range"
                       min="0"
                       max="1000"
                       value={priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                      className="flex-1"
+                      className="flex-1 accent-accent"
                     />
-                    <span className="text-sm text-gray-500">${priceRange[1]}</span>
+                    <span className="text-sm text-muted">${priceRange[1]}</span>
                   </div>
                 </div>
               </div>
@@ -547,18 +518,16 @@ export default function SearchResults() {
                     setSelectedCategories([]);
                     setPriceRange([0, 1000]);
                   }}
-                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                  className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm font-semibold"
                 >
                   Clear Filters
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Results */}
         {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {filteredProducts.map((product) => (
@@ -580,6 +549,46 @@ export default function SearchResults() {
             <p className="text-gray-500">
               {query ? `No products found for "${query}"` : 'Try adjusting your search criteria'}
             </p>
+          </div>
+        )}
+
+        {/* Artisans Section - Only show if we have search results and artisans */}
+        {query && (artisans.length > 0 || isLoadingArtisans) && (
+          <div className="mt-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">
+                Matching Artisans
+              </h2>
+              {artisans.length > 0 && (
+                <p className="text-slate-600">
+                  {artisans.length} artisan{artisans.length !== 1 ? 's' : ''} found
+                </p>
+              )}
+            </div>
+
+            {isLoadingArtisans ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : artisans.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                {artisans.map((artisan) => (
+                  <ArtisanCard 
+                    key={artisan._id} 
+                    artisan={artisan}
+                    showDistance={true}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </div>

@@ -319,9 +319,68 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
+// Get artisan orders
+const getArtisanOrders = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db; // Use shared connection from middleware
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get the artisan record for this user
+    const artisan = await artisansCollection.findOne({ user: new (require('mongodb')).ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(403).json({
+        success: false,
+        message: 'User is not an artisan'
+      });
+    }
+    
+    // Get orders where items contain artisan's products
+    const orders = await ordersCollection
+      .find({
+        'items.artisanId': artisan._id
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    // Connection managed by middleware - no close needed
+    
+    res.json({
+      success: true,
+      data: orders,
+      count: orders.length
+    });
+  } catch (error) {
+    console.error('Get artisan orders error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get artisan orders',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 router.post('/', createOrder);
 router.get('/', getUserOrders);
+router.get('/artisan', getArtisanOrders);
 router.get('/:id', getOrderById);
 router.put('/:id/status', updateOrderStatus);
 

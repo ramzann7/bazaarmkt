@@ -48,7 +48,6 @@ const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
 const Products = lazy(() => import("./components/Products.jsx"));
 const Orders = lazy(() => import("./components/Orders.jsx"));
 const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
-const Search = lazy(() => import("./components/Search.jsx"));
 const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 
@@ -169,7 +168,6 @@ function AppRoutes() {
         />
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/search" element={<SearchResults />} />
-        <Route path="/search-page" element={<Search />} />
         <Route path="/test-reference" element={<TestReferenceData />} />
 
         <Route path="/dashboard-test" element={<DashboardTest />} />

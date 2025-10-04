@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
@@ -178,7 +178,7 @@ export default function ArtisanProductManagement() {
   };
 
   // Unified inventory update handler using the new inventory system
-  const handleInventoryUpdate = (updatedProduct) => {
+  const handleInventoryUpdate = useCallback((updatedProduct) => {
     if (!updatedProduct || !updatedProduct._id) {
       console.error('Invalid updatedProduct in handleInventoryUpdate:', updatedProduct);
       return;
@@ -195,23 +195,27 @@ export default function ArtisanProductManagement() {
       // Update the selectedProduct with the latest data
       setSelectedProduct(updatedProduct);
       
-      // Update the form data to match the updated product
-      setFormData(prev => ({
-        ...prev,
-        stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :
-               updatedProduct.productType === 'scheduled_order' ? (updatedProduct.availableQuantity || 0) :
-               (updatedProduct.stock || 0),
-        // Update capacity period if it exists
-        capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod,
-        // Update other inventory fields
-        totalCapacity: updatedProduct.totalCapacity || prev.totalCapacity,
-        remainingCapacity: updatedProduct.remainingCapacity || prev.remainingCapacity,
-        availableQuantity: updatedProduct.availableQuantity || prev.availableQuantity
-      }));
+      // Update the form data to match the updated product (only if setFormData is available)
+      if (typeof setFormData === 'function') {
+        setFormData(prev => ({
+          ...prev,
+          stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :
+                 updatedProduct.productType === 'scheduled_order' ? (updatedProduct.availableQuantity || 0) :
+                 (updatedProduct.stock || 0),
+          // Update capacity period if it exists
+          capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod,
+          // Update other inventory fields
+          totalCapacity: updatedProduct.totalCapacity || prev.totalCapacity,
+          remainingCapacity: updatedProduct.remainingCapacity || prev.remainingCapacity,
+          availableQuantity: updatedProduct.availableQuantity || prev.availableQuantity
+        }));
+      } else {
+        console.warn('setFormData is not available in handleInventoryUpdate');
+      }
     }
     
     // The useEffect will automatically update filteredProducts when products change
-  };
+  }, [products, selectedProduct, setFormData]);
 
   // Function to check and restore inventory using the new InventoryModel
   const checkAndRestoreInventory = async () => {

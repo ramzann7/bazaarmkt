@@ -386,6 +386,7 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+
 // Start server if this file is run directly
 if (require.main === module) {
   const PORT = process.env.PORT || 4000;
@@ -393,6 +394,9 @@ if (require.main === module) {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`💰 Payout processing: http://localhost:${PORT}/api/admin/wallet/process-payouts`);
+    console.log(`📦 Inventory restoration: http://localhost:${PORT}/api/admin/inventory/restore-all`);
+    console.log(`⏰ Cron jobs configured for Vercel deployment`);
   });
 }
 

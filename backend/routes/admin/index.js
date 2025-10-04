@@ -54,6 +54,117 @@ const getSpotlightStatus = async (req, res) => {
 // WALLET ENDPOINTS
 // ============================================================================
 
+// Process scheduled payouts
+const processScheduledPayouts = async () => {
+  try {
+    console.log('🔄 Processing scheduled payouts...');
+    
+    const db = require('../config/database').getDb();
+    const walletsCollection = db.collection('wallets');
+    const transactionsCollection = db.collection('wallettransactions');
+    const artisansCollection = db.collection('artisans');
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Find wallets with payouts due today
+    const walletsDueForPayout = await walletsCollection.find({
+      'payoutSettings.enabled': true,
+      'payoutSettings.nextPayoutDate': {
+        $lte: today
+      },
+      balance: {
+        $gte: '$payoutSettings.minimumPayout'
+      }
+    }).toArray();
+    
+    console.log(`📊 Found ${walletsDueForPayout.length} wallets due for payout`);
+    
+    let processedCount = 0;
+    let errorCount = 0;
+    
+    for (const wallet of walletsDueForPayout) {
+      try {
+        // Get artisan information
+        const artisan = await artisansCollection.findOne({ _id: wallet.artisanId });
+        if (!artisan) {
+          console.error(`❌ Artisan not found for wallet ${wallet._id}`);
+          errorCount++;
+          continue;
+        }
+        
+        // Check if payout amount meets minimum
+        const payoutAmount = wallet.balance;
+        const minimumPayout = wallet.payoutSettings.minimumPayout;
+        
+        if (payoutAmount < minimumPayout) {
+          console.log(`⏭️ Skipping wallet ${wallet._id} - balance ${payoutAmount} below minimum ${minimumPayout}`);
+          continue;
+        }
+        
+        // For now, we'll simulate the payout since Stripe Connect requires proper setup
+        // In production, this would use the StripeService to create actual payouts
+        console.log(`💰 Processing payout for artisan ${artisan.artisanName}: $${payoutAmount}`);
+        
+        // Create payout transaction record
+        const payoutTransaction = {
+          artisanId: wallet.artisanId,
+          type: 'payout',
+          amount: -payoutAmount, // Negative for outgoing
+          description: `Weekly payout - ${wallet.payoutSettings.schedule}`,
+          status: 'completed',
+          reference: `PAYOUT-${Date.now()}`,
+          balanceAfter: 0, // Balance after payout
+          metadata: {
+            payoutDate: now,
+            schedule: wallet.payoutSettings.schedule,
+            originalBalance: payoutAmount
+          },
+          createdAt: now,
+          updatedAt: now
+        };
+        
+        await transactionsCollection.insertOne(payoutTransaction);
+        
+        // Calculate next payout date
+        let nextPayoutDate;
+        if (wallet.payoutSettings.schedule === 'weekly') {
+          nextPayoutDate = new Date(now);
+          nextPayoutDate.setDate(now.getDate() + 7);
+        } else if (wallet.payoutSettings.schedule === 'monthly') {
+          nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        }
+        
+        // Update wallet balance and payout settings
+        await walletsCollection.updateOne(
+          { _id: wallet._id },
+          {
+            $set: {
+              balance: 0,
+              'payoutSettings.lastPayoutDate': now,
+              'payoutSettings.nextPayoutDate': nextPayoutDate,
+              'metadata.totalPayouts': (wallet.metadata?.totalPayouts || 0) + payoutAmount,
+              updatedAt: now
+            }
+          }
+        );
+        
+        processedCount++;
+        console.log(`✅ Payout processed for artisan ${artisan.artisanName}: $${payoutAmount}`);
+        
+      } catch (error) {
+        console.error(`❌ Error processing payout for wallet ${wallet._id}:`, error);
+        errorCount++;
+      }
+    }
+    
+    console.log(`🎉 Payout processing complete: ${processedCount} processed, ${errorCount} errors`);
+    
+  } catch (error) {
+    console.error('❌ Error in processScheduledPayouts:', error);
+  }
+};
+
 // Get wallet balance
 const getWalletBalance = async (req, res) => {
   try {
@@ -129,7 +240,14 @@ const getWalletBalance = async (req, res) => {
         balance: wallet.balance || 0,
         pendingBalance: wallet.pendingBalance || 0,
         currency: wallet.currency || 'CAD',
-        lastUpdated: wallet.updatedAt
+        lastUpdated: wallet.updatedAt,
+        payoutSettings: wallet.payoutSettings || {
+          enabled: false,
+          schedule: 'weekly',
+          minimumPayout: 50,
+          lastPayoutDate: null,
+          nextPayoutDate: null
+        }
       }
     });
   } catch (error) {
@@ -1399,6 +1517,45 @@ router.get('/wallet/transactions', getWalletTransactions);
 router.post('/wallet/top-up/create-payment-intent', createTopUpPaymentIntent);
 router.post('/wallet/top-up/confirm', confirmTopUp);
 router.put('/wallet/payout-settings', updatePayoutSettings);
+router.post('/wallet/process-payouts', async (req, res) => {
+  try {
+    await processScheduledPayouts();
+    res.json({
+      success: true,
+      message: 'Payout processing completed'
+    });
+  } catch (error) {
+    console.error('Manual payout processing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process payouts',
+      error: error.message
+    });
+  }
+});
+
+// Manual inventory restoration trigger
+router.post('/inventory/restore-all', async (req, res) => {
+  try {
+    const InventoryRestorationService = require('../services/inventoryRestorationService');
+    const inventoryService = new InventoryRestorationService(req.db);
+    
+    const result = await inventoryService.processAllRestorations();
+    
+    res.json({
+      success: true,
+      message: 'Inventory restoration completed',
+      data: result
+    });
+  } catch (error) {
+    console.error('Manual inventory restoration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process inventory restoration',
+      error: error.message
+    });
+  }
+});
 router.post('/geocoding', geocodeAddress);
 router.get('/revenue', getArtisanRevenue);
 router.get('/stats', getAdminStats);

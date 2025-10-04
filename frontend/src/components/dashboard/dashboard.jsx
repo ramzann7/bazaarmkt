@@ -330,7 +330,7 @@ export default function Dashboard() {
                 Edit Profile
               </Link>
               <Link
-                to="/products"
+                to="/my-products"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Manage Products
@@ -538,7 +538,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
-            to="/products"
+            to="/my-products"
             className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center space-x-3">

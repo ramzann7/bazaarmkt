@@ -403,46 +403,11 @@ const getMyProducts = async (req, res) => {
       });
     }
     
-    // Get artisan's products with promotional features
-    const products = await productsCollection.aggregate([
-      { $match: { artisan: artisan._id } },
-      {
-        $lookup: {
-          from: 'promotional_features',
-          let: { productId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$productId', '$$productId'] },
-                isActive: true,
-                endDate: { $gt: new Date() }
-              }
-            },
-            {
-              $project: {
-                featureType: 1,
-                startDate: 1,
-                endDate: 1,
-                isActive: 1
-              }
-            }
-          ],
-          as: 'activePromotions'
-        }
-      },
-      {
-        $addFields: {
-          promotionalStatus: {
-            isFeatured: { $gt: [{ $size: { $filter: { input: '$activePromotions', cond: { $eq: ['$$this.featureType', 'featured_product'] } } } }, 0] },
-            isSponsored: { $gt: [{ $size: { $filter: { input: '$activePromotions', cond: { $eq: ['$$this.featureType', 'sponsored_product'] } } } }, 0] },
-            activePromotions: '$activePromotions',
-            featuredUntil: { $arrayElemAt: [{ $filter: { input: '$activePromotions', cond: { $eq: ['$$this.featureType', 'featured_product'] } } }, 0] }?.endDate,
-            sponsoredUntil: { $arrayElemAt: [{ $filter: { input: '$activePromotions', cond: { $eq: ['$$this.featureType', 'sponsored_product'] } } }, 0] }?.endDate
-          }
-        }
-      },
-      { $sort: { createdAt: -1 } }
-    ]).toArray();
+    // Get artisan's products
+    const products = await productsCollection
+      .find({ artisan: artisan._id })
+      .sort({ createdAt: -1 })
+      .toArray();
     
     res.json({
       success: true,

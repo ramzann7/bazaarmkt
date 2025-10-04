@@ -45,7 +45,6 @@ const Profile = lazy(() => import("./components/Profile.jsx"));
 const Account = lazy(() => import("./components/Account.jsx"));
 const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
 
-const Products = lazy(() => import("./components/Products.jsx"));
 const Orders = lazy(() => import("./components/Orders.jsx"));
 const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
@@ -161,7 +160,7 @@ function AppRoutes() {
           path="/account"
           element={isAuthenticated ? <Account /> : <Navigate to="/login" />}
         />
-        <Route path="/products" element={<Products />} />
+        <Route path="/products" element={<Navigate to="/my-products" replace />} />
         <Route
           path="/orders"
           element={isAuthenticated ? <Orders /> : <Navigate to="/login" />}

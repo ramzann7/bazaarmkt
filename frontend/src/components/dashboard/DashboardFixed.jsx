@@ -72,8 +72,9 @@ export default function DashboardFixed() {
 
         // Step 1.6: Load spotlight status
         try {
-          const spotlightData = await spotlightService.getSpotlightStatus();
-          setSpotlightStatus(spotlightData);
+          const spotlightResponse = await spotlightService.getSpotlightStatus();
+          console.log('DashboardFixed: Spotlight response:', spotlightResponse);
+          setSpotlightStatus(spotlightResponse.data || { hasActiveSpotlight: false });
         } catch (error) {
           console.error('DashboardFixed: Error loading spotlight status:', error);
           setSpotlightStatus({ hasActiveSpotlight: false });
@@ -194,8 +195,8 @@ export default function DashboardFixed() {
       toast.success(`Spotlight activated for ${days} day${days > 1 ? 's' : ''}!`, { id: 'spotlight-purchase' });
       
       // Refresh spotlight status
-      const updatedStatus = await spotlightService.getSpotlightStatus();
-      setSpotlightStatus(updatedStatus);
+      const updatedResponse = await spotlightService.getSpotlightStatus();
+      setSpotlightStatus(updatedResponse.data || { hasActiveSpotlight: false });
       
     } catch (error) {
       console.error('Error purchasing spotlight:', error);

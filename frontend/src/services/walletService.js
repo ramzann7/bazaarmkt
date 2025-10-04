@@ -31,12 +31,15 @@ class WalletService {
       if (type) params.append('type', type);
       if (status) params.append('status', status);
       
+      console.log('WalletService: Fetching transactions from:', `${this.baseURL}/transactions?${params}`);
       const response = await axios.get(`${this.baseURL}/transactions?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      console.log('WalletService: Transactions response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet transactions:', error);
+      console.error('Error details:', error.response?.data);
       throw error;
     }
   }

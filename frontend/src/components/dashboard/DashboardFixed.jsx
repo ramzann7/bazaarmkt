@@ -45,6 +45,15 @@ export default function DashboardFixed() {
       try {
         // Step 1: Load user profile
         const userData = await getProfile();
+        console.log('DashboardFixed: User data:', userData);
+        
+        if (!userData) {
+          console.error('DashboardFixed: No user data received');
+          toast.error('Failed to load user profile');
+          navigate('/login');
+          return;
+        }
+        
         setUser(userData);
         
         // Check if user is artisan (check both role and userType for compatibility)

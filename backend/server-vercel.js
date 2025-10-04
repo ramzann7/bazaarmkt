@@ -2624,7 +2624,7 @@ app.put('/api/orders/:id/status', verifyJWT, async (req, res) => {
             );
             
             // Create transaction record with full breakdown
-            await db.collection('wallet_transactions').insertOne({
+            await db.collection('wallettransactions').insertOne({
               walletId: wallet._id || artisanId,
               artisanId: new ObjectId(artisanId),
               type: 'revenue',
@@ -3023,7 +3023,7 @@ app.post('/api/orders/:id/confirm-receipt', verifyJWT, async (req, res) => {
     );
     
     // Create transaction record with full breakdown
-    await db.collection('wallet_transactions').insertOne({
+    await db.collection('wallettransactions').insertOne({
       walletId: wallet._id || artisanId,
       artisanId: new ObjectId(artisanId),
       type: 'revenue',
@@ -3134,7 +3134,7 @@ async function autoConfirmPendingOrders(db) {
       
       // Create transaction record with full breakdown
       const wallet = await walletsCollection.findOne({ artisanId: new ObjectId(artisanId) });
-      await db.collection('wallet_transactions').insertOne({
+      await db.collection('wallettransactions').insertOne({
         walletId: wallet._id || artisanId,
         artisanId: new ObjectId(artisanId),
         type: 'revenue',
@@ -3502,7 +3502,7 @@ app.get('/api/orders/artisan/performance', verifyJWT, verifyArtisanRole, async (
 
 // Helper function to get platform settings
 async function getPlatformSettings(db) {
-  const settingsCollection = db.collection('platform_settings');
+  const settingsCollection = db.collection('platformsettings');
   let settings = await settingsCollection.findOne({ type: 'global' });
   
   // Create default settings if not exists
@@ -3572,7 +3572,7 @@ app.put('/api/admin/platform-settings', verifyJWT, async (req, res) => {
       });
     }
     
-    const settingsCollection = db.collection('platform_settings');
+    const settingsCollection = db.collection('platformsettings');
     
     const updateData = {
       ...(platformFeePercentage !== undefined && { platformFeePercentage }),
@@ -4331,7 +4331,7 @@ cron.schedule('0 9 * * 5', async () => {
     
     const db = await getDB();
     const walletsCollection = db.collection('wallets');
-    const transactionsCollection = db.collection('wallet_transactions');
+    const transactionsCollection = db.collection('wallettransactions');
     const artisansCollection = db.collection('artisans');
     
     // Find all wallets eligible for payout

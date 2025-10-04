@@ -26,7 +26,7 @@ const getSpotlightStatus = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const db = req.db; // Use shared connection from middleware
-    const spotlightCollection = db.collection('spotlight_subscriptions');
+    const spotlightCollection = db.collection('artisanspotlight');
 
     const subscription = await spotlightCollection.findOne({
       userId: new ObjectId(decoded.userId),
@@ -158,7 +158,7 @@ const getWalletTransactions = async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
 
     const db = req.db; // Use shared connection
-    const transactionsCollection = db.collection('wallet_transactions');
+    const transactionsCollection = db.collection('wallettransactions');
 
     // Get artisan first to find their transactions
     const artisan = await db.collection('artisans').findOne({
@@ -1171,7 +1171,7 @@ const confirmTopUp = async (req, res) => {
 
     const db = req.db; // Use shared connection
     const walletsCollection = db.collection('wallets');
-    const transactionsCollection = db.collection('wallet_transactions');
+    const transactionsCollection = db.collection('wallettransactions');
     const artisansCollection = db.collection('artisans');
 
     // Get artisan

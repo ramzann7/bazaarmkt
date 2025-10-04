@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ObjectId } = require('mongodb');
@@ -29,9 +29,6 @@ const setCache = (key, data) => {
 
 const app = express();
 app.set('trust proxy', 1);
-
-// Make helper functions available to routes
-app.locals.recordWalletTransaction = recordWalletTransaction;
 
 // Middleware
 app.use(express.json({ limit: '4.5mb' }));
@@ -237,6 +234,9 @@ const recordWalletTransaction = async (db, transactionData) => {
     // Don't throw error to avoid breaking the main operation
   }
 };
+
+// Make helper functions available to routes
+app.locals.recordWalletTransaction = recordWalletTransaction;
 
 // Mount routes
 app.use('/api/auth', authRoutes);

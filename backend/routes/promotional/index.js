@@ -269,4 +269,162 @@ router.delete('/campaigns/:id', async (req, res) => {
   }
 });
 
+// Create promotional feature for product
+router.post('/create', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { productId, featureType, durationDays } = req.body;
+
+    if (!productId || !featureType || !durationDays) {
+      return res.status(400).json({
+        success: false,
+        message: 'productId, featureType, and durationDays are required'
+      });
+    }
+
+    const db = req.db;
+    const productsCollection = db.collection('products');
+    const artisansCollection = db.collection('artisans');
+    const walletsCollection = db.collection('wallets');
+    const promotionalFeaturesCollection = db.collection('promotional_features');
+
+    // Get artisan profile
+    const artisan = await artisansCollection.findOne({
+      user: new ObjectId(decoded.userId)
+    });
+
+    if (!artisan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan profile not found'
+      });
+    }
+
+    // Get product and verify ownership
+    const product = await productsCollection.findOne({
+      _id: new ObjectId(productId),
+      artisan: artisan._id
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or access denied'
+      });
+    }
+
+    // Calculate cost based on feature type and duration
+    const pricing = {
+      featured_product: 5,
+      sponsored_product: 10,
+      spotlight_artisan: 15
+    };
+
+    const costPerDay = pricing[featureType] || 5;
+    const totalCost = durationDays * costPerDay;
+
+    // Check wallet balance
+    const wallet = await walletsCollection.findOne({
+      artisanId: artisan._id
+    });
+
+    if (!wallet || wallet.balance < totalCost) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient wallet balance'
+      });
+    }
+
+    // Deduct from wallet
+    await walletsCollection.updateOne(
+      { artisanId: artisan._id },
+      { 
+        $inc: { balance: -totalCost },
+        $set: { updatedAt: new Date() }
+      }
+    );
+
+    // Record wallet transaction
+    if (req.app && req.app.locals && req.app.locals.recordWalletTransaction) {
+      await req.app.locals.recordWalletTransaction(db, {
+        artisanId: artisan._id,
+        type: 'purchase',
+        amount: -totalCost,
+        description: `${featureType.replace('_', ' ')} promotion for ${durationDays} day${durationDays > 1 ? 's' : ''}`,
+        reference: `promo_${featureType}_${durationDays}days`,
+        status: 'completed',
+        balanceAfter: wallet.balance - totalCost
+      });
+    }
+
+    // Calculate dates
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + durationDays);
+
+    // Create promotional feature
+    const promotionalFeature = {
+      productId: new ObjectId(productId),
+      artisanId: artisan._id,
+      featureType,
+      startDate,
+      endDate,
+      durationDays,
+      cost: totalCost,
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    await promotionalFeaturesCollection.insertOne(promotionalFeature);
+
+    // Update product with promotional status
+    const updateData = {};
+    if (featureType === 'featured_product') {
+      updateData.isFeatured = true;
+      updateData.featuredUntil = endDate;
+    } else if (featureType === 'sponsored_product') {
+      updateData.isSponsored = true;
+      updateData.sponsoredUntil = endDate;
+    }
+
+    await productsCollection.updateOne(
+      { _id: new ObjectId(productId) },
+      { 
+        $set: {
+          ...updateData,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: `${featureType.replace('_', ' ')} promotion activated for ${durationDays} day${durationDays > 1 ? 's' : ''}`,
+      data: {
+        promotionalFeature,
+        cost: totalCost,
+        endDate,
+        remainingDays: durationDays
+      }
+    });
+  } catch (error) {
+    console.error('Create promotional feature error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create promotional feature',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

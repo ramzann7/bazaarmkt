@@ -1084,7 +1084,7 @@ const getBusinessAnalytics = async (req, res) => {
 // WALLET TOP-UP ENDPOINTS
 // ============================================================================
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 
 /**
  * Create Stripe payment intent for wallet top-up
@@ -1092,6 +1092,13 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
  */
 const createTopUpPaymentIntent = async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment processing is not available. Stripe is not configured.'
+      });
+    }
+
     const { amount, currency = 'CAD' } = req.body;
     const userId = req.userId;
 
@@ -1142,6 +1149,13 @@ const createTopUpPaymentIntent = async (req, res) => {
  */
 const confirmTopUp = async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment processing is not available. Stripe is not configured.'
+      });
+    }
+
     const { paymentIntentId } = req.body;
     const userId = req.userId;
 

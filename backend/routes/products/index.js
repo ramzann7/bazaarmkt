@@ -7,6 +7,41 @@ const express = require('express');
 const router = express.Router();
 const { MongoClient } = require('mongodb');
 
+// Helper function to validate inventory values
+const validateInventoryValue = (value, fieldName) => {
+  if (value !== undefined && (typeof value !== 'number' || value < 0 || !Number.isInteger(value))) {
+    throw new Error(`${fieldName} must be a non-negative integer`);
+  }
+  return value;
+};
+
+// Helper function to get inventory field based on product type
+const getInventoryField = (productType) => {
+  switch (productType) {
+    case 'ready_to_ship':
+      return 'stock';
+    case 'made_to_order':
+      return 'remainingCapacity';
+    case 'scheduled_order':
+      return 'availableQuantity';
+    default:
+      return 'availableQuantity';
+  }
+};
+
+// Helper function to check inventory availability
+const checkInventoryAvailability = (product, quantity) => {
+  const field = getInventoryField(product.productType);
+  const available = product[field] || 0;
+  
+  return {
+    hasEnough: available >= quantity,
+    available: available,
+    field: field,
+    error: available < quantity ? `Insufficient ${field}. Only ${available} available.` : null
+  };
+};
+
 // Get all products with optional filters
 const getProducts = async (req, res) => {
   try {
@@ -635,16 +670,100 @@ const updateInventory = async (req, res) => {
       });
     }
     
-    const { stock, totalCapacity, remainingCapacity, availableQuantity } = req.body;
+    // Get current product to validate and maintain consistency
+    const currentProduct = await productsCollection.findOne({ 
+      _id: new (require('mongodb')).ObjectId(req.params.id),
+      artisan: artisan._id
+    });
+    
+    if (!currentProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or access denied'
+      });
+    }
+    
+    const { stock, totalCapacity, remainingCapacity, availableQuantity, quantity, action } = req.body;
+    
+    // Validate input values using helper function
+    try {
+      validateInventoryValue(stock, 'Stock');
+      validateInventoryValue(totalCapacity, 'Total capacity');
+      validateInventoryValue(remainingCapacity, 'Remaining capacity');
+      validateInventoryValue(availableQuantity, 'Available quantity');
+      validateInventoryValue(quantity, 'Quantity');
+    } catch (validationError) {
+      return res.status(400).json({
+        success: false,
+        message: validationError.message
+      });
+    }
     
     const updateData = {
       updatedAt: new Date()
     };
     
-    if (stock !== undefined) updateData.stock = stock;
-    if (totalCapacity !== undefined) updateData.totalCapacity = totalCapacity;
-    if (remainingCapacity !== undefined) updateData.remainingCapacity = remainingCapacity;
-    if (availableQuantity !== undefined) updateData.availableQuantity = availableQuantity;
+    // Handle frontend format: { quantity: newStock, action: 'set' }
+    if (quantity !== undefined && action === 'set') {
+      updateData.stock = quantity;
+      updateData.availableQuantity = quantity;
+      
+      // For made-to-order products, also update remaining capacity if totalCapacity exists
+      if (currentProduct.productType === 'made_to_order' && currentProduct.totalCapacity !== undefined) {
+        const usedCapacity = (currentProduct.totalCapacity || 0) - (currentProduct.remainingCapacity || 0);
+        updateData.remainingCapacity = Math.max(0, (currentProduct.totalCapacity || 0) - usedCapacity);
+      }
+    }
+    
+    // Handle backend format: { stock, totalCapacity, remainingCapacity, availableQuantity }
+    if (stock !== undefined) {
+      updateData.stock = stock;
+      // Keep availableQuantity in sync for ready-to-ship products
+      if (currentProduct.productType === 'ready_to_ship') {
+        updateData.availableQuantity = stock;
+      }
+    }
+    
+    if (totalCapacity !== undefined) {
+      updateData.totalCapacity = totalCapacity;
+      // Recalculate remaining capacity if not explicitly set
+      if (remainingCapacity === undefined) {
+        const usedCapacity = (currentProduct.totalCapacity || 0) - (currentProduct.remainingCapacity || 0);
+        updateData.remainingCapacity = Math.max(0, totalCapacity - usedCapacity);
+      }
+    }
+    
+    if (remainingCapacity !== undefined) {
+      updateData.remainingCapacity = remainingCapacity;
+      // Ensure remaining capacity doesn't exceed total capacity
+      const maxCapacity = totalCapacity !== undefined ? totalCapacity : (currentProduct.totalCapacity || 0);
+      if (remainingCapacity > maxCapacity) {
+        return res.status(400).json({
+          success: false,
+          message: 'Remaining capacity cannot exceed total capacity'
+        });
+      }
+    }
+    
+    if (availableQuantity !== undefined) {
+      updateData.availableQuantity = availableQuantity;
+    }
+    
+    // Ensure data consistency based on product type
+    if (currentProduct.productType === 'ready_to_ship') {
+      // For ready-to-ship, stock and availableQuantity should be the same
+      if (updateData.stock !== undefined && updateData.availableQuantity === undefined) {
+        updateData.availableQuantity = updateData.stock;
+      } else if (updateData.availableQuantity !== undefined && updateData.stock === undefined) {
+        updateData.stock = updateData.availableQuantity;
+      }
+    } else if (currentProduct.productType === 'made_to_order') {
+      // For made-to-order, ensure remainingCapacity is consistent
+      if (updateData.totalCapacity !== undefined && updateData.remainingCapacity === undefined) {
+        const usedCapacity = (currentProduct.totalCapacity || 0) - (currentProduct.remainingCapacity || 0);
+        updateData.remainingCapacity = Math.max(0, updateData.totalCapacity - usedCapacity);
+      }
+    }
     
     const result = await productsCollection.updateOne(
       { 
@@ -720,6 +839,19 @@ const updateStock = async (req, res) => {
       });
     }
     
+    // Get current product to validate and maintain consistency
+    const currentProduct = await productsCollection.findOne({ 
+      _id: new (require('mongodb')).ObjectId(req.params.id),
+      artisan: artisan._id
+    });
+    
+    if (!currentProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or access denied'
+      });
+    }
+    
     const { quantity } = req.body;
     
     if (quantity === undefined) {
@@ -729,17 +861,30 @@ const updateStock = async (req, res) => {
       });
     }
     
+    // Validate quantity
+    if (typeof quantity !== 'number' || quantity < 0 || !Number.isInteger(quantity)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity must be a non-negative integer'
+      });
+    }
+    
+    const updateData = {
+      stock: quantity,
+      updatedAt: new Date()
+    };
+    
+    // For ready-to-ship products, also update availableQuantity to maintain consistency
+    if (currentProduct.productType === 'ready_to_ship') {
+      updateData.availableQuantity = quantity;
+    }
+    
     const result = await productsCollection.updateOne(
       { 
         _id: new (require('mongodb')).ObjectId(req.params.id),
         artisan: artisan._id
       },
-      { 
-        $set: { 
-          stock: quantity,
-          updatedAt: new Date()
-        }
-      }
+      { $set: updateData }
     );
     
     if (result.matchedCount === 0) {
@@ -817,6 +962,14 @@ const reduceInventory = async (req, res) => {
       });
     }
     
+    // Validate quantity
+    if (typeof quantity !== 'number' || !Number.isInteger(quantity)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quantity must be a positive integer'
+      });
+    }
+    
     const product = await productsCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id),
       artisan: artisan._id
@@ -829,11 +982,36 @@ const reduceInventory = async (req, res) => {
       });
     }
     
-    if (product.availableQuantity < quantity) {
+    // Check inventory availability using helper function
+    const inventoryCheck = checkInventoryAvailability(product, quantity);
+    
+    if (!inventoryCheck.hasEnough) {
       return res.status(400).json({
         success: false,
-        message: 'Insufficient inventory'
+        message: inventoryCheck.error
       });
+    }
+    
+    // Prepare update fields based on product type
+    const updateFields = {
+      soldCount: quantity,
+      updatedAt: new Date()
+    };
+    
+    // Update the appropriate inventory field
+    if (product.productType === 'ready_to_ship') {
+      updateFields.stock = inventoryCheck.available - quantity;
+      updateFields.availableQuantity = inventoryCheck.available - quantity;
+    } else if (product.productType === 'made_to_order') {
+      updateFields.remainingCapacity = inventoryCheck.available - quantity;
+    } else if (product.productType === 'scheduled_order') {
+      updateFields.availableQuantity = inventoryCheck.available - quantity;
+    } else {
+      // Fallback for unknown types
+      updateFields.availableQuantity = inventoryCheck.available - quantity;
+      if (product.productType === 'ready_to_ship') {
+        updateFields.stock = inventoryCheck.available - quantity;
+      }
     }
     
     const result = await productsCollection.updateOne(
@@ -842,15 +1020,17 @@ const reduceInventory = async (req, res) => {
         artisan: artisan._id
       },
       { 
-        $inc: { 
-          availableQuantity: -quantity,
-          soldCount: quantity
-        },
-        $set: {
-          updatedAt: new Date()
-        }
+        $inc: { soldCount: quantity },
+        $set: updateFields
       }
     );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or access denied'
+      });
+    }
     
     const updatedProduct = await productsCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
@@ -877,6 +1057,57 @@ const reduceInventory = async (req, res) => {
   }
 };
 
+// Test inventory functionality (for development/testing)
+const testInventoryFunctionality = async (req, res) => {
+  try {
+    const db = req.db;
+    const productsCollection = db.collection('products');
+    
+    // Get a sample product to test with
+    const sampleProduct = await productsCollection.findOne({ status: 'active' });
+    
+    if (!sampleProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active products found for testing'
+      });
+    }
+    
+    // Test the helper functions
+    const inventoryField = getInventoryField(sampleProduct.productType);
+    const inventoryCheck = checkInventoryAvailability(sampleProduct, 1);
+    
+    res.json({
+      success: true,
+      message: 'Inventory functionality test',
+      data: {
+        productId: sampleProduct._id,
+        productType: sampleProduct.productType,
+        inventoryField: inventoryField,
+        currentInventory: {
+          stock: sampleProduct.stock || 0,
+          availableQuantity: sampleProduct.availableQuantity || 0,
+          totalCapacity: sampleProduct.totalCapacity || 0,
+          remainingCapacity: sampleProduct.remainingCapacity || 0
+        },
+        inventoryCheck: inventoryCheck,
+        helperFunctions: {
+          validateInventoryValue: typeof validateInventoryValue,
+          getInventoryField: typeof getInventoryField,
+          checkInventoryAvailability: typeof checkInventoryAvailability
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error testing inventory functionality:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error testing inventory functionality',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 // IMPORTANT: Specific routes must come BEFORE parameterized routes (/:id)
 // Otherwise /:id will catch everything
@@ -885,10 +1116,12 @@ router.get('/featured', getFeaturedProducts);
 router.get('/enhanced-search', enhancedSearch);
 router.get('/categories/list', getCategories);
 router.get('/my-products', getMyProducts);
+router.get('/test-inventory', testInventoryFunctionality); // Test endpoint
 router.post('/', createProduct);
 router.put('/:id', updateProduct);
 router.delete('/:id', deleteProduct);
-router.patch('/:id/inventory', updateInventory);
+router.put('/:id/inventory', updateInventory); // Frontend uses PUT
+router.patch('/:id/inventory', updateInventory); // Also support PATCH
 router.patch('/:id/stock', updateStock);
 router.patch('/:id/reduce-inventory', reduceInventory);
 router.get('/:id', getProductById); // This must be LAST - catches everything else

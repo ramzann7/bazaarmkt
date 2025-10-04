@@ -196,6 +196,17 @@ const getWalletBalance = async (req, res) => {
     // Create wallet if it doesn't exist
     if (!wallet && artisan) {
       try {
+        // Calculate next payout date for new wallets
+        const now = new Date();
+        let nextPayoutDate;
+        
+        // Set next payout to next Friday at 9 AM
+        const nextFriday = new Date(now);
+        const daysUntilFriday = (5 + 7 - now.getDay()) % 7 || 7;
+        nextFriday.setDate(now.getDate() + daysUntilFriday);
+        nextFriday.setHours(9, 0, 0, 0);
+        nextPayoutDate = nextFriday;
+        
         wallet = {
           artisanId: artisan._id, // Wallet is linked to artisan, not user directly
           balance: 0,
@@ -204,11 +215,11 @@ const getWalletBalance = async (req, res) => {
           stripeCustomerId: null,
           stripeAccountId: null,
           payoutSettings: {
-            enabled: false,
+            enabled: true, // Enable payouts by default
             schedule: 'weekly',
             minimumPayout: 50,
             lastPayoutDate: null,
-            nextPayoutDate: null
+            nextPayoutDate: nextPayoutDate
           },
           metadata: {
             totalEarnings: 0,
@@ -234,22 +245,34 @@ const getWalletBalance = async (req, res) => {
 
     // Connection managed by middleware
 
-    res.json({
+    const responseData = {
       success: true,
       data: {
         balance: wallet.balance || 0,
         pendingBalance: wallet.pendingBalance || 0,
         currency: wallet.currency || 'CAD',
         lastUpdated: wallet.updatedAt,
-        payoutSettings: wallet.payoutSettings || {
-          enabled: false,
-          schedule: 'weekly',
-          minimumPayout: 50,
-          lastPayoutDate: null,
-          nextPayoutDate: null
-        }
+        payoutSettings: wallet.payoutSettings || (() => {
+          // Calculate next payout date for fallback
+          const now = new Date();
+          const nextFriday = new Date(now);
+          const daysUntilFriday = (5 + 7 - now.getDay()) % 7 || 7;
+          nextFriday.setDate(now.getDate() + daysUntilFriday);
+          nextFriday.setHours(9, 0, 0, 0);
+          
+          return {
+            enabled: true,
+            schedule: 'weekly',
+            minimumPayout: 50,
+            lastPayoutDate: null,
+            nextPayoutDate: nextFriday
+          };
+        })()
       }
-    });
+    };
+
+    console.log('💰 Wallet balance response:', JSON.stringify(responseData, null, 2));
+    res.json(responseData);
   } catch (error) {
     console.error('Get wallet balance error:', error);
     res.status(500).json({

@@ -89,6 +89,7 @@ const createOrder = async (req, res) => {
       shippingAddress: shippingAddress || {},
       paymentMethod: paymentMethod || 'cash',
       notes: notes || '',
+      artisan: validatedItems[0]?.artisanId, // Set artisan from first item
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -401,33 +402,47 @@ const getArtisanOrders = async (req, res) => {
     // Try multiple approaches to find orders for this artisan
     let orders = [];
     
-    // Approach 1: Direct match with ObjectId
-    console.log('🔍 Trying direct ObjectId match...');
+    // Approach 1: Direct match with ObjectId on order.artisan field
+    console.log('🔍 Trying direct ObjectId match on order.artisan...');
     orders = await ordersCollection
       .find({
-        'items.artisanId': artisan._id
+        artisan: artisan._id
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
     
-    console.log('🔍 Direct ObjectId match found:', orders.length);
+    console.log('🔍 Direct ObjectId match on order.artisan found:', orders.length);
     
-    // Approach 2: If no orders found, try string match
+    // Approach 2: If no orders found, try string match on order.artisan
     if (orders.length === 0) {
-      console.log('🔍 Trying string match...');
+      console.log('🔍 Trying string match on order.artisan...');
       orders = await ordersCollection
         .find({
-          'items.artisanId': artisan._id.toString()
+          artisan: artisan._id.toString()
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
         .toArray();
       
-      console.log('🔍 String match found:', orders.length);
+      console.log('🔍 String match on order.artisan found:', orders.length);
     }
     
-    // Approach 3: If still no orders, try to find any orders and filter manually
+    // Approach 3: Try items.artisanId as fallback (for older orders)
+    if (orders.length === 0) {
+      console.log('🔍 Trying items.artisanId as fallback...');
+      orders = await ordersCollection
+        .find({
+          'items.artisanId': artisan._id
+        })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(req.query.limit) || 50)
+        .toArray();
+      
+      console.log('🔍 items.artisanId fallback found:', orders.length);
+    }
+    
+    // Approach 4: If still no orders, try to find any orders and filter manually
     if (orders.length === 0) {
       console.log('🔍 Trying manual filter approach...');
       const allOrdersForFilter = await ordersCollection
@@ -439,28 +454,46 @@ const getArtisanOrders = async (req, res) => {
       console.log('🔍 All orders for manual filter:', allOrdersForFilter.length);
       
       orders = allOrdersForFilter.filter(order => {
-        if (!order.items) return false;
-        
-        const matchingItems = order.items.filter(item => {
-          const itemArtisanId = item.artisanId;
-          if (!itemArtisanId) return false;
-          
-          const matches = itemArtisanId.toString() === artisan._id.toString() ||
-                         (itemArtisanId.equals && itemArtisanId.equals(artisan._id));
+        // Check order.artisan field first
+        if (order.artisan) {
+          const matches = order.artisan.toString() === artisan._id.toString() ||
+                         (order.artisan.equals && order.artisan.equals(artisan._id));
           
           if (matches) {
-            console.log('🔍 Found matching item:', {
+            console.log('🔍 Found matching order.artisan:', {
               orderId: order._id,
-              itemArtisanId: itemArtisanId.toString(),
-              artisanId: artisan._id.toString(),
-              productName: item.productName
+              orderArtisan: order.artisan.toString(),
+              artisanId: artisan._id.toString()
             });
+            return true;
           }
-          
-          return matches;
-        });
+        }
         
-        return matchingItems.length > 0;
+        // Check items.artisanId as fallback
+        if (order.items) {
+          const matchingItems = order.items.filter(item => {
+            const itemArtisanId = item.artisanId;
+            if (!itemArtisanId) return false;
+            
+            const matches = itemArtisanId.toString() === artisan._id.toString() ||
+                           (itemArtisanId.equals && itemArtisanId.equals(artisan._id));
+            
+            if (matches) {
+              console.log('🔍 Found matching item.artisanId:', {
+                orderId: order._id,
+                itemArtisanId: itemArtisanId.toString(),
+                artisanId: artisan._id.toString(),
+                productName: item.productName
+              });
+            }
+            
+            return matches;
+          });
+          
+          return matchingItems.length > 0;
+        }
+        
+        return false;
       });
       
       console.log('🔍 Manual filter found:', orders.length);
@@ -686,6 +719,7 @@ const createGuestOrder = async (req, res) => {
       paymentMethod: paymentMethod || 'credit_card',
       paymentDetails: paymentDetails || {},
       notes: notes || '',
+      artisan: validatedItems[0]?.artisanId, // Set artisan from first item
       isGuestOrder: true,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -1019,6 +1053,9 @@ const debugOrders = async (req, res) => {
           userId: order.userId,
           status: order.status,
           totalAmount: order.totalAmount,
+          artisan: order.artisan,
+          artisanType: typeof order.artisan,
+          artisanString: order.artisan?.toString(),
           itemsCount: order.items?.length || 0,
           items: order.items?.map(item => ({
             productId: item.productId,

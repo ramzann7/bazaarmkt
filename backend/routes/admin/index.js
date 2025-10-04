@@ -155,7 +155,10 @@ const getWalletTransactions = async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const limit = parseInt(req.query.limit) || 20;
-    const offset = parseInt(req.query.offset) || 0;
+    const page = parseInt(req.query.page) || 1;
+    const offset = (page - 1) * limit;
+    const type = req.query.type;
+    const status = req.query.status;
 
     const db = req.db; // Use shared connection
     const transactionsCollection = db.collection('wallettransactions');
@@ -165,12 +168,36 @@ const getWalletTransactions = async (req, res) => {
       user: new ObjectId(decoded.userId)
     });
 
-    const transactions = artisan ? await transactionsCollection
-      .find({ artisanId: artisan._id })
+    if (!artisan) {
+      return res.json({
+        success: true,
+        data: {
+          transactions: [],
+          count: 0,
+          pagination: {
+            current: page,
+            pages: 0,
+            total: 0
+          }
+        }
+      });
+    }
+
+    // Build query filter
+    const filter = { artisanId: artisan._id };
+    if (type) filter.type = type;
+    if (status) filter.status = status;
+
+    // Get total count for pagination
+    const totalCount = await transactionsCollection.countDocuments(filter);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const transactions = await transactionsCollection
+      .find(filter)
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(limit)
-      .toArray() : [];
+      .toArray();
 
     // Connection managed by middleware
 
@@ -178,7 +205,12 @@ const getWalletTransactions = async (req, res) => {
       success: true,
       data: {
         transactions,
-        count: transactions.length
+        count: transactions.length,
+        pagination: {
+          current: page,
+          pages: totalPages,
+          total: totalCount
+        }
       }
     });
   } catch (error) {

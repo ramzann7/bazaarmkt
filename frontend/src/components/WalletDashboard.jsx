@@ -20,6 +20,8 @@ const WalletDashboard = () => {
   const [hasBankInfo, setHasBankInfo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [recentTransactions, setRecentTransactions] = useState([]);
+  const [transactionSummary, setTransactionSummary] = useState(null);
 
   useEffect(() => {
     loadWalletData();
@@ -52,9 +54,10 @@ const WalletDashboard = () => {
   const loadWalletData = async () => {
     try {
       setLoading(true);
-      const [balanceResponse, statsResponse] = await Promise.all([
+      const [balanceResponse, statsResponse, transactionsResponse] = await Promise.all([
         walletService.getWalletBalance(),
-        walletService.getWalletStats('30')
+        walletService.getWalletStats('30'),
+        walletService.getTransactions(1, 10) // Get recent 10 transactions
       ]);
 
       if (balanceResponse.success) {
@@ -64,6 +67,15 @@ const WalletDashboard = () => {
       if (statsResponse.success) {
         setStats(statsResponse.data);
       }
+
+      if (transactionsResponse.success) {
+        const transactions = transactionsResponse.data.transactions || [];
+        setRecentTransactions(transactions.slice(0, 5)); // Show only 5 most recent
+        
+        // Calculate transaction summary
+        const summary = calculateTransactionSummary(transactions);
+        setTransactionSummary(summary);
+      }
     } catch (error) {
       console.error('Error loading wallet data:', error);
       setError('Failed to load wallet data');
@@ -71,6 +83,29 @@ const WalletDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const calculateTransactionSummary = (transactions) => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+
+    const recentTransactions = transactions.filter(t => new Date(t.createdAt) >= thirtyDaysAgo);
+    const weeklyTransactions = transactions.filter(t => new Date(t.createdAt) >= sevenDaysAgo);
+
+    const summary = {
+      totalTransactions: recentTransactions.length,
+      weeklyTransactions: weeklyTransactions.length,
+      totalRevenue: recentTransactions
+        .filter(t => t.type === 'revenue')
+        .reduce((sum, t) => sum + t.amount, 0),
+      totalSpent: recentTransactions
+        .filter(t => ['purchase', 'payout'].includes(t.type))
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      lastTransactionDate: transactions.length > 0 ? transactions[0].createdAt : null
+    };
+
+    return summary;
   };
 
   const formatCurrency = (amount) => {
@@ -137,159 +172,228 @@ const WalletDashboard = () => {
         </div>
       )}
 
-      {/* Wallet Balance Card */}
-      <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-sm p-6 text-white">
+      {/* Wallet Balance Card - Compact and Neutral */}
+      <div className="card p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-medium mb-2">Wallet Balance</h2>
-            <p className="text-3xl font-bold">{formatCurrency(walletData?.balance || 0)}</p>
-            <p className="text-sm opacity-90 mt-1">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-stone-100 rounded-lg">
+              <CurrencyDollarIcon className="w-6 h-6 text-stone-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-medium text-stone-800 font-display">Wallet Balance</h2>
+              <p className="text-2xl font-bold text-stone-800">{formatCurrency(walletData?.balance || 0)}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-stone-500">
+              {transactionSummary?.totalTransactions || 0} transactions (30 days)
+            </p>
+            <p className="text-xs text-stone-400 mt-1">
               Available for promotions and payouts
             </p>
           </div>
-          <div className="text-right">
-            <CurrencyDollarIcon className="w-12 h-12 opacity-80" />
-            <div className="mt-2">
-              <span className="text-sm opacity-90">
-                {walletData?.recentTransactionsCount || 0} transactions this month
-              </span>
+        </div>
+      </div>
+
+      {/* Transaction Summary & Payout Info */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Transaction Summary */}
+        <div className="card p-6">
+          <h3 className="text-lg font-medium text-stone-800 mb-4 font-display flex items-center">
+            <ChartBarIcon className="w-5 h-5 text-amber-600 mr-2" />
+            Transaction Summary (30 days)
+          </h3>
+          
+          {transactionSummary ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-emerald-50 rounded-lg">
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {formatCurrency(transactionSummary.totalRevenue)}
+                  </p>
+                  <p className="text-sm text-emerald-700">Total Revenue</p>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded-lg">
+                  <p className="text-2xl font-bold text-red-600">
+                    {formatCurrency(transactionSummary.totalSpent)}
+                  </p>
+                  <p className="text-sm text-red-700">Total Spent</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-stone-600">Transactions:</span>
+                  <span className="font-medium text-stone-800">{transactionSummary.totalTransactions}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-600">This week:</span>
+                  <span className="font-medium text-stone-800">{transactionSummary.weeklyTransactions}</span>
+                </div>
+              </div>
+              
+              {transactionSummary.lastTransactionDate && (
+                <div className="text-xs text-stone-500 pt-2 border-t border-stone-200">
+                  Last transaction: {new Date(transactionSummary.lastTransactionDate).toLocaleDateString()}
+                </div>
+              )}
             </div>
+          ) : (
+            <div className="text-center py-4 text-stone-500">
+              <p>No transaction data available</p>
+            </div>
+          )}
+        </div>
+
+        {/* Payout Information */}
+        <div className="card p-6">
+          <h3 className="text-lg font-medium text-stone-800 mb-4 font-display flex items-center">
+            <ClockIcon className="w-5 h-5 text-blue-600 mr-2" />
+            Payout Information
+          </h3>
+          
+          <div className="space-y-4">
+            {walletData?.payoutSettings ? (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Status:</span>
+                  <span className={`font-medium ${walletData.payoutSettings.enabled ? 'text-emerald-600' : 'text-stone-500'}`}>
+                    {walletData.payoutSettings.enabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Schedule:</span>
+                  <span className="font-medium text-stone-800 capitalize">
+                    {walletData.payoutSettings.schedule}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Minimum:</span>
+                  <span className="font-medium text-stone-800">
+                    {formatCurrency(walletData.payoutSettings.minimumPayout)}
+                  </span>
+                </div>
+                
+                {walletData.payoutSettings.nextPayoutDate && (
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <span className="text-blue-700 font-medium">Next Payout:</span>
+                      <span className="text-blue-800 font-bold">
+                        {new Date(walletData.payoutSettings.nextPayoutDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      {walletData.balance >= walletData.payoutSettings.minimumPayout 
+                        ? 'Eligible for payout' 
+                        : `Need ${formatCurrency(walletData.payoutSettings.minimumPayout - walletData.balance)} more`}
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-4 text-stone-500">
+                <p>Payout settings not configured</p>
+                {!hasBankInfo && (
+                  <p className="text-xs mt-2">Add bank information to enable payouts</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Recent Transactions */}
+      {recentTransactions.length > 0 && (
+        <div className="card p-6">
+          <h3 className="text-lg font-medium text-stone-800 mb-4 font-display flex items-center">
+            <ArrowRightIcon className="w-5 h-5 text-purple-600 mr-2" />
+            Recent Transactions
+          </h3>
+          
+          <div className="space-y-3">
+            {recentTransactions.map((transaction) => (
+              <div key={transaction._id} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="text-lg">
+                    {walletService.getTransactionTypeIcon(transaction.type)}
+                  </div>
+                  <div>
+                    <p className="font-medium text-stone-800">
+                      {walletService.getTransactionTypeDisplay(transaction.type)}
+                    </p>
+                    <p className="text-sm text-stone-500">
+                      {new Date(transaction.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`font-semibold ${walletService.getTransactionTypeColor(transaction.type)}`}>
+                    {['revenue', 'top_up', 'refund', 'adjustment'].includes(transaction.type) ? '+' : '-'}
+                    {formatCurrency(Math.abs(transaction.amount))}
+                  </p>
+                  <p className="text-xs text-stone-400">
+                    {transaction.status}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => {/* Navigate to transactions tab */}}
+              className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+            >
+              View all transactions →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
           onClick={() => {/* Navigate to top-up */}}
-          className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 hover:border-[#D77A61] transition-colors"
+          className="card p-4 hover:shadow-md transition-shadow"
         >
           <div className="flex items-center space-x-3">
-            <div className="bg-green-100 p-2 rounded-lg">
-              <ArrowUpIcon className="w-6 h-6 text-green-600" />
+            <div className="bg-emerald-100 p-2 rounded-lg">
+              <ArrowUpIcon className="w-6 h-6 text-emerald-600" />
             </div>
             <div className="text-left">
-              <h3 className="font-medium text-gray-900">Top Up Wallet</h3>
-              <p className="text-sm text-gray-500">Add funds via Stripe</p>
+              <h3 className="font-medium text-stone-800 font-display">Top Up Wallet</h3>
+              <p className="text-sm text-stone-500">Add funds via Stripe</p>
             </div>
           </div>
         </button>
 
         <button
           onClick={() => {/* Navigate to transactions */}}
-          className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 hover:border-[#D77A61] transition-colors"
+          className="card p-4 hover:shadow-md transition-shadow"
         >
           <div className="flex items-center space-x-3">
             <div className="bg-blue-100 p-2 rounded-lg">
               <ChartBarIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div className="text-left">
-              <h3 className="font-medium text-gray-900">View Transactions</h3>
-              <p className="text-sm text-gray-500">See all wallet activity</p>
+              <h3 className="font-medium text-stone-800 font-display">View All Transactions</h3>
+              <p className="text-sm text-stone-500">See complete wallet activity</p>
             </div>
           </div>
         </button>
       </div>
 
-      {/* Statistics Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-green-100 p-2 rounded-lg">
-                <ArrowUpIcon className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Revenue (30 days)</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(stats.revenue.total)}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {stats.revenue.count} transactions
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <CreditCardIcon className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Top-ups (30 days)</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(stats.top_up.total)}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {stats.top_up.count} transactions
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex items-center space-x-3">
-              <div className="bg-red-100 p-2 rounded-lg">
-                <ArrowDownIcon className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Spent (30 days)</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(stats.purchase.total)}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {stats.purchase.count} transactions
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Payout Settings */}
-      {walletData?.payoutSettings && (
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Payout Settings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Payout Status</p>
-              <p className={`font-medium ${walletData.payoutSettings.enabled ? 'text-green-600' : 'text-gray-500'}`}>
-                {walletData.payoutSettings.enabled ? 'Enabled' : 'Disabled'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Schedule</p>
-              <p className="font-medium text-gray-900 capitalize">
-                {walletData.payoutSettings.schedule}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Minimum Payout</p>
-              <p className="font-medium text-gray-900">
-                {formatCurrency(walletData.payoutSettings.minimumPayout)}
-              </p>
-            </div>
-            {walletData.payoutSettings.nextPayoutDate && (
-              <div>
-                <p className="text-sm text-gray-500">Next Payout</p>
-                <p className="font-medium text-gray-900">
-                  {new Date(walletData.payoutSettings.nextPayoutDate).toLocaleDateString()}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Low Balance Warning */}
       {walletData?.balance < 50 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-center space-x-3">
-            <ExclamationTriangleIcon className="w-6 h-6 text-yellow-600" />
+            <ExclamationTriangleIcon className="w-6 h-6 text-amber-600" />
             <div>
-              <h4 className="font-medium text-yellow-800">Low Wallet Balance</h4>
-              <p className="text-sm text-yellow-700">
+              <h4 className="font-medium text-amber-800 font-display">Low Wallet Balance</h4>
+              <p className="text-sm text-amber-700">
                 Your wallet balance is below the minimum payout threshold. 
                 Consider topping up to continue using promotional features.
               </p>

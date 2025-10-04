@@ -70,6 +70,14 @@ const createOrder = async (req, res) => {
         itemTotal: itemTotal,
         artisanId: product.artisan
       });
+      
+      console.log('🔍 Order item created:', {
+        productId: product._id,
+        productName: product.name,
+        artisanId: product.artisan,
+        artisanIdType: typeof product.artisan,
+        artisanIdString: product.artisan?.toString()
+      });
     }
     
     // Create order
@@ -345,20 +353,101 @@ const getArtisanOrders = async (req, res) => {
       });
     }
     
+    console.log('🔍 Artisan found:', {
+      artisanId: artisan._id,
+      artisanIdType: typeof artisan._id,
+      artisanIdString: artisan._id.toString()
+    });
+    
     // Get orders where items contain artisan's products
-    const orders = await ordersCollection
-      .find({
-        'items.artisanId': artisan._id
-      })
-      .sort({ createdAt: -1 })
-      .limit(parseInt(req.query.limit) || 50)
-      .toArray();
+    // Use aggregation to properly match the artisanId in items array
+    const orders = await ordersCollection.aggregate([
+      {
+        $match: {
+          $or: [
+            { 'items.artisanId': artisan._id },
+            { 'items.artisanId': artisan._id.toString() },
+            { 'items.artisanId': new (require('mongodb')).ObjectId(artisan._id) }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          // Add artisan info to each order
+          artisanInfo: artisan
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $addFields: {
+          user: { $arrayElemAt: ['$userInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          userInfo: 0,
+          'user.password': 0,
+          'user.__v': 0
+        }
+      },
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $limit: parseInt(req.query.limit) || 50
+      }
+    ]).toArray();
+    
+    console.log('🔍 Found orders for artisan:', orders.length);
+    console.log('🔍 Sample order items:', orders.length > 0 ? orders[0].items?.map(item => ({
+      productId: item.productId,
+      artisanId: item.artisanId,
+      artisanIdType: typeof item.artisanId
+    })) : 'No orders');
+    
+    // If no orders found with aggregation, try a simpler approach
+    if (orders.length === 0) {
+      console.log('🔍 No orders found with aggregation, trying simple find...');
+      const simpleOrders = await ordersCollection
+        .find({
+          'items.artisanId': artisan._id
+        })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(req.query.limit) || 50)
+        .toArray();
+      
+      console.log('🔍 Simple find found orders:', simpleOrders.length);
+      
+      if (simpleOrders.length > 0) {
+        // Add artisan info to simple orders
+        const ordersWithArtisan = simpleOrders.map(order => ({
+          ...order,
+          artisanInfo: artisan
+        }));
+        
+        res.json({
+          success: true,
+          data: ordersWithArtisan,
+          orders: ordersWithArtisan, // Frontend compatibility
+          count: ordersWithArtisan.length
+        });
+        return;
+      }
+    }
     
     // Connection managed by middleware - no close needed
     
     res.json({
       success: true,
       data: orders,
+      orders: orders, // Frontend compatibility
       count: orders.length
     });
   } catch (error) {
@@ -538,6 +627,14 @@ const createGuestOrder = async (req, res) => {
         quantity: item.quantity,
         itemTotal: itemTotal,
         artisanId: product.artisan
+      });
+      
+      console.log('🔍 Guest order item created:', {
+        productId: product._id,
+        productName: product.name,
+        artisanId: product.artisan,
+        artisanIdType: typeof product.artisan,
+        artisanIdString: product.artisan?.toString()
       });
     }
     

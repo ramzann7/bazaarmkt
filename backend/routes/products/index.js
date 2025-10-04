@@ -790,6 +790,25 @@ const updateInventory = async (req, res) => {
       }
     }
     
+    // Update product status based on inventory levels
+    const finalStock = updateData.stock !== undefined ? updateData.stock : currentProduct.stock;
+    const finalRemainingCapacity = updateData.remainingCapacity !== undefined ? updateData.remainingCapacity : currentProduct.remainingCapacity;
+    const finalAvailableQuantity = updateData.availableQuantity !== undefined ? updateData.availableQuantity : currentProduct.availableQuantity;
+    
+    let newStatus = currentProduct.status;
+    if (currentProduct.productType === 'ready_to_ship') {
+      newStatus = (finalStock || 0) > 0 ? 'active' : 'out_of_stock';
+    } else if (currentProduct.productType === 'made_to_order') {
+      newStatus = (finalRemainingCapacity || 0) > 0 ? 'active' : 'out_of_stock';
+    } else if (currentProduct.productType === 'scheduled_order') {
+      newStatus = (finalAvailableQuantity || 0) > 0 ? 'active' : 'out_of_stock';
+    }
+    
+    if (newStatus !== currentProduct.status) {
+      updateData.status = newStatus;
+      console.log(`🔄 Product status updated from ${currentProduct.status} to ${newStatus} based on inventory`);
+    }
+    
     const result = await productsCollection.updateOne(
       { 
         _id: new (require('mongodb')).ObjectId(req.params.id),
@@ -902,6 +921,15 @@ const updateStock = async (req, res) => {
     // For ready-to-ship products, also update availableQuantity to maintain consistency
     if (currentProduct.productType === 'ready_to_ship') {
       updateData.availableQuantity = quantity;
+    }
+    
+    // Update product status based on inventory levels
+    if (currentProduct.productType === 'ready_to_ship') {
+      const newStatus = quantity > 0 ? 'active' : 'out_of_stock';
+      if (newStatus !== currentProduct.status) {
+        updateData.status = newStatus;
+        console.log(`🔄 Product status updated from ${currentProduct.status} to ${newStatus} based on stock`);
+      }
     }
     
     const result = await productsCollection.updateOne(
@@ -1037,6 +1065,17 @@ const reduceInventory = async (req, res) => {
       if (product.productType === 'ready_to_ship') {
         updateFields.stock = inventoryCheck.available - quantity;
       }
+    }
+    
+    // Update product status based on remaining inventory
+    const remainingStock = product.productType === 'ready_to_ship' ? updateFields.stock : 
+                          product.productType === 'made_to_order' ? updateFields.remainingCapacity :
+                          product.productType === 'scheduled_order' ? updateFields.availableQuantity : 0;
+    
+    const newStatus = remainingStock > 0 ? 'active' : 'out_of_stock';
+    if (newStatus !== product.status) {
+      updateFields.status = newStatus;
+      console.log(`🔄 Product status updated from ${product.status} to ${newStatus} after inventory reduction`);
     }
     
     const result = await productsCollection.updateOne(

@@ -8,6 +8,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import InventoryModel from '../models/InventoryModel';
 import { cartService } from '../services/cartService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -112,28 +113,51 @@ const AddToCart = ({
   
   const maxQuantity = getMaxQuantity();
   
-  // Check if product is out of stock
+  // Check if product is out of stock using InventoryModel for consistency
   const isOutOfStock = () => {
-    if (product.productType === 'ready_to_ship') {
-      return (maxQuantity || 0) <= 0;
-    }
-    return false;
+    const inventoryModel = new InventoryModel(product);
+    return inventoryModel.isOutOfStock();
   };
   
   const canAddToCart = !isOutOfStock() && quantity > 0 && quantity <= maxQuantity;
 
-  // Show out of stock message for ready_to_ship products
+  // Show stock/availability message for all product types
   const getStockMessage = () => {
-    if (product.productType === 'ready_to_ship') {
-      if (maxQuantity <= 0) {
-        return 'Out of Stock';
-      } else if (maxQuantity <= 5) {
-        return `Only ${maxQuantity} left in stock`;
-      } else {
-        return `${maxQuantity} in stock`;
-      }
+    const inventoryModel = new InventoryModel(product);
+    const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+    
+    if (outOfStockStatus.isOutOfStock) {
+      return outOfStockStatus.message;
     }
-    return null;
+    
+    switch (product.productType) {
+      case 'ready_to_ship':
+        if (maxQuantity <= 5) {
+          return `Only ${maxQuantity} left in stock`;
+        } else {
+          return `${maxQuantity} in stock`;
+        }
+      
+      case 'made_to_order':
+        const remainingCapacity = product.remainingCapacity || 0;
+        const totalCapacity = product.totalCapacity || 0;
+        if (remainingCapacity <= 1) {
+          return `Only ${remainingCapacity} slot available`;
+        } else {
+          return `${remainingCapacity}/${totalCapacity} slots available`;
+        }
+      
+      case 'scheduled_order':
+        const availableQuantity = product.availableQuantity || 0;
+        if (availableQuantity <= 5) {
+          return `Only ${availableQuantity} available`;
+        } else {
+          return `${availableQuantity} available`;
+        }
+      
+      default:
+        return null;
+    }
   };
 
   const handleQuantityChange = (newQuantity) => {

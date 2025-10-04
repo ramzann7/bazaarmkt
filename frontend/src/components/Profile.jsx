@@ -616,10 +616,10 @@ export default function Profile() {
   // If user data isn't loaded yet, show loading
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading user data...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-stone-600">Loading user data...</p>
         </div>
       </div>
     );
@@ -640,10 +640,10 @@ export default function Profile() {
   // Check if AuthContext is ready
   if (!isProviderReady) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
-          <p className="text-gray-600">Initializing authentication...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-stone-600">Initializing authentication...</p>
         </div>
       </div>
     );
@@ -651,10 +651,10 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your profile...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-stone-600">Loading your profile...</p>
         </div>
       </div>
     );
@@ -662,12 +662,12 @@ export default function Profile() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Unable to load profile</p>
+          <p className="text-stone-600 mb-4">Unable to load profile</p>
           <button 
             onClick={() => navigate('/login')}
-            className="bg-[#D77A61] text-white px-4 py-2 rounded-full hover:bg-[#3C6E47] transition-colors"
+            className="btn-primary"
           >
             Go to Login
           </button>
@@ -723,13 +723,13 @@ export default function Profile() {
   const isPatron = profile.role === 'patron' || profile.role === 'customer' || profile.role === 'buyer';
 
   return (
-    <div className="min-h-screen bg-[#F5F1EA] relative">
+    <div className="min-h-screen bg-background relative">
       {/* Saving overlay */}
       {isSaving && (
         <div className="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 shadow-lg flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D77A61]"></div>
-            <span className="text-gray-700">Saving changes...</span>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-500"></div>
+            <span className="text-stone-700">Saving changes...</span>
           </div>
         </div>
       )}
@@ -737,11 +737,11 @@ export default function Profile() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Enhanced Header */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#D77A61] rounded-full mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
             <UserIcon className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3 font-serif">My Profile</h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">My Profile</h1>
+          <p className="text-lg text-stone-600 max-w-2xl mx-auto">
             {isArtisan 
               ? "Manage your artisan business profile, operations, and customer information"
               : "Manage your account settings, preferences, and personal information"
@@ -750,20 +750,20 @@ export default function Profile() {
         </div>
 
         {/* Enhanced Profile Header */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8 transform hover:scale-[1.02] transition-transform duration-300">
+        <div className="card p-8 mb-8 transform hover:scale-[1.02] transition-transform duration-300">
           <div className="flex items-center space-x-6">
-            <div className="w-20 h-20 bg-[#D77A61] rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg">
               <UserIcon className="w-10 h-10 text-white" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   {isArtisan && artisanProfile?.artisanName ? (
-                    <h2 className="text-2xl font-bold text-[#D77A61] font-serif">
+                    <h2 className="text-2xl font-bold text-amber-600 font-display">
                       🏪 {artisanProfile.artisanName}
                     </h2>
                   ) : (
-                    <h2 className="text-2xl font-bold text-gray-900 font-serif">
+                    <h2 className="text-2xl font-bold text-stone-800 font-display">
                       {profile.firstName} {profile.lastName}
                     </h2>
                   )}

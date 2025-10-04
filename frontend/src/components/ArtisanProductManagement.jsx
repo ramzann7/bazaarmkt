@@ -425,24 +425,24 @@ export default function ArtisanProductManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1EA]">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+        <div className="card p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#D77A61] rounded-full mb-6 shadow-lg">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
                 <CubeIcon className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-3 font-serif">My Product Management</h2>
-              <p className="text-gray-600 text-lg">
+              <h2 className="text-4xl font-bold text-stone-800 mb-3 font-display">My Product Management</h2>
+              <p className="text-stone-600 text-lg">
                 Manage your products and promotional features
               </p>
             </div>
             <div className="flex items-center space-x-3">
               <button
                 onClick={loadProducts}
-                className="bg-[#E6B655] text-white px-4 py-2 rounded-lg hover:bg-[#D4A545] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+                className="btn-secondary flex items-center space-x-2"
                 title="Refresh Products"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,7 +452,7 @@ export default function ArtisanProductManagement() {
               </button>
               <button
                 onClick={handleAddProduct}
-                className="bg-[#D77A61] text-white px-6 py-3 rounded-lg hover:bg-[#C06A51] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="btn-primary flex items-center space-x-2"
               >
                 <PlusIcon className="w-5 h-5" />
                 <span>Add Product</span>
@@ -461,118 +461,75 @@ export default function ArtisanProductManagement() {
           </div>
           
           {/* Promotional Features Info */}
-          <div className="bg-gradient-to-r from-amber-50 to-purple-50 rounded-xl p-6 border border-primary-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Promotional Features</h3>
+          <div className="bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl p-6 border border-amber-200">
+            <h3 className="text-lg font-semibold text-stone-800 mb-4 text-center">Promotional Features</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-primary-200">
-                <StarIcon className="w-6 h-6 text-primary-500" />
+              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-amber-200">
+                <StarIcon className="w-6 h-6 text-amber-500" />
                 <div>
-                  <span className="font-semibold text-primary-dark">Featured Product</span>
-                  <p className="text-sm text-gray-600">$5/day - Homepage visibility with distance-based ranking</p>
+                  <span className="font-semibold text-amber-700">Featured Product</span>
+                  <p className="text-sm text-stone-600">$5/day - Homepage visibility with distance-based ranking</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
-                <SparklesIcon className="w-6 h-6 text-purple-500" />
+              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-emerald-200">
+                <SparklesIcon className="w-6 h-6 text-emerald-500" />
                 <div>
-                  <span className="font-semibold text-purple-700">Sponsored Product</span>
-                  <p className="text-sm text-gray-600">$10/day - Enhanced search visibility</p>
+                  <span className="font-semibold text-emerald-700">Sponsored Product</span>
+                  <p className="text-sm text-stone-600">$10/day - Enhanced search visibility</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Search & Filter Products</h3>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Search Products</label>
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        {/* Search and Filters - Subtle Design */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            {/* Search Input - Subtle like navbar */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <div className="flex shadow-sm">
+                  <div className="flex items-center px-3 py-2 bg-stone-50 text-stone-600 border border-r-0 border-stone-300 rounded-l-lg">
+                    <MagnifyingGlassIcon className="h-4 w-4" />
+                  </div>
                   <input
                     type="text"
-                    placeholder="Search by name, description, or category..."
+                    placeholder="Search products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200"
+                    className="flex-1 px-3 py-2 text-sm border border-stone-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 placeholder-stone-400 bg-white"
                   />
                 </div>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="bakery">Bakery</option>
-                    <option value="dairy">Dairy</option>
-                    <option value="produce">Produce</option>
-                    <option value="meat">Meat</option>
-                    <option value="beverages">Beverages</option>
-                    <option value="snacks">Snacks</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="out_of_stock">Out of Stock</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </div>
-                
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="createdAt">Date Created</option>
-                    <option value="name">Name</option>
-                    <option value="price">Price</option>
-                    <option value="stock">Stock</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="desc">Newest First</option>
-                    <option value="asc">Oldest First</option>
-                  </select>
-                </div>
-              </div>
+            </div>
+            
+            {/* Category Filter - Subtle dropdown */}
+            <div className="flex gap-2">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
+              >
+                <option value="all">All Categories</option>
+                <option value="bakery">Bakery</option>
+                <option value="dairy">Dairy</option>
+                <option value="produce">Produce</option>
+                <option value="meat">Meat</option>
+                <option value="beverages">Beverages</option>
+                <option value="snacks">Snacks</option>
+              </select>
             </div>
           </div>
         </div>
 
         {/* Products List */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+        <div className="card p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900">
+              <h3 className="text-2xl font-bold text-stone-800 font-display">
                 My Products
               </h3>
-              <p className="text-gray-600 mt-1">
+              <p className="text-stone-600 mt-1">
                 {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
               </p>
             </div>
@@ -611,10 +568,10 @@ export default function ArtisanProductManagement() {
                 const outOfStockStatus = inventoryModel.getOutOfStockStatus();
                 
                 return (
-                <div key={product._id} className="bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
+                <div key={product._id} className="bg-stone-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
-                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm">
+                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-stone-200 shadow-sm">
                         {product.image ? (
                           <img
                               src={getImageUrl(product.image, { width: 64, height: 64, quality: 80 })}
@@ -633,7 +590,7 @@ export default function ArtisanProductManagement() {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-3 mb-3">
-                          <h4 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h4>
+                          <h4 className="text-lg font-semibold text-stone-800 truncate font-display">{product.name}</h4>
                           
                           {/* Status Badge - Shows manual status OR auto-detected out of stock */}
                           <span className={`px-3 py-1 text-xs font-medium rounded-full ${
@@ -661,22 +618,22 @@ export default function ArtisanProductManagement() {
                           </span>
                         </div>
                         
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                        <p className="text-sm text-stone-600 mb-3 line-clamp-2">{product.description}</p>
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <span className="font-medium text-gray-700">Category:</span>
-                            <p className="capitalize text-gray-600">{product.category}</p>
+                            <span className="font-medium text-stone-700">Category:</span>
+                            <p className="capitalize text-stone-600">{product.category}</p>
                             {product.subcategory && (
-                              <p className="text-xs text-gray-500 capitalize">({product.subcategory})</p>
+                              <p className="text-xs text-stone-500 capitalize">({product.subcategory})</p>
                             )}
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">Price:</span>
-                            <p className="text-gray-600">${product.price} / {product.unit || 'piece'}</p>
+                            <span className="font-medium text-stone-700">Price:</span>
+                            <p className="text-stone-600">${product.price} / {product.unit || 'piece'}</p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-stone-700">
                               {product.productType === 'ready_to_ship' ? 'Stock:' :
                                product.productType === 'made_to_order' ? 'Capacity:' :
                                'Quantity:'}
@@ -684,31 +641,31 @@ export default function ArtisanProductManagement() {
                             <InventoryDisplay product={product} />
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">Created:</span>
-                            <p className="text-gray-600">{new Date(product.createdAt).toLocaleDateString()}</p>
+                            <span className="font-medium text-stone-700">Created:</span>
+                            <p className="text-stone-600">{new Date(product.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         
                         {/* Additional Product Details */}
                         {(product.weight || product.dimensions || (product.allergens && product.allergens.length > 0)) && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="mt-4 pt-4 border-t border-stone-200">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                               {product.weight && (
-                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                  <span className="font-medium text-gray-700">Weight:</span>
-                                  <p className="text-gray-600">{product.weight}</p>
+                                <div className="bg-white px-3 py-2 rounded-lg border border-stone-200">
+                                  <span className="font-medium text-stone-700">Weight:</span>
+                                  <p className="text-stone-600">{product.weight}</p>
                                 </div>
                               )}
                               {product.dimensions && (
-                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                  <span className="font-medium text-gray-700">Dimensions:</span>
-                                  <p className="text-gray-600">{product.dimensions}</p>
+                                <div className="bg-white px-3 py-2 rounded-lg border border-stone-200">
+                                  <span className="font-medium text-stone-700">Dimensions:</span>
+                                  <p className="text-stone-600">{product.dimensions}</p>
                                 </div>
                               )}
                               {product.allergens && product.allergens.length > 0 && (
-                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                  <span className="font-medium text-gray-700">Allergens:</span>
-                                  <p className="text-gray-600">{Array.isArray(product.allergens) ? product.allergens.join(', ') : product.allergens}</p>
+                                <div className="bg-white px-3 py-2 rounded-lg border border-stone-200">
+                                  <span className="font-medium text-stone-700">Allergens:</span>
+                                  <p className="text-stone-600">{Array.isArray(product.allergens) ? product.allergens.join(', ') : product.allergens}</p>
                                 </div>
                               )}
                             </div>
@@ -724,7 +681,7 @@ export default function ArtisanProductManagement() {
                             setSelectedProduct(product);
                             setShowProductModal(true);
                           }}
-                          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
                           title="View Details"
                         >
                           <EyeIcon className="w-5 h-5" />
@@ -735,7 +692,7 @@ export default function ArtisanProductManagement() {
                             setSelectedProduct(product);
                             setShowPromotionModal(true);
                           }}
-                          className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                          className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                           title="Promote Product"
                         >
                           <SparklesIcon className="w-5 h-5" />
@@ -743,7 +700,7 @@ export default function ArtisanProductManagement() {
                         
                         <button
                           onClick={() => handleEditProduct(product)}
-                          className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                          className="p-2 text-stone-600 hover:text-stone-700 hover:bg-stone-50 rounded-lg transition-colors"
                           title="Edit Product"
                         >
                           <PencilIcon className="w-5 h-5" />
@@ -1076,66 +1033,66 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Update form data when selectedProduct changes
+  // Update form data when product changes
   useEffect(() => {
-    if (selectedProduct) {
+    if (product) {
       // Determine correct inventory value based on product type
       let inventoryValue = 0;
-      switch (selectedProduct.productType) {
+      switch (product.productType) {
         case 'ready_to_ship':
-          inventoryValue = selectedProduct.stock || 0;
+          inventoryValue = product.stock || 0;
           break;
         case 'made_to_order':
-          inventoryValue = selectedProduct.totalCapacity || 0;
+          inventoryValue = product.totalCapacity || 0;
           break;
         case 'scheduled_order':
-          inventoryValue = selectedProduct.availableQuantity || 0;
+          inventoryValue = product.availableQuantity || 0;
           break;
         default:
-          inventoryValue = selectedProduct.stock || 0;
+          inventoryValue = product.stock || 0;
       }
       
       setFormData(prev => ({
         ...prev,
-        name: selectedProduct.name || '',
-        description: selectedProduct.description || '',
-        price: selectedProduct.price || '',
-        unit: selectedProduct.unit || 'piece',
-        productType: selectedProduct.productType || 'ready_to_ship',
-        category: selectedProduct.category || 'food_beverages',
-        subcategory: selectedProduct.subcategory || 'baked_goods',
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price || '',
+        unit: product.unit || 'piece',
+        productType: product.productType || 'ready_to_ship',
+        category: product.category || 'food_beverages',
+        subcategory: product.subcategory || 'baked_goods',
         stock: inventoryValue,
-        weight: selectedProduct.weight || '',
-        dimensions: selectedProduct.dimensions || '',
-        allergens: selectedProduct.allergens || '',
-        ingredients: selectedProduct.ingredients || '',
-        image: selectedProduct.image || null,
-        status: selectedProduct.status || 'active',
-        isOrganic: selectedProduct.isOrganic || false,
-        isGlutenFree: selectedProduct.isGlutenFree || false,
-        isVegan: selectedProduct.isVegan || false,
-        isDairyFree: selectedProduct.isDairyFree || false,
-        isNutFree: selectedProduct.isNutFree || false,
-        isKosher: selectedProduct.isKosher || false,
-        isHalal: selectedProduct.isHalal || false,
-        preparationTime: selectedProduct.preparationTime || '',
-        leadTime: selectedProduct.leadTime || 1,
-        leadTimeUnit: selectedProduct.leadTimeUnit || 'days',
-        maxOrderQuantity: selectedProduct.maxOrderQuantity || 10,
-        capacityPeriod: selectedProduct.capacityPeriod || 'daily',
-        scheduleType: selectedProduct.scheduleType || 'daily',
-        scheduleDetails: selectedProduct.scheduleDetails || {
+        weight: product.weight || '',
+        dimensions: product.dimensions || '',
+        allergens: product.allergens || '',
+        ingredients: product.ingredients || '',
+        image: product.image || null,
+        status: product.status || 'active',
+        isOrganic: product.isOrganic || false,
+        isGlutenFree: product.isGlutenFree || false,
+        isVegan: product.isVegan || false,
+        isDairyFree: product.isDairyFree || false,
+        isNutFree: product.isNutFree || false,
+        isKosher: product.isKosher || false,
+        isHalal: product.isHalal || false,
+        preparationTime: product.preparationTime || '',
+        leadTime: product.leadTime || 1,
+        leadTimeUnit: product.leadTimeUnit || 'days',
+        maxOrderQuantity: product.maxOrderQuantity || 10,
+        capacityPeriod: product.capacityPeriod || 'daily',
+        scheduleType: product.scheduleType || 'daily',
+        scheduleDetails: product.scheduleDetails || {
           frequency: 'every_day',
           customSchedule: [],
           orderCutoffHours: 24
         },
-        nextAvailableDate: selectedProduct.nextAvailableDate ? new Date(selectedProduct.nextAvailableDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        nextAvailableTime: selectedProduct.nextAvailableTime || '09:00',
-        lowStockThreshold: selectedProduct.lowStockThreshold || 5
+        nextAvailableDate: product.nextAvailableDate ? new Date(product.nextAvailableDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        nextAvailableTime: product.nextAvailableTime || '09:00',
+        lowStockThreshold: product.lowStockThreshold || 5
       }));
-      setImagePreview(selectedProduct.image || null);
+      setImagePreview(product.image || null);
     }
-  }, [selectedProduct]);
+  }, [product]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -79,13 +79,13 @@ const WalletDashboard = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="card p-6">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-12 bg-gray-200 rounded w-1/2 mb-6"></div>
+          <div className="h-6 bg-stone-200 rounded w-1/4 mb-4"></div>
+          <div className="h-12 bg-stone-200 rounded w-1/2 mb-6"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+              <div key={i} className="h-20 bg-stone-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -95,14 +95,14 @@ const WalletDashboard = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="card p-6">
         <div className="text-center">
           <ExclamationTriangleIcon className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Wallet</h3>
-          <p className="text-gray-500 mb-4">{error}</p>
+          <h3 className="text-lg font-medium text-stone-800 mb-2 font-display">Error Loading Wallet</h3>
+          <p className="text-stone-500 mb-4">{error}</p>
           <button
             onClick={loadWalletData}
-            className="px-4 py-2 bg-[#D77A61] text-white rounded-lg hover:bg-[#C06A51]"
+            className="btn-primary"
           >
             Try Again
           </button>
@@ -115,19 +115,19 @@ const WalletDashboard = () => {
     <div className="space-y-6">
       {/* Bank Info Required Alert */}
       {!hasBankInfo && (
-        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <div className="flex items-start">
-            <ExclamationTriangleIcon className="h-6 w-6 text-primary mt-0.5 mr-3 flex-shrink-0" />
+            <ExclamationTriangleIcon className="h-6 w-6 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
             <div className="flex-1">
               <h4 className="text-sm font-medium text-amber-900 mb-1">
                 Bank Information Required for Payouts
               </h4>
-              <p className="text-sm text-primary-dark mb-3">
+              <p className="text-sm text-amber-700 mb-3">
                 To receive weekly payouts, please configure your bank account information in your profile.
               </p>
               <a
                 href="/profile?tab=payment"
-                className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark text-sm font-medium transition-colors"
+                className="btn-primary text-sm"
               >
                 Add Bank Information
                 <ArrowRightIcon className="w-4 h-4 ml-2" />
@@ -138,7 +138,7 @@ const WalletDashboard = () => {
       )}
 
       {/* Wallet Balance Card */}
-      <div className="bg-gradient-to-r from-[#D77A61] to-[#C06A51] rounded-lg shadow-sm p-6 text-white">
+      <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-sm p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-medium mb-2">Wallet Balance</h2>

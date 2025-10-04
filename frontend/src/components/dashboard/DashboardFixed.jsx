@@ -281,10 +281,10 @@ export default function DashboardFixed() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your artisan dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-stone-600">Loading your artisan dashboard...</p>
         </div>
       </div>
     );
@@ -292,17 +292,17 @@ export default function DashboardFixed() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-600">Failed to load user data</p>
+          <p className="text-stone-600">Failed to load user data</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -333,30 +333,30 @@ export default function DashboardFixed() {
         </div>
 
         {/* User Profile Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="card p-6 mb-8">
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-              <UserIcon className="w-8 h-8 text-orange-600" />
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+              <UserIcon className="w-8 h-8 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-xl font-semibold text-stone-800 font-display">
                 {artisanProfile?.artisanName || `${user.firstName} ${user.lastName}`}
               </h2>
-              <p className="text-gray-600">{user.email}</p>
-              <p className="text-sm text-gray-500 capitalize">Artisan • {user.role}</p>
+              <p className="text-stone-600">{user.email}</p>
+              <p className="text-sm text-stone-500 capitalize">Artisan • {user.role}</p>
               
               {/* Spotlight Status */}
               {spotlightStatus?.hasActiveSpotlight && spotlightStatus?.spotlight ? (
                 <div className="mt-2 flex items-center gap-2">
-                  <SparklesIcon className="w-4 h-4 text-primary-500" />
-                  <span className="text-sm text-primary-dark">
+                  <SparklesIcon className="w-4 h-4 text-amber-500" />
+                  <span className="text-sm text-amber-700">
                     Spotlight active • {spotlightStatus.spotlight.remainingDays} day{spotlightStatus.spotlight.remainingDays !== 1 ? 's' : ''} left
                   </span>
                 </div>
               ) : (
                 <div className="mt-2 flex items-center gap-2">
-                  <SparklesIcon className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-500">No active spotlight</span>
+                  <SparklesIcon className="w-4 h-4 text-stone-400" />
+                  <span className="text-sm text-stone-500">No active spotlight</span>
                 </div>
               )}
             </div>
@@ -365,8 +365,8 @@ export default function DashboardFixed() {
                 onClick={() => setShowSpotlightModal(true)}
                 className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
                   spotlightStatus?.hasActiveSpotlight 
-                    ? 'bg-gray-400 text-white cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-primary hover:to-yellow-600'
+                    ? 'bg-stone-400 text-white cursor-not-allowed' 
+                    : 'btn-primary'
                 }`}
                 disabled={spotlightStatus?.hasActiveSpotlight}
                 title={spotlightStatus?.hasActiveSpotlight ? 'You already have an active spotlight subscription' : 'Get featured at the top of search results'}
@@ -376,13 +376,13 @@ export default function DashboardFixed() {
               </button>
               <Link
                 to="/profile"
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                className="btn-secondary"
               >
                 Edit Profile
               </Link>
               <Link
                 to="/my-products"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="btn-primary"
               >
                 Manage Products
               </Link>
@@ -396,9 +396,9 @@ export default function DashboardFixed() {
         </div>
 
         {/* Revenue & Earnings */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="card p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Revenue & Earnings</h2>
+            <h2 className="text-xl font-semibold text-stone-800 font-display">Revenue & Earnings</h2>
             <Link
               to="/revenue-dashboard"
               className="inline-flex items-center text-sm text-accent hover:text-emerald-700 font-medium"
@@ -467,20 +467,20 @@ export default function DashboardFixed() {
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Total Orders */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                <p className="text-3xl font-bold text-gray-900">{artisanStats.totalOrders}</p>
+                <p className="text-sm font-medium text-stone-600">Total Orders</p>
+                <p className="text-3xl font-bold text-stone-800">{artisanStats.totalOrders}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <ShoppingBagIcon className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                <ShoppingBagIcon className="w-6 h-6 text-amber-600" />
               </div>
             </div>
           </div>
 
           {/* Pending Orders */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Pending Orders</p>
@@ -493,7 +493,7 @@ export default function DashboardFixed() {
           </div>
 
           {/* Total Patrons */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="card p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Patrons</p>
@@ -507,12 +507,12 @@ export default function DashboardFixed() {
         </div>
 
         {/* Recent Orders */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="card p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Orders</h2>
+            <h2 className="text-xl font-semibold text-stone-800 font-display">Recent Orders</h2>
             <Link
               to="/orders"
-              className="text-orange-600 hover:text-orange-700 font-medium"
+              className="text-amber-600 hover:text-amber-700 font-medium"
             >
               View All Orders
             </Link>
@@ -590,45 +590,45 @@ export default function DashboardFixed() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Link
             to="/my-products"
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+            className="card p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <TagIcon className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                <TagIcon className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Manage Products</h3>
-                <p className="text-sm text-gray-600">Add, edit, or remove your products</p>
+                <h3 className="font-semibold text-stone-800 font-display">Manage Products</h3>
+                <p className="text-sm text-stone-600">Add, edit, or remove your products</p>
               </div>
             </div>
           </Link>
 
           <Link
             to="/orders"
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+            className="card p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                 <ShoppingCartIcon className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">View Orders</h3>
-                <p className="text-sm text-gray-600">Check and manage your orders</p>
+                <h3 className="font-semibold text-stone-800 font-display">View Orders</h3>
+                <p className="text-sm text-stone-600">Check and manage your orders</p>
               </div>
             </div>
           </Link>
 
           <Link
             to="/profile"
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
+            className="card p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                 <UserIcon className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Edit Profile</h3>
-                <p className="text-sm text-gray-600">Update your business information</p>
+                <h3 className="font-semibold text-stone-800 font-display">Edit Profile</h3>
+                <p className="text-sm text-stone-600">Update your business information</p>
               </div>
             </div>
           </Link>

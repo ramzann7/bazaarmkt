@@ -7,6 +7,356 @@ const express = require('express');
 const router = express.Router();
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+
+// Create payment intent for order
+const createPaymentIntent = async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment processing is not available. Stripe is not configured.'
+      });
+    }
+
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { items, deliveryAddress, deliveryMethod, deliveryInstructions, pickupTimeWindows } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order items are required'
+      });
+    }
+
+    const db = req.db;
+    const productsCollection = db.collection('products');
+
+    // Validate and calculate total
+    let totalAmount = 0;
+    const validatedItems = [];
+
+    for (const item of items) {
+      const product = await productsCollection.findOne({ 
+        _id: new (require('mongodb')).ObjectId(item.productId) 
+      });
+      
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: `Product not found: ${item.productId}`
+        });
+      }
+
+      if (product.status !== 'active') {
+        return res.status(400).json({
+          success: false,
+          message: `Product is not available: ${product.name}`
+        });
+      }
+
+      const itemTotal = product.price * item.quantity;
+      totalAmount += itemTotal;
+
+      validatedItems.push({
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        total: itemTotal,
+        artisanId: product.artisan,
+        productType: product.productType
+      });
+    }
+
+    // Add delivery fee if applicable
+    let deliveryFee = 0;
+    if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
+      // Get artisan delivery settings
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: validatedItems[0].artisanId });
+      
+      if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
+        deliveryFee = artisan.deliveryOptions.deliveryFee;
+      } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
+        deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+      }
+    }
+
+    const finalAmount = totalAmount + deliveryFee;
+
+    // Create Stripe PaymentIntent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(finalAmount * 100), // Convert to cents
+      currency: 'cad',
+      metadata: {
+        userId: decoded.userId.toString(),
+        orderType: 'regular_order',
+        itemCount: validatedItems.length,
+        deliveryMethod: deliveryMethod || 'pickup'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amount: finalAmount,
+        currency: 'CAD'
+      }
+    });
+  } catch (error) {
+    console.error('Create payment intent error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payment intent',
+      error: error.message
+    });
+  }
+};
+
+// Create payment intent for guest order
+const createGuestPaymentIntent = async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment processing is not available. Stripe is not configured.'
+      });
+    }
+
+    const { items, deliveryAddress, deliveryMethod, deliveryInstructions, guestInfo } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order items are required'
+      });
+    }
+
+    const db = req.db;
+    const productsCollection = db.collection('products');
+
+    // Validate and calculate total
+    let totalAmount = 0;
+    const validatedItems = [];
+
+    for (const item of items) {
+      const product = await productsCollection.findOne({ 
+        _id: new (require('mongodb')).ObjectId(item.productId) 
+      });
+      
+      if (!product) {
+        return res.status(400).json({
+          success: false,
+          message: `Product not found: ${item.productId}`
+        });
+      }
+
+      if (product.status !== 'active') {
+        return res.status(400).json({
+          success: false,
+          message: `Product is not available: ${product.name}`
+        });
+      }
+
+      const itemTotal = product.price * item.quantity;
+      totalAmount += itemTotal;
+
+      validatedItems.push({
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        total: itemTotal,
+        artisanId: product.artisan,
+        productType: product.productType
+      });
+    }
+
+    // Add delivery fee if applicable
+    let deliveryFee = 0;
+    if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
+      // Get artisan delivery settings
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: validatedItems[0].artisanId });
+      
+      if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
+        deliveryFee = artisan.deliveryOptions.deliveryFee;
+      } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
+        deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+      }
+    }
+
+    const finalAmount = totalAmount + deliveryFee;
+
+    // Create Stripe PaymentIntent for guest
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(finalAmount * 100), // Convert to cents
+      currency: 'cad',
+      metadata: {
+        orderType: 'guest_order',
+        guestEmail: guestInfo?.email || 'guest@example.com',
+        itemCount: validatedItems.length,
+        deliveryMethod: deliveryMethod || 'pickup'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amount: finalAmount,
+        currency: 'CAD'
+      }
+    });
+  } catch (error) {
+    console.error('Create guest payment intent error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payment intent',
+      error: error.message
+    });
+  }
+};
+
+// Confirm payment and create order
+const confirmPaymentAndCreateOrder = async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({
+        success: false,
+        message: 'Payment processing is not available. Stripe is not configured.'
+      });
+    }
+
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const { paymentIntentId, orderData } = req.body;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment intent ID is required'
+      });
+    }
+
+    // Verify payment with Stripe
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment not successful'
+      });
+    }
+
+    let userId = null;
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.userId;
+      
+      // Verify payment belongs to user
+      if (paymentIntent.metadata.userId !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Payment does not belong to user'
+        });
+      }
+    }
+
+    // Create order after successful payment
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+
+    // Calculate total from payment intent
+    const totalAmount = paymentIntent.amount / 100; // Convert from cents
+
+    const order = {
+      userId: userId ? new (require('mongodb')).ObjectId(userId) : null,
+      items: orderData.items || [],
+      totalAmount: totalAmount,
+      status: 'confirmed',
+      paymentStatus: 'paid',
+      paymentMethod: 'stripe',
+      paymentIntentId: paymentIntentId,
+      deliveryAddress: orderData.deliveryAddress || {},
+      deliveryInstructions: orderData.deliveryInstructions || '',
+      deliveryMethod: orderData.deliveryMethod || 'pickup',
+      pickupTimeWindows: orderData.pickupTimeWindows || {},
+      deliveryMethodDetails: orderData.deliveryMethodDetails || [],
+      isGuestOrder: !userId,
+      guestInfo: orderData.guestInfo || {},
+      paymentDetails: {
+        stripePaymentIntentId: paymentIntentId,
+        stripeAmount: paymentIntent.amount,
+        stripeCurrency: paymentIntent.currency,
+        paymentMethod: paymentIntent.payment_method
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await ordersCollection.insertOne(order);
+
+    // Record wallet transaction for artisans if applicable
+    if (order.items.length > 0) {
+      const recordWalletTransaction = req.app.locals.recordWalletTransaction;
+      if (recordWalletTransaction) {
+        // Get artisan from first item
+        const artisanId = order.items[0].artisanId;
+        if (artisanId) {
+          await recordWalletTransaction({
+            artisanId: artisanId,
+            type: 'order_revenue',
+            amount: totalAmount * 0.85, // 85% to artisan, 15% platform fee
+            description: `Revenue from order #${result.insertedId}`,
+            status: 'completed',
+            orderId: result.insertedId
+          });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Order created successfully',
+      data: {
+        orderId: result.insertedId,
+        paymentIntentId: paymentIntentId,
+        totalAmount: totalAmount
+      }
+    });
+  } catch (error) {
+    console.error('Confirm payment and create order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm payment and create order',
+      error: error.message
+    });
+  }
+};
 
 // Create new order
 const createOrder = async (req, res) => {
@@ -1095,6 +1445,9 @@ const debugOrders = async (req, res) => {
 };
 
 // Routes
+router.post('/payment-intent', createPaymentIntent);
+router.post('/guest/payment-intent', createGuestPaymentIntent);
+router.post('/confirm-payment', confirmPaymentAndCreateOrder);
 router.post('/', createOrder);
 router.post('/guest', createGuestOrder);
 router.get('/', getUserOrders);

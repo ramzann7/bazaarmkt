@@ -12,6 +12,8 @@ import {
   PlusIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import { cartService } from '../services/cartService';
 import { useAuth } from '../contexts/AuthContext';
 import { deliveryService } from '../services/deliveryService';
@@ -25,7 +27,14 @@ import { notificationService } from '../services/notificationService';
 import { locationService } from '../services/locationService';
 import { geocodingService } from '../services/geocodingService';
 import { uberDirectService } from '../services/uberDirectService';
+import { orderPaymentService } from '../services/orderPaymentService';
 import DeliveryInformation from './DeliveryInformation.jsx';
+import StripeOrderPayment from './StripeOrderPayment.jsx';
+
+// Initialize Stripe
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -86,6 +95,8 @@ const Cart = () => {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [showAddPaymentForm, setShowAddPaymentForm] = useState(false);
+  const [paymentIntent, setPaymentIntent] = useState(null);
+  const [isCreatingPaymentIntent, setIsCreatingPaymentIntent] = useState(false);
   const [newPaymentForm, setNewPaymentForm] = useState({
     cardNumber: '',
     expiryMonth: '',
@@ -1417,6 +1428,84 @@ const Cart = () => {
     }
   };
 
+  // Create payment intent
+  const createPaymentIntent = async () => {
+    try {
+      setIsCreatingPaymentIntent(true);
+
+      // Prepare order data
+      const orderData = {
+        items: cart.map(item => ({
+          productId: item._id,
+          quantity: item.quantity,
+          productType: item.productType || 'ready_to_ship'
+        })),
+        deliveryAddress: selectedAddress || deliveryForm,
+        deliveryInstructions: deliveryForm.instructions || '',
+        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+        pickupTimeWindows: selectedPickupTimes,
+        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
+          artisanId,
+          method,
+          instructions: method === 'pickup' 
+            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
+            : method === 'personalDelivery'
+            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
+            : method === 'professionalDelivery'
+            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
+            : ''
+        }))
+      };
+
+      let response;
+      if (isGuest) {
+        // Add guest info for guest payment intent
+        orderData.guestInfo = {
+          firstName: deliveryForm.firstName || 'Guest',
+          lastName: deliveryForm.lastName || 'User',
+          email: deliveryForm.email || '',
+          phone: deliveryForm.phone || ''
+        };
+        response = await orderPaymentService.createGuestPaymentIntent(orderData);
+      } else {
+        response = await orderPaymentService.createPaymentIntent(orderData);
+      }
+
+      if (response.success) {
+        setPaymentIntent(response.data);
+        setCheckoutStep('payment');
+        toast.success('Payment form ready');
+      } else {
+        throw new Error(response.message || 'Failed to create payment intent');
+      }
+    } catch (error) {
+      console.error('Error creating payment intent:', error);
+      toast.error('Failed to initialize payment. Please try again.');
+    } finally {
+      setIsCreatingPaymentIntent(false);
+    }
+  };
+
+  // Handle payment success
+  const handlePaymentSuccess = (orderData) => {
+    console.log('Payment successful, order created:', orderData);
+    // Clear cart
+    cartService.clearCart(currentUserId);
+    // Navigate to order confirmation
+    navigate('/order-confirmation', { 
+      state: { 
+        orderData: orderData,
+        message: 'Order placed successfully!' 
+      } 
+    });
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error) => {
+    console.error('Payment error:', error);
+    toast.error('Payment failed. Please try again.');
+  };
+
   // Handle checkout
   const handleCheckout = async () => {
     try {
@@ -1445,28 +1534,8 @@ const Cart = () => {
         return;
       }
 
-      // For guest users, validate payment information
-      if (isGuest) {
-        if (!guestPaymentForm.paymentMethod) {
-          toast.error('Please select a payment method');
-          return;
-        }
-        if (!guestPaymentForm.cardNumber || !guestPaymentForm.expiryDate || !guestPaymentForm.cvv || !guestPaymentForm.cardholderName) {
-          toast.error('Please complete all payment details');
-          return;
-        }
-        await handleGuestCheckout();
-        return;
-      }
-
-      // For authenticated users, validate payment method
-      if (!selectedPaymentMethod) {
-        toast.error('Please select a payment method');
-        return;
-      }
-
-      // For authenticated users, proceed with order creation
-      await handlePlaceOrder();
+      // Create payment intent and proceed to payment step
+      await createPaymentIntent();
     } catch (error) {
       console.error('❌ Error during checkout:', error);
       toast.error('Checkout failed');
@@ -1857,6 +1926,86 @@ const Cart = () => {
 
   // Render payment page
   if (checkoutStep === 'payment') {
+    // Show loading while creating payment intent
+    if (isCreatingPaymentIntent) {
+      return (
+        <div className="min-h-screen bg-background py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center justify-center min-h-[400px]">
+              <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mb-4"></div>
+              <h2 className="text-xl font-semibold text-stone-800 mb-2">Preparing Payment</h2>
+              <p className="text-stone-600">Setting up secure payment processing...</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Show Stripe payment form
+    if (paymentIntent && stripePromise) {
+      return (
+        <div className="min-h-screen bg-background py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Back Button */}
+            <button
+              onClick={() => setCheckoutStep('delivery')}
+              className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
+            >
+              <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium">Back to Delivery</span>
+            </button>
+
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-stone-800 font-display mb-3">Complete Your Payment</h1>
+              <p className="text-xl text-stone-600">Secure payment processing with Stripe</p>
+            </div>
+
+            {/* Stripe Payment Component */}
+            <Elements stripe={stripePromise}>
+              <StripeOrderPayment
+                clientSecret={paymentIntent.clientSecret}
+                amount={paymentIntent.amount}
+                currency={paymentIntent.currency}
+                onPaymentSuccess={handlePaymentSuccess}
+                onPaymentError={handlePaymentError}
+                orderData={{
+                  items: cart.map(item => ({
+                    productId: item._id,
+                    quantity: item.quantity,
+                    productType: item.productType || 'ready_to_ship'
+                  })),
+                  deliveryAddress: selectedAddress || deliveryForm,
+                  deliveryInstructions: deliveryForm.instructions || '',
+                  deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+                  pickupTimeWindows: selectedPickupTimes,
+                  deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
+                    artisanId,
+                    method,
+                    instructions: method === 'pickup' 
+                      ? deliveryOptions[artisanId]?.pickup?.instructions || ''
+                      : method === 'personalDelivery'
+                      ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
+                      : method === 'professionalDelivery'
+                      ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
+                      : ''
+                  })),
+                  guestInfo: isGuest ? {
+                    firstName: deliveryForm.firstName || 'Guest',
+                    lastName: deliveryForm.lastName || 'User',
+                    email: deliveryForm.email || '',
+                    phone: deliveryForm.phone || ''
+                  } : null
+                }}
+                isGuest={isGuest}
+              />
+            </Elements>
+          </div>
+        </div>
+      );
+    }
+
+    // Fallback to old payment form if Stripe is not available
     return (
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -184,38 +184,23 @@ export default function ArtisanProductManagement() {
       return;
     }
     
+    console.log('🔄 Inventory update received:', updatedProduct);
+    
     // Create a new object reference to ensure React detects the change
     const updatedProducts = products.map(p => 
       p._id === updatedProduct._id ? { ...updatedProduct } : { ...p }
     );
     setProducts(updatedProducts);
     
-    // If we're currently editing this product, update the form data to stay in sync
+    // If we're currently editing this product, update the selectedProduct
     if (selectedProduct && selectedProduct._id === updatedProduct._id) {
-      // Update the selectedProduct with the latest data
+      console.log('🔄 Updating selected product');
       setSelectedProduct(updatedProduct);
-      
-      // Update the form data to match the updated product (only if setFormData is available)
-      if (typeof setFormData === 'function') {
-        setFormData(prev => ({
-          ...prev,
-          stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :
-                 updatedProduct.productType === 'scheduled_order' ? (updatedProduct.availableQuantity || 0) :
-                 (updatedProduct.stock || 0),
-          // Update capacity period if it exists
-          capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod,
-          // Update other inventory fields
-          totalCapacity: updatedProduct.totalCapacity || prev.totalCapacity,
-          remainingCapacity: updatedProduct.remainingCapacity || prev.remainingCapacity,
-          availableQuantity: updatedProduct.availableQuantity || prev.availableQuantity
-        }));
-      } else {
-        console.warn('setFormData is not available in handleInventoryUpdate');
-      }
     }
     
     // The useEffect will automatically update filteredProducts when products change
-  }, [products, selectedProduct, setFormData]);
+    // Form data will be updated via useEffect when selectedProduct changes
+  }, [products, selectedProduct]);
 
   // Function to check and restore inventory using the new InventoryModel
   const checkAndRestoreInventory = async () => {
@@ -1056,106 +1041,106 @@ const ProductForm = ({ product, onSave, onCancel }) => {
   };
   
   const [formData, setFormData] = useState({
-    name: product?.name || '',
-    description: product?.description || '',
-    price: product?.price || '',
-    unit: product?.unit || 'piece',
-    productType: product?.productType || 'ready_to_ship',
-    category: product?.category || 'food_beverages',
-    subcategory: product?.subcategory || 'baked_goods',
-    stock: getInventoryValue(product),
-    weight: product?.weight || '',
-    dimensions: product?.dimensions || '',
-    allergens: product?.allergens || '',
-    ingredients: product?.ingredients || '',
-    image: product?.image || null,
-    status: product?.status || 'active',
-    isOrganic: product?.isOrganic || false,
-    isGlutenFree: product?.isGlutenFree || false,
-    isVegan: product?.isVegan || false,
-    isDairyFree: product?.isDairyFree || false,
-    isNutFree: product?.isNutFree || false,
-    isKosher: product?.isKosher || false,
-    isHalal: product?.isHalal || false,
-    preparationTime: product?.preparationTime || '',
+    name: '',
+    description: '',
+    price: '',
+    unit: 'piece',
+    productType: 'ready_to_ship',
+    category: 'food_beverages',
+    subcategory: 'baked_goods',
+    stock: 0,
+    weight: '',
+    dimensions: '',
+    allergens: '',
+    ingredients: '',
+    image: null,
+    status: 'active',
+    isOrganic: false,
+    isGlutenFree: false,
+    isVegan: false,
+    isDairyFree: false,
+    isNutFree: false,
+    isKosher: false,
+    isHalal: false,
+    preparationTime: '',
     // Made to Order specific fields
-    leadTime: product?.leadTime || 1,
-    leadTimeUnit: product?.leadTimeUnit || 'days',
-    maxOrderQuantity: product?.maxOrderQuantity || 10,
-    capacityPeriod: product?.capacityPeriod || '',
+    leadTime: 1,
+    leadTimeUnit: 'days',
+    maxOrderQuantity: 10,
+    capacityPeriod: '',
     // Scheduled specific fields
-    scheduleType: product?.scheduleType || 'daily',
-    scheduleDetails: product?.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
-    nextAvailableDate: product?.nextAvailableDate || '',
-    nextAvailableTime: product?.nextAvailableTime || '09:00',
-    availableQuantity: product?.availableQuantity || 1
+    scheduleType: 'daily',
+    scheduleDetails: { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+    nextAvailableDate: '',
+    nextAvailableTime: '09:00',
+    availableQuantity: 1
   });
 
   // Image upload state
   const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(product?.image || null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Update form data when product changes
+  // Update form data when selectedProduct changes
   useEffect(() => {
-    if (product) {
+    if (selectedProduct) {
       // Determine correct inventory value based on product type
       let inventoryValue = 0;
-      switch (product.productType) {
+      switch (selectedProduct.productType) {
         case 'ready_to_ship':
-          inventoryValue = product.stock || 0;
+          inventoryValue = selectedProduct.stock || 0;
           break;
         case 'made_to_order':
-          inventoryValue = product.totalCapacity || 0;
+          inventoryValue = selectedProduct.totalCapacity || 0;
           break;
         case 'scheduled_order':
-          inventoryValue = product.availableQuantity || 0;
+          inventoryValue = selectedProduct.availableQuantity || 0;
           break;
         default:
-          inventoryValue = product.stock || 0;
+          inventoryValue = selectedProduct.stock || 0;
       }
       
       setFormData(prev => ({
         ...prev,
-        name: product.name || '',
-        description: product.description || '',
-        price: product.price || '',
-        unit: product.unit || 'piece',
-        productType: product.productType || 'ready_to_ship',
-        category: product.category || 'food_beverages',
-        subcategory: product.subcategory || 'baked_goods',
+        name: selectedProduct.name || '',
+        description: selectedProduct.description || '',
+        price: selectedProduct.price || '',
+        unit: selectedProduct.unit || 'piece',
+        productType: selectedProduct.productType || 'ready_to_ship',
+        category: selectedProduct.category || 'food_beverages',
+        subcategory: selectedProduct.subcategory || 'baked_goods',
         stock: inventoryValue,
-        weight: product.weight || '',
-        dimensions: product.dimensions || '',
-        allergens: product.allergens || '',
-        ingredients: product.ingredients || '',
-        image: product.image || null,
-        status: product.status || 'active',
-        isOrganic: product.isOrganic || false,
-        isGlutenFree: product.isGlutenFree || false,
-        isVegan: product.isVegan || false,
-        isDairyFree: product.isDairyFree || false,
-        isNutFree: product.isNutFree || false,
-        isKosher: product.isKosher || false,
-        isHalal: product.isHalal || false,
-        preparationTime: product.preparationTime || '',
-        leadTime: product.leadTime || 1,
-        leadTimeUnit: product.leadTimeUnit || 'days',
-        maxOrderQuantity: product.maxOrderQuantity || 10,
-        capacityPeriod: product.capacityPeriod || 'daily',
-        scheduleType: product.scheduleType || 'daily',
-        scheduleDetails: product.scheduleDetails || {
+        weight: selectedProduct.weight || '',
+        dimensions: selectedProduct.dimensions || '',
+        allergens: selectedProduct.allergens || '',
+        ingredients: selectedProduct.ingredients || '',
+        image: selectedProduct.image || null,
+        status: selectedProduct.status || 'active',
+        isOrganic: selectedProduct.isOrganic || false,
+        isGlutenFree: selectedProduct.isGlutenFree || false,
+        isVegan: selectedProduct.isVegan || false,
+        isDairyFree: selectedProduct.isDairyFree || false,
+        isNutFree: selectedProduct.isNutFree || false,
+        isKosher: selectedProduct.isKosher || false,
+        isHalal: selectedProduct.isHalal || false,
+        preparationTime: selectedProduct.preparationTime || '',
+        leadTime: selectedProduct.leadTime || 1,
+        leadTimeUnit: selectedProduct.leadTimeUnit || 'days',
+        maxOrderQuantity: selectedProduct.maxOrderQuantity || 10,
+        capacityPeriod: selectedProduct.capacityPeriod || 'daily',
+        scheduleType: selectedProduct.scheduleType || 'daily',
+        scheduleDetails: selectedProduct.scheduleDetails || {
           frequency: 'every_day',
           customSchedule: [],
           orderCutoffHours: 24
         },
-        nextAvailableDate: product.nextAvailableDate ? new Date(product.nextAvailableDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        nextAvailableTime: product.nextAvailableTime || '09:00',
-        lowStockThreshold: product.lowStockThreshold || 5
+        nextAvailableDate: selectedProduct.nextAvailableDate ? new Date(selectedProduct.nextAvailableDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        nextAvailableTime: selectedProduct.nextAvailableTime || '09:00',
+        lowStockThreshold: selectedProduct.lowStockThreshold || 5
       }));
-      setImagePreview(product.image || null);
+      setImagePreview(selectedProduct.image || null);
     }
-  }, [product]);
+  }, [selectedProduct]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

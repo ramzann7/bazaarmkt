@@ -688,11 +688,21 @@ const DeliveryInformation = ({
             {/* Delivery Address Section */}
             {selectedDeliveryMethods[currentArtisanId] !== 'pickup' && (
               <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
-                    <MapPinIcon className="w-6 h-6 text-orange-600" />
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                      <MapPinIcon className="w-6 h-6 text-orange-600" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900">Delivery Address</h3>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Delivery Address</h3>
+                  
+                  {/* Saved Address Indicator */}
+                  {!isGuest && deliveryForm.deliveryAddress?.street && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Saved Address Loaded
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-6">
                   <div>
@@ -830,6 +840,29 @@ const DeliveryInformation = ({
                       placeholder="Any special delivery instructions..."
                     />
                   </div>
+
+                  {/* Use Different Address Button */}
+                  {!isGuest && deliveryForm.deliveryAddress?.street && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onDeliveryFormChange('deliveryAddress', {
+                            street: '',
+                            city: '',
+                            state: '',
+                            zipCode: '',
+                            country: 'Canada',
+                            instructions: ''
+                          });
+                          toast.success('Address cleared - enter new address', { duration: 2000 });
+                        }}
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        Use Different Address
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

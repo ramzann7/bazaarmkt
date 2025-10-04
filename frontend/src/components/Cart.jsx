@@ -692,11 +692,14 @@ const Cart = () => {
           lastName: userProfile.lastName || prev.lastName,
           email: userProfile.email || prev.email,
           phone: userProfile.phone || prev.phone,
-          street: defaultAddress.street || prev.street,
-          city: defaultAddress.city || prev.city,
-          state: defaultAddress.state || prev.state,
-          zipCode: defaultAddress.zipCode || defaultAddress.postalCode || prev.zipCode,
-          country: defaultAddress.country || prev.country
+          // Set address in the nested structure that DeliveryInformation expects
+          deliveryAddress: {
+            street: defaultAddress.street || '',
+            city: defaultAddress.city || '',
+            state: defaultAddress.state || '',
+            zipCode: defaultAddress.zipCode || defaultAddress.postalCode || '',
+            country: defaultAddress.country || 'Canada'
+          }
         }));
 
         // Set the selected address
@@ -2036,7 +2039,17 @@ const Cart = () => {
             ) : (
               // Authenticated user payment - show saved payment methods
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Payment Method</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-stone-800 font-display">Payment Method</h2>
+                  
+                  {/* Saved Payment Method Indicator */}
+                  {selectedPaymentMethod && selectedPaymentMethod !== 'new' && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Saved Method Selected
+                    </div>
+                  )}
+                </div>
                 
                 {paymentLoading ? (
                   <div className="flex justify-center py-8">

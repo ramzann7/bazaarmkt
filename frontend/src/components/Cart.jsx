@@ -317,83 +317,7 @@ const Cart = () => {
   };
 
   // Handle payment form submission
-  const handlePaymentFormSubmit = async () => {
-    if (!validatePaymentForm()) return;
-    
-    try {
-      setPaymentLoading(true);
-      
-      // Extract last 4 digits and detect brand
-      const cardDigitsOnly = newPaymentForm.cardNumber.replace(/\D/g, '');
-      const last4 = cardDigitsOnly.slice(-4);
-      
-      // Auto-detect brand
-      let brand = 'other';
-      if (cardDigitsOnly.startsWith('4')) {
-        brand = 'visa';
-      } else if (cardDigitsOnly.startsWith('5')) {
-        brand = 'mastercard';
-      } else if (cardDigitsOnly.startsWith('34') || cardDigitsOnly.startsWith('37')) {
-        brand = 'amex';
-      } else if (cardDigitsOnly.startsWith('6')) {
-        brand = 'discover';
-      }
-      
-      const paymentData = {
-        type: 'credit_card',
-        last4: last4,  // Only store last 4 digits
-        brand: brand,
-        expiryMonth: parseInt(newPaymentForm.expiryMonth),
-        expiryYear: parseInt(newPaymentForm.expiryYear),
-        cardholderName: newPaymentForm.cardholderName.trim(),
-        isDefault: paymentMethods.length === 0 // First card is always default
-      };
-      
-      console.log('💳 Adding payment method to profile:', paymentData);
-      
-      // Save to profile using profileService
-      const response = await profileService.updatePaymentMethods([...paymentMethods, paymentData]);
-      console.log('✅ Payment method saved:', response);
-      
-      // Reload payment methods
-      await loadPaymentMethods();
-      
-      // Reset form
-      setNewPaymentForm({
-        cardNumber: '',
-        expiryMonth: '',
-        expiryYear: '',
-        cvv: '',
-        cardholderName: '',
-        isDefault: false
-      });
-      setShowAddPaymentForm(false);
-      setPaymentFormErrors({});
-      
-      toast.success('Payment method added successfully!');
-    } catch (error) {
-      console.error('Error adding payment method:', error);
-      toast.error(error.response?.data?.message || 'Failed to add payment method');
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
 
-  // Handle payment form changes
-  const handlePaymentFormChange = (field, value) => {
-    setNewPaymentForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (paymentFormErrors[field]) {
-      setPaymentFormErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
-    }
-  };
 
   // Get total delivery fees across all artisans (async version for API calls)
   const getTotalDeliveryFees = async () => {
@@ -678,12 +602,9 @@ const Cart = () => {
       setIsGuest(tokenData.isGuest);
       
       if (!tokenData.isGuest) {
-        // Load profile and payment methods in parallel for better performance
-        Promise.all([
-          loadUserProfile(),
-          loadPaymentMethods()
-        ]).catch(error => {
-          console.error('❌ Error loading profile or payment methods:', error);
+        // Load profile for better performance
+        loadUserProfile().catch(error => {
+          console.error('❌ Error loading profile:', error);
         });
       }
     } else {
@@ -1760,11 +1681,8 @@ const Cart = () => {
   // Load user profile immediately when user is authenticated
   useEffect(() => {
     if (currentUserId && !isGuest && !userProfile) {
-      // Load profile and payment methods in parallel for better performance
-      Promise.all([
-        loadUserProfile(),
-        loadPaymentMethods()
-      ]).catch(error => {
+      // Load profile for better performance
+      loadUserProfile().catch(error => {
         console.error('❌ Error loading user data:', error);
       });
     }
@@ -1777,17 +1695,6 @@ const Cart = () => {
     }
   }, [userProfile, isGuest]);
 
-  // Set default payment method when payment methods are loaded
-  useEffect(() => {
-    if (paymentMethods.length > 0 && !selectedPaymentMethod && !isGuest) {
-      const defaultMethod = paymentMethods.find(method => method.isDefault) || paymentMethods[0];
-      if (defaultMethod) {
-        setSelectedPaymentMethod(defaultMethod);
-        console.log('💳 Auto-selected default payment method:', defaultMethod);
-        toast.success('Saved payment method loaded', { duration: 2000 });
-      }
-    }
-  }, [paymentMethods, selectedPaymentMethod, isGuest]);
 
 
   // Cleanup timeout on component unmount
@@ -1873,7 +1780,7 @@ const Cart = () => {
   if (checkoutStep === 'payment') {
     // Show loading while creating payment intent
     if (isCreatingPaymentIntent) {
-      return (
+    return (
         <div className="min-h-screen bg-background py-8">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -1890,10 +1797,10 @@ const Cart = () => {
     if (paymentIntent && stripePromise) {
       return (
         <div className="min-h-screen bg-background py-8">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            {/* Back Button */}
-            <button
-              onClick={() => setCheckoutStep('delivery')}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+          <button
+            onClick={() => setCheckoutStep('delivery')}
               className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
             >
               <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -1951,7 +1858,7 @@ const Cart = () => {
       );
     }
 
-    // Fallback to old payment form if Stripe is not available
+    // Fallback if Stripe is not available
     return (
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1965,457 +1872,23 @@ const Cart = () => {
           </button>
 
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment Information</h1>
-            <p className="text-stone-600">Complete your order with secure payment</p>
+            <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment System</h1>
+            <p className="text-stone-600">Secure payment processing</p>
           </div>
           
           <div className="card p-6">
-            {isGuest ? (
-              // Guest Payment Method Selection
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-stone-800 mb-6 font-display">Select Payment Method</h2>
-                
-                {/* Payment Method Options for Guests */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <label className={`flex items-center space-x-4 p-4 border-2 rounded-lg transition-colors cursor-pointer ${
-                    guestPaymentForm.paymentMethod === 'credit_card' 
-                      ? 'border-amber-500 bg-amber-50' 
-                      : 'border-stone-200 hover:border-amber-300 hover:bg-amber-50'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="guest-payment-method"
-                      value="credit_card"
-                      checked={guestPaymentForm.paymentMethod === 'credit_card'}
-                      onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-amber-600 w-5 h-5"
-                    />
-                    <div className="flex items-center gap-3">
-                      <CreditCardIcon className="w-6 h-6 text-amber-600" />
-                      <div>
-                        <span className="text-stone-800 font-medium">Credit Card</span>
-                        <p className="text-sm text-stone-600">Visa, Mastercard, Amex</p>
-                      </div>
-                    </div>
-                  </label>
-                  
-                  <label className={`flex items-center space-x-4 p-4 border-2 rounded-lg transition-colors cursor-pointer ${
-                    guestPaymentForm.paymentMethod === 'debit_card' 
-                      ? 'border-emerald-500 bg-emerald-50' 
-                      : 'border-stone-200 hover:border-emerald-300 hover:bg-emerald-50'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="guest-payment-method"
-                      value="debit_card"
-                      checked={guestPaymentForm.paymentMethod === 'debit_card'}
-                      onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-emerald-600 w-5 h-5"
-                    />
-                    <div className="flex items-center gap-3">
-                      <CreditCardIcon className="w-6 h-6 text-emerald-600" />
-                      <div>
-                        <span className="text-stone-800 font-medium">Debit Card</span>
-                        <p className="text-sm text-stone-600">Direct bank transfer</p>
-                      </div>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Card Details Form */}
-                {guestPaymentForm.paymentMethod && (
-                  <div className="border-t border-stone-200 pt-6">
-                    <h3 className="text-lg font-semibold text-stone-800 mb-4 font-display">Card Details</h3>
-                    <div className="space-y-4">
-                      {/* Card Number */}
-                      <div>
-                        <label className="block text-sm font-medium text-stone-700 mb-2">
-                          Card Number *
-                        </label>
-                        <input
-                          type="text"
-                          value={guestPaymentForm.cardNumber}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '').slice(0, 16);
-                            const formatted = value.match(/.{1,4}/g)?.join(' ') || value;
-                            handleGuestPaymentFormChange('cardNumber', formatted);
-                          }}
-                          placeholder="1234 5678 9012 3456"
-                          maxLength="19"
-                          className="w-full px-4 py-3 border-2 border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 text-lg transition-all duration-200"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Expiry Date */}
-                        <div>
-                          <label className="block text-sm font-medium text-stone-700 mb-2">
-                            Expiry Date *
-                          </label>
-                          <input
-                            type="text"
-                            value={guestPaymentForm.expiryDate}
-                            onChange={(e) => {
-                              let value = e.target.value.replace(/\D/g, '');
-                              if (value.length >= 2) {
-                                value = value.slice(0, 2) + '/' + value.slice(2, 4);
-                              }
-                              handleGuestPaymentFormChange('expiryDate', value);
-                            }}
-                            placeholder="MM/YY"
-                            maxLength="5"
-                            className="w-full px-4 py-3 border-2 border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 text-lg transition-all duration-200"
-                          />
-                        </div>
-
-                        {/* CVV */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            CVV *
-                          </label>
-                          <input
-                            type="text"
-                            value={guestPaymentForm.cvv}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                              handleGuestPaymentFormChange('cvv', value);
-                            }}
-                            placeholder="123"
-                            maxLength="4"
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
-                          />
-                        </div>
-
-                        {/* Cardholder Name */}
-                        <div className="md:col-span-1">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            ZIP Code *
-                          </label>
-                          <input
-                            type="text"
-                            value={guestPaymentForm.zipCode || ''}
-                            onChange={(e) => {
-                              const value = e.target.value.toUpperCase().slice(0, 7);
-                              handleGuestPaymentFormChange('zipCode', value);
-                            }}
-                            placeholder="A1A 1A1"
-                            maxLength="7"
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Cardholder Name - Full Width */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Cardholder Name *
-                        </label>
-                        <input
-                          type="text"
-                          value={guestPaymentForm.cardholderName}
-                          onChange={(e) => handleGuestPaymentFormChange('cardholderName', e.target.value)}
-                          placeholder="John Doe"
-                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
-                        />
-                      </div>
-
-                      {/* Security Notice */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-                        <ShieldCheckIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm text-blue-800">
-                          <p className="font-semibold mb-1">Secure Payment</p>
-                          <p>Your payment information is encrypted and secure. We never store your full card details.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCardIcon className="w-8 h-8 text-amber-600" />
               </div>
-            ) : (
-              // Authenticated user payment - show saved payment methods
-              <div className="space-y-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-stone-800 font-display">Payment Method</h2>
-                  
-                  {/* Saved Payment Method Indicator */}
-                  {selectedPaymentMethod && selectedPaymentMethod !== 'new' && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium">
-                      <CheckCircleIcon className="w-4 h-4" />
-                      Saved Method Selected
-                    </div>
-                  )}
-                </div>
-                
-                {paymentLoading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="w-8 h-8 border-4 border-gray-200 border-t-orange-600 rounded-full animate-spin"></div>
-                  </div>
-                ) : paymentMethods.length > 0 ? (
-                  <div className="space-y-4">
-                    {/* Saved Payment Methods */}
-                    {paymentMethods.map((method, index) => {
-                      const methodId = method._id || `${method.brand}-${method.last4}-${index}`;
-                      const selectedId = selectedPaymentMethod?._id || (selectedPaymentMethod ? `${selectedPaymentMethod.brand}-${selectedPaymentMethod.last4}-${paymentMethods.indexOf(selectedPaymentMethod)}` : null);
-                      const isSelected = selectedPaymentMethod !== 'new' && methodId === selectedId;
-                      
-                      return (
-                      <label
-                        key={methodId}
-                        className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-orange-500 bg-orange-50'
-                            : 'border-gray-200 hover:border-orange-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="radio"
-                            name="payment-method"
-                            value={methodId}
-                            checked={isSelected}
-                            onChange={() => {
-                              console.log('💳 Payment method selected:', method);
-                              console.log('💳 Method ID:', methodId);
-                              console.log('💳 Brand:', method.brand);
-                              console.log('💳 Last4:', method.last4);
-                              setSelectedPaymentMethod(method);
-                              setShowAddPaymentForm(false);
-                            }}
-                            className="w-5 h-5 text-orange-600"
-                          />
-                          <CreditCardIcon className="w-6 h-6 text-gray-600" />
-                          <div>
-                            <div className="font-semibold text-gray-900 capitalize">
-                              {method.brand || method.cardType || 'Card'} •••• {method.last4 || method.last4Digits || '****'}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Expires {method.expiryMonth?.toString().padStart(2, '0')}/{method.expiryYear}
-                            </div>
-                          </div>
-                        </div>
-                        {method.isDefault && (
-                          <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                            Default
-                          </span>
-                        )}
-                      </label>
-                    );
-                    })}
-                    
-                    {/* Add New Payment Method Option */}
-                    <label
-                      className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                        selectedPaymentMethod === 'new'
-                          ? 'border-orange-500 bg-orange-50'
-                          : 'border-gray-200 hover:border-orange-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="radio"
-                          name="payment-method"
-                          value="new"
-                          checked={selectedPaymentMethod === 'new'}
-                          onChange={() => {
-                            console.log('💳 Selected: Add New Payment Method');
-                            setSelectedPaymentMethod('new');
-                            setShowAddPaymentForm(true);
-                          }}
-                          className="w-5 h-5 text-orange-600"
-                        />
-                        <PlusIcon className="w-6 h-6 text-orange-600" />
-                        <div>
-                          <div className="font-semibold text-gray-900">
-                            Add New Payment Method
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Use a different card
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                    
-                    {/* Add New Payment Method Form - Only shows when "new" is selected */}
-                    {selectedPaymentMethod === 'new' && showAddPaymentForm && (
-                      <div className="border border-orange-200 rounded-lg p-6 bg-orange-50">
-                        <div className="flex justify-between items-center mb-4">
-                          <h3 className="text-lg font-semibold text-gray-900">Add New Card</h3>
-                          <button
-                            onClick={() => setShowAddPaymentForm(false)}
-                            className="text-gray-400 hover:text-gray-600"
-                          >
-                            <span className="text-2xl">×</span>
-                          </button>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          {/* Card Number */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Card Number *
-                            </label>
-                            <input
-                              type="text"
-                              value={newPaymentForm.cardNumber}
-                              onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '');
-                                const formatted = value.replace(/(\d{4})/g, '$1 ').trim();
-                                handlePaymentFormChange('cardNumber', formatted);
-                              }}
-                              placeholder="1234 5678 9012 3456"
-                              maxLength="23"
-                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono"
-                            />
-                            {paymentFormErrors.cardNumber && (
-                              <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cardNumber}</p>
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            {/* Expiry Month */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Expiry Month *
-                              </label>
-                              <input
-                                type="number"
-                                value={newPaymentForm.expiryMonth}
-                                onChange={(e) => handlePaymentFormChange('expiryMonth', e.target.value)}
-                                placeholder="MM"
-                                min="1"
-                                max="12"
-                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                            </div>
-                            
-                            {/* Expiry Year */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Expiry Year *
-                              </label>
-                              <input
-                                type="number"
-                                value={newPaymentForm.expiryYear}
-                                onChange={(e) => handlePaymentFormChange('expiryYear', e.target.value)}
-                                placeholder="YYYY"
-                                min={new Date().getFullYear()}
-                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            {/* CVV */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                CVV *
-                              </label>
-                              <input
-                                type="text"
-                                value={newPaymentForm.cvv}
-                                onChange={(e) => {
-                                  const value = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                  handlePaymentFormChange('cvv', value);
-                                }}
-                                placeholder="123"
-                                maxLength="4"
-                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                            </div>
-                            
-                            {/* Cardholder Name */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Cardholder Name *
-                              </label>
-                              <input
-                                type="text"
-                                value={newPaymentForm.cardholderName}
-                                onChange={(e) => handlePaymentFormChange('cardholderName', e.target.value)}
-                                placeholder="John Doe"
-                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              />
-                            </div>
-                          </div>
-                          
-                          {/* Save and Cancel Buttons */}
-                          <div className="flex gap-3 pt-4">
-                            <button
-                              onClick={handlePaymentFormSubmit}
-                              disabled={paymentLoading}
-                              className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 font-semibold"
-                            >
-                              {paymentLoading ? 'Saving...' : 'Save & Use This Card'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowAddPaymentForm(false);
-                                setPaymentFormErrors({});
-                              }}
-                              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                          
-                          {/* Security Notice */}
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2 mt-4">
-                            <ShieldCheckIcon className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <div className="text-xs text-blue-800">
-                              <p className="font-semibold">Secure Payment</p>
-                              <p>Only last 4 digits will be stored. Full card number never saved.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <CreditCardIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600 mb-4">No saved payment methods</p>
-                    <button
-                      onClick={() => setShowAddPaymentForm(true)}
-                      className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all"
-                    >
-                      Add Payment Method
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-                </div>
-                
-          {/* Place Order Button */}
-          <div className="flex justify-end mt-8">
-                  <button
-              onClick={async () => {
-                console.log('🔍 Button clicked - isGuest:', isGuest);
-                console.log('🔍 selectedPaymentMethod:', selectedPaymentMethod);
-                console.log('🔍 Button should be enabled:', !isGuest && !!selectedPaymentMethod);
-                
-                // Process the order using new Stripe payment flow
-                await handleCheckout();
-              }}
-              disabled={isLoading || isCreatingPaymentIntent}
-              className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all flex items-center gap-2 ${
-                !isLoading && !isCreatingPaymentIntent
-                  ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg hover:shadow-xl'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            >
-                    {isLoading || isCreatingPaymentIntent ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        {isCreatingPaymentIntent ? 'Preparing Payment...' : 'Processing Order...'}
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheckIcon className="w-5 h-5" />
-                        Proceed to Payment
-                      </>
-                    )}
-              </button>
+              <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Payment System Updating</h2>
+              <p className="text-stone-600 mb-6">
+                We're upgrading our payment system for better security and user experience.
+              </p>
+              <p className="text-sm text-stone-500">
+                Please try again in a few moments, or contact support if you need immediate assistance.
+              </p>
+            </div>
           </div>
         </div>
       </div>

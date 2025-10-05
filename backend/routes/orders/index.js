@@ -8,7 +8,7 @@ const router = express.Router();
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
-const PlatformSettingsService = require('../services/platformSettingsService');
+const PlatformSettingsService = require('../../services/platformSettingsService');
 
 // Create payment intent for order
 const createPaymentIntent = async (req, res) => {
@@ -2396,26 +2396,6 @@ const debugOrders = async (req, res) => {
 };
 
 // Routes
-router.post('/payment-intent', createPaymentIntent);
-router.post('/guest/payment-intent', createGuestPaymentIntent);
-router.post('/confirm-payment', confirmPaymentAndCreateOrder);
-router.post('/', createOrder);
-router.post('/guest', createGuestOrder);
-router.get('/', getUserOrders);
-router.get('/buyer', getPatronOrders);
-router.get('/buyer/completed', getPatronCompletedOrders);
-router.get('/artisan', getArtisanOrders);
-router.get('/artisan/completed', getArtisanCompletedOrders);
-router.get('/artisan/stats', getArtisanStats);
-router.get('/debug', debugOrders);
-router.get('/:id', getOrderById);
-router.put('/:id/status', updateOrderStatus);
-router.put('/:id/cancel', cancelOrder);
-router.put('/:id/payment', updatePaymentStatus);
-router.post('/:id/capture-payment', capturePaymentAndTransfer);
-router.post('/auto-capture-payments', autoCapturePayment);
-router.post('/:id/confirm-receipt', confirmOrderReceipt);
-
 // Get patron completed orders (delivered, completed, cancelled)
 const getPatronCompletedOrders = async (req, res) => {
   try {
@@ -2568,5 +2548,26 @@ const getArtisanCompletedOrders = async (req, res) => {
     });
   }
 };
+
+// Routes
+router.post('/payment-intent', createPaymentIntent);
+router.post('/guest/payment-intent', createGuestPaymentIntent);
+router.post('/confirm-payment', confirmPaymentAndCreateOrder);
+router.post('/', createOrder);
+router.post('/guest', createGuestOrder);
+router.get('/', getUserOrders);
+router.get('/buyer', getPatronOrders);
+router.get('/buyer/completed', getPatronCompletedOrders);
+router.get('/artisan', getArtisanOrders);
+router.get('/artisan/completed', getArtisanCompletedOrders);
+router.get('/artisan/stats', getArtisanStats);
+router.get('/debug', debugOrders);
+router.get('/:id', getOrderById);
+router.put('/:id/status', updateOrderStatus);
+router.put('/:id/cancel', cancelOrder);
+router.put('/:id/payment', updatePaymentStatus);
+router.post('/:id/capture-payment', capturePaymentAndTransfer);
+router.post('/auto-capture-payments', autoCapturePayment);
+router.post('/:id/confirm-receipt', confirmOrderReceipt);
 
 module.exports = router;

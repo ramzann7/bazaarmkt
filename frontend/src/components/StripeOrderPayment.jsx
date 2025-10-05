@@ -17,7 +17,7 @@ const CARD_ELEMENT_OPTIONS = {
       color: '#9e2146',
     },
   },
-  hidePostalCode: false, // Show postal code field for Canadian payments
+  hidePostalCode: true, // Hide postal code field since we provide our own
   supportedCountries: ['CA'], // Configure for Canadian postal codes
 };
 
@@ -39,6 +39,7 @@ const StripeOrderPayment = ({
   const [useSavedCard, setUseSavedCard] = useState(savedPaymentMethods.length > 0);
   const [selectedSavedCard, setSelectedSavedCard] = useState(savedPaymentMethods.find(method => method.isDefault) || savedPaymentMethods[0] || null);
   const [saveCardForFuture, setSaveCardForFuture] = useState(false);
+  const [postalCode, setPostalCode] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -74,10 +75,28 @@ const StripeOrderPayment = ({
           return;
         }
 
-        // Process payment with the card element (postal code is collected via CardElement)
+        // Validate postal code for Canadian payments
+        if (!postalCode || postalCode.trim() === '') {
+          setPaymentError('Postal code is required for payment processing.');
+          return;
+        }
+
+        // Basic Canadian postal code validation (A1A 1A1 format)
+        const canadianPostalCodeRegex = /^[A-Za-z]\d[A-Za-z] ?\d[A-Za-z]\d$/;
+        if (!canadianPostalCodeRegex.test(postalCode.trim())) {
+          setPaymentError('Please enter a valid Canadian postal code (e.g., M5V 3A8).');
+          return;
+        }
+
+        // Process payment with the card element and postal code
         paymentResult = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
             card: cardElement,
+            billing_details: {
+              address: {
+                postal_code: postalCode,
+              },
+            },
           }
         });
       }
@@ -229,7 +248,24 @@ const StripeOrderPayment = ({
               <CardElement options={CARD_ELEMENT_OPTIONS} />
             </div>
             
-            {/* Additional Postal Code Field for Canadian Payments */}
+            {/* Postal Code Field for Canadian Payments */}
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-stone-700 mb-2">
+                Postal Code <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value.toUpperCase())}
+                placeholder="e.g., M5V 3A8"
+                className="w-full p-3 border-2 border-stone-300 rounded-xl focus:border-amber-400 focus:ring-2 focus:ring-amber-100 focus:outline-none"
+                maxLength="7"
+              />
+              <p className="text-xs text-stone-500 mt-1">
+                Enter your Canadian postal code for payment verification
+              </p>
+            </div>
+            
             {!isGuest && savedPaymentMethods.length > 0 && !selectedSavedCard?.stripePaymentMethodId && (
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-blue-800 text-sm">

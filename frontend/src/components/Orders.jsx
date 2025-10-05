@@ -1466,10 +1466,20 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h4 className="font-medium text-gray-900 mb-4">Order Items</h4>
             <div className="space-y-3">
-              {order.items.map((item, index) => (
+              {order.items.map((item, index) => {
+                // Debug logging for problematic orders
+                if (!item.product?.name && !item.name && !item.productName) {
+                  console.warn('🔍 Order item missing product name:', {
+                    orderId: order._id,
+                    itemIndex: index,
+                    item: item,
+                    availableFields: Object.keys(item)
+                  });
+                }
+                return (
                 <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{item.product?.name}</p>
+                    <p className="font-medium text-gray-900">{item.product?.name || item.name || item.productName || 'Unknown Product'}</p>
                     <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                     <p className="text-sm text-gray-600">Unit Price: ${(item.unitPrice || item.productPrice || 0).toFixed(2)}</p>
                   </div>
@@ -1477,7 +1487,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     <p className="font-medium text-gray-900">${(item.totalPrice || item.itemTotal || ((item.unitPrice || item.productPrice || 0) * (item.quantity || 0))).toFixed(2)}</p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-between items-center">

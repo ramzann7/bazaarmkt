@@ -1070,7 +1070,8 @@ const getArtisanOrders = async (req, res) => {
     console.log('🔍 Trying direct ObjectId match on order.artisan...');
     orders = await ordersCollection
       .find({
-        artisan: artisan._id
+        artisan: artisan._id,
+        status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -1083,7 +1084,8 @@ const getArtisanOrders = async (req, res) => {
       console.log('🔍 Trying string match on order.artisan...');
       orders = await ordersCollection
         .find({
-          artisan: artisan._id.toString()
+          artisan: artisan._id.toString(),
+          status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
@@ -1097,7 +1099,8 @@ const getArtisanOrders = async (req, res) => {
       console.log('🔍 Trying items.artisanId as fallback...');
       orders = await ordersCollection
         .find({
-          'items.artisanId': artisan._id
+          'items.artisanId': artisan._id,
+          status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
@@ -1217,7 +1220,10 @@ const getPatronOrders = async (req, res) => {
     const ordersCollection = db.collection('orders');
     
     const orders = await ordersCollection
-      .find({ userId: new (require('mongodb')).ObjectId(decoded.userId) })
+      .find({ 
+        userId: new (require('mongodb')).ObjectId(decoded.userId),
+        status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
+      })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
@@ -1844,7 +1850,9 @@ router.post('/', createOrder);
 router.post('/guest', createGuestOrder);
 router.get('/', getUserOrders);
 router.get('/buyer', getPatronOrders);
+router.get('/buyer/completed', getPatronCompletedOrders);
 router.get('/artisan', getArtisanOrders);
+router.get('/artisan/completed', getArtisanCompletedOrders);
 router.get('/artisan/stats', getArtisanStats);
 router.get('/debug', debugOrders);
 router.get('/:id', getOrderById);
@@ -1852,5 +1860,135 @@ router.put('/:id/status', updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 router.put('/:id/payment', updatePaymentStatus);
 router.post('/:id/confirm-receipt', confirmOrderReceipt);
+
+// Get patron completed orders (delivered, completed, cancelled)
+const getPatronCompletedOrders = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    const orders = await ordersCollection
+      .find({ 
+        userId: new (require('mongodb')).ObjectId(decoded.userId),
+        status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    res.json({
+      success: true,
+      data: { orders },
+      orders: orders, // Frontend compatibility
+      count: orders.length
+    });
+  } catch (error) {
+    console.error('Get patron completed orders error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// Get artisan completed orders (delivered, completed, cancelled)
+const getArtisanCompletedOrders = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+    
+    // Get the artisan record for this user
+    const artisan = await artisansCollection.findOne({ user: new (require('mongodb')).ObjectId(decoded.userId) });
+    if (!artisan) {
+      return res.status(403).json({
+        success: false,
+        message: 'User is not an artisan'
+      });
+    }
+    
+    // Find completed orders for this artisan using multiple approaches
+    let orders = [];
+    
+    // Try different approaches to find orders
+    orders = await ordersCollection
+      .find({
+        artisan: artisan._id,
+        status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+      })
+      .sort({ createdAt: -1 })
+      .limit(parseInt(req.query.limit) || 50)
+      .toArray();
+    
+    // If no orders found with direct match, try string match
+    if (orders.length === 0) {
+      orders = await ordersCollection
+        .find({
+          artisan: artisan._id.toString(),
+          status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+        })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(req.query.limit) || 50)
+        .toArray();
+    }
+    
+    // If still no orders, try items.artisanId as fallback
+    if (orders.length === 0) {
+      orders = await ordersCollection
+        .find({
+          'items.artisanId': artisan._id,
+          status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+        })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(req.query.limit) || 50)
+        .toArray();
+    }
+    
+    res.json({
+      success: true,
+      data: { orders },
+      orders: orders, // Frontend compatibility
+      count: orders.length
+    });
+  } catch (error) {
+    console.error('Get artisan completed orders error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
 
 module.exports = router;

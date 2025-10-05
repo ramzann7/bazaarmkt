@@ -63,6 +63,32 @@ const createPaymentIntent = async (req, res) => {
         });
       }
 
+      // Check inventory availability based on product type
+      let hasEnoughInventory = false;
+      let availableQuantity = 0;
+      
+      if (product.productType === 'ready_to_ship') {
+        availableQuantity = Math.min(product.stock || 0, product.availableQuantity || 0);
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'made_to_order') {
+        availableQuantity = product.remainingCapacity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'scheduled_order') {
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else {
+        // Fallback for unknown types
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      }
+      
+      if (!hasEnoughInventory) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient inventory for product ${product.name}. Available: ${availableQuantity}, Requested: ${item.quantity}`
+        });
+      }
+
       const itemTotal = product.price * item.quantity;
       totalAmount += itemTotal;
 
@@ -172,6 +198,32 @@ const createGuestPaymentIntent = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: `Product is not available: ${product.name}`
+        });
+      }
+
+      // Check inventory availability based on product type
+      let hasEnoughInventory = false;
+      let availableQuantity = 0;
+      
+      if (product.productType === 'ready_to_ship') {
+        availableQuantity = Math.min(product.stock || 0, product.availableQuantity || 0);
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'made_to_order') {
+        availableQuantity = product.remainingCapacity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'scheduled_order') {
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else {
+        // Fallback for unknown types
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      }
+      
+      if (!hasEnoughInventory) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient inventory for product ${product.name}. Available: ${availableQuantity}, Requested: ${item.quantity}`
         });
       }
 

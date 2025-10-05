@@ -942,11 +942,21 @@ const getOrderById = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const ordersCollection = db.collection('orders');
     const artisansCollection = db.collection('artisans');
+    const usersCollection = db.collection('users');
     
-    const order = await ordersCollection.findOne({
+    // Check if user is viewing their own order or if they're the artisan
+    let order = await ordersCollection.findOne({
       _id: new (require('mongodb')).ObjectId(req.params.id),
       userId: new (require('mongodb')).ObjectId(decoded.userId)
     });
+    
+    // If not found, check if user is the artisan for this order
+    if (!order) {
+      order = await ordersCollection.findOne({
+        _id: new (require('mongodb')).ObjectId(req.params.id),
+        artisan: new (require('mongodb')).ObjectId(decoded.userId)
+      });
+    }
     
     if (!order) {
       // Connection managed by middleware - no close needed
@@ -964,6 +974,28 @@ const getOrderById = async (req, res) => {
     } else if (order.items && order.items.length > 0 && order.items[0].artisanId) {
       const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
       orderWithArtisan.artisan = artisan;
+    }
+    
+    // Populate customer information (for artisan view)
+    if (order.userId) {
+      const customer = await usersCollection.findOne({ _id: order.userId });
+      if (customer) {
+        orderWithArtisan.customer = {
+          _id: customer._id,
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone
+        };
+        // Also populate patron field for backward compatibility
+        orderWithArtisan.patron = {
+          _id: customer._id,
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email,
+          phone: customer.phone
+        };
+      }
     }
     
     // Connection managed by middleware - no close needed
@@ -1035,6 +1067,29 @@ const updateOrderStatus = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const ordersCollection = db.collection('orders');
     
+    // Check if user has permission to update this order
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id)
+    });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Check if user is the artisan for this order or an admin
+    const isArtisan = order.artisan && order.artisan.toString() === decoded.userId;
+    const isAdmin = decoded.role === 'admin' || decoded.userType === 'admin';
+    
+    if (!isArtisan && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update this order'
+      });
+    }
+    
     // Prepare update fields
     const updateFields = {
       status,
@@ -1068,7 +1123,6 @@ const updateOrderStatus = async (req, res) => {
     );
     
     if (result.matchedCount === 0) {
-      // Connection managed by middleware - no close needed
       return res.status(404).json({
         success: false,
         message: 'Order not found'

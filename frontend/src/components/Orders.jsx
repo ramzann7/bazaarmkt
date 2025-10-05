@@ -297,6 +297,10 @@ export default function Orders() {
       priority += 20; // Pending orders older than 2 hours are urgent
     }
     
+    if (order.status === 'ready' && ageInHours > 1) {
+      priority += 25; // Ready orders older than 1 hour are very urgent (customer waiting)
+    }
+    
     return priority;
   };
 
@@ -308,15 +312,14 @@ export default function Orders() {
     } else if (userRole === 'artisan') {
       switch (filter) {
         case 'needs_action':
-          filteredOrders = orders.filter(order => ['pending', 'confirmed'].includes(order.status));
+          // Show all actionable orders that need artisan attention
+          filteredOrders = orders.filter(order => ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status));
           break;
         case 'in_progress':
+          // Show orders that are actively being processed
           filteredOrders = orders.filter(order => [
             'preparing', 
-            'ready', 
-            'ready_for_pickup', 
-            'ready_for_delivery',
-            'out_for_delivery'
+            'ready'
           ].includes(order.status));
           break;
         case 'delivered':
@@ -385,13 +388,10 @@ export default function Orders() {
     
     if (userRole === 'artisan') {
       // For artisans: focus on orders that need action
-      const needsAction = orders.filter(o => ['pending', 'confirmed'].includes(o.status)).length;
+      const needsAction = orders.filter(o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)).length;
       const inProgress = orders.filter(o => [
         'preparing', 
-        'ready', 
-        'ready_for_pickup', 
-        'ready_for_delivery',
-        'out_for_delivery'
+        'ready'
       ].includes(o.status)).length;
       const completed = orders.filter(o => ['delivered', 'picked_up'].includes(o.status)).length;
       const declined = orders.filter(o => ['declined', 'cancelled'].includes(o.status)).length;
@@ -461,6 +461,9 @@ export default function Orders() {
     
     // Confirmed orders older than 6 hours are urgent
     if (order.status === 'confirmed' && ageInHours > 6) return true;
+    
+    // Ready orders older than 1 hour are urgent (customer waiting for pickup/delivery)
+    if (order.status === 'ready' && ageInHours > 1) return true;
     
     // Any order older than 24 hours is urgent
     if (ageInHours > 24) return true;

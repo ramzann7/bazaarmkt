@@ -1731,7 +1731,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               )}
               
               {/* Patron: Cancel Order Button */}
-              {userRole === 'patron' && order.status === 'pending' && (
+              {userRole === 'patron' && ['pending', 'confirmed', 'preparing'].includes(order.status) && (
                 <button
                   onClick={handleCancelOrder}
                   disabled={isLoading}

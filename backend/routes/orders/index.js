@@ -1080,8 +1080,12 @@ const updateOrderStatus = async (req, res) => {
     }
     
     // Check if user is the artisan for this order or an admin
-    const isArtisan = order.artisan && order.artisan.toString() === decoded.userId;
+    const isArtisan = order.artisan && (
+      order.artisan.toString() === decoded.userId || 
+      order.artisan.toString() === decoded.userId.toString()
+    );
     const isAdmin = decoded.role === 'admin' || decoded.userType === 'admin';
+    
     
     if (!isArtisan && !isAdmin) {
       return res.status(403).json({
@@ -1810,11 +1814,12 @@ const cancelOrder = async (req, res) => {
       });
     }
     
-    // Check if order can be cancelled
-    if (['delivered', 'cancelled'].includes(order.status)) {
+    // Check if order can be cancelled by patron
+    // Patrons can only cancel orders that are in "pending" status (before artisan confirms)
+    if (order.status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: 'Order cannot be cancelled'
+        message: `Order cannot be cancelled. Current status: ${order.status}. Orders can only be cancelled when they are in "pending" status (before artisan confirmation).`
       });
     }
     
@@ -1845,6 +1850,28 @@ const cancelOrder = async (req, res) => {
     const updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
+    
+    // Send cancellation notification to artisan
+    try {
+      const axios = require('axios');
+      
+      if (order.artisan) {
+        const artisanNotificationData = {
+          type: 'order_cancelled',
+          userId: order.artisan,
+          orderId: order._id,
+          orderData: updatedOrder,
+          updateType: 'cancellation',
+          message: `Order #${order._id.toString().slice(-8)} has been cancelled by the customer`
+        };
+        
+        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        console.log('✅ Artisan order cancellation notification sent');
+      }
+    } catch (notificationError) {
+      console.error('❌ Error sending cancellation notification:', notificationError);
+      // Don't fail the cancellation if notification fails
+    }
     
     res.json({
       success: true,

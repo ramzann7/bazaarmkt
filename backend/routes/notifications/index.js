@@ -512,8 +512,14 @@ const sendBrevoEmail = async (userId, notificationData) => {
   
   // Choose template based on notification type
   let htmlContent;
-  if (type === 'order_completion' || type === 'new_order') {
+  if (type === 'order_completion' || type === 'new_order' || type === 'order_placed' || type === 'order_confirmed') {
     htmlContent = generateOrderConfirmationHTML(recipientName, orderData);
+  } else if (type === 'new_order_pending') {
+    // For artisans receiving new pending orders
+    htmlContent = generateOrderUpdateHTML(recipientName, orderData, 'new_pending_order', updateDetails || {});
+  } else if (type === 'order_declined') {
+    // For customers receiving order decline notifications
+    htmlContent = generateOrderUpdateHTML(recipientName, orderData, 'order_declined', updateDetails || {});
   } else {
     htmlContent = generateOrderUpdateHTML(recipientName, orderData, updateType || 'status_change', updateDetails || {});
   }
@@ -592,8 +598,14 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData) => {
   
   // Choose template based on notification type
   let htmlContent;
-  if (type === 'order_completion') {
+  if (type === 'order_completion' || type === 'order_placed' || type === 'order_confirmed') {
     htmlContent = generateOrderConfirmationHTML(guestName, orderData);
+  } else if (type === 'new_order_pending') {
+    // For artisans receiving new pending guest orders
+    htmlContent = generateOrderUpdateHTML(guestName, orderData, 'new_pending_order', updateDetails || {});
+  } else if (type === 'order_declined') {
+    // For guests receiving order decline notifications
+    htmlContent = generateOrderUpdateHTML(guestName, orderData, 'order_declined', updateDetails || {});
   } else {
     htmlContent = generateOrderUpdateHTML(guestName, orderData, updateType || 'status_change', updateDetails || {});
   }
@@ -1024,7 +1036,7 @@ const sendPreferenceBasedNotification = async (userId, notificationData) => {
     
     // Determine notification type for preference checking
     let preferenceType = 'promotions'; // default
-    if (type === 'order_update' || type === 'order_completion') {
+    if (type === 'order_update' || type === 'order_completion' || type === 'order_placed' || type === 'new_order_pending' || type === 'order_declined' || type === 'order_confirmed') {
       preferenceType = 'orderUpdates';
     } else if (type === 'promotion' || type === 'seasonal_offer' || type === 'discount') {
       preferenceType = 'promotions';
@@ -1042,12 +1054,12 @@ const sendPreferenceBasedNotification = async (userId, notificationData) => {
     let shouldSendEmail = false;
     
     if (userRole === 'artisan') {
-      // ARTISANS: Only send email for NEW orders, everything else is in-app only
-      shouldSendEmail = type === 'new_order';
+      // ARTISANS: Send email for NEW orders and pending orders
+      shouldSendEmail = type === 'new_order' || type === 'new_order_pending';
       console.log(`📧 Artisan notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else if (userRole === 'patron' || userRole === 'customer' || userRole === 'buyer') {
-      // PATRONS: Send email for order CONFIRMATION only, updates are in-app only
-      shouldSendEmail = type === 'order_completion';
+      // PATRONS: Send email for order PLACEMENT, CONFIRMATION, and DECLINED orders
+      shouldSendEmail = type === 'order_completion' || type === 'order_placed' || type === 'order_declined' || type === 'order_confirmed';
       console.log(`📧 Patron notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else {
       // For other types, check preferences

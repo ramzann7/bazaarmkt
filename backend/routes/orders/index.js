@@ -402,7 +402,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       userId: userId ? new (require('mongodb')).ObjectId(userId) : null,
       items: enrichedItems,
       totalAmount: totalAmount,
-      status: 'confirmed',
+      status: 'pending', // Orders start as pending confirmation by artisan
       paymentStatus: 'paid',
       paymentMethod: 'stripe',
       paymentIntentId: paymentIntentId,
@@ -508,17 +508,20 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       }
     }
 
-    // Send order creation notification
+    // Send order creation notifications
     try {
-      const notificationData = {
-        type: 'order_completion',
+      const axios = require('axios');
+      
+      // Send notification to customer about order placement
+      const customerNotificationData = {
+        type: 'order_placed',
         userId: userId,
         orderId: result.insertedId,
         orderData: {
           _id: result.insertedId,
           orderNumber: result.insertedId,
           totalAmount: totalAmount,
-          status: 'confirmed',
+          status: 'pending',
           items: order.items,
           deliveryAddress: order.deliveryAddress,
           deliveryMethod: order.deliveryMethod,
@@ -533,12 +536,39 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         timestamp: new Date().toISOString()
       };
 
-      // Send notification to backend notification service
-      const axios = require('axios');
-      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, notificationData);
-      console.log('✅ Order creation notification sent');
+      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, customerNotificationData);
+      console.log('✅ Customer order placement notification sent');
+
+      // Send notification to artisan about new pending order
+      if (order.artisan) {
+        const artisanNotificationData = {
+          type: 'new_order_pending',
+          userId: order.artisan,
+          orderId: result.insertedId,
+          orderData: {
+            _id: result.insertedId,
+            orderNumber: result.insertedId,
+            totalAmount: totalAmount,
+            status: 'pending',
+            items: order.items,
+            deliveryAddress: order.deliveryAddress,
+            deliveryMethod: order.deliveryMethod,
+            isGuestOrder: order.isGuestOrder,
+            guestInfo: order.guestInfo
+          },
+          userInfo: {
+            id: userId,
+            isGuest: order.isGuestOrder,
+            email: order.isGuestOrder ? order.guestInfo?.email : null
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        console.log('✅ Artisan new order notification sent');
+      }
     } catch (notificationError) {
-      console.error('❌ Error sending order creation notification:', notificationError);
+      console.error('❌ Error sending order notifications:', notificationError);
       // Don't fail the order creation if notification fails
     }
 
@@ -747,6 +777,66 @@ const createOrder = async (req, res) => {
       }
     }
     
+    // Send order creation notifications
+    try {
+      const axios = require('axios');
+      
+      // Send notification to customer about order placement
+      const customerNotificationData = {
+        type: 'order_placed',
+        userId: decoded.userId,
+        orderId: orderId,
+        orderData: {
+          _id: orderId,
+          orderNumber: orderId,
+          totalAmount: totalAmount,
+          status: 'pending',
+          items: order.items,
+          shippingAddress: order.shippingAddress,
+          notes: order.notes,
+          isGuestOrder: false
+        },
+        userInfo: {
+          id: decoded.userId,
+          isGuest: false
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, customerNotificationData);
+      console.log('✅ Customer order placement notification sent');
+
+      // Send notification to artisan about new pending order
+      if (order.artisan) {
+        const artisanNotificationData = {
+          type: 'new_order_pending',
+          userId: order.artisan,
+          orderId: orderId,
+          orderData: {
+            _id: orderId,
+            orderNumber: orderId,
+            totalAmount: totalAmount,
+            status: 'pending',
+            items: order.items,
+            shippingAddress: order.shippingAddress,
+            notes: order.notes,
+            isGuestOrder: false
+          },
+          userInfo: {
+            id: decoded.userId,
+            isGuest: false
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        console.log('✅ Artisan new order notification sent');
+      }
+    } catch (notificationError) {
+      console.error('❌ Error sending order notifications:', notificationError);
+      // Don't fail the order creation if notification fails
+    }
+    
     // Connection managed by middleware - no close needed
     
     res.status(201).json({
@@ -904,7 +994,7 @@ const updateOrderStatus = async (req, res) => {
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { status } = req.body;
+    const { status, updateReason } = req.body;
     
     if (!status) {
       return res.status(400).json({
@@ -913,11 +1003,19 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
-    const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'];
+    const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'declined'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid status'
+      });
+    }
+    
+    // Require reason for declined orders
+    if (status === 'declined' && !updateReason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Decline reason is required'
       });
     }
     
@@ -931,13 +1029,35 @@ const updateOrderStatus = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const ordersCollection = db.collection('orders');
     
+    // Prepare update fields
+    const updateFields = {
+      status,
+      updatedAt: new Date()
+    };
+    
+    // Add decline-specific fields
+    if (status === 'declined') {
+      updateFields.declineReason = updateReason;
+      updateFields.declinedAt = new Date();
+      updateFields.lastStatusUpdate = {
+        status: 'declined',
+        reason: updateReason,
+        updatedAt: new Date(),
+        updatedBy: decoded.userId
+      };
+    } else {
+      // For other status updates, track the update
+      updateFields.lastStatusUpdate = {
+        status: status,
+        updatedAt: new Date(),
+        updatedBy: decoded.userId
+      };
+    }
+    
     const result = await ordersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(req.params.id) },
       { 
-        $set: { 
-          status,
-          updatedAt: new Date()
-        }
+        $set: updateFields
       }
     );
     
@@ -955,15 +1075,26 @@ const updateOrderStatus = async (req, res) => {
     
     // Send order status update notification
     try {
+      const axios = require('axios');
+      
+      // Determine notification type based on status
+      let notificationType = 'order_update';
+      if (status === 'declined') {
+        notificationType = 'order_declined';
+      } else if (status === 'confirmed') {
+        notificationType = 'order_confirmed';
+      }
+      
       const notificationData = {
-        type: 'order_update',
+        type: notificationType,
         userId: updatedOrder.userId,
         orderId: updatedOrder._id,
         orderData: updatedOrder,
-        updateType: 'status_change',
+        updateType: status === 'declined' ? 'order_declined' : 'status_change',
         updateDetails: {
           newStatus: status,
-          previousStatus: req.body.previousStatus || 'unknown'
+          previousStatus: req.body.previousStatus || 'unknown',
+          reason: status === 'declined' ? updateReason : null
         },
         userInfo: {
           id: updatedOrder.userId,
@@ -974,9 +1105,8 @@ const updateOrderStatus = async (req, res) => {
       };
 
       // Send notification to backend notification service
-      const axios = require('axios');
       await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, notificationData);
-      console.log(`✅ Order status update notification sent for order ${updatedOrder._id}: ${status}`);
+      console.log(`✅ Order ${status} notification sent for order ${updatedOrder._id}`);
     } catch (notificationError) {
       console.error('❌ Error sending order status update notification:', notificationError);
       // Don't fail the status update if notification fails
@@ -1523,6 +1653,43 @@ const createGuestOrder = async (req, res) => {
       } catch (inventoryError) {
         console.error(`❌ Error reducing inventory for product ${item.productId}:`, inventoryError);
       }
+    }
+    
+    // Send order creation notifications
+    try {
+      const axios = require('axios');
+      
+      // Send notification to artisan about new pending guest order
+      if (order.artisan) {
+        const artisanNotificationData = {
+          type: 'new_order_pending',
+          userId: order.artisan,
+          orderId: orderId,
+          orderData: {
+            _id: orderId,
+            orderNumber: orderId,
+            totalAmount: totalAmount,
+            status: 'pending',
+            items: order.items,
+            deliveryAddress: order.deliveryAddress,
+            notes: order.notes,
+            isGuestOrder: true,
+            guestInfo: order.guestInfo
+          },
+          userInfo: {
+            id: null,
+            isGuest: true,
+            email: order.guestInfo?.email
+          },
+          timestamp: new Date().toISOString()
+        };
+
+        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        console.log('✅ Artisan new guest order notification sent');
+      }
+    } catch (notificationError) {
+      console.error('❌ Error sending guest order notifications:', notificationError);
+      // Don't fail the order creation if notification fails
     }
     
     res.status(201).json({

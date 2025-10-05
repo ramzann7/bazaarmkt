@@ -1079,13 +1079,40 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
+    console.log('🔍 Order found for decline:', {
+      orderId: order._id,
+      orderArtisan: order.artisan,
+      orderArtisanType: typeof order.artisan,
+      orderStatus: order.status,
+      orderUserId: order.userId
+    });
+    
     // Check if user is the artisan for this order or an admin
-    const isArtisan = order.artisan && (
-      order.artisan.toString() === decoded.userId || 
-      order.artisan.toString() === decoded.userId.toString()
+    // First, find the artisan record for this user
+    const artisansCollection = db.collection('artisans');
+    const userArtisan = await artisansCollection.findOne({ 
+      user: new (require('mongodb')).ObjectId(decoded.userId) 
+    });
+    
+    const isArtisan = order.artisan && userArtisan && (
+      order.artisan.toString() === userArtisan._id.toString()
     );
     const isAdmin = decoded.role === 'admin' || decoded.userType === 'admin';
     
+    console.log('🔍 Authorization check for decline order:', {
+      orderId: req.params.id,
+      orderArtisan: order.artisan,
+      orderArtisanString: order.artisan ? order.artisan.toString() : null,
+      decodedUserId: decoded.userId,
+      decodedUserIdString: decoded.userId.toString(),
+      userArtisan: userArtisan,
+      userArtisanId: userArtisan ? userArtisan._id.toString() : null,
+      isArtisan,
+      isAdmin,
+      userRole: decoded.role,
+      userType: decoded.userType,
+      status: order.status
+    });
     
     if (!isArtisan && !isAdmin) {
       return res.status(403).json({

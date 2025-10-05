@@ -1358,8 +1358,8 @@ const getArtisanOrders = async (req, res) => {
     console.log('🔍 Trying match on order.artisan._id...');
     orders = await ordersCollection
       .find({
-        'artisan._id': artisan._id,
-        status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] } // Only actionable orders
+        'artisan._id': artisan._id
+        // Return ALL orders, let frontend handle filtering
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -1372,8 +1372,8 @@ const getArtisanOrders = async (req, res) => {
       console.log('🔍 Trying string match on order.artisan._id...');
       orders = await ordersCollection
         .find({
-          'artisan._id': artisan._id.toString(),
-          status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] } // Only actionable orders
+          'artisan._id': artisan._id.toString()
+          // Return ALL orders, let frontend handle filtering
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
@@ -1552,8 +1552,8 @@ const getPatronOrders = async (req, res) => {
     
     const orders = await ordersCollection
       .find({ 
-        userId: new (require('mongodb')).ObjectId(decoded.userId),
-        status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
+        userId: new (require('mongodb')).ObjectId(decoded.userId)
+        // Return ALL orders, let frontend handle filtering
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -2565,8 +2565,8 @@ const getPatronCompletedOrders = async (req, res) => {
     
     const orders = await ordersCollection
       .find({ 
-        userId: new (require('mongodb')).ObjectId(decoded.userId),
-        status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+        userId: new (require('mongodb')).ObjectId(decoded.userId)
+        // Return ALL orders, let frontend handle filtering
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -2661,8 +2661,8 @@ const getArtisanCompletedOrders = async (req, res) => {
     // Try different approaches to find orders
     orders = await ordersCollection
       .find({
-        'artisan._id': artisan._id,
-        status: { $in: ['delivered', 'picked_up', 'cancelled', 'declined'] } // Only completed orders
+        'artisan._id': artisan._id
+        // Return ALL orders, let frontend handle filtering
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -2672,8 +2672,8 @@ const getArtisanCompletedOrders = async (req, res) => {
     if (orders.length === 0) {
       orders = await ordersCollection
         .find({
-          'artisan._id': artisan._id.toString(),
-          status: { $in: ['delivered', 'picked_up', 'cancelled', 'declined'] } // Only completed orders
+          'artisan._id': artisan._id.toString()
+          // Return ALL orders, let frontend handle filtering
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
@@ -2684,8 +2684,8 @@ const getArtisanCompletedOrders = async (req, res) => {
     if (orders.length === 0) {
       orders = await ordersCollection
         .find({
-          'items.artisanId': artisan._id,
-          status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+          'items.artisanId': artisan._id
+          // Return ALL orders, let frontend handle filtering
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)

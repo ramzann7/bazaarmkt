@@ -98,7 +98,7 @@ export default function Orders() {
           return;
         }
         const result = await orderService.confirmOrderReceipt(orderId);
-        toast.success(`✅ Order confirmed! Artisan has been credited $${result.data.creditedAmount.toFixed(2)}`);
+        toast.success(`✅ Order confirmed! Artisan has been credited $${(result.data.creditedAmount || 0).toFixed(2)}`);
         await loadUserAndOrders();
         return;
       }
@@ -706,7 +706,7 @@ export default function Orders() {
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold text-orange-600">
-                      ${order.totalAmount.toFixed(2)}
+                      ${(order.totalAmount || 0).toFixed(2)}
                     </p>
                     <div className="flex gap-2 mt-2">
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status, order.deliveryMethod)}`}>
@@ -796,7 +796,7 @@ export default function Orders() {
                   {order.deliveryMethod !== 'pickup' && order.deliveryDistance && (
                     <div className="flex items-center gap-2 text-sm text-blue-600">
                       <span className="font-medium">📏 Distance:</span> 
-                      <span>{order.deliveryDistance.toFixed(1)} km</span>
+                      <span>{(order.deliveryDistance || 0).toFixed(1)} km</span>
                     </div>
                   )}
                   
@@ -938,7 +938,7 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-gray-900">${order.totalAmount.toFixed(2)}</p>
+                      <p className="font-bold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</p>
                       <p className="text-xs text-gray-500">{order.items.length} items</p>
                     </div>
                   </div>
@@ -1300,7 +1300,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     setIsLoading(true);
     try {
       const result = await orderService.confirmOrderReceipt(order._id);
-      toast.success(`✅ Order confirmed! Artisan has been credited $${result.data.creditedAmount.toFixed(2)}`);
+      toast.success(`✅ Order confirmed! Artisan has been credited $${(result.data.creditedAmount || 0).toFixed(2)}`);
       onRefresh();
       onClose();
     } catch (error) {
@@ -1471,10 +1471,10 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{item.product?.name}</p>
                     <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                    <p className="text-sm text-gray-600">Unit Price: ${item.unitPrice.toFixed(2)}</p>
+                    <p className="text-sm text-gray-600">Unit Price: ${(item.unitPrice || item.productPrice || 0).toFixed(2)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-gray-900">${item.totalPrice.toFixed(2)}</p>
+                    <p className="font-medium text-gray-900">${(item.totalPrice || item.itemTotal || ((item.unitPrice || item.productPrice || 0) * (item.quantity || 0))).toFixed(2)}</p>
                   </div>
                 </div>
               ))}
@@ -1482,7 +1482,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-900">Total</span>
-                <span className="text-lg font-semibold text-gray-900">${order.totalAmount.toFixed(2)}</span>
+                <span className="text-lg font-semibold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -1551,7 +1551,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                             <div className="flex items-center gap-2">
                               <MapPinIcon className="w-4 h-4 text-blue-600" />
                               <span className="text-sm font-medium text-blue-800">
-                                Distance: {deliveryDistance.toFixed(1)} km
+                                Distance: {(deliveryDistance || 0).toFixed(1)} km
                               </span>
                             </div>
                           )}
@@ -1589,7 +1589,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     <div className="flex items-center gap-2">
                       <MapPinIcon className="w-4 h-4 text-blue-500" />
                       <span className="text-sm font-medium text-blue-600">
-                        Delivery Distance: {order.deliveryDistance.toFixed(1)} km
+                        Delivery Distance: {(order.deliveryDistance || 0).toFixed(1)} km
                       </span>
                     </div>
                   </div>

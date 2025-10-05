@@ -1376,8 +1376,11 @@ const updateArtisanPhotosContact = async (req, res) => {
 // Add payment method
 const addPaymentMethod = async (req, res) => {
   try {
+    console.log('💳 addPaymentMethod called with body:', JSON.stringify(req.body, null, 2));
+    
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(401).json({
         success: false,
         message: 'No token provided'
@@ -1387,27 +1390,33 @@ const addPaymentMethod = async (req, res) => {
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('✅ Token decoded, userId:', decoded.userId);
     
     const db = req.db;
     const usersCollection = db.collection('users');
     
     const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
     if (!user) {
+      console.log('❌ User not found for userId:', decoded.userId);
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
+    console.log('✅ User found:', user.email);
 
     const { paymentMethod } = req.body;
     if (!paymentMethod) {
+      console.log('❌ No paymentMethod in request body');
       return res.status(400).json({
         success: false,
         message: 'Payment method data is required'
       });
     }
+    console.log('✅ Payment method data received:', JSON.stringify(paymentMethod, null, 2));
 
     // Add payment method to user's payment methods array
+    console.log('💳 Attempting to update user with payment method...');
     const result = await usersCollection.updateOne(
       { _id: new ObjectId(decoded.userId) },
       { 
@@ -1416,22 +1425,28 @@ const addPaymentMethod = async (req, res) => {
       }
     );
 
+    console.log('💳 Update result:', result);
+
     if (result.modifiedCount === 0) {
+      console.log('❌ No documents were modified');
       return res.status(400).json({
         success: false,
         message: 'Failed to add payment method'
       });
     }
 
+    console.log('✅ Payment method added successfully');
     res.json({
       success: true,
       message: 'Payment method added successfully'
     });
   } catch (error) {
-    console.error('Error adding payment method:', error);
+    console.error('❌ Error adding payment method:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error.message
     });
   }
 };

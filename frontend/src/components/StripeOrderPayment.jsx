@@ -110,8 +110,21 @@ const StripeOrderPayment = ({
         // Save card for future use if requested (for authenticated users only)
         if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
           try {
+            // Handle both string and object payment_method formats from Stripe
+            const stripePaymentMethodId = typeof paymentIntent.payment_method === 'string' 
+              ? paymentIntent.payment_method 
+              : paymentIntent.payment_method.id;
+            
+            console.log('💳 Saving payment method:', {
+              saveCardForFuture,
+              isGuest,
+              paymentMethod: paymentIntent.payment_method,
+              stripePaymentMethodId,
+              savedMethodsCount: savedPaymentMethods.length
+            });
+            
             const paymentMethodData = {
-              stripePaymentMethodId: paymentIntent.payment_method,
+              stripePaymentMethodId,
               brand: paymentIntent.payment_method_details?.card?.brand || 'card',
               last4: paymentIntent.payment_method_details?.card?.last4 || '****',
               expiryMonth: paymentIntent.payment_method_details?.card?.exp_month || 12,
@@ -121,10 +134,14 @@ const StripeOrderPayment = ({
               type: 'credit_card'
             };
             
+            console.log('💳 Payment method data to save:', paymentMethodData);
+            
             await orderPaymentService.savePaymentMethod(paymentMethodData);
             toast.success('Card saved for future use!');
+            console.log('✅ Payment method saved successfully');
           } catch (saveError) {
-            console.error('Error saving card:', saveError);
+            console.error('❌ Error saving card:', saveError);
+            toast.error('Failed to save card for future use, but payment was successful');
             // Don't fail the payment if saving fails
           }
         }

@@ -1448,6 +1448,16 @@ const deletePaymentMethod = async (req, res) => {
     const db = req.db;
     const usersCollection = db.collection('users');
     
+    const { paymentMethodId } = req.params;
+    console.log('🔄 Deleting payment method with ID:', paymentMethodId);
+    
+    if (!paymentMethodId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method ID is required'
+      });
+    }
+
     const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
     if (!user) {
       return res.status(404).json({
@@ -1456,20 +1466,19 @@ const deletePaymentMethod = async (req, res) => {
       });
     }
 
-    const { paymentMethodId } = req.params;
-    if (!paymentMethodId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment method ID is required'
-      });
-    }
+    console.log('👤 User payment methods:', user.paymentMethods?.length || 0, 'methods');
+    console.log('📋 Payment methods structure:', user.paymentMethods?.map(pm => ({
+      id: pm.id,
+      _id: pm._id,
+      stripePaymentMethodId: pm.stripePaymentMethodId,
+      type: pm.type,
+      last4: pm.last4
+    })));
 
-    // First, get the user to find the payment method
-    const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    if (!user || !user.paymentMethods) {
+    if (!user.paymentMethods || user.paymentMethods.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'User or payment methods not found'
+        message: 'No payment methods found'
       });
     }
 
@@ -1480,7 +1489,11 @@ const deletePaymentMethod = async (req, res) => {
       pm.stripePaymentMethodId === paymentMethodId
     );
 
+    console.log('🔍 Looking for payment method with ID:', paymentMethodId);
+    console.log('✅ Found payment method to remove:', paymentMethodToRemove);
+
     if (!paymentMethodToRemove) {
+      console.log('❌ Payment method not found with ID:', paymentMethodId);
       return res.status(404).json({
         success: false,
         message: 'Payment method not found'

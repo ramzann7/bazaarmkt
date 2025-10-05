@@ -1567,6 +1567,10 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
   const removePaymentMethod = async (id) => {
     try {
       console.log('🔄 Removing payment method with id:', id);
+      console.log('📊 All payment methods:', paymentMethods);
+      console.log('🔍 Payment method to remove:', paymentMethods.find(method => 
+        method.id === id || method._id === id || method.stripePaymentMethodId === id
+      ));
       
       // Call the backend delete API
       await profileService.deletePaymentMethod(id);

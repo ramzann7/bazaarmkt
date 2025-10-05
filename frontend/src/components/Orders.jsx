@@ -299,15 +299,12 @@ export default function Orders() {
     } else if (userRole === 'artisan') {
       switch (filter) {
         case 'needs_action':
-          // Show all actionable orders that need artisan attention
-          filteredOrders = orders.filter(order => ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status));
+          // Show only pending orders that need artisan action (confirm/decline)
+          filteredOrders = orders.filter(order => order.status === 'pending');
           break;
         case 'in_progress':
-          // Show orders that are actively being processed
-          filteredOrders = orders.filter(order => [
-            'preparing', 
-            'ready'
-          ].includes(order.status));
+          // Show all orders that are NOT completed (priority queue)
+          filteredOrders = orders.filter(order => !['cancelled', 'declined', 'delivered', 'picked_up'].includes(order.status));
           break;
         case 'delivered':
         case 'completed':
@@ -375,11 +372,8 @@ export default function Orders() {
     
     if (userRole === 'artisan') {
       // For artisans: focus on orders that need action
-      const needsAction = orders.filter(o => ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)).length;
-      const inProgress = orders.filter(o => [
-        'preparing', 
-        'ready'
-      ].includes(o.status)).length;
+      const needsAction = orders.filter(o => o.status === 'pending').length;
+      const inProgress = orders.filter(o => !['cancelled', 'declined', 'delivered', 'picked_up'].includes(o.status)).length;
       const completed = orders.filter(o => ['delivered', 'picked_up'].includes(o.status)).length;
       const declined = orders.filter(o => ['declined', 'cancelled'].includes(o.status)).length;
       

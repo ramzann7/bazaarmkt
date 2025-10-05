@@ -335,13 +335,70 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
     // Create order after successful payment
     const db = req.db;
     const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
 
     // Calculate total from payment intent
     const totalAmount = paymentIntent.amount / 100; // Convert from cents
 
+    // Enrich order items with complete product data
+    const enrichedItems = [];
+    for (const item of orderData.items || []) {
+      try {
+        const product = await productsCollection.findOne({ 
+          _id: new (require('mongodb')).ObjectId(item.productId) 
+        });
+        
+        if (product) {
+          enrichedItems.push({
+            productId: product._id,
+            product: {
+              _id: product._id,
+              name: product.name,
+              price: product.price,
+              description: product.description,
+              images: product.images,
+              category: product.category,
+              productType: product.productType,
+              artisan: product.artisan
+            },
+            name: product.name,
+            price: product.price,
+            quantity: item.quantity,
+            totalPrice: product.price * item.quantity,
+            unitPrice: product.price,
+            productType: product.productType
+          });
+        } else {
+          console.warn(`⚠️ Product not found for order item: ${item.productId}`);
+          // Fallback item with minimal data
+          enrichedItems.push({
+            productId: item.productId,
+            name: 'Unknown Product',
+            price: 0,
+            quantity: item.quantity,
+            totalPrice: 0,
+            unitPrice: 0,
+            productType: item.productType || 'ready_to_ship'
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Error enriching order item ${item.productId}:`, error);
+        // Fallback item with minimal data
+        enrichedItems.push({
+          productId: item.productId,
+          name: 'Unknown Product',
+          price: 0,
+          quantity: item.quantity,
+          totalPrice: 0,
+          unitPrice: 0,
+          productType: item.productType || 'ready_to_ship'
+        });
+      }
+    }
+
     const order = {
       userId: userId ? new (require('mongodb')).ObjectId(userId) : null,
-      items: orderData.items || [],
+      items: enrichedItems,
       totalAmount: totalAmount,
       status: 'confirmed',
       paymentStatus: 'paid',
@@ -583,9 +640,25 @@ const createOrder = async (req, res) => {
       
       validatedItems.push({
         productId: product._id,
+        product: {
+          _id: product._id,
+          name: product.name,
+          price: product.price,
+          description: product.description,
+          images: product.images,
+          category: product.category,
+          productType: product.productType,
+          artisan: product.artisan
+        },
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        totalPrice: itemTotal,
+        unitPrice: product.price,
+        productType: product.productType,
+        // Legacy fields for backward compatibility
         productName: product.name,
         productPrice: product.price,
-        quantity: item.quantity,
         itemTotal: itemTotal,
         artisanId: product.artisan
       });
@@ -1302,9 +1375,25 @@ const createGuestOrder = async (req, res) => {
       
       validatedItems.push({
         productId: product._id,
+        product: {
+          _id: product._id,
+          name: product.name,
+          price: product.price,
+          description: product.description,
+          images: product.images,
+          category: product.category,
+          productType: product.productType,
+          artisan: product.artisan
+        },
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        totalPrice: itemTotal,
+        unitPrice: product.price,
+        productType: product.productType,
+        // Legacy fields for backward compatibility
         productName: product.name,
         productPrice: product.price,
-        quantity: item.quantity,
         itemTotal: itemTotal,
         artisanId: product.artisan
       });

@@ -220,7 +220,7 @@ export default function Orders() {
       'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
       'delivering': 'Out for Delivery'
     };
-    return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    return statusTexts[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown');
   };
 
   // Calculate order priority for artisans
@@ -682,7 +682,7 @@ export default function Orders() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-lg font-bold text-gray-900">
-                        Order #{order._id.slice(-8).toUpperCase()}
+                        Order #{order._id ? order._id.slice(-8).toUpperCase() : 'Unknown'}
                       </h3>
                       {userRole === 'artisan' && priorityInfo && (
                         <div className="flex items-center gap-1">
@@ -848,7 +848,7 @@ export default function Orders() {
                 {order.status === 'preparing' && order.preparationStage && (
                   <div className="mt-4 p-3 bg-orange-50 rounded-lg">
                     <p className="text-sm font-medium text-orange-800">
-                      Preparation Stage: {order.preparationStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      Preparation Stage: {order.preparationStage ? order.preparationStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}
                     </p>
                   </div>
                 )}
@@ -931,7 +931,7 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h5 className="font-medium text-gray-900">
-                        Order #{order._id.slice(-8).toUpperCase()}
+                        Order #{order._id ? order._id.slice(-8).toUpperCase() : 'Unknown'}
                       </h5>
                       <p className="text-sm text-gray-600">
                         {order.artisan?.firstName} {order.artisan?.lastName}
@@ -1072,7 +1072,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
       'delivering': 'Out for Delivery'
     };
-    return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    return statusTexts[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown');
   };
 
   // Estimate delivery time for PERSONAL DELIVERY ONLY (based on car driving speed)
@@ -1381,7 +1381,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </div>
                 <div className="text-center">
                   <span className={`px-4 py-2 text-sm font-bold rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
-                    {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                    {order.paymentStatus ? order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) : 'Unknown'}
                   </span>
                   <p className="text-xs text-gray-500 mt-1">Payment</p>
                 </div>

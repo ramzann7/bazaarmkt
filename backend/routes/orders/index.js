@@ -10,6 +10,27 @@ const jwt = require('jsonwebtoken');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const PlatformSettingsService = require('../../services/platformSettingsService');
 
+// Helper function to get status display text
+const getStatusDisplayText = (status, deliveryMethod = 'pickup') => {
+  const statusTexts = {
+    'pending': 'Pending',
+    'confirmed': 'Confirmed',
+    'preparing': 'Preparing',
+    'ready': 'Ready',
+    'ready_for_pickup': 'Ready for Pickup',
+    'ready_for_delivery': 'Ready for Delivery',
+    'out_for_delivery': 'Out for Delivery',
+    'delivering': 'Delivering',
+    'delivered': 'Delivered',
+    'picked_up': 'Picked Up',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled',
+    'declined': 'Declined'
+  };
+  
+  return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 // Create payment intent for order
 const createPaymentIntent = async (req, res) => {
   try {
@@ -1034,12 +1055,6 @@ const updateOrderStatus = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { status, updateReason } = req.body;
     
-    console.log('🔍 Order status update request:', {
-      orderId: req.params.id,
-      status,
-      updateReason,
-      body: req.body
-    });
     
     if (!status) {
       return res.status(400).json({
@@ -1145,12 +1160,6 @@ const updateOrderStatus = async (req, res) => {
       }
     );
     
-    console.log('🔍 Order update result:', {
-      orderId: req.params.id,
-      matchedCount: result.matchedCount,
-      modifiedCount: result.modifiedCount,
-      updateFields
-    });
     
     if (result.matchedCount === 0) {
       return res.status(404).json({
@@ -1173,6 +1182,20 @@ const updateOrderStatus = async (req, res) => {
         notificationType = 'order_declined';
       } else if (status === 'confirmed') {
         notificationType = 'order_confirmed';
+      } else if (status === 'preparing') {
+        notificationType = 'order_preparing';
+      } else if (status === 'ready') {
+        notificationType = 'order_ready';
+      } else if (status === 'delivered' || status === 'picked_up') {
+        notificationType = 'order_completed';
+      }
+      
+      // Get user information for notifications
+      const usersCollection = db.collection('users');
+      let userInfo = null;
+      
+      if (updatedOrder.userId && !updatedOrder.isGuestOrder) {
+        userInfo = await usersCollection.findOne({ _id: updatedOrder.userId });
       }
       
       const notificationData = {
@@ -1184,12 +1207,15 @@ const updateOrderStatus = async (req, res) => {
         updateDetails: {
           newStatus: status,
           previousStatus: req.body.previousStatus || 'unknown',
-          reason: status === 'declined' ? updateReason : null
+          reason: status === 'declined' ? updateReason : null,
+          statusDisplayText: getStatusDisplayText(status, updatedOrder.deliveryMethod)
         },
         userInfo: {
           id: updatedOrder.userId,
-          isGuest: updatedOrder.isGuestOrder,
-          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : null
+          isGuest: updatedOrder.isGuestOrder || false,
+          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (userInfo?.email || null),
+          firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (userInfo?.firstName || null),
+          lastName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.lastName : (userInfo?.lastName || null)
         },
         timestamp: new Date().toISOString()
       };

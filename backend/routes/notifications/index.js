@@ -520,6 +520,9 @@ const sendBrevoEmail = async (userId, notificationData) => {
   } else if (type === 'order_declined') {
     // For customers receiving order decline notifications
     htmlContent = generateOrderUpdateHTML(recipientName, orderData, 'order_declined', updateDetails || {});
+  } else if (type === 'order_preparing' || type === 'order_ready' || type === 'order_completed') {
+    // For order status updates
+    htmlContent = generateOrderUpdateHTML(recipientName, orderData, 'status_update', updateDetails || {});
   } else {
     htmlContent = generateOrderUpdateHTML(recipientName, orderData, updateType || 'status_change', updateDetails || {});
   }
@@ -606,6 +609,9 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData) => {
   } else if (type === 'order_declined') {
     // For guests receiving order decline notifications
     htmlContent = generateOrderUpdateHTML(guestName, orderData, 'order_declined', updateDetails || {});
+  } else if (type === 'order_preparing' || type === 'order_ready' || type === 'order_completed') {
+    // For order status updates
+    htmlContent = generateOrderUpdateHTML(guestName, orderData, 'status_update', updateDetails || {});
   } else {
     htmlContent = generateOrderUpdateHTML(guestName, orderData, updateType || 'status_change', updateDetails || {});
   }
@@ -1036,7 +1042,9 @@ const sendPreferenceBasedNotification = async (userId, notificationData) => {
     
     // Determine notification type for preference checking
     let preferenceType = 'promotions'; // default
-    if (type === 'order_update' || type === 'order_completion' || type === 'order_placed' || type === 'new_order_pending' || type === 'order_declined' || type === 'order_confirmed') {
+    if (type === 'order_update' || type === 'order_completion' || type === 'order_placed' || type === 'new_order_pending' || 
+        type === 'order_declined' || type === 'order_confirmed' || type === 'order_preparing' || type === 'order_ready' || 
+        type === 'order_completed') {
       preferenceType = 'orderUpdates';
     } else if (type === 'promotion' || type === 'seasonal_offer' || type === 'discount') {
       preferenceType = 'promotions';
@@ -1058,8 +1066,10 @@ const sendPreferenceBasedNotification = async (userId, notificationData) => {
       shouldSendEmail = type === 'new_order' || type === 'new_order_pending';
       console.log(`📧 Artisan notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else if (userRole === 'patron' || userRole === 'customer' || userRole === 'buyer') {
-      // PATRONS: Send email for order PLACEMENT, CONFIRMATION, and DECLINED orders
-      shouldSendEmail = type === 'order_completion' || type === 'order_placed' || type === 'order_declined' || type === 'order_confirmed';
+      // PATRONS: Send email for all order status updates
+      shouldSendEmail = type === 'order_completion' || type === 'order_placed' || type === 'order_declined' || 
+                       type === 'order_confirmed' || type === 'order_preparing' || type === 'order_ready' || 
+                       type === 'order_completed' || type === 'order_update';
       console.log(`📧 Patron notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else {
       // For other types, check preferences

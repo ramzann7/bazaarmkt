@@ -362,11 +362,13 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
               artisan: product.artisan
             },
             name: product.name,
+            productName: product.name, // Add productName for frontend compatibility
             price: product.price,
             quantity: item.quantity,
             totalPrice: product.price * item.quantity,
             unitPrice: product.price,
-            productType: product.productType
+            productType: product.productType,
+            artisanId: product.artisan
           });
         } else {
           console.warn(`⚠️ Product not found for order item: ${item.productId}`);

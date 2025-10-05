@@ -20,11 +20,13 @@ import {
 import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
 import { geocodingService } from '../services/geocodingService';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function OrderConfirmation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [orderData, setOrderData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
@@ -599,18 +601,6 @@ export default function OrderConfirmation() {
             </div>
 
             <div className="space-y-4 print:space-y-2">
-              {/* Delivery Type Badge */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="px-3 py-1 bg-amber-100 text-amber-800 text-sm font-medium rounded-full">
-                  {orders[0]?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 'Standard Delivery'}
-                </div>
-                {orders[0]?.deliveryMethod === 'personalDelivery' && (
-                  <div className="px-3 py-1 bg-emerald-100 text-emerald-800 text-sm font-medium rounded-full">
-                    Artisan Delivers
-                  </div>
-                )}
-              </div>
-
               <div className="flex items-start gap-3">
                 <MapPinIcon className="w-5 h-5 text-stone-400 mt-1 print:hidden" />
                 <div>
@@ -938,16 +928,17 @@ export default function OrderConfirmation() {
           </div>
         </div>
 
-        {/* Create Account Section */}
-        <div className="card p-8 mb-8 print:hidden">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-stone-800 mb-2 font-display">
-              Want to Track Your Orders?
-            </h2>
-            <p className="text-stone-600">
-              Create a free account to track your orders, save your preferences, and get exclusive offers.
-            </p>
-          </div>
+        {/* Create Account Section - Only show for guest users */}
+        {!isAuthenticated && guestInfo && (
+          <div className="card p-8 mb-8 print:hidden">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-stone-800 mb-2 font-display">
+                Want to Track Your Orders?
+              </h2>
+              <p className="text-stone-600">
+                Create a free account to track your orders, save your preferences, and get exclusive offers.
+              </p>
+            </div>
 
           {!showCreateAccount ? (
             <div className="text-center">
@@ -1055,6 +1046,7 @@ export default function OrderConfirmation() {
             </form>
           )}
         </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center print:hidden">

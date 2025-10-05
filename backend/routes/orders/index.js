@@ -449,6 +449,40 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       }
     }
 
+    // Send order creation notification
+    try {
+      const notificationData = {
+        type: 'order_completion',
+        userId: userId,
+        orderId: result.insertedId,
+        orderData: {
+          _id: result.insertedId,
+          orderNumber: result.insertedId,
+          totalAmount: totalAmount,
+          status: 'confirmed',
+          items: order.items,
+          deliveryAddress: order.deliveryAddress,
+          deliveryMethod: order.deliveryMethod,
+          isGuestOrder: order.isGuestOrder,
+          guestInfo: order.guestInfo
+        },
+        userInfo: {
+          id: userId,
+          isGuest: order.isGuestOrder,
+          email: order.isGuestOrder ? order.guestInfo?.email : null
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Send notification to backend notification service
+      const axios = require('axios');
+      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, notificationData);
+      console.log('✅ Order creation notification sent');
+    } catch (notificationError) {
+      console.error('❌ Error sending order creation notification:', notificationError);
+      // Don't fail the order creation if notification fails
+    }
+
     res.json({
       success: true,
       message: 'Order created successfully',
@@ -832,6 +866,35 @@ const updateOrderStatus = async (req, res) => {
     const updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
+    
+    // Send order status update notification
+    try {
+      const notificationData = {
+        type: 'order_update',
+        userId: updatedOrder.userId,
+        orderId: updatedOrder._id,
+        orderData: updatedOrder,
+        updateType: 'status_change',
+        updateDetails: {
+          newStatus: status,
+          previousStatus: req.body.previousStatus || 'unknown'
+        },
+        userInfo: {
+          id: updatedOrder.userId,
+          isGuest: updatedOrder.isGuestOrder,
+          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : null
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Send notification to backend notification service
+      const axios = require('axios');
+      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, notificationData);
+      console.log(`✅ Order status update notification sent for order ${updatedOrder._id}: ${status}`);
+    } catch (notificationError) {
+      console.error('❌ Error sending order status update notification:', notificationError);
+      // Don't fail the status update if notification fails
+    }
     
     // Connection managed by middleware - no close needed
     

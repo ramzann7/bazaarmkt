@@ -66,12 +66,12 @@ const generateOrderTimelineHTML = (currentStatus, deliveryMethod = 'pickup') => 
     
     const borderColor = isCancelled && index === 0 ? '#dc2626' :
                         isCompleted ? '#10b981' :
-                        isCurrent ? '#3b82f6' :
+                        isCurrent ? '#f59e0b' :
                         '#d1d5db';
     
     const textColor = isCancelled && index === 0 ? '#991b1b' :
                      isCompleted ? '#047857' :
-                     isCurrent ? '#1e40af' :
+                     isCurrent ? '#d97706' :
                      '#6b7280';
     
     const connector = index < steps.length - 1 ? `
@@ -173,10 +173,10 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
   const isDeclined = currentStatus === 'declined' || currentStatus === 'cancelled';
   const hasReason = updateDetails.reason && updateDetails.reason.trim().length > 0;
   
-  // Choose header color based on status
+  // Choose header color based on status using platform design system
   const headerGradient = isDeclined 
     ? 'background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);' 
-    : 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);';
+    : 'background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);'; // Amber gradient - platform primary color
   
   // Generate product items HTML if available
   const productsHTML = orderData.items && orderData.items.length > 0 ? `
@@ -188,12 +188,12 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
             <div style="font-weight: 600; color: #333;">${item.productName || item.product?.name || 'Product'}</div>
             <div style="font-size: 14px; color: #666;">Quantity: ${item.quantity}</div>
           </div>
-          <div class="product-price" style="font-weight: 600; color: #333; white-space: nowrap;">$${((item.unitPrice || 0) * (item.quantity || 0)).toFixed(2)}</div>
+          <div class="product-price" style="font-weight: 600; color: #f59e0b; white-space: nowrap;">$${((item.unitPrice || 0) * (item.quantity || 0)).toFixed(2)}</div>
         </div>
       `).join('')}
       <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #333;">
         <div style="font-weight: bold; font-size: 16px;">Total</div>
-        <div style="font-weight: bold; font-size: 16px; color: #667eea;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
+        <div style="font-weight: bold; font-size: 16px; color: #f59e0b;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
       </div>
     </div>
   ` : '';
@@ -214,8 +214,8 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
-    <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-      <h3 style="color: #1e40af; margin-top: 0;">🚚 Delivery Information</h3>
+    <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+      <h3 style="color: #d97706; margin-top: 0;">🚚 Delivery Information</h3>
       <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
       <p style="margin: 5px 0; color: #666;">
         ${orderData.deliveryAddress.street}<br>
@@ -265,7 +265,7 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
           body { background: white !important; }
           .email-container { max-width: 100% !important; padding: 0 !important; }
           .header { 
-            background: #667eea !important; 
+            background: #f59e0b !important; 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
           }
@@ -280,7 +280,7 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
         .responsive-flex { display: flex; flex-wrap: wrap; }
       </style>
     </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;" class="email-container">
+    <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;" class="email-container">
       <div class="header" style="${headerGradient} padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
         <h1 style="color: white; margin: 0; font-size: 28px;">${isDeclined ? '⚠️' : '📢'} Order Update</h1>
         <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Hello ${recipientName}!</p>
@@ -296,15 +296,15 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
         
         ${deliveryInfoHTML}
         
-        <div style="background: ${isDeclined ? '#fee2e2' : '#e0e7ff'}; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: ${isDeclined ? '#991b1b' : '#3730a3'}; margin-top: 0;">${nextAction.title}</h3>
-          <p style="margin: 5px 0 10px 0; color: ${isDeclined ? '#7f1d1d' : '#312e81'};">${nextAction.message}</p>
-          <div style="background: ${isDeclined ? '#fef2f2' : '#eef2ff'}; padding: 12px; border-radius: 6px; font-weight: 600; color: ${isDeclined ? '#7f1d1d' : '#4338ca'};">
+        <div style="background: ${isDeclined ? '#fee2e2' : '#fef3c7'}; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${isDeclined ? '#dc2626' : '#f59e0b'};">
+          <h3 style="color: ${isDeclined ? '#991b1b' : '#d97706'}; margin-top: 0;">${nextAction.title}</h3>
+          <p style="margin: 5px 0 10px 0; color: ${isDeclined ? '#7f1d1d' : '#92400e'};">${nextAction.message}</p>
+          <div style="background: ${isDeclined ? '#fef2f2' : '#fef3c7'}; padding: 12px; border-radius: 6px; font-weight: 600; color: ${isDeclined ? '#7f1d1d' : '#d97706'};">
             ${nextAction.action}
           </div>
         </div>
         
-        <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin-top: 25px;">
+        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin-top: 25px;">
           <h3 style="color: #2d5a2d; margin-top: 0;">Need Help?</h3>
           <p style="margin: 0;">If you have any questions about this update, please contact us at bazaar@bazaarmkt.ca</p>
         </div>
@@ -348,8 +348,8 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
-    <div style="background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6;">
-      <h3 style="color: #1e40af; margin-top: 0;">🚚 Delivery Information</h3>
+    <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+      <h3 style="color: #d97706; margin-top: 0;">🚚 Delivery Information</h3>
       <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
       <p style="margin: 5px 0; color: #666;">
         ${orderData.deliveryAddress.street}<br>
@@ -394,7 +394,7 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
           body { background: white !important; }
           .email-container { max-width: 100% !important; padding: 0 !important; }
           .header { 
-            background: #667eea !important; 
+            background: #f59e0b !important; 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
           }
@@ -409,8 +409,8 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
         .responsive-flex { display: flex; flex-wrap: wrap; }
       </style>
     </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;" class="email-container">
-      <div class="header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;" class="email-container">
+      <div class="header" style="background: linear-gradient(135deg, #f59e0b 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
         <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Order Confirmed!</h1>
         <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Thank you for your order, ${recipientName}!</p>
       </div>
@@ -420,7 +420,7 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
         <div class="order-summary" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 5px 0;"><strong>Order Number:</strong> #${orderData.orderNumber}</p>
           <p style="margin: 5px 0;"><strong>Order Date:</strong> ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: #667eea; font-size: 18px; font-weight: bold;">$${(orderData.totalAmount || 0).toFixed(2)}</span></p>
+          <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: #f59e0b; font-size: 18px; font-weight: bold;">$${(orderData.totalAmount || 0).toFixed(2)}</span></p>
         </div>
         
         ${generateOrderTimelineHTML(initialStatus, orderData.deliveryMethod)}
@@ -430,7 +430,7 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
           ${orderItems}
           <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #333;">
             <div style="font-weight: bold; font-size: 16px;">Total</div>
-            <div style="font-weight: bold; font-size: 16px; color: #667eea;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
+            <div style="font-weight: bold; font-size: 16px; color: #f59e0b;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
           </div>
         </div>
         
@@ -444,7 +444,7 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
           </div>
         </div>
         
-        <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin-top: 25px;">
+        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin-top: 25px;">
           <h3 style="color: #2d5a2d; margin-top: 0;">Need Help?</h3>
           <p style="margin: 0;">If you have any questions about your order, please contact us at bazaar@bazaarmkt.ca</p>
         </div>

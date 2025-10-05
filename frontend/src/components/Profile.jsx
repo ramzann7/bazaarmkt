@@ -1564,9 +1564,9 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
     }
   };
 
-  const removePaymentMethod = async (index) => {
+  const removePaymentMethod = async (idOrIndex) => {
     try {
-      console.log('🔄 Removing payment method at index:', index);
+      console.log('🔄 Removing payment method with ID/index:', idOrIndex);
       console.log('📊 All payment methods:', paymentMethods);
       console.log('📋 Payment method details:', paymentMethods.map((method, idx) => ({
         index: idx,
@@ -1578,21 +1578,40 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         brand: method.brand
       })));
       
-      // Get the payment method at the specified index
-      const paymentMethodToRemove = paymentMethods[index];
-      if (!paymentMethodToRemove) {
-        throw new Error('Payment method not found at index ' + index);
+      // Try to find payment method by ID first, then by index
+      let paymentMethodToRemove;
+      let removalId = idOrIndex;
+      
+      // If it's a number, treat it as an index (for backward compatibility)
+      if (typeof idOrIndex === 'number' || !isNaN(parseInt(idOrIndex))) {
+        const index = parseInt(idOrIndex);
+        paymentMethodToRemove = paymentMethods[index];
+        if (!paymentMethodToRemove) {
+          throw new Error('Payment method not found at index ' + index);
+        }
+        removalId = paymentMethodToRemove.id || paymentMethodToRemove._id || index.toString();
+      } else {
+        // Try to find by ID
+        paymentMethodToRemove = paymentMethods.find(method => 
+          method.id === idOrIndex || method._id === idOrIndex
+        );
+        if (!paymentMethodToRemove) {
+          throw new Error('Payment method not found with ID ' + idOrIndex);
+        }
+        removalId = idOrIndex;
       }
       
       console.log('🔍 Payment method to remove:', paymentMethodToRemove);
+      console.log('🆔 Using removal ID:', removalId);
       
-      // For now, use the array index as the ID since payment methods don't have proper IDs
-      // TODO: Generate proper UUIDs for payment methods when they're created
-      await profileService.deletePaymentMethod(index.toString());
+      // Use the ID for backend deletion
+      await profileService.deletePaymentMethod(removalId);
       console.log('✅ Payment method deleted from backend');
       
-      // Update local state - remove the payment method at the specified index
-      const updatedMethods = paymentMethods.filter((method, idx) => idx !== index);
+      // Update local state - remove the payment method by ID
+      const updatedMethods = paymentMethods.filter(method => 
+        method.id !== removalId && method._id !== removalId
+      );
       setPaymentMethods(updatedMethods);
       
       // Update the profile with the new payment methods array
@@ -2075,7 +2094,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         </div>
       )}
 
-      {paymentMethods.map((method, index) => (
+      {(paymentMethods || []).map((method, index) => (
         <div key={method._id || `payment-${index}`} className="border border-gray-200 rounded-lg p-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
@@ -2096,7 +2115,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
             </div>
             <button
               type="button"
-              onClick={() => removePaymentMethod(index)}
+              onClick={() => removePaymentMethod(method.id || method._id || index)}
               className="text-red-600 hover:text-red-700"
             >
               <TrashIcon className="w-4 h-4" />

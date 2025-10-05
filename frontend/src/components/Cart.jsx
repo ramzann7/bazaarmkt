@@ -1229,7 +1229,9 @@ const Cart = () => {
             return;
         }
       }
-      setCheckoutStep('payment');
+      
+      // Create payment intent and go to payment step
+      await handleCheckout();
     }
   };
 

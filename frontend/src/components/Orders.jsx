@@ -663,7 +663,11 @@ export default function Orders() {
         </div>
 
         {/* Orders List */}
-        {filteredOrders.length === 0 ? (
+        {(() => {
+          console.log('🔍 Conditional check - filteredOrders.length:', filteredOrders.length);
+          console.log('🔍 Conditional check - filteredOrders.length === 0:', filteredOrders.length === 0);
+          return filteredOrders.length === 0;
+        })() ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShoppingBagIcon className="w-12 h-12 text-gray-400" />

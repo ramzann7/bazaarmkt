@@ -314,6 +314,70 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
 
     const result = await ordersCollection.insertOne(order);
 
+    // Reduce inventory for each product in the order
+    const productsCollection = db.collection('products');
+    const inventoryUpdates = [];
+    
+    for (const item of order.items) {
+      try {
+        const product = await productsCollection.findOne({ 
+          _id: new (require('mongodb')).ObjectId(item.productId) 
+        });
+        
+        if (product) {
+          // Prepare inventory update based on product type
+          const updateFields = {
+            soldCount: (product.soldCount || 0) + item.quantity,
+            updatedAt: new Date()
+          };
+          
+          // Update the appropriate inventory field based on product type
+          if (product.productType === 'ready_to_ship') {
+            updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else if (product.productType === 'made_to_order') {
+            updateFields.remainingCapacity = Math.max(0, (product.remainingCapacity || 0) - item.quantity);
+          } else if (product.productType === 'scheduled_order') {
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else {
+            // Fallback for unknown types
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+            if (product.productType === 'ready_to_ship') {
+              updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            }
+          }
+          
+          // Update product status based on remaining inventory
+          const remainingStock = product.productType === 'ready_to_ship' ? updateFields.stock : 
+                                product.productType === 'made_to_order' ? updateFields.remainingCapacity :
+                                product.productType === 'scheduled_order' ? updateFields.availableQuantity : 0;
+          
+          updateFields.status = remainingStock > 0 ? 'active' : 'out_of_stock';
+          
+          // Update the product
+          await productsCollection.updateOne(
+            { _id: new (require('mongodb')).ObjectId(item.productId) },
+            { $set: updateFields }
+          );
+          
+          inventoryUpdates.push({
+            productId: item.productId,
+            productName: product.name,
+            quantityReduced: item.quantity,
+            remainingStock: remainingStock,
+            newStatus: updateFields.status
+          });
+          
+          console.log(`✅ Inventory reduced for product ${product.name}: -${item.quantity}, remaining: ${remainingStock}`);
+        } else {
+          console.warn(`⚠️ Product not found for inventory reduction: ${item.productId}`);
+        }
+      } catch (inventoryError) {
+        console.error(`❌ Error reducing inventory for product ${item.productId}:`, inventoryError);
+        // Continue with other products even if one fails
+      }
+    }
+
     // Record wallet transaction for artisans if applicable
     if (order.items.length > 0) {
       const recordWalletTransaction = req.app.locals.recordWalletTransaction;
@@ -339,7 +403,8 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       data: {
         orderId: result.insertedId,
         paymentIntentId: paymentIntentId,
-        totalAmount: totalAmount
+        totalAmount: totalAmount,
+        inventoryUpdates: inventoryUpdates // Include inventory update details
       }
     });
   } catch (error) {
@@ -401,11 +466,29 @@ const createOrder = async (req, res) => {
         });
       }
       
-      if (product.availableQuantity < item.quantity) {
-        // Connection managed by middleware - no close needed
+      // Check inventory availability based on product type
+      let hasEnoughInventory = false;
+      let availableQuantity = 0;
+      
+      if (product.productType === 'ready_to_ship') {
+        availableQuantity = Math.min(product.stock || 0, product.availableQuantity || 0);
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'made_to_order') {
+        availableQuantity = product.remainingCapacity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'scheduled_order') {
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else {
+        // Fallback for unknown types
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      }
+      
+      if (!hasEnoughInventory) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient quantity for product ${product.name}`
+          message: `Insufficient inventory for product ${product.name}. Available: ${availableQuantity}, Requested: ${item.quantity}`
         });
       }
       
@@ -447,17 +530,60 @@ const createOrder = async (req, res) => {
     const result = await ordersCollection.insertOne(order);
     const orderId = result.insertedId;
     
-    // Update product quantities
+    // Update product quantities based on product type
+    const inventoryUpdates = [];
     for (const item of validatedItems) {
-      await productsCollection.updateOne(
-        { _id: item.productId },
-        { 
-          $inc: { 
-            availableQuantity: -item.quantity,
-            soldCount: item.quantity
+      try {
+        const product = await productsCollection.findOne({ _id: item.productId });
+        if (product) {
+          // Prepare inventory update based on product type
+          const updateFields = {
+            soldCount: (product.soldCount || 0) + item.quantity,
+            updatedAt: new Date()
+          };
+          
+          // Update the appropriate inventory field based on product type
+          if (product.productType === 'ready_to_ship') {
+            updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else if (product.productType === 'made_to_order') {
+            updateFields.remainingCapacity = Math.max(0, (product.remainingCapacity || 0) - item.quantity);
+          } else if (product.productType === 'scheduled_order') {
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else {
+            // Fallback for unknown types
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+            if (product.productType === 'ready_to_ship') {
+              updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            }
           }
+          
+          // Update product status based on remaining inventory
+          const remainingStock = product.productType === 'ready_to_ship' ? updateFields.stock : 
+                                product.productType === 'made_to_order' ? updateFields.remainingCapacity :
+                                product.productType === 'scheduled_order' ? updateFields.availableQuantity : 0;
+          
+          updateFields.status = remainingStock > 0 ? 'active' : 'out_of_stock';
+          
+          // Update the product
+          await productsCollection.updateOne(
+            { _id: item.productId },
+            { $set: updateFields }
+          );
+          
+          inventoryUpdates.push({
+            productId: item.productId,
+            productName: product.name,
+            quantityReduced: item.quantity,
+            remainingStock: remainingStock,
+            newStatus: updateFields.status
+          });
+          
+          console.log(`✅ Inventory reduced for product ${product.name}: -${item.quantity}, remaining: ${remainingStock}`);
         }
-      );
+      } catch (inventoryError) {
+        console.error(`❌ Error reducing inventory for product ${item.productId}:`, inventoryError);
+      }
     }
     
     // Connection managed by middleware - no close needed
@@ -1030,10 +1156,29 @@ const createGuestOrder = async (req, res) => {
         });
       }
       
-      if (product.availableQuantity < item.quantity) {
+      // Check inventory availability based on product type
+      let hasEnoughInventory = false;
+      let availableQuantity = 0;
+      
+      if (product.productType === 'ready_to_ship') {
+        availableQuantity = Math.min(product.stock || 0, product.availableQuantity || 0);
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'made_to_order') {
+        availableQuantity = product.remainingCapacity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else if (product.productType === 'scheduled_order') {
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      } else {
+        // Fallback for unknown types
+        availableQuantity = product.availableQuantity || 0;
+        hasEnoughInventory = availableQuantity >= item.quantity;
+      }
+      
+      if (!hasEnoughInventory) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient quantity for product ${product.name}`
+          message: `Insufficient inventory for product ${product.name}. Available: ${availableQuantity}, Requested: ${item.quantity}`
         });
       }
       
@@ -1078,17 +1223,60 @@ const createGuestOrder = async (req, res) => {
     const result = await ordersCollection.insertOne(order);
     const orderId = result.insertedId;
     
-    // Update product quantities
+    // Update product quantities based on product type
+    const inventoryUpdates = [];
     for (const item of validatedItems) {
-      await productsCollection.updateOne(
-        { _id: item.productId },
-        { 
-          $inc: { 
-            availableQuantity: -item.quantity,
-            soldCount: item.quantity
+      try {
+        const product = await productsCollection.findOne({ _id: item.productId });
+        if (product) {
+          // Prepare inventory update based on product type
+          const updateFields = {
+            soldCount: (product.soldCount || 0) + item.quantity,
+            updatedAt: new Date()
+          };
+          
+          // Update the appropriate inventory field based on product type
+          if (product.productType === 'ready_to_ship') {
+            updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else if (product.productType === 'made_to_order') {
+            updateFields.remainingCapacity = Math.max(0, (product.remainingCapacity || 0) - item.quantity);
+          } else if (product.productType === 'scheduled_order') {
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else {
+            // Fallback for unknown types
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+            if (product.productType === 'ready_to_ship') {
+              updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            }
           }
+          
+          // Update product status based on remaining inventory
+          const remainingStock = product.productType === 'ready_to_ship' ? updateFields.stock : 
+                                product.productType === 'made_to_order' ? updateFields.remainingCapacity :
+                                product.productType === 'scheduled_order' ? updateFields.availableQuantity : 0;
+          
+          updateFields.status = remainingStock > 0 ? 'active' : 'out_of_stock';
+          
+          // Update the product
+          await productsCollection.updateOne(
+            { _id: item.productId },
+            { $set: updateFields }
+          );
+          
+          inventoryUpdates.push({
+            productId: item.productId,
+            productName: product.name,
+            quantityReduced: item.quantity,
+            remainingStock: remainingStock,
+            newStatus: updateFields.status
+          });
+          
+          console.log(`✅ Inventory reduced for product ${product.name}: -${item.quantity}, remaining: ${remainingStock}`);
         }
-      );
+      } catch (inventoryError) {
+        console.error(`❌ Error reducing inventory for product ${item.productId}:`, inventoryError);
+      }
     }
     
     res.status(201).json({

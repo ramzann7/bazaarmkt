@@ -78,6 +78,12 @@ export default function Orders() {
       
       // Debug logging to check order data structure
       console.log('🔍 Orders data received:', ordersData);
+      console.log('🔍 Orders count:', ordersData.length);
+      console.log('🔍 All order IDs:', ordersData.map(order => ({
+        _id: order._id,
+        status: order.status,
+        createdAt: order.createdAt
+      })));
       if (ordersData.length > 0) {
         console.log('🔍 First order structure:', {
           _id: ordersData[0]._id,
@@ -418,6 +424,15 @@ export default function Orders() {
 
   const stats = getOrderStats();
   const filteredOrders = getFilteredOrders();
+  
+  // Debug filtering
+  console.log('🔍 Current filter:', filter);
+  console.log('🔍 Total orders:', orders.length);
+  console.log('🔍 Filtered orders count:', filteredOrders.length);
+  console.log('🔍 Filtered order IDs:', filteredOrders.map(order => ({
+    _id: order._id,
+    status: order.status
+  })));
 
   if (isLoading) {
     return (

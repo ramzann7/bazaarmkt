@@ -1308,10 +1308,25 @@ const Cart = () => {
   };
 
   // Handle payment success
-  const handlePaymentSuccess = (orderData) => {
+  const handlePaymentSuccess = async (orderData) => {
     console.log('Payment successful, order created:', orderData);
       
-      // Clear cart
+    // Send order completion notification
+    try {
+      const userInfo = {
+        id: user?.id || currentUserId,
+        email: user?.email,
+        isGuest: !user
+      };
+      
+      await notificationService.sendOrderCompletionNotification(orderData, userInfo);
+      console.log('✅ Order completion notification sent');
+    } catch (notificationError) {
+      console.error('❌ Error sending order completion notification:', notificationError);
+      // Don't fail the order flow if notification fails
+    }
+      
+    // Clear cart
     cartService.clearCart(currentUserId);
     
     // Navigate to order confirmation with the correct data structure

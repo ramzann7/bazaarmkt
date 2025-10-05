@@ -76,25 +76,6 @@ export default function Orders() {
         ordersData = await orderService.getPatronOrders();
       }
       
-      // Debug logging to check order data structure
-      console.log('🔍 Orders data received:', ordersData);
-      console.log('🔍 Orders count:', ordersData.length);
-      console.log('🔍 All order IDs:', ordersData.map(order => ({
-        _id: order._id,
-        status: order.status,
-        createdAt: order.createdAt
-      })));
-      if (ordersData.length > 0) {
-        console.log('🔍 First order structure:', {
-          _id: ordersData[0]._id,
-          hasArtisan: !!ordersData[0].artisan,
-          artisanName: ordersData[0].artisan?.artisanName,
-          artisanEmail: ordersData[0].artisan?.email,
-          artisanPhone: ordersData[0].artisan?.phone,
-          hasPatron: !!ordersData[0].patron,
-          patronName: ordersData[0].patron ? `${ordersData[0].patron.firstName} ${ordersData[0].patron.lastName}` : 'No patron'
-        });
-      }
       
       setOrders(ordersData);
     } catch (error) {
@@ -425,15 +406,6 @@ export default function Orders() {
   const stats = getOrderStats();
   const filteredOrders = getFilteredOrders();
   
-  // Debug filtering
-  console.log('🔍 Current filter:', filter);
-  console.log('🔍 View mode:', viewMode);
-  console.log('🔍 Total orders:', orders.length);
-  console.log('🔍 Filtered orders count:', filteredOrders.length);
-  console.log('🔍 Filtered order IDs:', filteredOrders.map(order => ({
-    _id: order._id,
-    status: order.status
-  })));
 
   if (isLoading) {
     return (
@@ -663,11 +635,7 @@ export default function Orders() {
         </div>
 
         {/* Orders List */}
-        {(() => {
-          console.log('🔍 Conditional check - filteredOrders.length:', filteredOrders.length);
-          console.log('🔍 Conditional check - filteredOrders.length === 0:', filteredOrders.length === 0);
-          return filteredOrders.length === 0;
-        })() ? (
+        {filteredOrders.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShoppingBagIcon className="w-12 h-12 text-gray-400" />
@@ -701,13 +669,6 @@ export default function Orders() {
               const priorityInfo = userRole === 'artisan' ? getPriorityInfo(order) : null;
               const orderIsUrgent = userRole === 'artisan' ? isUrgent(order) : false;
               
-              console.log(`🔍 Rendering order ${index + 1}:`, {
-                _id: order._id,
-                status: order.status,
-                priorityInfo: priorityInfo?.level,
-                isUrgent: orderIsUrgent
-              });
-              
               return (
                 <div
                   key={order._id}
@@ -720,12 +681,6 @@ export default function Orders() {
                           ? 'border-yellow-300 bg-yellow-50 shadow-yellow-100'
                           : 'border-gray-200'
                   }`}
-                  style={{ 
-                    border: '3px solid red', 
-                    backgroundColor: 'yellow', 
-                    minHeight: '200px',
-                    marginBottom: '20px'
-                  }}
                   onClick={() => handleOrderClick(order)}
                 >
                 {/* Order Header */}

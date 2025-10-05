@@ -8,6 +8,7 @@ const router = express.Router();
 const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
+const PlatformSettingsService = require('../services/platformSettingsService');
 
 // Create payment intent for order
 const createPaymentIntent = async (req, res) => {
@@ -119,10 +120,11 @@ const createPaymentIntent = async (req, res) => {
 
     const finalAmount = totalAmount + deliveryFee;
 
-    // Create Stripe PaymentIntent
+    // Create Stripe PaymentIntent with authorization (not immediate capture)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100), // Convert to cents
       currency: 'cad',
+      capture_method: 'manual', // Authorize now, capture later
       metadata: {
         userId: decoded.userId.toString(),
         orderType: 'regular_order',
@@ -257,10 +259,11 @@ const createGuestPaymentIntent = async (req, res) => {
 
     const finalAmount = totalAmount + deliveryFee;
 
-    // Create Stripe PaymentIntent for guest
+    // Create Stripe PaymentIntent for guest with authorization (not immediate capture)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100), // Convert to cents
       currency: 'cad',
+      capture_method: 'manual', // Authorize now, capture later
       metadata: {
         orderType: 'guest_order',
         guestEmail: guestInfo?.email || 'guest@example.com',
@@ -403,7 +406,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       items: enrichedItems,
       totalAmount: totalAmount,
       status: 'pending', // Orders start as pending confirmation by artisan
-      paymentStatus: 'paid',
+      paymentStatus: 'authorized', // Payment authorized but not captured until order completion
       paymentMethod: 'stripe',
       paymentIntentId: paymentIntentId,
       deliveryAddress: orderData.deliveryAddress || {},
@@ -496,14 +499,17 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         // Get artisan from first item
         const artisanId = order.items[0].artisanId;
         if (artisanId) {
-          await recordWalletTransaction({
-            artisanId: artisanId,
-            type: 'order_revenue',
-            amount: totalAmount * 0.85, // 85% to artisan, 15% platform fee
-            description: `Revenue from order #${result.insertedId}`,
-            status: 'completed',
-            orderId: result.insertedId
-          });
+        // Note: This is for legacy orders that were created with immediate payment
+        // New orders will use the capture payment flow with proper platform fee calculation
+        await recordWalletTransaction({
+          artisanId: artisanId,
+          type: 'order_revenue',
+          amount: totalAmount * 0.85, // 85% to artisan, 15% platform fee (legacy)
+          description: `Legacy revenue from order #${result.insertedId} (immediate payment)`,
+          status: 'completed',
+          orderId: result.insertedId,
+          isLegacy: true
+        });
         }
       }
     }
@@ -1807,6 +1813,296 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+// Capture payment and transfer to artisan (with platform fee)
+const capturePaymentAndTransfer = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (!(require('mongodb')).ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid order ID format'
+      });
+    }
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
+    
+    // Find the order
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id)
+    });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Check if order is ready for payment capture
+    if (!['delivered', 'picked_up', 'completed'].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order must be completed before payment can be captured'
+      });
+    }
+    
+    if (order.paymentStatus !== 'authorized') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment is not in authorized state'
+      });
+    }
+    
+    // Calculate platform fee using platform settings
+    const platformSettingsService = new PlatformSettingsService(db);
+    const feeCalculation = await platformSettingsService.calculatePlatformFee(order.totalAmount, 'order');
+    const { platformFee, artisanAmount } = feeCalculation;
+    
+    try {
+      // Capture the payment
+      const paymentIntent = await stripe.paymentIntents.capture(order.paymentIntentId);
+      
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment capture failed'
+        });
+      }
+      
+      // Find the artisan
+      const artisan = await artisansCollection.findOne({
+        _id: new (require('mongodb')).ObjectId(order.artisan)
+      });
+      
+      if (!artisan || !artisan.stripeConnectAccountId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Artisan Stripe Connect account not found'
+        });
+      }
+      
+      // Create transfer to artisan (with platform fee deduction)
+      const transfer = await stripe.transfers.create({
+        amount: Math.round(artisanAmount * 100), // Convert to cents
+        currency: 'cad',
+        destination: artisan.stripeConnectAccountId,
+        metadata: {
+          orderId: order._id.toString(),
+          platformFee: platformFee.toString(),
+          artisanAmount: artisanAmount.toString()
+        }
+      });
+      
+      // Update order with captured payment status
+      await ordersCollection.updateOne(
+        { _id: new (require('mongodb')).ObjectId(req.params.id) },
+        { 
+          $set: { 
+            paymentStatus: 'captured',
+            paymentCapturedAt: new Date(),
+            platformFee: platformFee,
+            artisanAmount: artisanAmount,
+            stripeTransferId: transfer.id,
+            updatedAt: new Date()
+          }
+        }
+      );
+      
+      // Update wallet balance
+      const walletsCollection = db.collection('wallets');
+      await walletsCollection.updateOne(
+        { artisanId: order.artisan },
+        {
+          $inc: { balance: artisanAmount },
+          $set: { updatedAt: new Date() }
+        },
+        { upsert: true }
+      );
+
+      // Record wallet transaction for artisan
+      await recordWalletTransaction({
+        artisanId: order.artisan,
+        type: 'order_revenue',
+        amount: artisanAmount,
+        description: `Revenue from order #${order._id} (after ${(feeCalculation.feeRate * 100).toFixed(1)}% platform fee)`,
+        status: 'completed',
+        orderId: order._id,
+        stripeTransferId: transfer.id,
+        platformFee: platformFee,
+        platformFeeRate: feeCalculation.feeRate,
+        totalOrderAmount: order.totalAmount
+      });
+      
+      res.json({
+        success: true,
+        message: 'Payment captured and transferred successfully',
+        data: {
+          orderId: order._id,
+          capturedAmount: order.totalAmount,
+          platformFee: platformFee,
+          artisanAmount: artisanAmount,
+          transferId: transfer.id
+        }
+      });
+      
+    } catch (stripeError) {
+      console.error('Stripe error:', stripeError);
+      return res.status(400).json({
+        success: false,
+        message: 'Payment processing failed',
+        error: stripeError.message
+      });
+    }
+    
+  } catch (error) {
+    console.error('Capture payment error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to capture payment',
+      error: error.message
+    });
+  }
+};
+
+// Auto-capture payment after 48 hours (cron job endpoint)
+const autoCapturePayment = async (req, res) => {
+  try {
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    // Get auto-capture timing from platform settings
+    const platformSettingsService = new PlatformSettingsService(db);
+    const paymentSettings = await platformSettingsService.getPaymentSettings();
+    const autoCaptureHours = paymentSettings.autoCaptureHours || 48;
+    const autoCaptureTime = new Date(Date.now() - autoCaptureHours * 60 * 60 * 1000);
+    
+    const ordersToCapture = await ordersCollection.find({
+      status: { $in: ['delivered', 'picked_up', 'completed'] },
+      paymentStatus: 'authorized',
+      updatedAt: { $lte: autoCaptureTime }
+    }).toArray();
+    
+    let capturedCount = 0;
+    let errors = [];
+    
+    for (const order of ordersToCapture) {
+      try {
+        // Calculate platform fee using platform settings
+        const platformSettingsService = new PlatformSettingsService(db);
+        const feeCalculation = await platformSettingsService.calculatePlatformFee(order.totalAmount, 'order');
+        const { platformFee, artisanAmount } = feeCalculation;
+        
+        // Capture the payment
+        const paymentIntent = await stripe.paymentIntents.capture(order.paymentIntentId);
+        
+        if (paymentIntent.status === 'succeeded') {
+          // Find the artisan
+          const artisansCollection = db.collection('artisans');
+          const artisan = await artisansCollection.findOne({
+            _id: new (require('mongodb')).ObjectId(order.artisan)
+          });
+          
+          if (artisan && artisan.stripeConnectAccountId) {
+            // Create transfer to artisan
+            const transfer = await stripe.transfers.create({
+              amount: Math.round(artisanAmount * 100),
+              currency: 'cad',
+              destination: artisan.stripeConnectAccountId,
+              metadata: {
+                orderId: order._id.toString(),
+                platformFee: platformFee.toString(),
+                artisanAmount: artisanAmount.toString(),
+                autoCapture: 'true'
+              }
+            });
+            
+            // Update order
+            await ordersCollection.updateOne(
+              { _id: order._id },
+              { 
+                $set: { 
+                  paymentStatus: 'captured',
+                  paymentCapturedAt: new Date(),
+                  platformFee: platformFee,
+                  artisanAmount: artisanAmount,
+                  stripeTransferId: transfer.id,
+                  autoCaptured: true,
+                  updatedAt: new Date()
+                }
+              }
+            );
+            
+            // Update wallet balance
+            const walletsCollection = db.collection('wallets');
+            await walletsCollection.updateOne(
+              { artisanId: order.artisan },
+              {
+                $inc: { balance: artisanAmount },
+                $set: { updatedAt: new Date() }
+              },
+              { upsert: true }
+            );
+
+            // Record wallet transaction
+            await recordWalletTransaction({
+              artisanId: order.artisan,
+              type: 'order_revenue',
+              amount: artisanAmount,
+              description: `Auto-captured revenue from order #${order._id} (after ${(feeCalculation.feeRate * 100).toFixed(1)}% platform fee)`,
+              status: 'completed',
+              orderId: order._id,
+              stripeTransferId: transfer.id,
+              platformFee: platformFee,
+              platformFeeRate: feeCalculation.feeRate,
+              totalOrderAmount: order.totalAmount,
+              autoCaptured: true
+            });
+            
+            capturedCount++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error auto-capturing payment for order ${order._id}:`, error);
+        errors.push({ orderId: order._id, error: error.message });
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Auto-capture completed. ${capturedCount} payments captured.`,
+      data: {
+        capturedCount,
+        errors: errors.length > 0 ? errors : null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Auto-capture error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to auto-capture payments',
+      error: error.message
+    });
+  }
+};
+
 // Update payment status
 const updatePaymentStatus = async (req, res) => {
   try {
@@ -1828,7 +2124,7 @@ const updatePaymentStatus = async (req, res) => {
       });
     }
     
-    const validStatuses = ['pending', 'paid', 'failed', 'refunded'];
+    const validStatuses = ['pending', 'authorized', 'captured', 'paid', 'failed', 'refunded'];
     if (!validStatuses.includes(paymentStatus)) {
       return res.status(400).json({
         success: false,
@@ -2062,6 +2358,8 @@ router.get('/:id', getOrderById);
 router.put('/:id/status', updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);
 router.put('/:id/payment', updatePaymentStatus);
+router.post('/:id/capture-payment', capturePaymentAndTransfer);
+router.post('/auto-capture-payments', autoCapturePayment);
 router.post('/:id/confirm-receipt', confirmOrderReceipt);
 
 // Get patron completed orders (delivered, completed, cancelled)

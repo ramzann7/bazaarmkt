@@ -192,6 +192,7 @@ const adminRoutes = require('./routes/admin');
 const revenueRoutes = require('./routes/revenue');
 const spotlightRoutes = require('./routes/spotlight');
 const geocodingRoutes = require('./routes/geocoding');
+const platformSettingsRoutes = require('./routes/platform-settings');
 
 // ============================================================================
 // WALLET TRANSACTION HELPER FUNCTIONS
@@ -256,6 +257,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/revenue', revenueRoutes);
 app.use('/api/spotlight', spotlightRoutes);
 app.use('/api/geocoding', geocodingRoutes);
+app.use('/api/platform-settings', platformSettingsRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS

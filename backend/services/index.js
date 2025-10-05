@@ -16,7 +16,8 @@ const initServices = async () => {
     WalletService: require('./WalletService'),
     InventoryService: require('./InventoryService'),
     AuthService: require('./AuthService'),
-    BaseService: require('./BaseService')
+    BaseService: require('./BaseService'),
+    PlatformSettingsService: require('./platformSettingsService')
   };
 };
 
@@ -39,5 +40,6 @@ module.exports = {
   createSpotlightService: createService(require('./SpotlightService')),
   createWalletService: createService(require('./WalletService')),
   createInventoryService: createService(require('./InventoryService')),
-  createAuthService: createService(require('./AuthService'))
+  createAuthService: createService(require('./AuthService')),
+  createPlatformSettingsService: createService(require('./platformSettingsService'))
 };

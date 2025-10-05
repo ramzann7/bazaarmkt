@@ -1425,26 +1425,44 @@ const getArtisanOrders = async (req, res) => {
       console.log('🔍 Manual filter found:', orders.length);
     }
     
-    // Add artisan info to orders
-    const ordersWithArtisan = orders.map(order => ({
-      ...order,
-      artisanInfo: artisan
+    // Populate patron information for each order (artisans need to see who bought their products)
+    const usersCollection = db.collection('users');
+    const ordersWithPatronInfo = await Promise.all(orders.map(async (order) => {
+      let patronInfo = null;
+      
+      // Get patron information if order has userId (not a guest order)
+      if (order.userId && !order.isGuestOrder) {
+        patronInfo = await usersCollection.findOne({ _id: order.userId });
+      }
+      
+      return {
+        ...order,
+        artisanInfo: artisan,
+        patron: patronInfo ? {
+          _id: patronInfo._id,
+          firstName: patronInfo.firstName,
+          lastName: patronInfo.lastName,
+          email: patronInfo.email,
+          phone: patronInfo.phone
+        } : null
+      };
     }));
     
-    console.log('🔍 Final orders count:', ordersWithArtisan.length);
-    console.log('🔍 Sample order structure:', ordersWithArtisan.length > 0 ? {
-      _id: ordersWithArtisan[0]._id,
-      status: ordersWithArtisan[0].status,
-      totalAmount: ordersWithArtisan[0].totalAmount,
-      itemsCount: ordersWithArtisan[0].items?.length || 0,
-      createdAt: ordersWithArtisan[0].createdAt
+    console.log('🔍 Final orders count:', ordersWithPatronInfo.length);
+    console.log('🔍 Sample order structure:', ordersWithPatronInfo.length > 0 ? {
+      _id: ordersWithPatronInfo[0]._id,
+      status: ordersWithPatronInfo[0].status,
+      totalAmount: ordersWithPatronInfo[0].totalAmount,
+      itemsCount: ordersWithPatronInfo[0].items?.length || 0,
+      createdAt: ordersWithPatronInfo[0].createdAt,
+      hasPatron: !!ordersWithPatronInfo[0].patron
     } : 'No orders');
     
     res.json({
       success: true,
-      data: ordersWithArtisan,
-      orders: ordersWithArtisan, // Frontend compatibility
-      count: ordersWithArtisan.length
+      data: ordersWithPatronInfo,
+      orders: ordersWithPatronInfo, // Frontend compatibility
+      count: ordersWithPatronInfo.length
     });
   } catch (error) {
     console.error('Get artisan orders error:', error);
@@ -2607,11 +2625,33 @@ const getArtisanCompletedOrders = async (req, res) => {
         .toArray();
     }
     
+    // Populate patron information for each order (artisans need to see who bought their products)
+    const usersCollection = db.collection('users');
+    const ordersWithPatronInfo = await Promise.all(orders.map(async (order) => {
+      let patronInfo = null;
+      
+      // Get patron information if order has userId (not a guest order)
+      if (order.userId && !order.isGuestOrder) {
+        patronInfo = await usersCollection.findOne({ _id: order.userId });
+      }
+      
+      return {
+        ...order,
+        patron: patronInfo ? {
+          _id: patronInfo._id,
+          firstName: patronInfo.firstName,
+          lastName: patronInfo.lastName,
+          email: patronInfo.email,
+          phone: patronInfo.phone
+        } : null
+      };
+    }));
+    
     res.json({
       success: true,
-      data: { orders },
-      orders: orders, // Frontend compatibility
-      count: orders.length
+      data: { orders: ordersWithPatronInfo },
+      orders: ordersWithPatronInfo, // Frontend compatibility
+      count: ordersWithPatronInfo.length
     });
   } catch (error) {
     console.error('Get artisan completed orders error:', error);

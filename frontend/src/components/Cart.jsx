@@ -1312,11 +1312,11 @@ const Cart = () => {
     cartService.clearCart(currentUserId);
     
     // Navigate to order confirmation with the correct data structure
-      navigate('/order-confirmation', { 
-        state: { 
-        orders: orderData, // OrderConfirmation expects 'orders' not 'orderData'
-          message: 'Order placed successfully!',
-          orderSummary: {
+    navigate('/order-confirmation', { 
+      state: { 
+        orders: [orderData], // Wrap single order in array for OrderConfirmation component
+        message: 'Order placed successfully!',
+        orderSummary: {
           total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
           itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
           items: cart
@@ -1525,10 +1525,6 @@ const Cart = () => {
     }
 
     // Show Stripe payment form
-    console.log('🔍 Payment step - paymentIntent:', paymentIntent);
-    console.log('🔍 Payment step - stripePromise:', stripePromise);
-    console.log('🔍 Payment step - VITE_STRIPE_PUBLISHABLE_KEY:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-    
     if (paymentIntent && stripePromise) {
                       return (
         <div className="min-h-screen bg-background py-8">

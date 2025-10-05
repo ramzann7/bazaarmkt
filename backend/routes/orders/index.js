@@ -1325,12 +1325,12 @@ const getArtisanOrders = async (req, res) => {
     // Try multiple approaches to find orders for this artisan
     let orders = [];
     
-    // Approach 1: Direct match with ObjectId on order.artisan field
-    console.log('🔍 Trying direct ObjectId match on order.artisan...');
+    // Approach 1: Match with artisan object structure (artisan._id)
+    console.log('🔍 Trying match on order.artisan._id...');
     orders = await ordersCollection
       .find({
-        artisan: artisan._id,
-        status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
+        'artisan._id': artisan._id,
+        status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude only truly completed orders
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -1338,12 +1338,12 @@ const getArtisanOrders = async (req, res) => {
     
     console.log('🔍 Direct ObjectId match on order.artisan found:', orders.length);
     
-    // Approach 2: If no orders found, try string match on order.artisan
+    // Approach 2: If no orders found, try string match on order.artisan._id
     if (orders.length === 0) {
-      console.log('🔍 Trying string match on order.artisan...');
+      console.log('🔍 Trying string match on order.artisan._id...');
       orders = await ordersCollection
         .find({
-          artisan: artisan._id.toString(),
+          'artisan._id': artisan._id.toString(),
           status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
         })
         .sort({ createdAt: -1 })
@@ -1438,6 +1438,8 @@ const getArtisanOrders = async (req, res) => {
       return {
         ...order,
         artisanInfo: artisan,
+        // Preserve the original artisan data for frontend compatibility
+        artisan: order.artisan || artisan,
         patron: patronInfo ? {
           _id: patronInfo._id,
           firstName: patronInfo.firstName,
@@ -2594,7 +2596,7 @@ const getArtisanCompletedOrders = async (req, res) => {
     // Try different approaches to find orders
     orders = await ordersCollection
       .find({
-        artisan: artisan._id,
+        'artisan._id': artisan._id,
         status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
       })
       .sort({ createdAt: -1 })
@@ -2605,7 +2607,7 @@ const getArtisanCompletedOrders = async (req, res) => {
     if (orders.length === 0) {
       orders = await ordersCollection
         .find({
-          artisan: artisan._id.toString(),
+          'artisan._id': artisan._id.toString(),
           status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
         })
         .sort({ createdAt: -1 })
@@ -2637,6 +2639,8 @@ const getArtisanCompletedOrders = async (req, res) => {
       
       return {
         ...order,
+        // Preserve the original artisan data for frontend compatibility
+        artisan: order.artisan || artisan,
         patron: patronInfo ? {
           _id: patronInfo._id,
           firstName: patronInfo.firstName,

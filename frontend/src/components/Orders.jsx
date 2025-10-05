@@ -716,6 +716,12 @@ export default function Orders() {
                           ? 'border-yellow-300 bg-yellow-50 shadow-yellow-100'
                           : 'border-gray-200'
                   }`}
+                  style={{ 
+                    border: '3px solid red', 
+                    backgroundColor: 'yellow', 
+                    minHeight: '200px',
+                    marginBottom: '20px'
+                  }}
                   onClick={() => handleOrderClick(order)}
                 >
                 {/* Order Header */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
+import { useStripe, useElements, CardElement, PostalCodeElement } from '@stripe/react-stripe-js';
 import { CreditCardIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { orderPaymentService } from '../services/orderPaymentService';
 import toast from 'react-hot-toast';
@@ -17,6 +17,23 @@ const CARD_ELEMENT_OPTIONS = {
       color: '#9e2146',
     },
   },
+  hidePostalCode: false, // Show postal code field for Canadian payments
+};
+
+const POSTAL_CODE_OPTIONS = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#424770',
+      '::placeholder': {
+        color: '#aab7c4',
+      },
+    },
+    invalid: {
+      color: '#9e2146',
+    },
+  },
+  placeholder: 'Postal Code (e.g., M5V 3A8)',
 };
 
 const StripeOrderPayment = ({ 
@@ -71,7 +88,7 @@ const StripeOrderPayment = ({
           return;
         }
 
-        // Process payment with the card element
+        // Process payment with the card element (postal code is collected via PostalCodeElement)
         paymentResult = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
             card: cardElement,
@@ -224,6 +241,19 @@ const StripeOrderPayment = ({
             </label>
             <div className="p-4 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
               <CardElement options={CARD_ELEMENT_OPTIONS} />
+            </div>
+            
+            {/* Additional Postal Code Field for Canadian Payments */}
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-stone-700 mb-2">
+                Postal Code (Required for Canadian Payments)
+              </label>
+              <div className="p-3 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
+                <PostalCodeElement options={POSTAL_CODE_OPTIONS} />
+              </div>
+              <p className="text-xs text-stone-500 mt-1">
+                Enter your postal code for payment verification (e.g., M5V 3A8, K1A 0A6)
+              </p>
             </div>
             {!isGuest && savedPaymentMethods.length > 0 && !selectedSavedCard?.stripePaymentMethodId && (
               <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">

@@ -1664,8 +1664,8 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         stripePaymentMethodId: method.stripePaymentMethodId
       }));
       
-      // Update the profile
-      await onSave({ paymentMethods: cleanPaymentMethods });
+      // Update the profile - pass the array directly, not wrapped in an object
+      await onSave(cleanPaymentMethods);
       
       // Only update local state if API call succeeds
       setPaymentMethods(updatedMethods);

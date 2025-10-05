@@ -783,12 +783,18 @@ const updatePaymentMethods = async (req, res) => {
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { paymentMethods } = req.body;
+    
+    // Handle both direct array and wrapped object for backward compatibility
+    let paymentMethods = req.body;
+    if (req.body && req.body.paymentMethods) {
+      paymentMethods = req.body.paymentMethods;
+    }
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
     
     console.log(`💳 Updating payment methods for user ${decoded.userId}:`, paymentMethods?.length || 0, 'method(s)');
+    console.log('📋 Payment methods data structure:', Array.isArray(paymentMethods) ? 'Array' : typeof paymentMethods);
     
     const result = await usersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(decoded.userId) },

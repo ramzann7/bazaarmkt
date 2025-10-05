@@ -163,7 +163,7 @@ export const profileService = {
 
   // Update payment methods
   updatePaymentMethods: async (paymentMethods) => {
-    const response = await axios.put(`${API_URL}/profile/payment-methods`, { paymentMethods }, {
+    const response = await axios.put(`${API_URL}/profile/payment-methods`, paymentMethods, {
       headers: getAuthHeaders()
     });
     return response.data;

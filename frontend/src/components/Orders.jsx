@@ -75,6 +75,21 @@ export default function Orders() {
       } else {
         ordersData = await orderService.getPatronOrders();
       }
+      
+      // Debug logging to check order data structure
+      console.log('🔍 Orders data received:', ordersData);
+      if (ordersData.length > 0) {
+        console.log('🔍 First order structure:', {
+          _id: ordersData[0]._id,
+          hasArtisan: !!ordersData[0].artisan,
+          artisanName: ordersData[0].artisan?.artisanName,
+          artisanEmail: ordersData[0].artisan?.email,
+          artisanPhone: ordersData[0].artisan?.phone,
+          hasPatron: !!ordersData[0].patron,
+          patronName: ordersData[0].patron ? `${ordersData[0].patron.firstName} ${ordersData[0].patron.lastName}` : 'No patron'
+        });
+      }
+      
       setOrders(ordersData);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -737,7 +752,7 @@ export default function Orders() {
                             ? `${order.patron?.firstName} ${order.patron?.lastName}`
                             : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`
                           )
-                        : `${order.artisan?.artisanName || order.artisan?.firstName} ${order.artisan?.lastName}`
+                        : (order.artisan?.artisanName || `${order.artisan?.firstName || ''} ${order.artisan?.lastName || ''}`.trim() || 'Unknown Artisan')
                       }
                     </span>
                   </div>
@@ -1445,7 +1460,15 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 <>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Name:</span> 
-                    {order.artisan?.artisanName || `${order.artisan?.firstName} ${order.artisan?.lastName}`}
+                    {order.artisan?.artisanName || `${order.artisan?.firstName} ${order.artisan?.lastName}` || 'Unknown Artisan'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Email:</span> 
+                    {order.artisan?.email || 'No email provided'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Phone:</span> 
+                    {order.artisan?.phone || 'No phone provided'}
                   </p>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Business Type:</span> 

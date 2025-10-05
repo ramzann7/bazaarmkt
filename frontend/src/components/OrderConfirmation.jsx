@@ -441,19 +441,37 @@ export default function OrderConfirmation() {
                   {/* Enhanced Pickup Information for Pickup Orders */}
                   {order.deliveryMethod === 'pickup' && (
                     <div className="bg-emerald-50 rounded-lg p-4 mb-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
-                      <div className="flex items-start gap-3 mb-3">
+                      <div className="flex items-start gap-3 mb-4">
                         <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
-                        <div>
-                          <h4 className="text-sm font-medium text-emerald-800 mb-1">Pickup Location</h4>
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-emerald-800 mb-2">Pickup Location</h4>
+                          
+                          {/* Pickup Location Description */}
+                          {order.artisan?.pickupLocation && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-emerald-800 mb-1">📍 Location Details</p>
+                              <p className="text-sm text-emerald-700">
+                                {order.artisan.pickupLocation}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Pickup Address */}
                           {order.artisan?.pickupAddress ? (
-                            <p className="text-sm text-emerald-700">
-                              {order.artisan.pickupAddress.street}<br />
-                              {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
-                            </p>
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Address</p>
+                              <p className="text-sm text-emerald-700">
+                                {order.artisan.pickupAddress.street}<br />
+                                {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
+                              </p>
+                            </div>
                           ) : (
-                            <p className="text-sm text-emerald-700">
-                              {order.artisan?.businessName || order.artisan?.artisanName || 'Artisan Location'}
-                            </p>
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-emerald-800 mb-1">🏢 Business Location</p>
+                              <p className="text-sm text-emerald-700">
+                                {order.artisan?.businessName || order.artisan?.artisanName || 'Artisan Location'}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -475,18 +493,36 @@ export default function OrderConfirmation() {
                       
                       {/* Pickup Instructions */}
                       {order.artisan?.pickupInstructions && (
-                        <div className="bg-emerald-100 rounded-lg p-3 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
-                          <div className="flex items-start gap-2">
-                            <BellIcon className="w-4 h-4 text-emerald-600 mt-0.5 print:hidden" />
-                            <div>
-                              <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Pickup Instructions</p>
-                              <p className="text-xs text-emerald-700 print:text-gray-600">
+                        <div className="bg-emerald-100 rounded-lg p-4 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
+                          <div className="flex items-start gap-3">
+                            <BellIcon className="w-5 h-5 text-emerald-600 mt-0.5 print:hidden" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-emerald-800 print:text-gray-800 mb-2">📋 Important Pickup Instructions</p>
+                              <p className="text-sm text-emerald-700 print:text-gray-600 leading-relaxed">
                                 {order.artisan.pickupInstructions}
                               </p>
                             </div>
                           </div>
                         </div>
                       )}
+                      
+                      {/* Additional Pickup Information */}
+                      <div className="bg-emerald-100 rounded-lg p-4 print:bg-gray-100 print:rounded-none print:p-2">
+                        <div className="flex items-start gap-3">
+                          <div className="w-5 h-5 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                            <span className="text-white text-xs">ℹ</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-emerald-800 print:text-gray-800 mb-2">ℹ️ Pickup Information</p>
+                            <div className="space-y-2 text-sm text-emerald-700 print:text-gray-600">
+                              <p>• <strong>Contact:</strong> You'll receive a notification when your order is ready for pickup</p>
+                              <p>• <strong>Identification:</strong> Please bring a valid ID and order confirmation</p>
+                              <p>• <strong>Payment:</strong> Order is already paid - no additional payment required</p>
+                              <p>• <strong>Questions:</strong> Contact the artisan directly if you have any pickup questions</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 

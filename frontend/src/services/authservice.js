@@ -43,26 +43,39 @@ api.interceptors.response.use(
   }
 );
 
+// Comprehensive cache clearing utility
+export const clearAllUserCaches = () => {
+  console.log('🧹 Clearing all user caches...');
+  
+  // Clear cache service
+  cacheService.clear();
+  
+  // Clear all localStorage entries that might be user-specific
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(CACHE_KEYS.USER_PROFILE) || 
+        key.startsWith('cart_') || 
+        key.startsWith('cart_count_') ||
+        key.includes('profile_') ||
+        key.includes('user_') ||
+        key.includes('profile') ||
+        key.includes('user') ||
+        key.includes('cart')) {
+      console.log('🗑️ Clearing cache key:', key);
+      localStorage.removeItem(key);
+    }
+  });
+  
+  console.log('✅ All user caches cleared');
+};
+
 // Token management
 export const authToken = {
   getToken: () => localStorage.getItem('token'),
   setToken: (token) => {
     console.log('🔑 Setting new token, clearing all user caches...');
     
-    // Clear all existing user-specific caches before setting new token
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith(CACHE_KEYS.USER_PROFILE) || 
-          key.startsWith('cart_') || 
-          key.startsWith('cart_count_') ||
-          key.includes('profile_') ||
-          key.includes('user_')) {
-        console.log('🗑️ Clearing cache key:', key);
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Clear cache service
-    cacheService.clear();
+    // Use comprehensive cache clearing
+    clearAllUserCaches();
     
     // Set the new token
     localStorage.setItem('token', token);
@@ -214,8 +227,8 @@ export const registerUser = async (userData) => {
 export const logoutUser = () => {
   authToken.removeToken();
   
-  // Clear all cached data
-  cacheService.clear();
+  // Use comprehensive cache clearing
+  clearAllUserCaches();
   
   // Clear localStorage backup
   localStorage.removeItem('user_profile_backup');
@@ -270,7 +283,9 @@ export const queueProfileUpdate = (updates) => {
         const response = await api.put('/auth/profile', mergedUpdates);
         
         // Update cache
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+        const token = authToken.getToken();
+        const userId = getUserIdFromToken(token);
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
         cacheService.set(cacheKey, response.data, CACHE_TTL.USER_PROFILE);
         
         profileUpdateQueue = [];

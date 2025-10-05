@@ -24,6 +24,7 @@ import { paymentService } from '../services/paymentService';
 import { favoriteService } from '../services/favoriteService';
 import { onboardingService } from '../services/onboardingService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
+import { getUserIdFromToken } from '../utils/tokenUtils';
 import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffect';
 import { OverviewTab, OperationsTab, HoursTab, DeliveryTab, SetupTab } from './ArtisanTabs';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
@@ -380,7 +381,8 @@ export default function Profile() {
         // Clear profile cache to ensure fresh data
         const token = localStorage.getItem('token');
         if (token) {
-          const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+          const userId = getUserIdFromToken(token);
+          const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
           cacheService.delete(cacheKey);
           console.log('🧹 Cleared profile cache');
         }
@@ -434,7 +436,8 @@ export default function Profile() {
       // Clear profile cache to force fresh load
       const token = localStorage.getItem('token');
       if (token) {
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+        const userId = getUserIdFromToken(token);
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
         cacheService.delete(cacheKey);
         console.log('🧹 Cleared profile cache');
       }
@@ -471,7 +474,8 @@ export default function Profile() {
       // Clear profile cache to ensure fresh data
       const token = localStorage.getItem('token');
       if (token) {
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+        const userId = getUserIdFromToken(token);
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
         cacheService.delete(cacheKey);
       }
       
@@ -1995,7 +1999,8 @@ function SecurityTab({ profile, onSave, isSaving }) {
       // Clear profile cache
       const token = localStorage.getItem('token');
       if (token) {
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+        const userId = getUserIdFromToken(token);
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
         cacheService.delete(cacheKey);
         console.log('🧹 Cleared profile cache after password change');
       }

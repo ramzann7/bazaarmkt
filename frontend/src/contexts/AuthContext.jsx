@@ -60,19 +60,30 @@ export const AuthProvider = ({ children }) => {
           
           if (cachedProfile) {
             console.log('⚡ AuthContext: Using cached profile for immediate response');
-            setUser(cachedProfile);
+            console.log('🔍 AuthContext: Cached profile userId:', cachedProfile._id, 'Token userId:', userId);
             
-            // Load fresh profile in background (non-blocking)
-            setTimeout(async () => {
-              try {
-                console.log('🔄 AuthContext: Refreshing profile in background...');
-                const profile = await getProfile();
-                setUser(profile);
-                console.log('✅ AuthContext: Background profile refresh completed');
-              } catch (error) {
-                console.error('❌ AuthContext: Background profile refresh failed:', error);
-              }
-            }, 100); // Small delay to ensure UI is responsive
+            // Validate that cached profile matches token userId
+            if (cachedProfile._id && cachedProfile._id.toString() === userId) {
+              setUser(cachedProfile);
+              
+              // Load fresh profile in background (non-blocking)
+              setTimeout(async () => {
+                try {
+                  console.log('🔄 AuthContext: Refreshing profile in background...');
+                  const profile = await getProfile();
+                  setUser(profile);
+                  console.log('✅ AuthContext: Background profile refresh completed');
+                } catch (error) {
+                  console.error('❌ AuthContext: Background profile refresh failed:', error);
+                }
+              }, 100); // Small delay to ensure UI is responsive
+            } else {
+              console.warn('⚠️ AuthContext: Cache mismatch detected, clearing cache and loading fresh profile');
+              cacheService.delete(cacheKey);
+              // Load fresh profile immediately
+              const profile = await getProfile();
+              setUser(profile);
+            }
             
             const endTime = performance.now();
             console.log(`⚡ AuthContext: Fast initialization completed in ${(endTime - startTime).toFixed(2)}ms`);

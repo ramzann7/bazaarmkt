@@ -92,30 +92,9 @@ const Cart = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   // Payment state
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
-  const [showAddPaymentForm, setShowAddPaymentForm] = useState(false);
   const [paymentIntent, setPaymentIntent] = useState(null);
   const [isCreatingPaymentIntent, setIsCreatingPaymentIntent] = useState(false);
-  const [newPaymentForm, setNewPaymentForm] = useState({
-    cardNumber: '',
-    expiryMonth: '',
-    expiryYear: '',
-    cvv: '',
-    cardholderName: '',
-    isDefault: false
-  });
-  const [paymentFormErrors, setPaymentFormErrors] = useState({});
   
-  // Guest payment form state
-  const [guestPaymentForm, setGuestPaymentForm] = useState({
-    paymentMethod: 'credit_card',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardholderName: '',
-    zipCode: ''
-  });
 
   // Initialize checkout artisan when cart loads
   useEffect(() => {
@@ -292,40 +271,6 @@ const Cart = () => {
     }
   };
 
-  // Load user's payment methods
-  const loadPaymentMethods = async () => {
-    if (!currentUserId || isGuest) {
-      return;
-    }
-    
-    try {
-      setPaymentLoading(true);
-      const response = await paymentService.getPaymentMethods();
-      
-      // Extract array from response object
-      const methods = response?.data || [];
-      console.log('💳 Loaded payment methods:', methods.length);
-      console.log('💳 Payment methods data:', methods);
-      
-      setPaymentMethods(methods);
-      
-      // Set default payment method if available
-      const defaultMethod = methods.find(method => method.isDefault);
-      if (defaultMethod) {
-        setSelectedPaymentMethod(defaultMethod);
-        console.log('✅ Default payment method set:', defaultMethod.brand || defaultMethod.cardType, '****', defaultMethod.last4 || defaultMethod.last4Digits);
-      } else if (methods.length > 0) {
-        // If no default, select the first one
-        setSelectedPaymentMethod(methods[0]);
-        console.log('✅ First payment method auto-selected:', methods[0]);
-      }
-    } catch (error) {
-      console.error('❌ Error loading payment methods:', error);
-      setPaymentMethods([]);
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
 
   // Validate payment form
   const validatePaymentForm = () => {
@@ -1506,7 +1451,7 @@ const Cart = () => {
     toast.error('Payment failed. Please try again.');
   };
 
-  // Handle checkout
+  // Handle checkout - go directly to Stripe payment
   const handleCheckout = async () => {
     try {
       // Validate delivery options
@@ -1534,7 +1479,7 @@ const Cart = () => {
         return;
       }
 
-      // Create payment intent and proceed to payment step
+      // Create payment intent and go directly to Stripe payment page
       await createPaymentIntent();
     } catch (error) {
       console.error('❌ Error during checkout:', error);
@@ -1998,6 +1943,7 @@ const Cart = () => {
                   } : null
                 }}
                 isGuest={isGuest}
+                savedPaymentMethods={userProfile?.paymentMethods || []}
               />
             </Elements>
           </div>

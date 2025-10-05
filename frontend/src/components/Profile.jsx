@@ -1413,7 +1413,21 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
   const isArtisan = profile.role === 'artisan' || profile.userType === 'artisan' || profile.artisan;
   
   // State for patrons (payment methods)
-  const [paymentMethods, setPaymentMethods] = useState(profile.paymentMethods || []);
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    const methods = profile.paymentMethods;
+    console.log('🔧 Initializing paymentMethods:', methods, 'Type:', typeof methods, 'IsArray:', Array.isArray(methods));
+    
+    // Ensure it's always an array
+    if (Array.isArray(methods)) {
+      return methods;
+    } else if (methods && typeof methods === 'object') {
+      // If it's an object but not an array, wrap it in an array
+      console.log('⚠️  paymentMethods is an object, converting to array');
+      return [methods];
+    } else {
+      return [];
+    }
+  });
   
   // State for artisans (bank information)
   const [bankInfo, setBankInfo] = useState(profile.artisan?.bankInfo || {
@@ -1428,8 +1442,20 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
   // Update payment methods when profile changes
   useEffect(() => {
     if (!isArtisan) {
-    console.log('🔄 PaymentTab: Profile payment methods updated:', profile.paymentMethods);
-    setPaymentMethods(profile.paymentMethods || []);
+      console.log('🔄 PaymentTab: Profile payment methods updated:', profile.paymentMethods);
+      
+      const methods = profile.paymentMethods;
+      console.log('🔧 Updating paymentMethods:', methods, 'Type:', typeof methods, 'IsArray:', Array.isArray(methods));
+      
+      // Ensure it's always an array
+      if (Array.isArray(methods)) {
+        setPaymentMethods(methods);
+      } else if (methods && typeof methods === 'object') {
+        console.log('⚠️  paymentMethods is an object, converting to array');
+        setPaymentMethods([methods]);
+      } else {
+        setPaymentMethods([]);
+      }
     } else {
       setBankInfo(profile.artisan?.bankInfo || {
         accountHolderName: '',
@@ -2094,7 +2120,17 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         </div>
       )}
 
-      {(paymentMethods || []).map((method, index) => (
+      {(() => {
+        // Safety check - ensure paymentMethods is always an array
+        const methods = paymentMethods;
+        console.log('🔍 Before map - paymentMethods:', methods, 'Type:', typeof methods, 'IsArray:', Array.isArray(methods));
+        
+        if (!Array.isArray(methods)) {
+          console.error('❌ paymentMethods is not an array:', methods);
+          return <div className="text-red-600 p-4">Error: Payment methods data is invalid</div>;
+        }
+        
+        return methods.map((method, index) => (
         <div key={method._id || `payment-${index}`} className="border border-gray-200 rounded-lg p-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
@@ -2122,7 +2158,8 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
             </button>
           </div>
         </div>
-      ))}
+        ));
+      })()}
 
       {paymentMethods.length === 0 && (
         <div className="text-center py-8">

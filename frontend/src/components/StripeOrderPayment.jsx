@@ -47,25 +47,20 @@ const StripeOrderPayment = ({
     setPaymentError(null);
 
     try {
-      let paymentResult;
-
-      if (useSavedCard && selectedSavedCard && !isGuest) {
-        // Use saved card - we'll need to create a payment method from the saved card info
-        // For now, we'll use the card element but in a real implementation,
-        // you'd use Stripe's PaymentMethod API with the saved card details
-        paymentResult = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: elements.getElement(CardElement),
-          }
-        });
-      } else {
-        // Use new card
-        paymentResult = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: elements.getElement(CardElement),
-          }
-        });
+      // Get the card element
+      const cardElement = elements.getElement(CardElement);
+      
+      if (!cardElement) {
+        setPaymentError('Card information is required. Please enter your card details.');
+        return;
       }
+
+      // Process payment with the card element
+      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+        }
+      });
 
       const { error, paymentIntent } = paymentResult;
 
@@ -182,17 +177,20 @@ const StripeOrderPayment = ({
           </div>
         )}
 
-        {/* Card Information Section */}
-        {(!useSavedCard || isGuest) && (
-          <div>
-            <label className="block text-sm font-semibold text-stone-700 mb-3">
-              {isGuest ? 'Card Information' : 'New Card Information'}
-            </label>
-            <div className="p-4 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
-              <CardElement options={CARD_ELEMENT_OPTIONS} />
-            </div>
+        {/* Card Information Section - Always show for security */}
+        <div>
+          <label className="block text-sm font-semibold text-stone-700 mb-3">
+            {isGuest ? 'Card Information' : 'Card Information'}
+          </label>
+          <div className="p-4 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
+            <CardElement options={CARD_ELEMENT_OPTIONS} />
           </div>
-        )}
+          {!isGuest && savedPaymentMethods.length > 0 && (
+            <p className="text-sm text-stone-600 mt-2">
+              💡 <strong>Tip:</strong> Your saved cards are shown above for reference. For security, please enter your card details below.
+            </p>
+          )}
+        </div>
 
         {paymentError && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">

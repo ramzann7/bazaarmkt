@@ -33,7 +33,10 @@ class RedisCacheService {
         // Retry strategy
         retryStrategy: (times) => {
           const delay = Math.min(times * 50, 2000);
-          console.log(`🔄 Redis retry attempt ${times}, delay: ${delay}ms`);
+          // Only log first few retry attempts to avoid spam
+          if (times <= 3) {
+            console.log(`🔄 Redis retry attempt ${times}, delay: ${delay}ms`);
+          }
           return delay;
         }
       });
@@ -50,17 +53,19 @@ class RedisCacheService {
       });
 
       this.redis.on('error', (error) => {
-        console.error('❌ Redis connection error:', error.message);
+        // Only log first error to avoid spam
+        if (!this.hasLoggedError) {
+          console.log('⚠️ Redis not available (expected in development)');
+          this.hasLoggedError = true;
+        }
         this.isConnected = false;
       });
 
       this.redis.on('close', () => {
-        console.log('🔌 Redis connection closed');
         this.isConnected = false;
       });
 
       this.redis.on('reconnecting', () => {
-        console.log('🔄 Redis reconnecting...');
         this.isConnected = false;
       });
 

@@ -1354,11 +1354,14 @@ const getArtisanOrders = async (req, res) => {
     // Try multiple approaches to find orders for this artisan
     let orders = [];
     
-    // Approach 1: Match with artisan object structure (artisan._id)
-    console.log('🔍 Trying match on order.artisan._id...');
+    // Approach 1: Match with both artisan object structures
+    console.log('🔍 Trying match on both artisan structures...');
     orders = await ordersCollection
       .find({
-        'artisan._id': artisan._id
+        $or: [
+          { 'artisan._id': artisan._id },  // Embedded object structure
+          { 'artisan': artisan._id }       // Direct ObjectId structure
+        ]
         // Return ALL orders, let frontend handle filtering
       })
       .sort({ createdAt: -1 })
@@ -2661,7 +2664,10 @@ const getArtisanCompletedOrders = async (req, res) => {
     // Try different approaches to find orders
     orders = await ordersCollection
       .find({
-        'artisan._id': artisan._id
+        $or: [
+          { 'artisan._id': artisan._id },  // Embedded object structure
+          { 'artisan': artisan._id }       // Direct ObjectId structure
+        ]
         // Return ALL orders, let frontend handle filtering
       })
       .sort({ createdAt: -1 })

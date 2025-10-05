@@ -64,7 +64,6 @@ const FindArtisans = lazy(() => import("./components/FindArtisans.jsx"));
 const Community = lazy(() => import("./components/Community.jsx"));
 const EventDetails = lazy(() => import("./components/EventDetails.jsx"));
 const Cart = lazy(() => import("./components/Cart.jsx"));
-const GuestCheckout = lazy(() => import("./components/GuestCheckout.jsx"));
 const BuyingLocal = lazy(() => import("./components/BuyingLocal.jsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
 const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
@@ -210,7 +209,6 @@ function AppRoutes() {
           path="/cart"
           element={<Cart />}
         />
-        <Route path="/guest-checkout" element={<GuestCheckout />} />
         <Route path="/buying-local" element={<BuyingLocal />} />
         <Route path="/artisans" element={<Artisans />} />
         

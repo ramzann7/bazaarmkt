@@ -19,7 +19,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { deliveryService } from '../services/deliveryService';
 import { pickupTimeService } from '../services/pickupTimeService';
 import { getProfile } from '../services/authservice';
-import { paymentService } from '../services/paymentService';
 import { profileService } from '../services/profileService';
 import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
@@ -272,49 +271,6 @@ const Cart = () => {
   };
 
 
-  // Validate payment form
-  const validatePaymentForm = () => {
-    const errors = {};
-    
-    // Validate card number
-    if (!newPaymentForm.cardNumber) {
-      errors.cardNumber = 'Card number is required';
-    } else {
-      const cardDigitsOnly = newPaymentForm.cardNumber.replace(/\D/g, '');
-      if (cardDigitsOnly.length < 13 || cardDigitsOnly.length > 19) {
-        errors.cardNumber = 'Card number must be 13-19 digits';
-      }
-    }
-    
-    // Validate expiry date
-    if (!newPaymentForm.expiryMonth || !newPaymentForm.expiryYear) {
-      errors.expiry = 'Expiry date is required';
-    } else {
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth() + 1;
-      const expiryYear = parseInt(newPaymentForm.expiryYear);
-      const expiryMonth = parseInt(newPaymentForm.expiryMonth);
-      
-      if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < currentMonth)) {
-        errors.expiry = 'Card has expired';
-      }
-    }
-    
-    // Validate CVV
-    if (!newPaymentForm.cvv) {
-      errors.cvv = 'CVV is required';
-    } else if (newPaymentForm.cvv.length < 3) {
-      errors.cvv = 'CVV must be 3-4 digits';
-    }
-    
-    // Validate cardholder name
-    if (!newPaymentForm.cardholderName) {
-      errors.cardholderName = 'Cardholder name is required';
-    }
-    
-    setPaymentFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
   // Handle payment form submission
 
@@ -1126,12 +1082,6 @@ const Cart = () => {
     }
   };
 
-  const handleGuestPaymentFormChange = (field, value) => {
-    setGuestPaymentForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
 
   // Handle address selection
   const handleAddressSelect = async (address) => {
@@ -1355,11 +1305,11 @@ const Cart = () => {
   // Handle payment success
   const handlePaymentSuccess = (orderData) => {
     console.log('Payment successful, order created:', orderData);
-    // Clear cart
+      // Clear cart
     cartService.clearCart(currentUserId);
-    // Navigate to order confirmation
-    navigate('/order-confirmation', { 
-      state: { 
+      // Navigate to order confirmation
+      navigate('/order-confirmation', { 
+        state: { 
         orderData: orderData,
         message: 'Order placed successfully!' 
       } 
@@ -1399,7 +1349,7 @@ const Cart = () => {
         toast.error('Please provide delivery address');
         return;
       }
-
+      
       // Create payment intent and go directly to Stripe payment page
       await createPaymentIntent();
     } catch (error) {
@@ -1410,237 +1360,7 @@ const Cart = () => {
 
 
 
-  // Handle order placement for both authenticated users and guests
-  const handlePlaceOrder = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Check if we need to create a guest user first
-      if (isGuest || !currentUserId) {
-        console.log('🔍 User is guest or has no ID, using guest order endpoint');
-        await handleGuestCheckout();
-        return;
-      }
-      
-      // Prepare order data for authenticated users
-      const orderData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          quantity: item.quantity,
-          productType: item.productType || 'ready_to_ship'
-        })),
-        deliveryAddress: selectedAddress || deliveryForm,
-        deliveryInstructions: deliveryForm.instructions || '',
-        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
-        pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
-        paymentMethod: selectedPaymentMethod?.type || 'credit_card',
-        paymentMethodId: selectedPaymentMethod?._id,
-        // Include delivery method details with instructions for each artisan
-        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
-          artisanId,
-          method,
-          instructions: method === 'pickup' 
-            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
-            : method === 'personalDelivery'
-            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
-            : method === 'professionalDelivery'
-            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
-            : ''
-        }))
-      };
 
-      console.log('🚀 Creating order for authenticated user...');
-      
-      // Create order using authenticated endpoint
-      const result = await orderService.createOrder(orderData);
-      
-      // Note: Backend already sends order confirmation emails and notifications
-      // No need to send from frontend to avoid duplicates
-      
-      // Clear cart
-      await cartService.clearCart(currentUserId);
-      
-      // Show success message
-      toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
-      
-      // Navigate to order confirmation
-      console.log('🔍 Cart - Navigating to order confirmation with data:', {
-        orders: result.orders,
-        selectedPickupTimes: selectedPickupTimes,
-        selectedDeliveryMethods: selectedDeliveryMethods,
-        isPickupOrder: Object.values(selectedDeliveryMethods).includes('pickup'),
-        firstOrderDeliveryMethod: result.orders[0]?.deliveryMethod
-      });
-      
-      navigate('/order-confirmation', { 
-        state: { 
-          orders: result.orders,
-          message: 'Order placed successfully!',
-          orderSummary: {
-            totalOrders: result.orders.length,
-            totalAmount: result.orders.reduce((sum, order) => sum + order.totalAmount, 0),
-            estimatedDeliveryTime: '2-3 business days',
-            orderNumbers: result.orders.map(order => order.orderNumber || order._id?.toString().slice(-8).toUpperCase())
-          },
-          selectedPickupTimes: selectedPickupTimes, // Include pickup time selections
-          isPickupOrder: Object.values(selectedDeliveryMethods).includes('pickup')
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Error placing order:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle guest checkout (simplified flow)
-  const handleGuestCheckout = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Create or get guest profile (backend handles checking if user exists)
-      let guestToken = localStorage.getItem('token');
-      let guestUserId = null;
-      
-      // Create/get guest profile - backend will reuse existing if email exists
-      console.log('🔍 Creating or getting guest profile...');
-      
-      const guestInfo = {
-        firstName: deliveryForm.firstName || 'Guest',
-        lastName: deliveryForm.lastName || 'User',
-        email: deliveryForm.email,
-        phone: deliveryForm.phone || ''
-      };
-      
-      try {
-        const guestResponse = await guestService.createGuestProfile(guestInfo);
-        guestToken = guestResponse.token;
-        guestUserId = guestResponse.user.id || guestResponse.user._id?.toString();
-        
-        console.log('✅ Guest profile ready:', guestResponse.user);
-        
-        // Store the guest token
-        localStorage.setItem('token', guestToken);
-        
-        // Update local state
-        setCurrentUserId(guestUserId);
-        setIsGuest(true);
-        
-        // Show notification if reusing existing account
-        if (guestResponse.message.includes('existing')) {
-          toast.success(`Welcome back! Using your existing account.`);
-        }
-      } catch (guestError) {
-        console.error('❌ Error with guest profile:', guestError);
-        toast.error('Failed to create guest profile. Please try again.');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Generate unique guest ID for this order
-      const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      
-      // Prepare order data for guest
-      // Extract ONLY the address fields (not personal info like firstName, email, etc)
-      const guestDeliveryAddress = isAddressRequired() 
-        ? (deliveryForm.deliveryAddress || {
-            street: deliveryForm.street || '',
-            city: deliveryForm.city || '',
-            state: deliveryForm.state || '',
-            zipCode: deliveryForm.zipCode || '',
-            country: deliveryForm.country || 'Canada',
-            instructions: deliveryForm.instructions || ''
-          })
-        : undefined;
-      
-      const orderData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          quantity: item.quantity,
-          productType: item.productType || 'ready_to_ship'
-        })),
-        deliveryAddress: guestDeliveryAddress,
-        deliveryInstructions: isAddressRequired() 
-          ? (deliveryForm.deliveryAddress?.instructions || deliveryForm.instructions || '') 
-          : 'Customer will pickup at artisan location',
-        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
-        pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
-        paymentMethod: guestPaymentForm.paymentMethod,
-        paymentDetails: {
-          cardNumber: guestPaymentForm.cardNumber,
-          expiryDate: guestPaymentForm.expiryDate,
-          cvv: guestPaymentForm.cvv,
-          cardholderName: guestPaymentForm.cardholderName,
-          cardType: guestPaymentForm.paymentMethod === 'credit_card' ? 'credit' : 'debit',
-          zipCode: guestPaymentForm.zipCode
-        },
-        // Include delivery method details with instructions for each artisan
-        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
-          artisanId,
-          method,
-          instructions: method === 'pickup' 
-            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
-            : method === 'personalDelivery'
-            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
-            : method === 'professionalDelivery'
-            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
-            : ''
-        })),
-        guestInfo: {
-          firstName: deliveryForm.firstName || 'Guest',
-          lastName: deliveryForm.lastName || 'User',
-          email: deliveryForm.email || '',
-          phone: deliveryForm.phone || '',
-          guestId: guestId
-        }
-      };
-
-      console.log('🚀 Creating guest order...');
-      console.log('📍 Delivery address being sent:', orderData.deliveryAddress);
-      
-      // Create guest order using the guest endpoint
-      const result = await orderService.createGuestOrder(orderData);
-      
-      // Note: Backend already sends guest order confirmation email
-      // No need to send from frontend to avoid duplicates
-      
-      // Clear guest cart
-      await cartService.clearCart(null);
-      
-      // Show success message
-      const isPickupOrder = !isAddressRequired();
-      const orderType = isPickupOrder ? 'pickup' : 'delivery';
-      toast.success(`Guest ${orderType} order placed successfully! ${result.totalOrders} order${result.totalOrders > 1 ? 's' : ''} created.`);
-      
-      // Navigate to order confirmation
-      console.log('🔍 Cart - Guest checkout navigating to order confirmation with data:', {
-        orders: result.orders,
-        selectedPickupTimes: selectedPickupTimes,
-        isPickupOrder: isPickupOrder
-      });
-      
-      navigate('/order-confirmation', { 
-        state: { 
-          message: `Guest ${orderType} order placed successfully!`,
-          orders: result.orders,
-          guestInfo: result.guestInfo,
-          orderSummary: result.orderSummary,
-          isPickupOrder: isPickupOrder,
-          selectedPickupTimes: selectedPickupTimes // Include pickup time selections
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Error during guest checkout:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to place guest order. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Load data on component mount
   useEffect(() => {
@@ -1802,17 +1522,17 @@ const Cart = () => {
           <button
             onClick={() => setCheckoutStep('delivery')}
               className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
-            >
-              <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium">Back to Delivery</span>
-            </button>
+          >
+            <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium">Back to Delivery</span>
+          </button>
 
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold text-stone-800 font-display mb-3">Complete Your Payment</h1>
               <p className="text-xl text-stone-600">Secure payment processing with Stripe</p>
-            </div>
-
+          </div>
+          
             {/* Stripe Payment Component */}
             <Elements stripe={stripePromise}>
               <StripeOrderPayment
@@ -1853,8 +1573,8 @@ const Cart = () => {
                 savedPaymentMethods={userProfile?.paymentMethods || []}
               />
             </Elements>
-          </div>
-        </div>
+                      </div>
+                        </div>
       );
     }
 
@@ -1863,24 +1583,24 @@ const Cart = () => {
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
-          <button
+                          <button
             onClick={() => setCheckoutStep('delivery')}
             className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
-          >
+                          >
             <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="font-medium">Back to Delivery</span>
-          </button>
+                          </button>
 
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment System</h1>
             <p className="text-stone-600">Secure payment processing</p>
-          </div>
-          
+                          </div>
+                          
           <div className="card p-6">
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CreditCardIcon className="w-8 h-8 text-amber-600" />
-              </div>
+                            </div>
               <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Payment System Updating</h2>
               <p className="text-stone-600 mb-6">
                 We're upgrading our payment system for better security and user experience.
@@ -1888,8 +1608,8 @@ const Cart = () => {
               <p className="text-sm text-stone-500">
                 Please try again in a few moments, or contact support if you need immediate assistance.
               </p>
-            </div>
-          </div>
+                            </div>
+                          </div>
         </div>
       </div>
     );

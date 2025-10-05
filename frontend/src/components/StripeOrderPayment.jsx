@@ -35,6 +35,7 @@ const StripeOrderPayment = ({
   const [paymentError, setPaymentError] = useState(null);
   const [useSavedCard, setUseSavedCard] = useState(savedPaymentMethods.length > 0);
   const [selectedSavedCard, setSelectedSavedCard] = useState(savedPaymentMethods.find(method => method.isDefault) || savedPaymentMethods[0] || null);
+  const [saveCardForFuture, setSaveCardForFuture] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -47,20 +48,36 @@ const StripeOrderPayment = ({
     setPaymentError(null);
 
     try {
-      // Get the card element
-      const cardElement = elements.getElement(CardElement);
-      
-      if (!cardElement) {
-        setPaymentError('Card information is required. Please enter your card details.');
-        return;
-      }
+      let paymentResult;
 
-      // Process payment with the card element
-      const paymentResult = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
+      if (useSavedCard && selectedSavedCard && !isGuest && selectedSavedCard.stripePaymentMethodId) {
+        // Use saved Stripe PaymentMethod ID
+        try {
+          // Confirm payment with the saved Stripe PaymentMethod ID
+          paymentResult = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: selectedSavedCard.stripePaymentMethodId,
+          });
+        } catch (savedCardError) {
+          console.error('Error using saved Stripe PaymentMethod:', savedCardError);
+          setPaymentError('Unable to use saved card. Please enter your card details manually.');
+          return;
         }
-      });
+      } else {
+        // Use new card from CardElement
+        const cardElement = elements.getElement(CardElement);
+        
+        if (!cardElement) {
+          setPaymentError('Card information is required. Please enter your card details.');
+          return;
+        }
+
+        // Process payment with the card element
+        paymentResult = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardElement,
+          }
+        });
+      }
 
       const { error, paymentIntent } = paymentResult;
 
@@ -68,6 +85,28 @@ const StripeOrderPayment = ({
         setPaymentError(error.message);
         onPaymentError?.(error);
       } else if (paymentIntent.status === 'succeeded') {
+        // Save card for future use if requested (for authenticated users only)
+        if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
+          try {
+            const paymentMethodData = {
+              stripePaymentMethodId: paymentIntent.payment_method,
+              brand: paymentIntent.payment_method_details?.card?.brand || 'card',
+              last4: paymentIntent.payment_method_details?.card?.last4 || '****',
+              expiryMonth: paymentIntent.payment_method_details?.card?.exp_month || 12,
+              expiryYear: paymentIntent.payment_method_details?.card?.exp_year || 2025,
+              cardholderName: paymentIntent.payment_method_details?.card?.name || 'Cardholder',
+              isDefault: savedPaymentMethods.length === 0, // First card is default
+              type: 'credit_card'
+            };
+            
+            await orderPaymentService.savePaymentMethod(paymentMethodData);
+            toast.success('Card saved for future use!');
+          } catch (saveError) {
+            console.error('Error saving card:', saveError);
+            // Don't fail the payment if saving fails
+          }
+        }
+
         // Confirm payment and create order
         const result = await orderPaymentService.confirmPaymentAndCreateOrder(
           paymentIntent.id,
@@ -177,20 +216,56 @@ const StripeOrderPayment = ({
           </div>
         )}
 
-        {/* Card Information Section - Always show for security */}
-        <div>
-          <label className="block text-sm font-semibold text-stone-700 mb-3">
-            {isGuest ? 'Card Information' : 'Card Information'}
-          </label>
-          <div className="p-4 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
-            <CardElement options={CARD_ELEMENT_OPTIONS} />
+        {/* Card Information Section */}
+        {(!useSavedCard || !selectedSavedCard?.stripePaymentMethodId || isGuest) && (
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-3">
+              {isGuest ? 'Card Information' : 'Card Information'}
+            </label>
+            <div className="p-4 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
+              <CardElement options={CARD_ELEMENT_OPTIONS} />
+            </div>
+            {!isGuest && savedPaymentMethods.length > 0 && (
+              <p className="text-sm text-stone-600 mt-2">
+                💡 <strong>Tip:</strong> Your saved cards are shown above for reference. For security, please enter your card details below.
+              </p>
+            )}
           </div>
-          {!isGuest && savedPaymentMethods.length > 0 && (
-            <p className="text-sm text-stone-600 mt-2">
-              💡 <strong>Tip:</strong> Your saved cards are shown above for reference. For security, please enter your card details below.
-            </p>
-          )}
-        </div>
+        )}
+
+        {/* Saved Card Ready Message */}
+        {useSavedCard && selectedSavedCard?.stripePaymentMethodId && !isGuest && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircleIcon className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="text-emerald-800 font-medium">Ready to Pay with Saved Card</p>
+                <p className="text-emerald-700 text-sm">
+                  Your saved {selectedSavedCard.brand || selectedSavedCard.cardType} card ending in {selectedSavedCard.last4 || selectedSavedCard.last4Digits} is ready to use.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Save Card for Future Use Checkbox */}
+        {!isGuest && (!useSavedCard || !selectedSavedCard?.stripePaymentMethodId) && (
+          <div className="flex items-center space-x-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <input
+              type="checkbox"
+              id="saveCard"
+              checked={saveCardForFuture}
+              onChange={(e) => setSaveCardForFuture(e.target.checked)}
+              className="w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+            />
+            <label htmlFor="saveCard" className="text-sm text-amber-800 cursor-pointer">
+              <span className="font-medium">Save this card for future purchases</span>
+              <p className="text-amber-700 text-xs mt-1">
+                Your card details will be securely stored with Stripe for faster checkout next time.
+              </p>
+            </label>
+          </div>
+        )}
 
         {paymentError && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">

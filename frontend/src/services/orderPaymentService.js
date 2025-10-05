@@ -63,5 +63,16 @@ export const orderPaymentService = {
       console.error('Error confirming payment and creating order:', error);
       throw error;
     }
+  },
+
+  // Save payment method with Stripe PaymentMethod ID
+  savePaymentMethod: async (paymentMethodData) => {
+    try {
+      const response = await orderPaymentApi.post('/profile/payment-methods', paymentMethodData);
+      return response.data;
+    } catch (error) {
+      console.error('Error saving payment method:', error);
+      throw error;
+    }
   }
 };

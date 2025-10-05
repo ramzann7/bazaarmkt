@@ -225,7 +225,14 @@ const StripeOrderPayment = ({
             <div className="p-4 border-2 border-stone-300 rounded-xl focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-100">
               <CardElement options={CARD_ELEMENT_OPTIONS} />
             </div>
-            {!isGuest && savedPaymentMethods.length > 0 && (
+            {!isGuest && savedPaymentMethods.length > 0 && !selectedSavedCard?.stripePaymentMethodId && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-blue-800 text-sm">
+                  💳 <strong>First time using saved card?</strong> Enter your card details below to create a secure Stripe PaymentMethod for future use.
+                </p>
+              </div>
+            )}
+            {!isGuest && savedPaymentMethods.length > 0 && selectedSavedCard?.stripePaymentMethodId && (
               <p className="text-sm text-stone-600 mt-2">
                 💡 <strong>Tip:</strong> Your saved cards are shown above for reference. For security, please enter your card details below.
               </p>
@@ -242,6 +249,21 @@ const StripeOrderPayment = ({
                 <p className="text-emerald-800 font-medium">Ready to Pay with Saved Card</p>
                 <p className="text-emerald-700 text-sm">
                   Your saved {selectedSavedCard.brand || selectedSavedCard.cardType} card ending in {selectedSavedCard.last4 || selectedSavedCard.last4Digits} is ready to use.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Saved Card Needs Setup Message */}
+        {useSavedCard && selectedSavedCard && !selectedSavedCard?.stripePaymentMethodId && !isGuest && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <div>
+                <p className="text-amber-800 font-medium">Setup Required for Saved Card</p>
+                <p className="text-amber-700 text-sm">
+                  Your saved {selectedSavedCard.brand || selectedSavedCard.cardType} card ending in {selectedSavedCard.last4 || selectedSavedCard.last4Digits} needs to be set up for secure payments. Please enter your card details below and check "Save this card for future purchases" to enable one-click payments.
                 </p>
               </div>
             </div>

@@ -18,6 +18,7 @@ const CARD_ELEMENT_OPTIONS = {
     },
   },
   hidePostalCode: false, // Show postal code field for Canadian payments
+  supportedCountries: ['CA'], // Configure for Canadian postal codes
 };
 
 const POSTAL_CODE_OPTIONS = {
@@ -34,6 +35,7 @@ const POSTAL_CODE_OPTIONS = {
     },
   },
   placeholder: 'Postal Code (e.g., M5V 3A8)',
+  supportedCountries: ['CA'], // Configure for Canadian postal codes (6 characters: letter-number-letter space number-letter-number)
 };
 
 const StripeOrderPayment = ({ 

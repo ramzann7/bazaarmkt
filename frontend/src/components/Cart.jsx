@@ -30,9 +30,12 @@ import { orderPaymentService } from '../services/orderPaymentService';
 import DeliveryInformation from './DeliveryInformation.jsx';
 import StripeOrderPayment from './StripeOrderPayment.jsx';
 
-// Initialize Stripe
+// Initialize Stripe with Canadian locale
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY, {
+      locale: 'en-CA', // Canadian English locale for postal code format
+      stripeAccount: undefined, // Use default account
+    })
   : null;
 
 const Cart = () => {
@@ -1545,7 +1548,7 @@ const Cart = () => {
                           </div>
                           
             {/* Stripe Payment Component */}
-            <Elements stripe={stripePromise}>
+            <Elements stripe={stripePromise} options={{ locale: 'en-CA' }}>
               <StripeOrderPayment
                 clientSecret={paymentIntent.clientSecret}
                 amount={paymentIntent.amount}

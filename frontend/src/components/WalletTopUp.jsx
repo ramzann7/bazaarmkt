@@ -10,9 +10,11 @@ import {
 import walletService from '../services/walletService';
 import toast from 'react-hot-toast';
 
-// Initialize Stripe with fallback
+// Initialize Stripe with Canadian locale
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY, {
+      locale: 'en-CA', // Canadian English locale for postal code format
+    })
   : null;
 
 // Log Stripe configuration for debugging
@@ -255,7 +257,7 @@ const WalletTopUp = ({ onSuccess, onCancel }) => {
         </button>
       </div>
 
-      <Elements stripe={stripePromise}>
+      <Elements stripe={stripePromise} options={{ locale: 'en-CA' }}>
         <WalletTopUpForm onSuccess={handleSuccess} onCancel={onCancel} />
       </Elements>
     </div>

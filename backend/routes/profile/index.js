@@ -1467,7 +1467,8 @@ const deletePaymentMethod = async (req, res) => {
     }
 
     console.log('👤 User payment methods:', user.paymentMethods?.length || 0, 'methods');
-    console.log('📋 Payment methods structure:', user.paymentMethods?.map(pm => ({
+    console.log('📋 Payment methods structure:', user.paymentMethods?.map((pm, idx) => ({
+      index: idx,
       id: pm.id,
       _id: pm._id,
       stripePaymentMethodId: pm.stripePaymentMethodId,
@@ -1482,25 +1483,21 @@ const deletePaymentMethod = async (req, res) => {
       });
     }
 
-    // Find the payment method to remove (try different ID fields)
-    const paymentMethodToRemove = user.paymentMethods.find(pm => 
-      pm.id === paymentMethodId || 
-      pm._id === paymentMethodId || 
-      pm.stripePaymentMethodId === paymentMethodId
-    );
-
-    console.log('🔍 Looking for payment method with ID:', paymentMethodId);
-    console.log('✅ Found payment method to remove:', paymentMethodToRemove);
-
-    if (!paymentMethodToRemove) {
-      console.log('❌ Payment method not found with ID:', paymentMethodId);
-      return res.status(404).json({
+    // Parse the index from the paymentMethodId (which is now the array index)
+    const index = parseInt(paymentMethodId);
+    if (isNaN(index) || index < 0 || index >= user.paymentMethods.length) {
+      console.log('❌ Invalid index:', index, 'for payment methods array of length:', user.paymentMethods.length);
+      return res.status(400).json({
         success: false,
-        message: 'Payment method not found'
+        message: 'Invalid payment method index'
       });
     }
 
-    // Remove the payment method from the array
+    const paymentMethodToRemove = user.paymentMethods[index];
+    console.log('🔍 Removing payment method at index:', index);
+    console.log('✅ Payment method to remove:', paymentMethodToRemove);
+
+    // Remove the payment method from the array using $pull
     const result = await usersCollection.updateOne(
       { _id: new ObjectId(decoded.userId) },
       { 

@@ -1564,20 +1564,35 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
     }
   };
 
-  const removePaymentMethod = async (id) => {
+  const removePaymentMethod = async (index) => {
     try {
-      console.log('🔄 Removing payment method with id:', id);
+      console.log('🔄 Removing payment method at index:', index);
       console.log('📊 All payment methods:', paymentMethods);
-      console.log('🔍 Payment method to remove:', paymentMethods.find(method => 
-        method.id === id || method._id === id || method.stripePaymentMethodId === id
-      ));
+      console.log('📋 Payment method details:', paymentMethods.map((method, idx) => ({
+        index: idx,
+        id: method.id,
+        _id: method._id,
+        stripePaymentMethodId: method.stripePaymentMethodId,
+        type: method.type,
+        last4: method.last4,
+        brand: method.brand
+      })));
       
-      // Call the backend delete API
-      await profileService.deletePaymentMethod(id);
+      // Get the payment method at the specified index
+      const paymentMethodToRemove = paymentMethods[index];
+      if (!paymentMethodToRemove) {
+        throw new Error('Payment method not found at index ' + index);
+      }
+      
+      console.log('🔍 Payment method to remove:', paymentMethodToRemove);
+      
+      // For now, use the array index as the ID since payment methods don't have proper IDs
+      // TODO: Generate proper UUIDs for payment methods when they're created
+      await profileService.deletePaymentMethod(index.toString());
       console.log('✅ Payment method deleted from backend');
       
-      // Update local state
-      const updatedMethods = paymentMethods.filter(method => method._id !== id);
+      // Update local state - remove the payment method at the specified index
+      const updatedMethods = paymentMethods.filter((method, idx) => idx !== index);
       setPaymentMethods(updatedMethods);
       
       // Update the profile with the new payment methods array
@@ -2081,7 +2096,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
             </div>
             <button
               type="button"
-              onClick={() => removePaymentMethod(method.id || method._id || index)}
+              onClick={() => removePaymentMethod(index)}
               className="text-red-600 hover:text-red-700"
             >
               <TrashIcon className="w-4 h-4" />

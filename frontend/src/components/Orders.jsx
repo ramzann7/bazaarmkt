@@ -427,6 +427,7 @@ export default function Orders() {
   
   // Debug filtering
   console.log('🔍 Current filter:', filter);
+  console.log('🔍 View mode:', viewMode);
   console.log('🔍 Total orders:', orders.length);
   console.log('🔍 Filtered orders count:', filteredOrders.length);
   console.log('🔍 Filtered order IDs:', filteredOrders.map(order => ({
@@ -691,10 +692,17 @@ export default function Orders() {
           </div>
         ) : (
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
-            {filteredOrders.map((order) => {
+            {filteredOrders.map((order, index) => {
               // Get priority information for artisans
               const priorityInfo = userRole === 'artisan' ? getPriorityInfo(order) : null;
               const orderIsUrgent = userRole === 'artisan' ? isUrgent(order) : false;
+              
+              console.log(`🔍 Rendering order ${index + 1}:`, {
+                _id: order._id,
+                status: order.status,
+                priorityInfo: priorityInfo?.level,
+                isUrgent: orderIsUrgent
+              });
               
               return (
                 <div

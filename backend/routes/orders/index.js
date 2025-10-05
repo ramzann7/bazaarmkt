@@ -413,6 +413,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       deliveryMethodDetails: orderData.deliveryMethodDetails || [],
       isGuestOrder: !userId,
       guestInfo: orderData.guestInfo || {},
+      artisan: enrichedItems.length > 0 ? enrichedItems[0].artisanId : null, // Set artisan from first item
       paymentDetails: {
         stripePaymentIntentId: paymentIntentId,
         stripeAmount: paymentIntent.amount,
@@ -426,7 +427,6 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
     const result = await ordersCollection.insertOne(order);
 
     // Reduce inventory for each product in the order
-    const productsCollection = db.collection('products');
     const inventoryUpdates = [];
     
     for (const item of order.items) {
@@ -845,6 +845,7 @@ const getOrderById = async (req, res) => {
     
     const db = req.db; // Use shared connection from middleware
     const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
     
     const order = await ordersCollection.findOne({
       _id: new (require('mongodb')).ObjectId(req.params.id),
@@ -859,11 +860,21 @@ const getOrderById = async (req, res) => {
       });
     }
     
+    // Populate artisan information
+    let orderWithArtisan = { ...order };
+    if (order.artisan) {
+      const artisan = await artisansCollection.findOne({ _id: order.artisan });
+      orderWithArtisan.artisan = artisan;
+    } else if (order.items && order.items.length > 0 && order.items[0].artisanId) {
+      const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+      orderWithArtisan.artisan = artisan;
+    }
+    
     // Connection managed by middleware - no close needed
     
     res.json({
       success: true,
-      data: { order }
+      data: { order: orderWithArtisan }
     });
   } catch (error) {
     console.error('Get order error:', error);
@@ -1220,6 +1231,7 @@ const getPatronOrders = async (req, res) => {
     
     const db = req.db;
     const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
     
     const orders = await ordersCollection
       .find({ 
@@ -1230,11 +1242,33 @@ const getPatronOrders = async (req, res) => {
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
     
+    // Populate artisan information for each order
+    const ordersWithArtisan = await Promise.all(orders.map(async (order) => {
+      if (order.artisan) {
+        const artisan = await artisansCollection.findOne({ _id: order.artisan });
+        return {
+          ...order,
+          artisan: artisan
+        };
+      }
+      
+      // If no direct artisan field, try to get from first item
+      if (order.items && order.items.length > 0 && order.items[0].artisanId) {
+        const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+        return {
+          ...order,
+          artisan: artisan
+        };
+      }
+      
+      return order;
+    }));
+    
     res.json({
       success: true,
-      data: { orders },
-      orders: orders, // Frontend compatibility
-      count: orders.length
+      data: { orders: ordersWithArtisan },
+      orders: ordersWithArtisan, // Frontend compatibility
+      count: ordersWithArtisan.length
     });
   } catch (error) {
     console.error('Get patron orders error:', error);
@@ -1878,6 +1912,7 @@ const getPatronCompletedOrders = async (req, res) => {
     
     const db = req.db;
     const ordersCollection = db.collection('orders');
+    const artisansCollection = db.collection('artisans');
     
     const orders = await ordersCollection
       .find({ 
@@ -1888,11 +1923,33 @@ const getPatronCompletedOrders = async (req, res) => {
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
     
+    // Populate artisan information for each order
+    const ordersWithArtisan = await Promise.all(orders.map(async (order) => {
+      if (order.artisan) {
+        const artisan = await artisansCollection.findOne({ _id: order.artisan });
+        return {
+          ...order,
+          artisan: artisan
+        };
+      }
+      
+      // If no direct artisan field, try to get from first item
+      if (order.items && order.items.length > 0 && order.items[0].artisanId) {
+        const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+        return {
+          ...order,
+          artisan: artisan
+        };
+      }
+      
+      return order;
+    }));
+    
     res.json({
       success: true,
-      data: { orders },
-      orders: orders, // Frontend compatibility
-      count: orders.length
+      data: { orders: ordersWithArtisan },
+      orders: ordersWithArtisan, // Frontend compatibility
+      count: ordersWithArtisan.length
     });
   } catch (error) {
     console.error('Get patron completed orders error:', error);

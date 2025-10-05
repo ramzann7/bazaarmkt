@@ -438,19 +438,55 @@ export default function OrderConfirmation() {
                     </div>
                   </div>
 
-                  {/* Pickup Location for Pickup Orders */}
-                  {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
+                  {/* Enhanced Pickup Information for Pickup Orders */}
+                  {order.deliveryMethod === 'pickup' && (
                     <div className="bg-emerald-50 rounded-lg p-4 mb-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
-                      <div className="flex items-start gap-3">
-                        <MapPinIcon className="w-5 h-5 text-amber-600 mt-1 print:hidden" />
+                      <div className="flex items-start gap-3 mb-3">
+                        <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
                         <div>
-                          <p className="text-sm font-medium text-emerald-800 mb-1">Pickup Location</p>
-                          <p className="text-sm text-emerald-700">
-                            {order.artisan.pickupAddress.street}<br />
-                            {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
-                          </p>
+                          <h4 className="text-sm font-medium text-emerald-800 mb-1">Pickup Location</h4>
+                          {order.artisan?.pickupAddress ? (
+                            <p className="text-sm text-emerald-700">
+                              {order.artisan.pickupAddress.street}<br />
+                              {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-emerald-700">
+                              {order.artisan?.businessName || order.artisan?.artisanName || 'Artisan Location'}
+                            </p>
+                          )}
                         </div>
                       </div>
+                      
+                      {/* Pickup Instructions */}
+                      {order.artisan?.pickupInstructions && (
+                        <div className="bg-emerald-100 rounded-lg p-3 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
+                          <div className="flex items-start gap-2">
+                            <BellIcon className="w-4 h-4 text-emerald-600 mt-0.5 print:hidden" />
+                            <div>
+                              <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Pickup Instructions</p>
+                              <p className="text-xs text-emerald-700 print:text-gray-600">
+                                {order.artisan.pickupInstructions}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Pickup Hours */}
+                      {order.artisan?.businessHours && (
+                        <div className="bg-emerald-100 rounded-lg p-3 print:bg-gray-100 print:rounded-none print:p-2">
+                          <div className="flex items-start gap-2">
+                            <ClockIcon className="w-4 h-4 text-emerald-600 mt-0.5 print:hidden" />
+                            <div>
+                              <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Business Hours</p>
+                              <p className="text-xs text-emerald-700 print:text-gray-600">
+                                {order.artisan.businessHours}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -601,6 +637,58 @@ export default function OrderConfirmation() {
             </div>
 
             <div className="space-y-4 print:space-y-2">
+              {/* Delivery Type Badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <div className="px-3 py-1 bg-amber-100 text-amber-800 text-sm font-medium rounded-full">
+                  {orders[0]?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 
+                   orders[0]?.deliveryMethod === 'professionalDelivery' ? 'Professional Delivery' : 
+                   'Standard Delivery'}
+                </div>
+                {orders[0]?.deliveryMethod === 'personalDelivery' && (
+                  <div className="px-3 py-1 bg-emerald-100 text-emerald-800 text-sm font-medium rounded-full">
+                    Artisan Delivers
+                  </div>
+                )}
+                {orders[0]?.deliveryMethod === 'professionalDelivery' && (
+                  <div className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                    Professional Courier
+                  </div>
+                )}
+              </div>
+
+              {/* Delivery Timing Information */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-3">
+                <div className="flex items-start gap-3">
+                  <ClockIcon className="w-5 h-5 text-amber-600 mt-0.5 print:hidden" />
+                  <div>
+                    <h4 className="font-medium text-amber-800 print:text-gray-800 mb-2">Delivery Timeline</h4>
+                    {orders[0]?.deliveryMethod === 'personalDelivery' && (
+                      <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                        <p>• <strong>Personal Delivery:</strong> Delivered directly by the artisan</p>
+                        <p>• <strong>Delivery Window:</strong> 2-4 business days after order confirmation</p>
+                        <p>• <strong>Delivery Hours:</strong> 9 AM - 6 PM, Monday to Friday</p>
+                        <p>• <strong>Contact:</strong> You'll receive a call/text before delivery</p>
+                      </div>
+                    )}
+                    {orders[0]?.deliveryMethod === 'professionalDelivery' && (
+                      <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                        <p>• <strong>Professional Delivery:</strong> Delivered by certified courier</p>
+                        <p>• <strong>Delivery Window:</strong> 1-3 business days after order confirmation</p>
+                        <p>• <strong>Delivery Hours:</strong> 8 AM - 8 PM, Monday to Saturday</p>
+                        <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
+                      </div>
+                    )}
+                    {orders[0]?.deliveryMethod === 'delivery' && (
+                      <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                        <p>• <strong>Standard Delivery:</strong> Delivered via standard shipping</p>
+                        <p>• <strong>Delivery Window:</strong> 3-7 business days after order confirmation</p>
+                        <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-start gap-3">
                 <MapPinIcon className="w-5 h-5 text-stone-400 mt-1 print:hidden" />
                 <div>

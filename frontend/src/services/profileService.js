@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 import { authToken } from './authservice';
+import { getUserIdFromToken } from '../utils/tokenUtils';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -232,18 +233,6 @@ export const preloadProfileFast = () => {
       });
       return response.data.data?.user || response.data.user;
     }, CACHE_TTL.USER_PROFILE);
-  }
-};
-
-// Helper function to get user ID from token
-const getUserIdFromToken = (token) => {
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.userId;
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
   }
 };
 

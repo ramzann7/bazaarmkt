@@ -4,18 +4,7 @@ import { getProfile } from '../services/authservice';
 import { getProfileFast, updateProfileCache } from '../services/profileService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import toast from 'react-hot-toast';
-
-// Helper function to get user ID from token
-const getUserIdFromToken = (token) => {
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.userId;
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
-  }
-};
+import { getUserIdFromToken } from '../utils/tokenUtils';
 
 const AuthContext = createContext();
 

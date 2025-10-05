@@ -1,7 +1,7 @@
 // src/services/authService.js
 import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService.js';
-
+import { getUserIdFromToken } from '../utils/tokenUtils';
 import config from '../config/environment.js';
 
 // Create axios instance with base configuration
@@ -47,31 +47,32 @@ api.interceptors.response.use(
 export const authToken = {
   getToken: () => localStorage.getItem('token'),
   setToken: (token) => {
-    localStorage.setItem('token', token);
-    // Clear all user profile caches when token changes (in case of user switch)
-    const cacheKeys = Object.keys(cacheService.cache || {});
-    cacheKeys.forEach(key => {
-      if (key.startsWith(CACHE_KEYS.USER_PROFILE)) {
-        cacheService.delete(key);
+    console.log('🔑 Setting new token, clearing all user caches...');
+    
+    // Clear all existing user-specific caches before setting new token
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith(CACHE_KEYS.USER_PROFILE) || 
+          key.startsWith('cart_') || 
+          key.startsWith('cart_count_') ||
+          key.includes('profile_') ||
+          key.includes('user_')) {
+        console.log('🗑️ Clearing cache key:', key);
+        localStorage.removeItem(key);
       }
     });
+    
+    // Clear cache service
+    cacheService.clear();
+    
+    // Set the new token
+    localStorage.setItem('token', token);
+    
+    console.log('✅ Token set and caches cleared');
   },
   removeToken: () => {
     localStorage.removeItem('token');
     // Clear all cached data when logging out
     cacheService.clear();
-  }
-};
-
-// Helper function to get user ID from token
-const getUserIdFromToken = (token) => {
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.userId;
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
   }
 };
 

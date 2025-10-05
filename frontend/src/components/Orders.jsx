@@ -1767,27 +1767,14 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     </>
                   )}
                   {order.status === 'confirmed' && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus('preparing')}
-                        disabled={isLoading}
-                        title={isLoading ? 'Loading...' : 'Click to decline order'}
-                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                      >
-                        {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowDeclineModal(true);
-                        }}
-                        disabled={isLoading}
-                        title={isLoading ? 'Loading...' : 'Click to decline order'}
-                        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                        style={{ border: '2px solid red' }} // Visual indicator for debugging
-                      >
-                        ❌ Decline Order
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleUpdateStatus('preparing')}
+                      disabled={isLoading}
+                      title={isLoading ? 'Loading...' : 'Start preparing the order'}
+                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                    >
+                      {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
+                    </button>
                   )}
                   {order.status === 'preparing' && (
                     <button

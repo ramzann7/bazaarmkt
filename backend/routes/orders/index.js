@@ -1034,6 +1034,13 @@ const updateOrderStatus = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { status, updateReason } = req.body;
     
+    console.log('🔍 Order status update request:', {
+      orderId: req.params.id,
+      status,
+      updateReason,
+      body: req.body
+    });
+    
     if (!status) {
       return res.status(400).json({
         success: false,
@@ -1079,14 +1086,6 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
-    console.log('🔍 Order found for decline:', {
-      orderId: order._id,
-      orderArtisan: order.artisan,
-      orderArtisanType: typeof order.artisan,
-      orderStatus: order.status,
-      orderUserId: order.userId
-    });
-    
     // Check if user is the artisan for this order or an admin
     // First, find the artisan record for this user
     const artisansCollection = db.collection('artisans');
@@ -1099,25 +1098,18 @@ const updateOrderStatus = async (req, res) => {
     );
     const isAdmin = decoded.role === 'admin' || decoded.userType === 'admin';
     
-    console.log('🔍 Authorization check for decline order:', {
-      orderId: req.params.id,
-      orderArtisan: order.artisan,
-      orderArtisanString: order.artisan ? order.artisan.toString() : null,
-      decodedUserId: decoded.userId,
-      decodedUserIdString: decoded.userId.toString(),
-      userArtisan: userArtisan,
-      userArtisanId: userArtisan ? userArtisan._id.toString() : null,
-      isArtisan,
-      isAdmin,
-      userRole: decoded.role,
-      userType: decoded.userType,
-      status: order.status
-    });
-    
     if (!isArtisan && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to update this order'
+      });
+    }
+    
+    // Check if artisan can decline this order (only before confirmation)
+    if (status === 'declined' && order.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be declined. Current status: ${order.status}. Orders can only be declined when they are in "pending" status (before confirmation).`
       });
     }
     
@@ -1152,6 +1144,13 @@ const updateOrderStatus = async (req, res) => {
         $set: updateFields
       }
     );
+    
+    console.log('🔍 Order update result:', {
+      orderId: req.params.id,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      updateFields
+    });
     
     if (result.matchedCount === 0) {
       return res.status(404).json({

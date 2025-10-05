@@ -292,7 +292,7 @@ export const notificationService = {
         isRead: false
       };
 
-      const response = await axios.post(`${API_URL}/notifications/platform`, platformData, {
+      const response = await axios.post(`${API_URL}/notifications/send`, platformData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log('✅ Platform notification sent successfully');
@@ -307,7 +307,7 @@ export const notificationService = {
   getNotificationPreferences: async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/notifications/preferences/${userId}`, {
+      const response = await axios.get(`${API_URL}/notifications/preferences`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data.preferences;

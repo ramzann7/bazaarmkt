@@ -68,7 +68,7 @@ export const orderPaymentService = {
   // Save payment method with Stripe PaymentMethod ID
   savePaymentMethod: async (paymentMethodData) => {
     try {
-      const response = await orderPaymentApi.post('/profile/payment-methods', paymentMethodData);
+      const response = await orderPaymentApi.post('/payment-methods', paymentMethodData);
       return response.data;
     } catch (error) {
       console.error('Error saving payment method:', error);

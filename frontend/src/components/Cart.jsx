@@ -1307,16 +1307,16 @@ const Cart = () => {
   // Handle payment success
   const handlePaymentSuccess = (orderData) => {
     console.log('Payment successful, order created:', orderData);
-    
-    // Clear cart
+      
+      // Clear cart
     cartService.clearCart(currentUserId);
     
     // Navigate to order confirmation with the correct data structure
-    navigate('/order-confirmation', { 
-      state: { 
+      navigate('/order-confirmation', { 
+        state: { 
         orders: orderData, // OrderConfirmation expects 'orders' not 'orderData'
-        message: 'Order placed successfully!',
-        orderSummary: {
+          message: 'Order placed successfully!',
+          orderSummary: {
           total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
           itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
           items: cart
@@ -1513,37 +1513,41 @@ const Cart = () => {
     if (isCreatingPaymentIntent) {
     return (
         <div className="min-h-screen bg-background py-8">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col items-center justify-center min-h-[400px]">
               <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mb-4"></div>
               <h2 className="text-xl font-semibold text-stone-800 mb-2">Preparing Payment</h2>
               <p className="text-stone-600">Setting up secure payment processing...</p>
-            </div>
           </div>
-        </div>
+                      </div>
+                    </div>
       );
     }
 
     // Show Stripe payment form
+    console.log('🔍 Payment step - paymentIntent:', paymentIntent);
+    console.log('🔍 Payment step - stripePromise:', stripePromise);
+    console.log('🔍 Payment step - VITE_STRIPE_PUBLISHABLE_KEY:', import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+    
     if (paymentIntent && stripePromise) {
-      return (
+                      return (
         <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
-          <button
+                          <button
             onClick={() => setCheckoutStep('delivery')}
               className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
-          >
+                          >
             <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="font-medium">Back to Delivery</span>
-          </button>
+                          </button>
 
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold text-stone-800 font-display mb-3">Complete Your Payment</h1>
               <p className="text-xl text-stone-600">Secure payment processing with Stripe</p>
-          </div>
-          
+                          </div>
+                          
             {/* Stripe Payment Component */}
             <Elements stripe={stripePromise}>
               <StripeOrderPayment
@@ -1584,8 +1588,8 @@ const Cart = () => {
                 savedPaymentMethods={userProfile?.paymentMethods || []}
               />
             </Elements>
-                      </div>
-                        </div>
+                            </div>
+                            </div>
       );
     }
 
@@ -1594,13 +1598,13 @@ const Cart = () => {
       <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Back Button */}
-                          <button
+                            <button
             onClick={() => setCheckoutStep('delivery')}
             className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
-                          >
+                            >
             <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
             <span className="font-medium">Back to Delivery</span>
-                          </button>
+                            </button>
 
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment System</h1>
@@ -1609,18 +1613,24 @@ const Cart = () => {
                           
           <div className="card p-6">
             <div className="text-center py-12">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CreditCardIcon className="w-8 h-8 text-amber-600" />
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCardIcon className="w-8 h-8 text-red-600" />
                             </div>
-              <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Payment System Updating</h2>
-              <p className="text-stone-600 mb-6">
-                We're upgrading our payment system for better security and user experience.
+              <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Payment System Configuration Error</h2>
+              <p className="text-stone-600 mb-4">
+                Stripe payment processing is not properly configured.
               </p>
-              <p className="text-sm text-stone-500">
-                Please try again in a few moments, or contact support if you need immediate assistance.
-              </p>
-                            </div>
+              <div className="text-sm text-stone-500 space-y-2">
+                <p><strong>Debug Information:</strong></p>
+                <p>• Payment Intent: {paymentIntent ? '✅ Available' : '❌ Missing'}</p>
+                <p>• Stripe Promise: {stripePromise ? '✅ Available' : '❌ Missing'}</p>
+                <p>• Stripe Key: {import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? '✅ Set' : '❌ Missing'}</p>
                           </div>
+              <p className="text-sm text-stone-500 mt-4">
+                Please contact support or try again later.
+              </p>
+                        </div>
+                      </div>
         </div>
       </div>
     );

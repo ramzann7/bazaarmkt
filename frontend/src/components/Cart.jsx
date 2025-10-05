@@ -1314,13 +1314,19 @@ const Cart = () => {
     // Send order completion notification
     try {
       const userInfo = {
-        id: user?.id || currentUserId,
-        email: user?.email,
-        isGuest: !user
+        id: user?.id || currentUserId || userProfile?.id,
+        email: user?.email || userProfile?.email,
+        isGuest: !user && !userProfile
       };
       
-      await notificationService.sendOrderCompletionNotification(orderData, userInfo);
-      console.log('✅ Order completion notification sent');
+      console.log('📧 Notification userInfo:', userInfo);
+      
+      if (userInfo.email || userInfo.isGuest) {
+        await notificationService.sendOrderCompletionNotification(orderData, userInfo);
+        console.log('✅ Order completion notification sent');
+      } else {
+        console.log('⚠️ Skipping notification - no email available and not a guest');
+      }
     } catch (notificationError) {
       console.error('❌ Error sending order completion notification:', notificationError);
       // Don't fail the order flow if notification fails

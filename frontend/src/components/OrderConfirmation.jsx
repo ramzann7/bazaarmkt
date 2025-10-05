@@ -458,6 +458,21 @@ export default function OrderConfirmation() {
                         </div>
                       </div>
                       
+                      {/* Pickup Hours */}
+                      {order.artisan?.pickupHours && (
+                        <div className="bg-emerald-100 rounded-lg p-3 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
+                          <div className="flex items-start gap-2">
+                            <ClockIcon className="w-4 h-4 text-emerald-600 mt-0.5 print:hidden" />
+                            <div>
+                              <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Pickup Hours</p>
+                              <p className="text-xs text-emerald-700 print:text-gray-600">
+                                {order.artisan.pickupHours}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       {/* Pickup Instructions */}
                       {order.artisan?.pickupInstructions && (
                         <div className="bg-emerald-100 rounded-lg p-3 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
@@ -467,21 +482,6 @@ export default function OrderConfirmation() {
                               <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Pickup Instructions</p>
                               <p className="text-xs text-emerald-700 print:text-gray-600">
                                 {order.artisan.pickupInstructions}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Pickup Hours */}
-                      {order.artisan?.businessHours && (
-                        <div className="bg-emerald-100 rounded-lg p-3 print:bg-gray-100 print:rounded-none print:p-2">
-                          <div className="flex items-start gap-2">
-                            <ClockIcon className="w-4 h-4 text-emerald-600 mt-0.5 print:hidden" />
-                            <div>
-                              <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Business Hours</p>
-                              <p className="text-xs text-emerald-700 print:text-gray-600">
-                                {order.artisan.businessHours}
                               </p>
                             </div>
                           </div>
@@ -550,20 +550,71 @@ export default function OrderConfirmation() {
                             </div>
                           </div>
                           
-                          {/* Product Type Badge */}
+                          {/* Product Type Badge and Timing Information */}
                           {item.product?.productType && (
-                            <div className="flex items-center gap-2 mt-2 print:mt-1">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full print:rounded-none print:px-1 print:py-0.5 ${
-                                item.product.productType === 'ready_to_ship' 
-                                  ? 'bg-emerald-100 text-emerald-800 print:bg-gray-200 print:text-gray-800'
-                                  : item.product.productType === 'made_to_order'
-                                  ? 'bg-amber-100 text-amber-800 print:bg-gray-200 print:text-gray-800'
-                                  : 'bg-purple-100 text-purple-800 print:bg-gray-200 print:text-gray-800'
-                              }`}>
-                                {item.product.productType === 'ready_to_ship' ? 'Ready to Ship' :
-                                 item.product.productType === 'made_to_order' ? 'Made to Order' :
-                                 'Scheduled Order'}
-                          </span>
+                            <div className="space-y-2 mt-2 print:mt-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full print:rounded-none print:px-1 print:py-0.5 ${
+                                  item.product.productType === 'ready_to_ship' 
+                                    ? 'bg-emerald-100 text-emerald-800 print:bg-gray-200 print:text-gray-800'
+                                    : item.product.productType === 'made_to_order'
+                                    ? 'bg-amber-100 text-amber-800 print:bg-gray-200 print:text-gray-800'
+                                    : 'bg-purple-100 text-purple-800 print:bg-gray-200 print:text-gray-800'
+                                }`}>
+                                  {item.product.productType === 'ready_to_ship' ? 'Ready to Ship' :
+                                   item.product.productType === 'made_to_order' ? 'Made to Order' :
+                                   'Scheduled Order'}
+                                </span>
+                              </div>
+                              
+                              {/* Product-Specific Timing Information */}
+                              {item.product.productType === 'ready_to_ship' && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                                      <span className="text-white text-xs">✓</span>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold text-emerald-800 mb-1">Ready to Ship</h5>
+                                      <p className="text-xs text-emerald-700">
+                                        This item is ready and will be shipped immediately. Expected delivery within 1-3 business days.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {item.product.productType === 'made_to_order' && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 bg-amber-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                                      <span className="text-white text-xs">⚒</span>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold text-amber-800 mb-1">Made to Order</h5>
+                                      <p className="text-xs text-amber-700">
+                                        This item is being custom-made for you. Production typically takes 3-7 business days. You'll receive updates on progress.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {item.product.productType === 'scheduled_order' && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                                      <span className="text-white text-xs">📅</span>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold text-purple-800 mb-1">Scheduled Order</h5>
+                                      <p className="text-xs text-purple-700">
+                                        This item is scheduled for production. You'll be notified of the exact timeline and when it's ready.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

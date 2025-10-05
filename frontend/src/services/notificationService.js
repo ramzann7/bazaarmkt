@@ -63,12 +63,14 @@ export const notificationService = {
       }
 
       // For patrons, send platform notification and email if enabled
-      if (!userInfo.isGuest) {
+      if (!userInfo.isGuest && userInfo.id) {
         await notificationService.sendPlatformNotification(notificationData);
         // Check if user has email notifications enabled
-        const preferences = await notificationService.getNotificationPreferences(userInfo.id);
-        if (preferences.email?.orderUpdates && userInfo.email) {
-          await notificationService.sendOrderCompletionEmail(notificationData);
+        if (userInfo.email) {
+          const preferences = await notificationService.getNotificationPreferences(userInfo.id);
+          if (preferences.email?.orderUpdates) {
+            await notificationService.sendOrderCompletionEmail(notificationData);
+          }
         }
       }
 

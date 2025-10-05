@@ -124,6 +124,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Redis health check
+app.get('/api/health/redis', async (req, res) => {
+  try {
+    const redisCacheService = require('./services/redisCacheService');
+    const health = await redisCacheService.healthCheck();
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Image optimization endpoint
 app.get('/api/images/optimize/:path(*)', async (req, res) => {
   try {

@@ -9,6 +9,18 @@ const { MongoClient } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const PlatformSettingsService = require('../../services/platformSettingsService');
+const redisCacheService = require('../../services/redisCacheService');
+
+// Cache configuration
+const CACHE_TTL = 300; // 5 minutes in seconds
+const getCacheKey = (artisanId) => `completed_orders:${artisanId}`;
+
+// Helper function to invalidate cache for an artisan
+const invalidateArtisanCache = async (artisanId) => {
+  const cacheKey = getCacheKey(artisanId.toString());
+  await redisCacheService.del(cacheKey);
+  console.log('🗑️ Invalidated Redis cache for artisan:', artisanId.toString());
+};
 
 // Helper function to get status display text
 const getStatusDisplayText = (status, deliveryMethod = 'pickup') => {
@@ -599,6 +611,11 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       // Don't fail the order creation if notification fails
     }
 
+    // Invalidate cache for the artisan when new order is created
+    if (enrichedItems.length > 0 && enrichedItems[0].artisanId) {
+      await invalidateArtisanCache(enrichedItems[0].artisanId);
+    }
+
     res.json({
       success: true,
       message: 'Order created successfully',
@@ -862,6 +879,12 @@ const createOrder = async (req, res) => {
     } catch (notificationError) {
       console.error('❌ Error sending order notifications:', notificationError);
       // Don't fail the order creation if notification fails
+    }
+    
+    // Invalidate cache for the artisan when new order is created
+    if (order.artisan) {
+      const artisanId = order.artisan._id || order.artisan;
+      await invalidateArtisanCache(artisanId);
     }
     
     // Connection managed by middleware - no close needed
@@ -1228,6 +1251,12 @@ const updateOrderStatus = async (req, res) => {
       // Don't fail the status update if notification fails
     }
     
+    // Invalidate cache for the artisan when order status changes
+    if (updatedOrder.artisan) {
+      const artisanId = updatedOrder.artisan._id || updatedOrder.artisan;
+      await invalidateArtisanCache(artisanId);
+    }
+    
     // Connection managed by middleware - no close needed
     
     res.json({
@@ -1330,7 +1359,7 @@ const getArtisanOrders = async (req, res) => {
     orders = await ordersCollection
       .find({
         'artisan._id': artisan._id,
-        status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude only truly completed orders
+        status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] } // Only actionable orders
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -1344,7 +1373,7 @@ const getArtisanOrders = async (req, res) => {
       orders = await ordersCollection
         .find({
           'artisan._id': artisan._id.toString(),
-          status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
+          status: { $in: ['pending', 'confirmed', 'preparing', 'ready'] } // Only actionable orders
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
@@ -1435,9 +1464,26 @@ const getArtisanOrders = async (req, res) => {
         patronInfo = await usersCollection.findOne({ _id: order.userId });
       }
       
+      // Return optimized order structure with only essential fields
       return {
-        ...order,
-        artisanInfo: artisan,
+        _id: order._id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        deliveryMethod: order.deliveryMethod,
+        deliveryAddress: order.deliveryAddress,
+        pickupTime: order.pickupTime,
+        paymentStatus: order.paymentStatus,
+        items: order.items?.map(item => ({
+          _id: item._id,
+          productId: item.productId,
+          name: item.name || item.productName,
+          price: item.price || item.unitPrice,
+          quantity: item.quantity,
+          totalPrice: item.totalPrice,
+          productType: item.productType
+        })) || [],
         // Preserve the original artisan data for frontend compatibility
         artisan: order.artisan || artisan,
         patron: patronInfo ? {
@@ -1446,7 +1492,12 @@ const getArtisanOrders = async (req, res) => {
           lastName: patronInfo.lastName,
           email: patronInfo.email,
           phone: patronInfo.phone
-        } : null
+        } : (order.isGuestOrder && order.guestInfo ? {
+          firstName: order.guestInfo.firstName,
+          lastName: order.guestInfo.lastName,
+          email: order.guestInfo.email,
+          phone: order.guestInfo.phone
+        } : null)
       };
     }));
     
@@ -2590,6 +2641,20 @@ const getArtisanCompletedOrders = async (req, res) => {
       });
     }
     
+    // Check Redis cache first for completed orders
+    const cacheKey = getCacheKey(artisan._id.toString());
+    const cachedOrders = await redisCacheService.get(cacheKey);
+    if (cachedOrders) {
+      console.log('📦 Returning Redis cached completed orders for artisan:', artisan._id.toString());
+      return res.json({
+        success: true,
+        data: { orders: cachedOrders },
+        orders: cachedOrders,
+        count: cachedOrders.length,
+        cached: true
+      });
+    }
+    
     // Find completed orders for this artisan using multiple approaches
     let orders = [];
     
@@ -2597,7 +2662,7 @@ const getArtisanCompletedOrders = async (req, res) => {
     orders = await ordersCollection
       .find({
         'artisan._id': artisan._id,
-        status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+        status: { $in: ['delivered', 'picked_up', 'cancelled', 'declined'] } // Only completed orders
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
@@ -2608,7 +2673,7 @@ const getArtisanCompletedOrders = async (req, res) => {
       orders = await ordersCollection
         .find({
           'artisan._id': artisan._id.toString(),
-          status: { $in: ['delivered', 'completed', 'cancelled'] } // Only completed orders
+          status: { $in: ['delivered', 'picked_up', 'cancelled', 'declined'] } // Only completed orders
         })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
@@ -2651,11 +2716,16 @@ const getArtisanCompletedOrders = async (req, res) => {
       };
     }));
     
+    // Cache the completed orders in Redis for future requests
+    await redisCacheService.set(cacheKey, ordersWithPatronInfo, CACHE_TTL);
+    console.log('💾 Cached completed orders in Redis for artisan:', artisan._id.toString());
+    
     res.json({
       success: true,
       data: { orders: ordersWithPatronInfo },
       orders: ordersWithPatronInfo, // Frontend compatibility
-      count: ordersWithPatronInfo.length
+      count: ordersWithPatronInfo.length,
+      cached: false
     });
   } catch (error) {
     console.error('Get artisan completed orders error:', error);

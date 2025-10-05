@@ -1464,11 +1464,34 @@ const deletePaymentMethod = async (req, res) => {
       });
     }
 
-    // Remove payment method from user's payment methods array
+    // First, get the user to find the payment method
+    const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    if (!user || !user.paymentMethods) {
+      return res.status(404).json({
+        success: false,
+        message: 'User or payment methods not found'
+      });
+    }
+
+    // Find the payment method to remove (try different ID fields)
+    const paymentMethodToRemove = user.paymentMethods.find(pm => 
+      pm.id === paymentMethodId || 
+      pm._id === paymentMethodId || 
+      pm.stripePaymentMethodId === paymentMethodId
+    );
+
+    if (!paymentMethodToRemove) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment method not found'
+      });
+    }
+
+    // Remove the payment method from the array
     const result = await usersCollection.updateOne(
       { _id: new ObjectId(decoded.userId) },
       { 
-        $pull: { paymentMethods: { id: paymentMethodId } },
+        $pull: { paymentMethods: paymentMethodToRemove },
         $set: { updatedAt: new Date() }
       }
     );

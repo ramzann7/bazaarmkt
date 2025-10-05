@@ -1567,10 +1567,16 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
   const removePaymentMethod = async (id) => {
     try {
       console.log('🔄 Removing payment method with id:', id);
-      const updatedMethods = paymentMethods.filter(method => method._id !== id);
-      console.log('📊 Updated methods after removal:', updatedMethods);
       
-      // Create a clean array of payment methods for the backend
+      // Call the backend delete API
+      await profileService.deletePaymentMethod(id);
+      console.log('✅ Payment method deleted from backend');
+      
+      // Update local state
+      const updatedMethods = paymentMethods.filter(method => method._id !== id);
+      setPaymentMethods(updatedMethods);
+      
+      // Update the profile with the new payment methods array
       const cleanPaymentMethods = updatedMethods.map(method => ({
         type: method.type,
         last4: method.last4,
@@ -1578,11 +1584,12 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         expiryMonth: method.expiryMonth,
         expiryYear: method.expiryYear,
         cardholderName: method.cardholderName,
-        isDefault: method.isDefault
+        isDefault: method.isDefault,
+        stripePaymentMethodId: method.stripePaymentMethodId
       }));
       
-      // Auto-save the updated payment methods first
-      await onSave(cleanPaymentMethods);
+      // Update the profile
+      await onSave({ paymentMethods: cleanPaymentMethods });
       
       // Only update local state if API call succeeds
       setPaymentMethods(updatedMethods);
@@ -2070,7 +2077,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
             </div>
             <button
               type="button"
-              onClick={() => removePaymentMethod(method._id || index)}
+              onClick={() => removePaymentMethod(method.id || method._id || index)}
               className="text-red-600 hover:text-red-700"
             >
               <TrashIcon className="w-4 h-4" />

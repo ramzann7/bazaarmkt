@@ -105,7 +105,7 @@ export const profileService = {
 
   // Delete payment method
   deletePaymentMethod: async (paymentMethodId) => {
-    const response = await axios.delete(`${API_URL}/payment-methods/${paymentMethodId}`, {
+    const response = await axios.delete(`${API_URL}/profile/payment-methods/${paymentMethodId}`, {
       headers: getAuthHeaders()
     });
     return response.data;

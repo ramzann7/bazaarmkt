@@ -1307,13 +1307,22 @@ const Cart = () => {
   // Handle payment success
   const handlePaymentSuccess = (orderData) => {
     console.log('Payment successful, order created:', orderData);
-      // Clear cart
+    
+    // Clear cart
     cartService.clearCart(currentUserId);
-      // Navigate to order confirmation
-      navigate('/order-confirmation', { 
-        state: { 
-        orderData: orderData,
-        message: 'Order placed successfully!' 
+    
+    // Navigate to order confirmation with the correct data structure
+    navigate('/order-confirmation', { 
+      state: { 
+        orders: orderData, // OrderConfirmation expects 'orders' not 'orderData'
+        message: 'Order placed successfully!',
+        orderSummary: {
+          total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+          itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
+          items: cart
+        },
+        deliveryAddress: selectedAddress || deliveryForm,
+        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup'
       } 
     });
   };

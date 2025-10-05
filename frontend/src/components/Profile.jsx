@@ -1487,120 +1487,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
     }
   }, [profile.artisan?.stripeConnectStatus]);
   
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newPaymentMethod, setNewPaymentMethod] = useState({
-    type: 'credit_card',
-    cardNumber: '',  // Store full card number temporarily for validation
-    last4: '',
-    brand: '',
-    expiryMonth: '',
-    expiryYear: '',
-    cardholderName: '',
-    isDefault: false
-  });
 
-  const addPaymentMethod = async () => {
-    // Validate all fields
-    if (!newPaymentMethod.cardNumber) {
-      toast.error('Please enter card number');
-      return;
-    }
-    
-    if (!newPaymentMethod.brand) {
-      toast.error('Please select card brand');
-      return;
-    }
-    
-    if (!newPaymentMethod.expiryMonth || !newPaymentMethod.expiryYear) {
-      toast.error('Please enter expiry date');
-      return;
-    }
-    
-    if (!newPaymentMethod.cardholderName) {
-      toast.error('Please enter cardholder name');
-      return;
-    }
-    
-    try {
-      // Validate and extract last 4 digits from full card number
-      const cardDigitsOnly = newPaymentMethod.cardNumber.replace(/\D/g, '');
-      
-      // Validate card number length (typically 13-19 digits)
-      if (cardDigitsOnly.length < 13 || cardDigitsOnly.length > 19) {
-        toast.error('Invalid card number length. Card numbers are typically 13-19 digits.');
-        return;
-      }
-      
-      // Extract last 4 digits
-      const last4Only = cardDigitsOnly.slice(-4);
-      
-      console.log('💳 Card validation:', {
-        fullLength: cardDigitsOnly.length,
-        last4: last4Only,
-        brand: newPaymentMethod.brand
-      });
-      
-      // Validate expiry date
-      const currentYear = new Date().getFullYear();
-      const expiryYear = parseInt(newPaymentMethod.expiryYear, 10);
-      const expiryMonth = parseInt(newPaymentMethod.expiryMonth, 10);
-      
-      if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < (new Date().getMonth() + 1))) {
-        toast.error('Card has expired');
-        return;
-      }
-      
-      // Convert string values to proper types for backend
-      const paymentMethodToAdd = {
-        type: newPaymentMethod.type,
-        last4: last4Only,
-        brand: newPaymentMethod.brand.toLowerCase(), // Ensure consistent lowercase
-        expiryMonth: expiryMonth,
-        expiryYear: expiryYear,
-        cardholderName: newPaymentMethod.cardholderName.trim(),
-        isDefault: paymentMethods.length === 0 ? true : newPaymentMethod.isDefault // First card is always default
-      };
-      
-      console.log('💳 Adding payment method:', paymentMethodToAdd);
-      
-      // Create a clean array of payment methods for the backend
-      const cleanPaymentMethods = paymentMethods.map(method => ({
-        type: method.type,
-        last4: method.last4,
-        brand: method.brand,
-        expiryMonth: method.expiryMonth,
-        expiryYear: method.expiryYear,
-        cardholderName: method.cardholderName,
-        isDefault: method.isDefault
-      }));
-      
-      const updatedMethods = [...cleanPaymentMethods, paymentMethodToAdd];
-      console.log('🔄 Adding payment method, data to save:', updatedMethods);
-      
-      // Auto-save the updated payment methods first
-      await onSave(updatedMethods);
-      
-      // Only update local state if API call succeeds
-      setPaymentMethods(updatedMethods);
-      
-      setNewPaymentMethod({
-        type: 'credit_card',
-        cardNumber: '',
-        last4: '',
-        brand: '',
-        expiryMonth: '',
-        expiryYear: '',
-        cardholderName: '',
-        isDefault: false
-      });
-      setShowAddForm(false);
-      
-      // Success toast is shown by handlePaymentMethodUpdate
-    } catch (error) {
-      console.error('Error adding payment method:', error);
-      toast.error('Failed to add payment method');
-    }
-  };
 
   const removePaymentMethod = async (idOrIndex) => {
     try {
@@ -2001,136 +1888,26 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Payment Methods</h3>
-        <button
-          type="button"
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200"
-        >
-          <PlusIcon className="w-4 h-4 inline mr-1" />
-          Add Payment Method
-        </button>
       </div>
 
-      {showAddForm && (
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h4 className="font-medium mb-4">Add New Payment Method</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Card Number *</label>
-              <input
-                type="text"
-                value={newPaymentMethod.cardNumber}
-                onChange={(e) => {
-                  // Format card number with spaces every 4 digits
-                  const value = e.target.value.replace(/\D/g, '');
-                  const formatted = value.replace(/(\d{4})/g, '$1 ').trim();
-                  
-                  // Auto-detect card brand based on first digits
-                  let detectedBrand = newPaymentMethod.brand;
-                  if (value.length >= 2) {
-                    if (value.startsWith('4')) {
-                      detectedBrand = 'visa';
-                    } else if (value.startsWith('5')) {
-                      detectedBrand = 'mastercard';
-                    } else if (value.startsWith('34') || value.startsWith('37')) {
-                      detectedBrand = 'amex';
-                    } else if (value.startsWith('6')) {
-                      detectedBrand = 'discover';
-                    }
-                  }
-                  
-                  setNewPaymentMethod({ 
-                    ...newPaymentMethod, 
-                    cardNumber: formatted,
-                    brand: detectedBrand
-                  });
-                }}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 font-mono"
-                placeholder="1234 5678 9012 3456"
-                maxLength="23"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter full card number (only last 4 digits will be stored for security)
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Card Brand * 
-                {newPaymentMethod.brand && (
-                  <span className="ml-2 text-xs text-green-600">(Auto-detected)</span>
-                )}
-              </label>
-              <select
-                value={newPaymentMethod.brand}
-                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, brand: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                required
-              >
-                <option value="">Select brand</option>
-                <option value="visa">Visa</option>
-                <option value="mastercard">Mastercard</option>
-                <option value="amex">Amex</option>
-                <option value="discover">Discover</option>
-                <option value="other">Other</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">Card brand is auto-detected from card number</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Expiry Month *</label>
-              <input
-                type="number"
-                value={newPaymentMethod.expiryMonth}
-                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, expiryMonth: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                min="1"
-                max="12"
-                placeholder="MM"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Expiry Year *</label>
-              <input
-                type="number"
-                value={newPaymentMethod.expiryYear}
-                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, expiryYear: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                min={new Date().getFullYear()}
-                placeholder="YYYY"
-                required
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Cardholder Name *</label>
-              <input
-                type="text"
-                value={newPaymentMethod.cardholderName}
-                onChange={(e) => setNewPaymentMethod({ ...newPaymentMethod, cardholderName: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="Name on card"
-                required
-              />
-            </div>
+      {/* Payment Methods Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
           </div>
-          <div className="mt-4 flex space-x-3">
-            <button
-              type="button"
-              onClick={addPaymentMethod}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-            >
-              Add Card
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-            >
-              Cancel
-            </button>
+          <div>
+            <h4 className="text-blue-800 font-medium">Secure Payment Methods</h4>
+            <p className="text-blue-700 text-sm mt-1">
+              Your payment methods are securely managed by Stripe. Cards are saved automatically when you complete a purchase with "Save for future use" enabled. 
+              You can remove saved cards below, but to add new cards, simply use them during checkout.
+            </p>
           </div>
         </div>
-      )}
+      </div>
+
 
       {(() => {
         // Safety check - ensure paymentMethods is always an array
@@ -2176,8 +1953,11 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
       {paymentMethods.length === 0 && (
         <div className="text-center py-8">
           <CreditCardIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h4 className="font-medium text-gray-900 mb-2">No Payment Methods</h4>
-          <p className="text-gray-600">Add a payment method to get started.</p>
+          <h4 className="font-medium text-gray-900 mb-2">No Saved Payment Methods</h4>
+          <p className="text-gray-600 mb-4">You haven't saved any payment methods yet.</p>
+          <p className="text-sm text-gray-500">
+            Payment methods are automatically saved when you complete a purchase with "Save for future use" enabled.
+          </p>
         </div>
       )}
     </div>

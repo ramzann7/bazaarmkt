@@ -1414,8 +1414,14 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
   
   // State for patrons (payment methods)
   const [paymentMethods, setPaymentMethods] = useState(() => {
-    const methods = profile.paymentMethods;
+    let methods = profile.paymentMethods;
     console.log('🔧 Initializing paymentMethods:', methods, 'Type:', typeof methods, 'IsArray:', Array.isArray(methods));
+    
+    // Handle nested paymentMethods structure
+    if (methods && typeof methods === 'object' && methods.paymentMethods && Array.isArray(methods.paymentMethods)) {
+      console.log('⚠️  Found nested paymentMethods structure, extracting array');
+      methods = methods.paymentMethods;
+    }
     
     // Ensure it's always an array
     if (Array.isArray(methods)) {
@@ -1444,8 +1450,14 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
     if (!isArtisan) {
       console.log('🔄 PaymentTab: Profile payment methods updated:', profile.paymentMethods);
       
-      const methods = profile.paymentMethods;
+      let methods = profile.paymentMethods;
       console.log('🔧 Updating paymentMethods:', methods, 'Type:', typeof methods, 'IsArray:', Array.isArray(methods));
+      
+      // Handle nested paymentMethods structure
+      if (methods && typeof methods === 'object' && methods.paymentMethods && Array.isArray(methods.paymentMethods)) {
+        console.log('⚠️  Found nested paymentMethods structure, extracting array');
+        methods = methods.paymentMethods;
+      }
       
       // Ensure it's always an array
       if (Array.isArray(methods)) {

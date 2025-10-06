@@ -90,7 +90,7 @@ export default function DashboardFixed() {
         }
 
         // Step 2: Load orders
-        const orders = await orderService.getArtisanOrders();
+        const orders = await orderService.getArtisanOrders(true); // Get all orders for revenue calculations
         
         // Ensure orders is an array
         const ordersArray = Array.isArray(orders) ? orders : [];

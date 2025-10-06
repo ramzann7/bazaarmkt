@@ -40,7 +40,7 @@ export default function PendingOrdersWidget() {
   const loadPendingOrders = async () => {
     try {
       setIsLoading(true);
-      const orders = await orderService.getArtisanOrders();
+      const orders = await orderService.getArtisanOrders(false); // Get active orders only
       const pending = orders.filter(order => 
         ['pending', 'confirmed', 'preparing'].includes(order.status)
       );

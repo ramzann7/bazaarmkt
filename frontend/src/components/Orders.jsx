@@ -23,7 +23,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('all'); // Default to all orders
+  const [filter, setFilter] = useState('active'); // Default to active orders
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -35,6 +35,13 @@ export default function Orders() {
     const interval = setInterval(loadUserAndOrders, 120000);
     return () => clearInterval(interval);
   }, []);
+
+  // Reload orders when filter changes
+  useEffect(() => {
+    if (userRole) {
+      loadUserAndOrders();
+    }
+  }, [filter]);
 
   // Handle order confirmation from checkout
   useEffect(() => {
@@ -63,24 +70,25 @@ export default function Orders() {
   const loadUserAndOrders = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
-      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '');
+      const includeAllOrders = filter === 'all';
+      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', includeAllOrders ? '(ALL ORDERS)' : '(ACTIVE ORDERS)');
       const userProfile = await getProfile();
       setUserRole(userProfile.userType || userProfile.role);
       
-      // Default filter is 'all' - user can change manually if needed
-      
-      // Load orders based on user role
+      // Load orders based on user role and filter preference
       let ordersData;
       if (userProfile.userType === 'artisan' || userProfile.role === 'artisan') {
-        console.log('📋 Loading artisan orders...');
-        ordersData = await orderService.getArtisanOrders();
+        console.log('📋 Loading artisan orders...', includeAllOrders ? '(ALL)' : '(ACTIVE)');
+        ordersData = await orderService.getArtisanOrders(includeAllOrders);
       } else {
-        console.log('📋 Loading patron orders...');
-        ordersData = await orderService.getPatronOrders();
+        console.log('📋 Loading patron orders...', includeAllOrders ? '(ALL)' : '(ACTIVE)');
+        ordersData = await orderService.getPatronOrders(includeAllOrders);
       }
       
       console.log('📦 Orders loaded:', {
         count: ordersData.length,
+        filter: filter,
+        includeAll: includeAllOrders,
         statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
       });
       
@@ -97,6 +105,7 @@ export default function Orders() {
     setSelectedOrder(order);
     setShowOrderDetails(true);
   };
+
 
   const handleQuickAction = async (orderId, action) => {
     try {

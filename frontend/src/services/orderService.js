@@ -25,13 +25,14 @@ const clearProductCaches = () => {
 };
 
 export const orderService = {
-  // Get all orders for the current user (patron)
-  getPatronOrders: async () => {
+  // Get orders for the current user (patron) - active orders by default
+  getPatronOrders: async (includeAll = false) => {
     try {
       const response = await axios.get(`${API_URL}/orders/buyer`, {
         headers: getAuthHeaders(),
         params: {
-          _t: Date.now() // Cache busting parameter
+          _t: Date.now(), // Cache busting parameter
+          ...(includeAll && { all: 'true' }) // Include all orders if requested
         }
       });
       // API returns { success: true, data: { orders: [...] }, count: N }
@@ -42,13 +43,14 @@ export const orderService = {
     }
   },
 
-  // Get all orders for the current artisan
-  getArtisanOrders: async () => {
+  // Get orders for the current artisan - active orders by default
+  getArtisanOrders: async (includeAll = false) => {
     try {
       const response = await axios.get(`${API_URL}/orders/artisan`, {
         headers: getAuthHeaders(),
         params: {
-          _t: Date.now() // Cache busting parameter
+          _t: Date.now(), // Cache busting parameter
+          ...(includeAll && { all: 'true' }) // Include all orders if requested
         }
       });
       // API returns { success: true, data: { orders: [...] }, count: N }

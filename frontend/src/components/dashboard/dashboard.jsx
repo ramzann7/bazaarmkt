@@ -82,7 +82,7 @@ export default function Dashboard() {
   const { execute: loadArtisanStats, isLoading: isStatsLoading } = useAsyncOperation(
     async () => {
       try {
-        const orders = await orderService.getArtisanOrders();
+        const orders = await orderService.getArtisanOrders(true); // Get all orders for revenue calculations
         
         // Ensure orders is an array
         const ordersArray = Array.isArray(orders) ? orders : [];
@@ -135,7 +135,7 @@ export default function Dashboard() {
   const { execute: loadRecentOrders, isLoading: isOrdersLoading } = useAsyncOperation(
     async () => {
       try {
-        const orders = await orderService.getArtisanOrders();
+        const orders = await orderService.getArtisanOrders(true); // Get all orders for revenue calculations
         // Ensure orders is an array and sort by creation date and take the 5 most recent
         const ordersArray = Array.isArray(orders) ? orders : [];
         const recent = ordersArray

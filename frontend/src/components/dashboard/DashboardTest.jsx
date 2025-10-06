@@ -43,7 +43,7 @@ export default function DashboardTest() {
 
       // Test 3: Check orders loading
       try {
-        const orders = await orderService.getArtisanOrders();
+        const orders = await orderService.getArtisanOrders(true); // Get all orders for testing
         results.orders = {
           success: true,
           count: Array.isArray(orders) ? orders.length : 0,

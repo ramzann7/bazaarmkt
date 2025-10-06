@@ -42,7 +42,7 @@ export default function DashboardDebug() {
         // Step 3: Load orders
         addLog('Step 3: Loading orders...');
         try {
-          const ordersData = await orderService.getArtisanOrders();
+          const ordersData = await orderService.getArtisanOrders(true); // Get all orders for debugging
           addLog('✅ Orders loaded', { count: ordersData.length, data: ordersData });
           setOrders(ordersData);
         } catch (error) {

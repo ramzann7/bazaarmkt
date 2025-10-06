@@ -1433,16 +1433,27 @@ const getArtisanOrders = async (req, res) => {
     // Try multiple approaches to find orders for this artisan
     let orders = [];
     
+    // Define active order statuses (orders that need action or are in progress)
+    const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'];
+    const includeAllOrders = req.query.all === 'true' || req.query.includeAll === 'true';
+    
+    // Build query filter based on whether to include all orders or just active ones
+    const baseQuery = {
+      $or: [
+        { 'artisan._id': artisan._id },  // Embedded object structure
+        { 'artisan': artisan._id }       // Direct ObjectId structure
+      ]
+    };
+    
+    // Add status filter if not requesting all orders
+    if (!includeAllOrders) {
+      baseQuery.status = { $in: activeStatuses };
+    }
+    
     // Approach 1: Match with both artisan object structures
-    console.log('🔍 Trying match on both artisan structures...');
+    console.log('🔍 Trying match on both artisan structures...', includeAllOrders ? '(ALL ORDERS)' : '(ACTIVE ORDERS ONLY)');
     orders = await ordersCollection
-      .find({
-        $or: [
-          { 'artisan._id': artisan._id },  // Embedded object structure
-          { 'artisan': artisan._id }       // Direct ObjectId structure
-        ]
-        // Return ALL orders, let frontend handle filtering
-      })
+      .find(baseQuery)
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
@@ -1452,11 +1463,17 @@ const getArtisanOrders = async (req, res) => {
     // Approach 2: If no orders found, try string match on order.artisan._id
     if (orders.length === 0) {
       console.log('🔍 Trying string match on order.artisan._id...');
+      const stringQuery = {
+        'artisan._id': artisan._id.toString()
+      };
+      
+      // Add status filter if not requesting all orders
+      if (!includeAllOrders) {
+        stringQuery.status = { $in: activeStatuses };
+      }
+      
       orders = await ordersCollection
-        .find({
-          'artisan._id': artisan._id.toString()
-          // Return ALL orders, let frontend handle filtering
-        })
+        .find(stringQuery)
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
         .toArray();
@@ -1467,11 +1484,20 @@ const getArtisanOrders = async (req, res) => {
     // Approach 3: Try items.artisanId as fallback (for older orders)
     if (orders.length === 0) {
       console.log('🔍 Trying items.artisanId as fallback...');
+      const itemsQuery = {
+        'items.artisanId': artisan._id
+      };
+      
+      // Add status filter if not requesting all orders
+      if (!includeAllOrders) {
+        itemsQuery.status = { $in: activeStatuses };
+      } else {
+        // For all orders, exclude only delivered, completed, cancelled
+        itemsQuery.status = { $nin: ['delivered', 'completed', 'cancelled'] };
+      }
+      
       orders = await ordersCollection
-        .find({
-          'items.artisanId': artisan._id,
-          status: { $nin: ['delivered', 'completed', 'cancelled'] } // Exclude completed orders
-        })
+        .find(itemsQuery)
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
         .toArray();
@@ -1491,6 +1517,13 @@ const getArtisanOrders = async (req, res) => {
       console.log('🔍 All orders for manual filter:', allOrdersForFilter.length);
       
       orders = allOrdersForFilter.filter(order => {
+        // First check if order status matches our criteria
+        const statusMatches = includeAllOrders ? 
+          !['delivered', 'completed', 'cancelled'].includes(order.status) :
+          activeStatuses.includes(order.status);
+        
+        if (!statusMatches) return false;
+        
         // Check order.artisan field first
         if (order.artisan) {
           const matches = (order.artisan._id && order.artisan._id.toString() === artisan._id.toString()) ||
@@ -1644,11 +1677,24 @@ const getPatronOrders = async (req, res) => {
     const ordersCollection = db.collection('orders');
     const artisansCollection = db.collection('artisans');
     
+    // Define active order statuses (orders that need action or are in progress)
+    const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'];
+    const includeAllOrders = req.query.all === 'true' || req.query.includeAll === 'true';
+    
+    // Build query filter
+    const query = { 
+      userId: new (require('mongodb')).ObjectId(decoded.userId)
+    };
+    
+    // Add status filter if not requesting all orders
+    if (!includeAllOrders) {
+      query.status = { $in: activeStatuses };
+    }
+    
+    console.log('🔍 Patron orders query:', includeAllOrders ? '(ALL ORDERS)' : '(ACTIVE ORDERS ONLY)', query);
+    
     const orders = await ordersCollection
-      .find({ 
-        userId: new (require('mongodb')).ObjectId(decoded.userId)
-        // Return ALL orders, let frontend handle filtering
-      })
+      .find(query)
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
       .toArray();

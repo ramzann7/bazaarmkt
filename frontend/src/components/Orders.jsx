@@ -1419,6 +1419,11 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   const handleUpdateStatus = async (newStatus) => {
     setIsLoading(true);
     try {
+      console.log('🔍 handleUpdateStatus called:', {
+        orderId: order._id,
+        newStatus: newStatus,
+        order: order
+      });
       
       await orderService.updateOrderStatus(order._id, { status: newStatus });
       toast.success(`Order status updated to ${getStatusDisplayText(newStatus, order.deliveryMethod)}`);
@@ -2007,14 +2012,14 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                   )}
                   {order.status === 'preparing' && (
                     <button
-                      onClick={() => handleUpdateStatus('ready')}
+                      onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'ready_for_delivery')}
                       disabled={isLoading}
                       className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                     >
                       {isLoading ? '⏳ Updating...' : '🎯 Mark Ready'}
                     </button>
                   )}
-                  {order.status === 'ready' && (
+                  {(order.status === 'ready_for_pickup' || order.status === 'ready_for_delivery') && (
                     <button
                       onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery')}
                       disabled={isLoading}
@@ -2043,7 +2048,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       {isLoading ? '⏳ Updating...' : '🎉 Mark Delivered'}
                     </button>
                   )}
-                  {order.status === 'delivering' && (
+                  {order.status === 'out_for_delivery' && (
                     <button
                       onClick={() => handleUpdateStatus('delivered')}
                       disabled={isLoading}

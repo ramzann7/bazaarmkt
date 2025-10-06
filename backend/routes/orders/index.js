@@ -12,11 +12,12 @@ const PlatformSettingsService = require('../../services/platformSettingsService'
 const redisCacheService = require('../../services/redisCacheService');
 
 // Import notification service functions
-const { sendNotification } = require('../notifications/index');
+const { sendNotification, sendEmailNotification } = require('../notifications/index');
 
 // Helper function to send notifications directly
 const sendNotificationDirect = async (notificationData, db) => {
   try {
+    // Send platform notification
     const mockReq = { body: notificationData, db: db };
     const mockRes = { 
       json: (data) => console.log('✅ Notification response:', data),
@@ -24,6 +25,36 @@ const sendNotificationDirect = async (notificationData, db) => {
     };
     
     await sendNotification(mockReq, mockRes);
+    
+    // Send email notification if user has email and it's an order status update
+    if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order')) {
+      try {
+        const emailReq = {
+          body: {
+            to: notificationData.userEmail,
+            subject: `${notificationData.title || 'Order Update'}`,
+            template: 'order_status_update',
+            data: {
+              orderNumber: notificationData.orderNumber || notificationData.orderId,
+              status: notificationData.status || notificationData.orderData?.status,
+              message: notificationData.message,
+              orderData: notificationData.orderData
+            }
+          }
+        };
+        const emailRes = {
+          json: (data) => console.log('✅ Email notification response:', data),
+          status: (code) => ({ json: (data) => console.log(`❌ Email notification error (${code}):`, data) })
+        };
+        
+        await sendEmailNotification(emailReq, emailRes);
+        console.log('✅ Email notification sent to:', notificationData.userEmail);
+      } catch (emailError) {
+        console.error('❌ Error sending email notification:', emailError);
+        // Don't fail the whole notification if email fails
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error('❌ Error sending notification directly:', error);
@@ -1325,6 +1356,9 @@ const updateOrderStatus = async (req, res) => {
         userId: updatedOrder.userId,
         orderId: updatedOrder._id,
         orderData: updatedOrder,
+        userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (userInfo?.email || null),
+        orderNumber: updatedOrder._id.toString().slice(-8),
+        status: status,
         updateType: status === 'declined' ? 'order_declined' : 'status_change',
         updateDetails: {
           newStatus: status,

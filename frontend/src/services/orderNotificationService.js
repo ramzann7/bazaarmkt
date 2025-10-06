@@ -435,6 +435,13 @@ class OrderNotificationService {
   triggerOrderCreatedNotification(orderData, userRole) {
     console.log('🔔 Manual order creation notification triggered');
     
+    // Check if this is a guest user - guests should only get email notifications, not toast
+    const isGuest = orderData?.isGuestOrder || orderData?.userInfo?.isGuest || false;
+    if (isGuest) {
+      console.log('📧 Guest user detected - skipping toast notification (email only)');
+      return;
+    }
+    
     // Play notification sound
     if (this.notificationSound) {
       this.notificationSound();
@@ -466,6 +473,13 @@ class OrderNotificationService {
   // Manually trigger notification for order status updates
   triggerOrderStatusUpdateNotification(orderData, newStatus, userRole) {
     console.log('🔔 Manual order status update notification triggered');
+    
+    // Check if this is a guest user - guests should only get email notifications, not toast
+    const isGuest = orderData?.isGuestOrder || orderData?.userInfo?.isGuest || false;
+    if (isGuest) {
+      console.log('📧 Guest user detected - skipping toast notification (email only)');
+      return;
+    }
     
     // Play notification sound
     if (this.notificationSound) {

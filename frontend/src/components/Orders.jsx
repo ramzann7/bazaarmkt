@@ -1136,9 +1136,12 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   // Calculate delivery info when modal opens and order is ready for delivery
   useEffect(() => {
     if (order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') && order.deliveryMethod !== 'pickup') {
-      calculateDeliveryInfo();
+      // Only calculate if we don't already have the distance
+      if (!deliveryDistance && !isCalculatingDistance) {
+        calculateDeliveryInfo();
+      }
     }
-  }, [order]);
+  }, [order?.status, order?.deliveryMethod, order?.deliveryAddress, deliveryDistance, isCalculatingDistance]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-CA', {
@@ -1272,6 +1275,21 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       return;
     }
     
+    // Check if we already have this calculation cached
+    const cacheKey = `delivery_info_${order._id}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { distance, timeEstimate } = JSON.parse(cached);
+        setDeliveryDistance(distance);
+        setEstimatedDeliveryTime(timeEstimate);
+        setIsCalculatingDistance(false);
+        return;
+      } catch (error) {
+        console.warn('Failed to parse cached delivery info:', error);
+      }
+    }
+    
     setIsCalculatingDistance(true);
     try {
       
@@ -1369,8 +1387,16 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         return;
       }
       
-      // Get delivery address coordinates
-      const deliveryAddress = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country}`;
+      // Get delivery address coordinates - ensure consistent formatting
+      const addressParts = [
+        order.deliveryAddress.street,
+        order.deliveryAddress.city,
+        order.deliveryAddress.state || order.deliveryAddress.province,
+        order.deliveryAddress.postalCode || order.deliveryAddress.zipCode,
+        order.deliveryAddress.country
+      ].filter(part => part && part !== 'undefined'); // Remove undefined/null parts
+      
+      const deliveryAddress = addressParts.join(', ');
       console.log('📍 Calculating distance to delivery address:', deliveryAddress);
       const deliveryCoords = await geocodingService.geocodeAddress(deliveryAddress);
       
@@ -1389,6 +1415,13 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       const timeEstimate = estimateDeliveryTime(distance, order.deliveryMethod);
       console.log('⏱️ Estimated delivery time:', timeEstimate);
       setEstimatedDeliveryTime(timeEstimate);
+      
+      // Cache the result
+      const cacheKey = `delivery_info_${order._id}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        distance,
+        timeEstimate
+      }));
       
     } catch (error) {
       console.error('Error calculating delivery info:', error);
@@ -2019,17 +2052,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       {isLoading ? '⏳ Updating...' : '🎯 Mark Ready'}
                     </button>
                   )}
-                  {(order.status === 'ready_for_pickup' || order.status === 'ready_for_delivery') && (
-                    <button
-                      onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery')}
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                    >
-                      {isLoading ? '⏳ Updating...' : 
-                       order.deliveryMethod === 'pickup' ? '📍 Ready for Pickup' : 
-                       '🚚 Start Delivery'}
-                    </button>
-                  )}
                   {order.status === 'ready_for_pickup' && (
                     <button
                       onClick={() => handleUpdateStatus('picked_up')}
@@ -2039,13 +2061,13 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       {isLoading ? '⏳ Updating...' : '✅ Mark Picked Up'}
                     </button>
                   )}
-                  {order.status === 'out_for_delivery' && (
+                  {order.status === 'ready_for_delivery' && (
                     <button
-                      onClick={() => handleUpdateStatus('delivered')}
+                      onClick={() => handleUpdateStatus('out_for_delivery')}
                       disabled={isLoading}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                     >
-                      {isLoading ? '⏳ Updating...' : '🎉 Mark Delivered'}
+                      {isLoading ? '⏳ Updating...' : '🚚 Start Delivery'}
                     </button>
                   )}
                   {order.status === 'out_for_delivery' && (

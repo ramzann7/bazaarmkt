@@ -43,12 +43,20 @@ export const notificationService = {
         orderId: orderData._id || orderData.id,
         userEmail: userInfo.email,
         userPhone: userInfo.phone,
+        userName: userInfo.firstName && userInfo.lastName ? `${userInfo.firstName} ${userInfo.lastName}` : (userInfo.firstName || 'Customer'),
         isGuest: userInfo.isGuest || false,
         orderDetails: {
           orderNumber: orderData.orderNumber || orderData._id,
           totalAmount: orderData.totalAmount || orderData.total,
+          subtotal: orderData.subtotal,
+          deliveryFee: orderData.deliveryFee,
           items: orderData.items || [],
           deliveryAddress: orderData.deliveryAddress,
+          deliveryMethod: orderData.deliveryMethod,
+          deliveryInstructions: orderData.deliveryInstructions,
+          pickupTimeWindows: orderData.pickupTimeWindows,
+          selectedPickupTimes: orderData.selectedPickupTimes,
+          artisan: orderData.artisan,
           estimatedDelivery: orderData.estimatedDelivery || '2-3 business days',
           orderStatus: 'confirmed',
           orderDate: new Date().toLocaleDateString(),
@@ -74,9 +82,19 @@ export const notificationService = {
         }
       }
 
-      // Send to backend notification service for logging
-      const response = await axios.post(`${API_URL}/notifications/send`, notificationData);
-      return response.data;
+      // Send to backend notification service for logging (skip for guest users without userId)
+      if (!userInfo.isGuest || userInfo.id) {
+        try {
+          const response = await axios.post(`${API_URL}/notifications/send`, notificationData);
+          return response.data;
+        } catch (error) {
+          console.warn('⚠️ Backend notification failed, but email notification may have succeeded:', error.message);
+          return { success: true, message: 'Email notification sent, platform notification skipped' };
+        }
+      } else {
+        console.log('⏭️ Skipping platform notification for guest user without userId');
+        return { success: true, message: 'Email notification sent, platform notification skipped for guest' };
+      }
       
     } catch (error) {
       console.error('Error sending order completion notification:', error);

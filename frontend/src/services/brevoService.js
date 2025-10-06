@@ -197,6 +197,35 @@ export const sendOrderUpdateEmail = async (orderData, recipientEmail, recipientN
   }
 };
 
+// Helper function to format pickup time for email
+const formatPickupTimeForEmail = (selectedPickupTimes) => {
+  if (!selectedPickupTimes || typeof selectedPickupTimes !== 'object') {
+    return 'Not specified';
+  }
+  
+  // Handle different pickup time formats
+  const timeEntries = Object.entries(selectedPickupTimes);
+  if (timeEntries.length === 0) {
+    return 'Not specified';
+  }
+  
+  const [artisanId, timeWindow] = timeEntries[0];
+  if (!timeWindow) {
+    return 'Not specified';
+  }
+  
+  // Format the time window
+  if (timeWindow.date && timeWindow.timeSlot) {
+    const date = new Date(timeWindow.date);
+    return `${date.toLocaleDateString()} at ${timeWindow.timeSlot}`;
+  } else if (timeWindow.date && timeWindow.startTime && timeWindow.endTime) {
+    const date = new Date(timeWindow.date);
+    return `${date.toLocaleDateString()} from ${timeWindow.startTime} to ${timeWindow.endTime}`;
+  }
+  
+  return 'Not specified';
+};
+
 // Generate HTML content for order completion email
 const generateOrderCompletionHTML = (orderData, recipientName) => {
   const orderItems = orderData.items?.map(item => 
@@ -209,9 +238,42 @@ const generateOrderCompletionHTML = (orderData, recipientName) => {
   ).join('') || '';
 
   const isPickupOrder = orderData.deliveryMethod === 'pickup';
-  const deliveryInfo = isPickupOrder 
-    ? `<p><strong>Pickup Location:</strong> ${orderData.artisan?.artisanName || 'Artisan Location'}</p>`
-    : `<p><strong>Delivery Address:</strong><br>${orderData.deliveryAddress?.street}, ${orderData.deliveryAddress?.city}, ${orderData.deliveryAddress?.state} ${orderData.deliveryAddress?.zipCode}</p>`;
+  
+  // Generate pickup information
+  let pickupInfo = '';
+  if (isPickupOrder) {
+    pickupInfo = `
+      <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <h4 style="color: #2d5a2d; margin-top: 0;">📍 Pickup Location</h4>
+        <p><strong>Artisan:</strong> ${orderData.artisan?.artisanName || 'Artisan Location'}</p>
+        ${orderData.artisan?.pickupAddress ? `
+          <p><strong>Address:</strong><br>
+          ${orderData.artisan.pickupAddress.street}<br>
+          ${orderData.artisan.pickupAddress.city}, ${orderData.artisan.pickupAddress.state} ${orderData.artisan.pickupAddress.zipCode}</p>
+        ` : ''}
+        ${orderData.artisan?.pickupHours ? `<p><strong>Pickup Hours:</strong> ${orderData.artisan.pickupHours}</p>` : ''}
+        ${orderData.artisan?.pickupInstructions ? `<p><strong>Instructions:</strong> ${orderData.artisan.pickupInstructions}</p>` : ''}
+        ${orderData.selectedPickupTimes ? `
+          <p><strong>Scheduled Pickup Time:</strong> ${formatPickupTimeForEmail(orderData.selectedPickupTimes)}</p>
+        ` : ''}
+      </div>
+    `;
+  }
+  
+  // Generate delivery information
+  let deliveryInfo = '';
+  if (!isPickupOrder) {
+    deliveryInfo = `
+      <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+        <h4 style="color: #856404; margin-top: 0;">🚚 Delivery Information</h4>
+        <p><strong>Delivery Method:</strong> ${orderData.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : orderData.deliveryMethod === 'professionalDelivery' ? 'Professional Delivery' : 'Standard Delivery'}</p>
+        <p><strong>Delivery Address:</strong><br>
+        ${orderData.deliveryAddress?.street || 'Address not provided'}<br>
+        ${orderData.deliveryAddress?.city || 'City'}, ${orderData.deliveryAddress?.state || 'State'} ${orderData.deliveryAddress?.zipCode || ''}</p>
+        ${orderData.deliveryInstructions ? `<p><strong>Delivery Instructions:</strong> ${orderData.deliveryInstructions}</p>` : ''}
+      </div>
+    `;
+  }
 
   return `
     <!DOCTYPE html>
@@ -231,7 +293,16 @@ const generateOrderCompletionHTML = (orderData, recipientName) => {
         <h2 style="color: #333; margin-top: 0;">Order Details</h2>
         <p><strong>Order Number:</strong> #${orderData.orderNumber || orderData._id}</p>
         <p><strong>Order Date:</strong> ${new Date(orderData.createdAt).toLocaleDateString()}</p>
-        <p><strong>Total Amount:</strong> $${orderData.totalAmount?.toFixed(2) || '0.00'}</p>
+        
+        <!-- Cost Breakdown -->
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <h4 style="color: #333; margin-top: 0;">💰 Cost Breakdown</h4>
+          <p><strong>Subtotal:</strong> $${(orderData.subtotal || orderData.totalAmount || 0).toFixed(2)}</p>
+          ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+            <p><strong>Delivery Fee:</strong> $${orderData.deliveryFee.toFixed(2)}</p>
+          ` : ''}
+          <p style="font-size: 18px; font-weight: bold; color: #2d5a2d; margin-bottom: 0;"><strong>Total Amount:</strong> $${orderData.totalAmount?.toFixed(2) || '0.00'}</p>
+        </div>
         
         <h3 style="color: #333; margin-top: 25px;">Order Items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
@@ -249,6 +320,7 @@ const generateOrderCompletionHTML = (orderData, recipientName) => {
         </table>
         
         <h3 style="color: #333; margin-top: 25px;">${isPickupOrder ? 'Pickup Information' : 'Delivery Information'}</h3>
+        ${pickupInfo}
         ${deliveryInfo}
         
         <div style="background: #e8f5e8; padding: 20px; border-radius: 8px; margin-top: 25px;">
@@ -278,9 +350,29 @@ const generateOrderCompletionText = (orderData, recipientName) => {
   ).join('\n') || '';
 
   const isPickupOrder = orderData.deliveryMethod === 'pickup';
-  const deliveryInfo = isPickupOrder 
-    ? `Pickup Location: ${orderData.artisan?.artisanName || 'Artisan Location'}`
-    : `Delivery Address: ${orderData.deliveryAddress?.street}, ${orderData.deliveryAddress?.city}, ${orderData.deliveryAddress?.state} ${orderData.deliveryAddress?.zipCode}`;
+  
+  let deliveryInfo = '';
+  if (isPickupOrder) {
+    deliveryInfo = `Pickup Location: ${orderData.artisan?.artisanName || 'Artisan Location'}`;
+    if (orderData.artisan?.pickupAddress) {
+      deliveryInfo += `\nAddress: ${orderData.artisan.pickupAddress.street}, ${orderData.artisan.pickupAddress.city}, ${orderData.artisan.pickupAddress.state} ${orderData.artisan.pickupAddress.zipCode}`;
+    }
+    if (orderData.artisan?.pickupHours) {
+      deliveryInfo += `\nPickup Hours: ${orderData.artisan.pickupHours}`;
+    }
+    if (orderData.artisan?.pickupInstructions) {
+      deliveryInfo += `\nInstructions: ${orderData.artisan.pickupInstructions}`;
+    }
+    if (orderData.selectedPickupTimes) {
+      deliveryInfo += `\nScheduled Pickup Time: ${formatPickupTimeForEmail(orderData.selectedPickupTimes)}`;
+    }
+  } else {
+    deliveryInfo = `Delivery Method: ${orderData.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : orderData.deliveryMethod === 'professionalDelivery' ? 'Professional Delivery' : 'Standard Delivery'}`;
+    deliveryInfo += `\nDelivery Address: ${orderData.deliveryAddress?.street || 'Address not provided'}, ${orderData.deliveryAddress?.city || 'City'}, ${orderData.deliveryAddress?.state || 'State'} ${orderData.deliveryAddress?.zipCode || ''}`;
+    if (orderData.deliveryInstructions) {
+      deliveryInfo += `\nDelivery Instructions: ${orderData.deliveryInstructions}`;
+    }
+  }
 
   return `
 Order Confirmed!
@@ -290,7 +382,10 @@ Thank you for your order, ${recipientName}!
 Order Details:
 Order Number: #${orderData.orderNumber || orderData._id}
 Order Date: ${new Date(orderData.createdAt).toLocaleDateString()}
-Total Amount: $${orderData.totalAmount?.toFixed(2) || '0.00'}
+
+Cost Breakdown:
+Subtotal: $${(orderData.subtotal || orderData.totalAmount || 0).toFixed(2)}
+${orderData.deliveryFee && orderData.deliveryFee > 0 ? `Delivery Fee: $${orderData.deliveryFee.toFixed(2)}\n` : ''}Total Amount: $${orderData.totalAmount?.toFixed(2) || '0.00'}
 
 Order Items:
 ${orderItems}

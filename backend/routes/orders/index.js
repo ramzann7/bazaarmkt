@@ -26,34 +26,51 @@ const sendNotificationDirect = async (notificationData, db) => {
     
     await sendNotification(mockReq, mockRes);
     
-    // Send email notification if user has email and it's an order status update
-    if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order')) {
-      try {
-        const emailReq = {
-          body: {
-            to: notificationData.userEmail,
-            subject: `${notificationData.title || 'Order Update'}`,
-            template: 'order_status_update',
-            data: {
-              orderNumber: notificationData.orderNumber || notificationData.orderId,
-              status: notificationData.status || notificationData.orderData?.status,
-              message: notificationData.message,
-              orderData: notificationData.orderData
-            }
+        // Send email notification if user has email and it's an order status update
+        if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order')) {
+          try {
+            const emailReq = {
+              body: {
+                to: notificationData.userEmail,
+                subject: `${notificationData.title || 'Order Update'}`,
+                template: 'order_status_update',
+                data: {
+                  orderId: notificationData.orderId,
+                  orderNumber: notificationData.orderNumber || notificationData.orderId,
+                  status: notificationData.status || notificationData.orderData?.status,
+                  newStatus: notificationData.status || notificationData.orderData?.status,
+                  message: notificationData.message,
+                  reason: notificationData.updateDetails?.reason,
+                  userId: notificationData.userId,
+                  userName: notificationData.userInfo?.firstName || notificationData.userInfo?.email || 'Customer',
+                  isGuest: notificationData.userInfo?.isGuest || false,
+                  totalAmount: notificationData.orderData?.totalAmount,
+                  subtotal: notificationData.orderData?.subtotal,
+                  deliveryFee: notificationData.orderData?.deliveryFee,
+                  deliveryMethod: notificationData.orderData?.deliveryMethod,
+                  deliveryAddress: notificationData.orderData?.deliveryAddress,
+                  deliveryInstructions: notificationData.orderData?.deliveryInstructions,
+                  pickupTimeWindows: notificationData.orderData?.pickupTimeWindows,
+                  selectedPickupTimes: notificationData.orderData?.selectedPickupTimes,
+                  artisan: notificationData.orderData?.artisan,
+                  items: notificationData.orderData?.items,
+                  createdAt: notificationData.orderData?.createdAt,
+                  updatedAt: notificationData.orderData?.updatedAt
+                }
+              }
+            };
+            const emailRes = {
+              json: (data) => console.log('✅ Email notification response:', data),
+              status: (code) => ({ json: (data) => console.log(`❌ Email notification error (${code}):`, data) })
+            };
+            
+            await sendEmailNotification(emailReq, emailRes);
+            console.log('✅ Email notification sent to:', notificationData.userEmail);
+          } catch (emailError) {
+            console.error('❌ Error sending email notification:', emailError);
+            // Don't fail the whole notification if email fails
           }
-        };
-        const emailRes = {
-          json: (data) => console.log('✅ Email notification response:', data),
-          status: (code) => ({ json: (data) => console.log(`❌ Email notification error (${code}):`, data) })
-        };
-        
-        await sendEmailNotification(emailReq, emailRes);
-        console.log('✅ Email notification sent to:', notificationData.userEmail);
-      } catch (emailError) {
-        console.error('❌ Error sending email notification:', emailError);
-        // Don't fail the whole notification if email fails
-      }
-    }
+        }
     
     return true;
   } catch (error) {
@@ -2333,8 +2350,25 @@ const cancelOrder = async (req, res) => {
           userId: order.artisan,
           orderId: order._id,
           orderData: updatedOrder,
+          userEmail: null, // Will be fetched from artisan profile
+          orderNumber: order._id.toString().slice(-8),
+          status: 'cancelled',
           updateType: 'cancellation',
-          message: `Order #${order._id.toString().slice(-8)} has been cancelled by the customer`
+          updateDetails: {
+            newStatus: 'cancelled',
+            previousStatus: order.status,
+            reason: 'Order cancelled by customer',
+            statusDisplayText: 'Cancelled'
+          },
+          userInfo: {
+            id: order.artisan,
+            isGuest: false,
+            email: null, // Will be fetched from artisan profile
+            firstName: null // Will be fetched from artisan profile
+          },
+          message: `Order #${order._id.toString().slice(-8)} has been cancelled by the customer`,
+          title: `Order Cancelled - #${order._id.toString().slice(-8)}`,
+          timestamp: new Date().toISOString()
         };
         
         await sendNotificationDirect(artisanNotificationData, db);

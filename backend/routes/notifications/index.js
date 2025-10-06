@@ -510,7 +510,32 @@ const sendBrevoEmail = async (userId, notificationData) => {
     status: status || updateDetails?.newStatus || 'pending'
   };
   
-  // Choose template based on notification type
+  // Use the comprehensive order update email template
+  try {
+    const { sendOrderUpdateEmail } = await import('../../frontend/src/services/brevoService.js');
+    
+    if (type === 'order_completion' || type === 'new_order' || type === 'order_placed' || type === 'order_confirmed') {
+      // Use order completion template for new orders
+      const { sendOrderCompletionEmail } = await import('../../frontend/src/services/brevoService.js');
+      await sendOrderCompletionEmail(orderData, user.email, recipientName);
+    } else {
+      // Use order update template for status updates
+      await sendOrderUpdateEmail(
+        orderData,
+        user.email,
+        recipientName,
+        type || 'order_status_update',
+        updateDetails || { newStatus: status, status: status }
+      );
+    }
+    
+    console.log('✅ Brevo email sent using comprehensive template to:', user.email);
+    return;
+  } catch (templateError) {
+    console.warn('⚠️ Failed to use comprehensive template, falling back to basic template:', templateError);
+  }
+  
+  // Fallback to basic template
   let htmlContent;
   if (type === 'order_completion' || type === 'new_order' || type === 'order_placed' || type === 'order_confirmed') {
     htmlContent = generateOrderConfirmationHTML(recipientName, orderData);
@@ -599,7 +624,32 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData) => {
     status: status || updateDetails?.newStatus || 'pending'
   };
   
-  // Choose template based on notification type
+  // Use the comprehensive order update email template
+  try {
+    const { sendOrderUpdateEmail } = await import('../../frontend/src/services/brevoService.js');
+    
+    if (type === 'order_completion' || type === 'order_placed' || type === 'order_confirmed') {
+      // Use order completion template for new orders
+      const { sendOrderCompletionEmail } = await import('../../frontend/src/services/brevoService.js');
+      await sendOrderCompletionEmail(orderData, guestEmail, guestName);
+    } else {
+      // Use order update template for status updates
+      await sendOrderUpdateEmail(
+        orderData,
+        guestEmail,
+        guestName,
+        type || 'order_status_update',
+        updateDetails || { newStatus: status, status: status }
+      );
+    }
+    
+    console.log('✅ Guest email sent using comprehensive template to:', guestEmail);
+    return;
+  } catch (templateError) {
+    console.warn('⚠️ Failed to use comprehensive template, falling back to basic template:', templateError);
+  }
+  
+  // Fallback to basic template
   let htmlContent;
   if (type === 'order_completion' || type === 'order_placed' || type === 'order_confirmed') {
     htmlContent = generateOrderConfirmationHTML(guestName, orderData);
@@ -1280,13 +1330,14 @@ const sendEmailNotification = async (req, res) => {
     
     console.log('📧 Email notification request:', { to, subject, template, dataKeys: Object.keys(data || {}) });
     
-    // If this is an order completion email, send via appropriate method
-    if (template === 'order_completion' || data?.isGuest !== undefined) {
+    // If this is an order-related email, send via appropriate method
+    if (template === 'order_completion' || template === 'order_status_update' || data?.isGuest !== undefined || data?.orderId) {
       const userName = data.userName || 'Customer';
       const isGuest = data.isGuest === true;
       
       // Prepare order data
       const orderData = {
+        _id: data.orderId,
         orderNumber: data.orderNumber,
         totalAmount: data.totalAmount,
         subtotal: data.subtotal,
@@ -1299,16 +1350,22 @@ const sendEmailNotification = async (req, res) => {
         selectedPickupTimes: data.selectedPickupTimes,
         artisan: data.artisan,
         artisanName: data.artisan?.artisanName || data.artisanName,
-        createdAt: new Date().toISOString()
+        createdAt: data.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       const notificationData = {
         title: subject,
-        message: `Your order #${data.orderNumber} has been confirmed!`,
-        type: 'order_completion',
+        message: data.message || `Your order #${data.orderNumber} has been updated!`,
+        type: template || 'order_status_update',
         orderId: data.orderId,
         orderNumber: data.orderNumber,
-        updateDetails: data
+        updateDetails: {
+          newStatus: data.status || data.newStatus,
+          status: data.status || data.newStatus,
+          reason: data.reason,
+          ...data
+        }
       };
       
       if (isGuest) {
@@ -1321,7 +1378,8 @@ const sendEmailNotification = async (req, res) => {
       
       return res.json({
         success: true,
-        message: 'Email sent successfully'
+        message: 'Email notification sent successfully',
+        data: { template, recipient: to, status: data.status || data.newStatus }
       });
     }
     
@@ -1373,6 +1431,7 @@ const sendEmailNotification = async (req, res) => {
     });
   }
 };
+
 
 // Routes
 router.get('/', getUserNotifications);

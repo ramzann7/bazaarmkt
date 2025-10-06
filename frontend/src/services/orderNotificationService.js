@@ -507,7 +507,7 @@ class OrderNotificationService {
           });
         }
       } else if (userRole === 'artisan') {
-        toast.info(`Order status updated to: ${newStatus}`, {
+        toast.success(`Order status updated to: ${newStatus}`, {
           duration: 3000,
           onClick: () => {
             window.location.href = '/orders';

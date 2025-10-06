@@ -35,6 +35,7 @@ export default function Orders() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] = useState(null);
   const [ordersLoaded, setOrdersLoaded] = useState(false); // Track if orders have been loaded
+  const [updatingOrderId, setUpdatingOrderId] = useState(null); // Track which order is being updated
 
   useEffect(() => {
     loadUserAndOrders();
@@ -195,6 +196,7 @@ export default function Orders() {
 
   const handleQuickAction = async (orderId, action) => {
     try {
+      setUpdatingOrderId(orderId); // Set the order as being updated
       // Handle patron-specific actions
       if (action === 'Confirm Receipt') {
         const order = orders.find(o => o._id === orderId);
@@ -257,19 +259,27 @@ export default function Orders() {
         }
         await orderService.declineOrder(orderId, reason);
         toast.success('Order declined successfully');
-        await loadUserAndOrders(true); // Force refresh after status update
+        // Refresh orders list with a small delay to ensure backend has processed the update
+        setTimeout(async () => {
+          await loadUserAndOrders(true); // Force refresh after status update
+          setUpdatingOrderId(null); // Clear updating state
+        }, 500); // 500ms delay to ensure backend processing
       } else {
         // Update status for other actions
         await orderService.updateOrderStatus(orderId, { status: newStatus });
         toast.success(`Order updated to ${newStatus}`);
       }
       
-      // Refresh orders list
-      await loadUserAndOrders(true); // Force refresh after status update
+      // Refresh orders list with a small delay to ensure backend has processed the update
+      setTimeout(async () => {
+        await loadUserAndOrders(true); // Force refresh after status update
+        setUpdatingOrderId(null); // Clear updating state
+      }, 500); // 500ms delay to ensure backend processing
     } catch (error) {
       console.error('❌ Error processing quick action:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order';
       toast.error(errorMessage);
+      setUpdatingOrderId(null); // Clear updating state on error
     }
   };
 

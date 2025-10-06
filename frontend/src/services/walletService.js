@@ -5,7 +5,7 @@ const API_URL = config.API_URL;
 
 class WalletService {
   constructor() {
-    this.baseURL = `${API_URL}/admin/wallet`;
+    this.baseURL = `${API_URL}/wallet`;
   }
 
   // Get wallet balance and basic info
@@ -147,15 +147,49 @@ class WalletService {
   }
 
   // Get transaction type icon
+  // Get wallet analytics
+  async getWalletAnalytics(period = 'month') {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${this.baseURL}/analytics?period=${period}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet analytics:', error);
+      throw error;
+    }
+  }
+
+  // Get detailed wallet statistics
+  async getWalletStats() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${this.baseURL}/balance`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching wallet stats:', error);
+      throw error;
+    }
+  }
+
   getTransactionTypeIcon(type) {
     const iconMap = {
       'revenue': '💰',
+      'order_completion': '💰',
       'top_up': '💳',
+      'wallet_topup': '💳',
       'purchase': '🛒',
       'payout': '🏦',
       'refund': '↩️',
       'fee': '⚙️',
-      'adjustment': '🔧'
+      'adjustment': '🔧',
+      'wallet_deduction': '💸',
+      'wallet_transfer_in': '↗️',
+      'wallet_transfer_out': '↙️',
+      'payment': '💳'
     };
     return iconMap[type] || '💼';
   }

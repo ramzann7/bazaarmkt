@@ -65,11 +65,19 @@ const getArtisanRevenueSummary = async (req, res) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    // Get all orders for this artisan in the period
+    // Get all completed orders for this artisan in the period (orders that have revenue recognized)
     const orders = await ordersCollection.find({
       artisan: artisan._id,
       createdAt: { $gte: startDate },
-      status: { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'picked_up', 'out_for_delivery', 'delivered', 'completed'] }
+      status: { $in: ['completed'] }
+    }).sort({ createdAt: 1 }).toArray();
+
+    // Get revenue records from the new revenue recognition system
+    const revenuesCollection = db.collection('revenues');
+    const revenueRecords = await revenuesCollection.find({
+      artisanId: artisan._id,
+      createdAt: { $gte: startDate },
+      status: 'completed'
     }).sort({ createdAt: 1 }).toArray();
 
     // Track product sales for top products analysis
@@ -77,23 +85,28 @@ const getArtisanRevenueSummary = async (req, res) => {
     const trendData = new Map();
     let totalProductsSold = 0;
 
-    // Calculate revenue breakdown
-    const summary = orders.reduce((acc, order) => {
+    // Calculate revenue breakdown using actual revenue records
+    const summary = revenueRecords.reduce((acc, revenueRecord) => {
+      // Get the actual revenue breakdown from the revenue recognition system
+      const revenue = revenueRecord.revenue || {};
+      const fees = revenueRecord.fees || {};
+      
       // Product revenue
-      const productGross = order.revenue?.grossAmount || order.totalAmount || 0;
-      const platformCommission = order.revenue?.platformCommission || 0;
-      const productEarnings = order.revenue?.artisanEarnings || (productGross * 0.9);
+      const productGross = revenue.subtotal || 0;
+      const platformCommission = fees.platformFeeAmount || 0;
+      const productEarnings = revenue.netEarnings || 0;
       
       // Delivery revenue (100% to artisan, no commission)
-      const deliveryFee = order.deliveryFee || 0;
+      const deliveryFee = revenue.deliveryFee || 0;
       const deliveryEarnings = deliveryFee;
       
-      // Count delivery methods
-      const isPersonalDelivery = (order.deliveryMethod === 'personalDelivery' || 
-                                  order.deliveryMethod === 'personal_delivery') && deliveryFee > 0;
-      const isProfessionalDelivery = order.deliveryMethod === 'professionalDelivery' || 
-                                     order.deliveryMethod === 'professional_delivery';
-      const isPickup = !order.deliveryMethod || order.deliveryMethod === 'pickup';
+      // Find corresponding order for delivery method info
+      const order = orders.find(o => o._id.toString() === revenueRecord.orderId.toString());
+      const isPersonalDelivery = order && ((order.deliveryMethod === 'personalDelivery' || 
+                                          order.deliveryMethod === 'personal_delivery') && deliveryFee > 0);
+      const isProfessionalDelivery = order && (order.deliveryMethod === 'professionalDelivery' || 
+                                             order.deliveryMethod === 'professional_delivery');
+      const isPickup = !order || !order.deliveryMethod || order.deliveryMethod === 'pickup';
       
       // Track product sales
       if (order.items && Array.isArray(order.items)) {
@@ -130,20 +143,20 @@ const getArtisanRevenueSummary = async (req, res) => {
         });
       }
       
-      // Track trends (group by time period)
-      const orderDate = new Date(order.createdAt);
+      // Track trends (group by time period) using revenue record date
+      const revenueDate = new Date(revenueRecord.createdAt);
       let trendKey;
       
       if (period === 'week') {
         // Daily grouping for week
-        trendKey = orderDate.toISOString().split('T')[0];
+        trendKey = revenueDate.toISOString().split('T')[0];
       } else if (period === 'month') {
         // Weekly grouping for month
-        const weekNum = Math.floor((orderDate.getDate() - 1) / 7);
-        trendKey = `${orderDate.getFullYear()}-${orderDate.getMonth() + 1}-W${weekNum + 1}`;
+        const weekNum = Math.floor((revenueDate.getDate() - 1) / 7);
+        trendKey = `${revenueDate.getFullYear()}-${revenueDate.getMonth() + 1}-W${weekNum + 1}`;
       } else if (period === 'quarter' || period === 'year') {
         // Monthly grouping for quarter/year
-        trendKey = `${orderDate.getFullYear()}-${String(orderDate.getMonth() + 1).padStart(2, '0')}`;
+        trendKey = `${revenueDate.getFullYear()}-${String(revenueDate.getMonth() + 1).padStart(2, '0')}`;
       }
       
       if (trendKey) {
@@ -279,9 +292,11 @@ const getArtisanRevenueSummary = async (req, res) => {
           }
         },
         
-        // Additional metrics
-        commissionRate: 0.10,
-        platformFeePercentage: 10,
+        // Additional metrics (get from platform settings)
+        commissionRate: revenueRecords.length > 0 ? 
+          (revenueRecords[0].fees?.platformFeeRate || 0.15) : 0.15,
+        platformFeePercentage: revenueRecords.length > 0 ? 
+          ((revenueRecords[0].fees?.platformFeeRate || 0.15) * 100) : 15,
         averageOrderValue: summary.orderCount > 0 
           ? summary.totalGross / summary.orderCount 
           : 0,

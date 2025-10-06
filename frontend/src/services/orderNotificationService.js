@@ -219,16 +219,36 @@ class OrderNotificationService {
   }
 
   // Check for order updates (patron-specific)
-  async checkForOrderUpdates() {
+  async checkForOrderUpdates(isLoginTriggered = false) {
     try {
+      console.log('🔍 OrderNotificationService: Checking for patron order updates...', isLoginTriggered ? '(LOGIN TRIGGERED)' : '');
+      
       // Get user's orders
       const { orderService } = await import('./orderService');
       const orders = await orderService.getPatronOrders();
       
-      // Filter for orders that might have status updates
+      console.log('📦 OrderNotificationService: All patron orders:', {
+        total: orders.length,
+        orders: orders.map(order => ({
+          id: order._id,
+          status: order.status,
+          totalAmount: order.totalAmount
+        }))
+      });
+      
+      // Filter for orders that might have status updates (include all statuses for comprehensive tracking)
       const trackableOrders = orders.filter(order => 
-        ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
+        ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up', 'completed', 'cancelled', 'declined'].includes(order.status)
       );
+
+      console.log('⏳ OrderNotificationService: Trackable orders:', {
+        count: trackableOrders.length,
+        orders: trackableOrders.map(order => ({
+          id: order._id,
+          status: order.status,
+          totalAmount: order.totalAmount
+        }))
+      });
 
       // Check for status changes
       const currentOrderStatuses = new Map(trackableOrders.map(order => [order._id, order.status]));
@@ -239,12 +259,45 @@ class OrderNotificationService {
         return previousStatus && previousStatus !== order.status;
       });
 
+      console.log('🔄 OrderNotificationService: Updated orders detected:', {
+        count: updatedOrders.length,
+        orders: updatedOrders.map(order => ({
+          id: order._id,
+          previousStatus: previousStatuses.get(order._id),
+          newStatus: order.status,
+          totalAmount: order.totalAmount
+        })),
+        previousOrderCount: previousStatuses.size
+      });
+
       // Update our tracking
       this.previousOrderStatuses = currentOrderStatuses;
 
+      // Determine which orders to notify about
+      let ordersToNotify = [];
+      
+      if (isLoginTriggered && trackableOrders.length > 0) {
+        // For login-triggered notifications, show orders that need action or are recently updated
+        const actionRequiredOrders = trackableOrders.filter(order => 
+          ['ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+        );
+        
+        if (actionRequiredOrders.length > 0) {
+          console.log('🔔 OrderNotificationService: Login triggered - showing action-required orders');
+          ordersToNotify = actionRequiredOrders;
+        }
+      } else if (updatedOrders.length > 0) {
+        // For regular polling, show all status updates
+        console.log('🔔 OrderNotificationService: Regular polling - showing status updates');
+        ordersToNotify = updatedOrders;
+      }
+
       // Notify about order updates
-      if (updatedOrders.length > 0) {
-        this.notifyOrderUpdates(updatedOrders);
+      if (ordersToNotify.length > 0) {
+        console.log('🔔 OrderNotificationService: Triggering notifications for order updates:', ordersToNotify.length);
+        this.notifyOrderUpdates(ordersToNotify);
+      } else {
+        console.log('ℹ️ OrderNotificationService: No order updates to notify about');
       }
 
     } catch (error) {
@@ -305,43 +358,82 @@ class OrderNotificationService {
 
   // Notify about order updates (for patrons)
   notifyOrderUpdates(updatedOrders) {
-    console.log('🔔 Order updates received:', updatedOrders.length);
+    console.log('🔔 OrderNotificationService: notifyOrderUpdates called with:', updatedOrders.length, 'orders');
     
     // Play notification sound
     if (this.notificationSound) {
+      console.log('🔊 OrderNotificationService: Playing notification sound for order updates');
       this.notificationSound();
+    } else {
+      console.log('⚠️ OrderNotificationService: No notification sound available for order updates');
     }
 
     // Show toast notification for each updated order
+    console.log('🍞 OrderNotificationService: Attempting to show order update toast notifications');
     import('react-hot-toast').then(({ default: toast }) => {
+      console.log('✅ OrderNotificationService: react-hot-toast imported successfully for order updates');
+      
       updatedOrders.forEach(order => {
         const statusMessages = {
-          'confirmed': 'Order confirmed by artisan!',
-          'preparing': 'Your order is being prepared!',
-          'ready_for_pickup': 'Your order is ready for pickup!',
-          'ready_for_delivery': 'Your order is ready for delivery!',
-          'out_for_delivery': 'Your order is out for delivery!',
-          'delivered': 'Your order has been delivered!',
-          'picked_up': 'Your order has been picked up!',
-          'completed': 'Your order has been completed!',
-          'cancelled': 'Your order has been cancelled.',
-          'declined': 'Your order has been declined by the artisan.'
+          'confirmed': '✅ Order confirmed by artisan!',
+          'preparing': '👨‍🍳 Your order is being prepared!',
+          'ready_for_pickup': '🎉 Your order is ready for pickup! Click to view details.',
+          'ready_for_delivery': '🚚 Your order is ready for delivery!',
+          'out_for_delivery': '📦 Your order is out for delivery! Should arrive soon.',
+          'delivered': '📬 Your order has been delivered! Please confirm receipt.',
+          'picked_up': '✅ Your order has been picked up!',
+          'completed': '🎊 Your order has been completed! Thank you for your business.',
+          'cancelled': '❌ Your order has been cancelled.',
+          'declined': '⚠️ Your order has been declined by the artisan.'
+        };
+
+        const actionRequiredMessages = {
+          'ready_for_pickup': 'Action Required: Your order is ready for pickup!',
+          'ready_for_delivery': 'Action Required: Your order is ready for delivery!',
+          'out_for_delivery': 'Action Required: Your order is out for delivery!',
+          'delivered': 'Action Required: Please confirm receipt of your delivered order.',
+          'picked_up': 'Action Required: Please confirm you picked up your order.'
         };
 
         const message = statusMessages[order.status] || `Order status updated to: ${order.status}`;
+        const actionMessage = actionRequiredMessages[order.status];
         const isPositive = !['cancelled', 'declined'].includes(order.status);
+        const requiresAction = ['ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status);
         
-        if (isPositive) {
-          toast.success(`${message} Order #${order._id.slice(-6)}`, {
-            duration: 5000,
+        // Use longer duration for action-required notifications
+        const duration = requiresAction ? 8000 : 5000;
+        
+        if (requiresAction) {
+          // Special handling for action-required notifications
+          const finalMessage = actionMessage ? `${actionMessage} Order #${order._id.slice(-6)}` : `${message} Order #${order._id.slice(-6)}`;
+          console.log('🍞 OrderNotificationService: Showing action-required toast:', finalMessage);
+          toast.success(finalMessage, {
+            duration: duration,
+            style: {
+              background: '#10b981',
+              color: '#ffffff',
+              fontWeight: 'bold'
+            },
+            onClick: () => {
+              // Navigate to orders page
+              window.location.href = '/orders';
+            }
+          });
+        } else if (isPositive) {
+          const finalMessage = `${message} Order #${order._id.slice(-6)}`;
+          console.log('🍞 OrderNotificationService: Showing positive toast:', finalMessage);
+          toast.success(finalMessage, {
+            duration: duration,
             onClick: () => {
               // Navigate to orders page
               window.location.href = '/orders';
             }
           });
         } else {
-          toast.error(`${message} Order #${order._id.slice(-6)}`, {
-            duration: 5000,
+          const finalMessage = `${message} Order #${order._id.slice(-6)}`;
+          console.log('🍞 OrderNotificationService: Showing error toast:', finalMessage);
+          toast.error(finalMessage, {
+            duration: duration,
             onClick: () => {
               // Navigate to orders page
               window.location.href = '/orders';
@@ -350,10 +442,11 @@ class OrderNotificationService {
         }
       });
     }).catch(error => {
-      console.warn('Could not show toast notification:', error);
+      console.error('❌ OrderNotificationService: Could not show order update toast notification:', error);
     });
 
     // Dispatch custom event for components to listen to
+    console.log('📡 OrderNotificationService: Dispatching orderUpdatesReceived event');
     window.dispatchEvent(new CustomEvent('orderUpdatesReceived', {
       detail: { orders: updatedOrders, count: updatedOrders.length }
     }));

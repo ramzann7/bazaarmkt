@@ -1707,7 +1707,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     </span>
                   </div>
                 )}
-                
                 {/* Total */}
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-lg font-semibold text-gray-900">Total</span>

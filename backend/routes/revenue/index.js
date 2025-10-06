@@ -109,7 +109,7 @@ const getArtisanRevenueSummary = async (req, res) => {
       const isPickup = !order || !order.deliveryMethod || order.deliveryMethod === 'pickup';
       
       // Track product sales
-      if (order.items && Array.isArray(order.items)) {
+      if (order && order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
           // Handle both old and new order formats
           const productId = item.product?._id?.toString() || item.productId?.toString();

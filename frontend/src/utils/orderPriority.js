@@ -30,6 +30,13 @@ export const ARTISAN_PRIORITY_STATUSES = {
     label: 'Awaiting Pickup',
     actions: ['Mark Picked Up']
   },
+  'ready_for_delivery': {
+    priority: 70,
+    color: 'green',
+    icon: '✨',
+    label: 'Ready for Delivery',
+    actions: ['Mark Out for Delivery']
+  },
   'out_for_delivery': {
     priority: 60,
     color: 'orange',
@@ -74,6 +81,13 @@ export const PATRON_PRIORITY_STATUSES = {
     icon: '📍',
     label: 'Ready for Pickup',
     actions: [] // Informational - go pick it up
+  },
+  'ready_for_delivery': {
+    priority: 70,
+    color: 'green',
+    icon: '✨',
+    label: 'Ready for Delivery',
+    actions: [] // Informational - ready to be delivered
   },
   'out_for_delivery': {
     priority: 60,
@@ -147,6 +161,7 @@ export const getUrgencyLevel = (order, userRole = 'artisan') => {
     if (order.status === 'confirmed' && ageInHours > 2) return 'high';   // 🟠
     if (order.status === 'preparing' && ageInHours > 4) return 'medium'; // 🟡
     if (order.status === 'ready_for_pickup' && ageInHours > 6) return 'medium'; // 🟡
+    if (order.status === 'ready_for_delivery' && ageInHours > 6) return 'medium'; // 🟡
   } else {
     // Patron urgency thresholds
     if ((order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt) {

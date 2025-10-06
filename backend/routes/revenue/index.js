@@ -69,7 +69,7 @@ const getArtisanRevenueSummary = async (req, res) => {
     const orders = await ordersCollection.find({
       artisan: artisan._id,
       createdAt: { $gte: startDate },
-      status: { $in: ['confirmed', 'preparing', 'ready', 'delivered', 'picked_up', 'completed'] }
+      status: { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'picked_up', 'out_for_delivery', 'delivered', 'completed'] }
     }).sort({ createdAt: 1 }).toArray();
 
     // Track product sales for top products analysis

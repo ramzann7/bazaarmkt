@@ -4,7 +4,7 @@ import { getProfile } from '../services/authservice';
 import { getProfileFast, updateProfileCache } from '../services/profileService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import toast from 'react-hot-toast';
-import { getUserIdFromToken } from '../utils/tokenUtils';
+import { getUserIdFromToken, getUserEmailFromToken } from '../utils/tokenUtils';
 
 const AuthContext = createContext();
 
@@ -47,6 +47,12 @@ export const AuthProvider = ({ children }) => {
         
         if (token) {
           console.log('🔑 AuthContext: Token found, setting authenticated state...');
+          
+          // Debug: Log token details
+          const tokenInfo = getUserIdFromToken(token);
+          const tokenEmail = getUserEmailFromToken(token);
+          console.log('🔍 AuthContext: Token details - userId:', tokenInfo, 'email:', tokenEmail);
+          
           // Set authenticated immediately for better UX
           setIsAuthenticated(true);
           setIsLoading(false);
@@ -57,6 +63,9 @@ export const AuthProvider = ({ children }) => {
           const userId = getUserIdFromToken(token);
           const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
           const cachedProfile = cacheService.getFast(cacheKey);
+          
+          console.log('🔍 AuthContext: Cache key:', cacheKey);
+          console.log('🔍 AuthContext: Cached profile exists:', !!cachedProfile);
           
           if (cachedProfile) {
             console.log('⚡ AuthContext: Using cached profile for immediate response');
@@ -136,6 +145,12 @@ export const AuthProvider = ({ children }) => {
       // Handle both { user } and direct user object
       const user = userData.user || userData;
       
+      console.log('🔑 AuthContext: Login called with user data:', {
+        userId: user._id,
+        email: user.email,
+        userType: user.userType
+      });
+      
       // Set user immediately for instant UI response
       setUser(user);
       setIsAuthenticated(true);
@@ -194,6 +209,19 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setIsAuthenticated(false);
     authToken.removeToken();
+    
+    // Clear all user caches to prevent wrong user data persistence
+    const { clearAllUserCaches } = require('../services/authservice');
+    clearAllUserCaches();
+    
+    // Clear localStorage backup
+    localStorage.removeItem('user_profile_backup');
+    
+    // Dispatch auth change event
+    window.dispatchEvent(new CustomEvent('authStateChanged', { 
+      detail: { isAuthenticated: false } 
+    }));
+    
     toast.success('Logged out successfully');
   };
 

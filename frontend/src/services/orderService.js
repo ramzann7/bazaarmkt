@@ -29,7 +29,10 @@ export const orderService = {
   getPatronOrders: async () => {
     try {
       const response = await axios.get(`${API_URL}/orders/buyer`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        params: {
+          _t: Date.now() // Cache busting parameter
+        }
       });
       // API returns { success: true, data: { orders: [...] }, count: N }
       return response.data.data?.orders || response.data.orders || [];
@@ -43,7 +46,10 @@ export const orderService = {
   getArtisanOrders: async () => {
     try {
       const response = await axios.get(`${API_URL}/orders/artisan`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        params: {
+          _t: Date.now() // Cache busting parameter
+        }
       });
       // API returns { success: true, data: { orders: [...] }, count: N }
       return response.data.data?.orders || response.data.orders || [];

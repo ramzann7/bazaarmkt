@@ -28,13 +28,11 @@ const getStatusDisplayText = (status, deliveryMethod = 'pickup') => {
     'pending': 'Pending',
     'confirmed': 'Confirmed',
     'preparing': 'Preparing',
-    'ready': 'Ready',
     'ready_for_pickup': 'Ready for Pickup',
     'ready_for_delivery': 'Ready for Delivery',
-    'out_for_delivery': 'Out for Delivery',
-    'delivering': 'Delivering',
-    'delivered': 'Delivered',
     'picked_up': 'Picked Up',
+    'out_for_delivery': 'Out for Delivery',
+    'delivered': 'Delivered',
     'completed': 'Completed',
     'cancelled': 'Cancelled',
     'declined': 'Declined'
@@ -801,8 +799,8 @@ const createOrder = async (req, res) => {
           updateFields.status = remainingStock > 0 ? 'active' : 'out_of_stock';
           
           // Update the product
-          await productsCollection.updateOne(
-            { _id: item.productId },
+      await productsCollection.updateOne(
+        { _id: item.productId },
             { $set: updateFields }
           );
           
@@ -1066,6 +1064,15 @@ const getOrderById = async (req, res) => {
 
 // Update order status (for artisans/admin)
 const updateOrderStatus = async (req, res) => {
+  console.log('🚀 updateOrderStatus function called');
+  console.log('🔍 Request details:', {
+    method: req.method,
+    url: req.url,
+    params: req.params,
+    body: req.body,
+    headers: req.headers
+  });
+  
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
@@ -1078,6 +1085,12 @@ const updateOrderStatus = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { status, updateReason } = req.body;
     
+    console.log('🔍 Status update request:', {
+      orderId: req.params.id,
+      status: status,
+      updateReason: updateReason,
+      body: req.body
+    });
     
     if (!status) {
       return res.status(400).json({
@@ -1086,11 +1099,18 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
-    const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'declined'];
+    const validStatuses = ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'picked_up', 'out_for_delivery', 'delivered', 'completed', 'cancelled', 'declined'];
+    console.log('🔍 Status validation:', {
+      receivedStatus: status,
+      statusType: typeof status,
+      isValid: validStatuses.includes(status),
+      validStatuses: validStatuses
+    });
+    
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status'
+        message: `Invalid status: ${status}. Valid statuses: ${validStatuses.join(', ')}`
       });
     }
     
@@ -1132,7 +1152,8 @@ const updateOrderStatus = async (req, res) => {
     });
     
     const isArtisan = order.artisan && userArtisan && (
-      order.artisan.toString() === userArtisan._id.toString()
+      (order.artisan._id && order.artisan._id.toString() === userArtisan._id.toString()) ||
+      (order.artisan.toString && order.artisan.toString() === userArtisan._id.toString())
     );
     const isAdmin = decoded.role === 'admin' || decoded.userType === 'admin';
     
@@ -1207,8 +1228,12 @@ const updateOrderStatus = async (req, res) => {
         notificationType = 'order_confirmed';
       } else if (status === 'preparing') {
         notificationType = 'order_preparing';
-      } else if (status === 'ready') {
-        notificationType = 'order_ready';
+      } else if (status === 'ready_for_pickup') {
+        notificationType = 'order_ready_for_pickup';
+      } else if (status === 'ready_for_delivery') {
+        notificationType = 'order_ready_for_delivery';
+      } else if (status === 'out_for_delivery') {
+        notificationType = 'order_out_for_delivery';
       } else if (status === 'delivered' || status === 'picked_up') {
         notificationType = 'order_completed';
       }
@@ -1414,13 +1439,14 @@ const getArtisanOrders = async (req, res) => {
       orders = allOrdersForFilter.filter(order => {
         // Check order.artisan field first
         if (order.artisan) {
-          const matches = order.artisan.toString() === artisan._id.toString() ||
+          const matches = (order.artisan._id && order.artisan._id.toString() === artisan._id.toString()) ||
+                         (order.artisan.toString && order.artisan.toString() === artisan._id.toString()) ||
                          (order.artisan.equals && order.artisan.equals(artisan._id));
           
           if (matches) {
             console.log('🔍 Found matching order.artisan:', {
               orderId: order._id,
-              orderArtisan: order.artisan.toString(),
+              orderArtisan: order.artisan._id ? order.artisan._id.toString() : order.artisan.toString(),
               artisanId: artisan._id.toString()
             });
             return true;
@@ -1465,6 +1491,18 @@ const getArtisanOrders = async (req, res) => {
       // Get patron information if order has userId (not a guest order)
       if (order.userId && !order.isGuestOrder) {
         patronInfo = await usersCollection.findOne({ _id: order.userId });
+        console.log('🔍 Looked up patron for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
+      }
+      
+      // Handle guest orders - use guestInfo if available
+      if (!patronInfo && order.guestInfo) {
+        patronInfo = {
+          firstName: order.guestInfo.firstName,
+          lastName: order.guestInfo.lastName,
+          email: order.guestInfo.email,
+          phone: order.guestInfo.phone
+        };
+        console.log('🔍 Using guest info for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
       }
       
       // Return optimized order structure with only essential fields
@@ -1489,18 +1527,7 @@ const getArtisanOrders = async (req, res) => {
         })) || [],
         // Preserve the original artisan data for frontend compatibility
         artisan: order.artisan || artisan,
-        patron: patronInfo ? {
-          _id: patronInfo._id,
-          firstName: patronInfo.firstName,
-          lastName: patronInfo.lastName,
-          email: patronInfo.email,
-          phone: patronInfo.phone
-        } : (order.isGuestOrder && order.guestInfo ? {
-          firstName: order.guestInfo.firstName,
-          lastName: order.guestInfo.lastName,
-          email: order.guestInfo.email,
-          phone: order.guestInfo.phone
-        } : null)
+        patron: patronInfo
       };
     }));
     
@@ -1562,26 +1589,20 @@ const getPatronOrders = async (req, res) => {
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
     
-    // Populate artisan information for each order
+    // Populate artisan information for each order using artisanId from items
     const ordersWithArtisan = await Promise.all(orders.map(async (order) => {
-      if (order.artisan) {
-        const artisan = await artisansCollection.findOne({ _id: order.artisan });
-        return {
-          ...order,
-          artisan: artisan
-        };
-      }
+      let artisan = null;
       
-      // If no direct artisan field, try to get from first item
+      // Use artisanId from order items to lookup artisan information from artisans collection
       if (order.items && order.items.length > 0 && order.items[0].artisanId) {
-        const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
-        return {
-          ...order,
-          artisan: artisan
-        };
+        artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+        console.log('🔍 Looked up artisan for order', order._id.toString().slice(-8), ':', artisan?.artisanName || 'not found');
       }
       
-      return order;
+      return {
+        ...order,
+        artisan: artisan
+      };
     }));
     
     res.json({
@@ -1825,8 +1846,8 @@ const createGuestOrder = async (req, res) => {
           updateFields.status = remainingStock > 0 ? 'active' : 'out_of_stock';
           
           // Update the product
-          await productsCollection.updateOne(
-            { _id: item.productId },
+      await productsCollection.updateOne(
+        { _id: item.productId },
             { $set: updateFields }
           );
           
@@ -2428,10 +2449,10 @@ const confirmOrderReceipt = async (req, res) => {
     }
     
     // Check if order can be confirmed as received
-    if (order.status !== 'delivered' && order.status !== 'ready') {
+    if (order.status !== 'delivered' && order.status !== 'picked_up') {
       return res.status(400).json({
         success: false,
-        message: 'Order must be delivered or ready to confirm receipt'
+        message: 'Order must be delivered or picked up to confirm receipt'
       });
     }
     
@@ -2568,33 +2589,27 @@ const getPatronCompletedOrders = async (req, res) => {
     
     const orders = await ordersCollection
       .find({ 
-        userId: new (require('mongodb')).ObjectId(decoded.userId)
-        // Return ALL orders, let frontend handle filtering
+        userId: new (require('mongodb')).ObjectId(decoded.userId),
+        status: { $in: ['delivered', 'completed', 'cancelled'] }
       })
       .sort({ createdAt: -1 })
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
     
-    // Populate artisan information for each order
+    // Populate artisan information for each order using artisanId from items
     const ordersWithArtisan = await Promise.all(orders.map(async (order) => {
-      if (order.artisan) {
-        const artisan = await artisansCollection.findOne({ _id: order.artisan });
-        return {
-          ...order,
-          artisan: artisan
-        };
-      }
+      let artisan = null;
       
-      // If no direct artisan field, try to get from first item
+      // Use artisanId from order items to lookup artisan information from artisans collection
       if (order.items && order.items.length > 0 && order.items[0].artisanId) {
-        const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
-        return {
-          ...order,
-          artisan: artisan
-        };
+        artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+        console.log('🔍 Looked up artisan for completed order', order._id.toString().slice(-8), ':', artisan?.artisanName || 'not found');
       }
       
-      return order;
+      return {
+        ...order,
+        artisan: artisan
+      };
     }));
     
     res.json({
@@ -2706,19 +2721,25 @@ const getArtisanCompletedOrders = async (req, res) => {
       // Get patron information if order has userId (not a guest order)
       if (order.userId && !order.isGuestOrder) {
         patronInfo = await usersCollection.findOne({ _id: order.userId });
+        console.log('🔍 Looked up patron for completed order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
+      }
+      
+      // Handle guest orders - use guestInfo if available
+      if (!patronInfo && order.guestInfo) {
+        patronInfo = {
+          firstName: order.guestInfo.firstName,
+          lastName: order.guestInfo.lastName,
+          email: order.guestInfo.email,
+          phone: order.guestInfo.phone
+        };
+        console.log('🔍 Using guest info for completed order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
       }
       
       return {
         ...order,
         // Preserve the original artisan data for frontend compatibility
         artisan: order.artisan || artisan,
-        patron: patronInfo ? {
-          _id: patronInfo._id,
-          firstName: patronInfo.firstName,
-          lastName: patronInfo.lastName,
-          email: patronInfo.email,
-          phone: patronInfo.phone
-        } : null
+        patron: patronInfo
       };
     }));
     

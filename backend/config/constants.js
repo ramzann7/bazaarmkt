@@ -25,11 +25,15 @@ const USER_ROLES = {
 const ORDER_STATUS = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
-  PROCESSING: 'processing',
-  SHIPPED: 'shipped',
+  PREPARING: 'preparing',
+  READY_FOR_PICKUP: 'ready_for_pickup',
+  READY_FOR_DELIVERY: 'ready_for_delivery',
+  PICKED_UP: 'picked_up',
+  OUT_FOR_DELIVERY: 'out_for_delivery',
   DELIVERED: 'delivered',
+  COMPLETED: 'completed',
   CANCELLED: 'cancelled',
-  REFUNDED: 'refunded'
+  DECLINED: 'declined'
 };
 
 const PRODUCT_STATUS = {

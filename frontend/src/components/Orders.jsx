@@ -60,9 +60,10 @@ export default function Orders() {
     }
   }, [location.state, orders]);
 
-  const loadUserAndOrders = async () => {
+  const loadUserAndOrders = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
+      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '');
       const userProfile = await getProfile();
       setUserRole(userProfile.userType || userProfile.role);
       
@@ -71,11 +72,17 @@ export default function Orders() {
       // Load orders based on user role
       let ordersData;
       if (userProfile.userType === 'artisan' || userProfile.role === 'artisan') {
+        console.log('📋 Loading artisan orders...');
         ordersData = await orderService.getArtisanOrders();
       } else {
+        console.log('📋 Loading patron orders...');
         ordersData = await orderService.getPatronOrders();
       }
       
+      console.log('📦 Orders loaded:', {
+        count: ordersData.length,
+        statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
+      });
       
       setOrders(ordersData);
     } catch (error) {
@@ -109,7 +116,7 @@ export default function Orders() {
         const reason = prompt('Please provide a reason for cancelling this order (optional):');
         await orderService.cancelOrder(orderId, reason);
         toast.success('Order cancelled successfully');
-        await loadUserAndOrders();
+        await loadUserAndOrders(true); // Force refresh after status update
         return;
       }
       
@@ -117,7 +124,9 @@ export default function Orders() {
       const statusMap = {
         'Confirm': 'confirmed',
         'Start Preparing': 'preparing',
-        'Mark Ready': null, // Will be determined by delivery method
+        'Mark Ready for Pickup': 'ready_for_pickup',
+        'Mark Ready for Delivery': 'ready_for_delivery',
+        'Mark Out for Delivery': 'out_for_delivery',
         'Mark Picked Up': 'picked_up',
         'Mark Delivered': 'delivered',
         'Decline': 'declined'
@@ -125,10 +134,23 @@ export default function Orders() {
       
       let newStatus = statusMap[action];
       
-      // For "Mark Ready", determine status based on delivery method
+      // Handle the generic 'Mark Ready' action - determine status based on delivery method
       if (action === 'Mark Ready') {
         const order = orders.find(o => o._id === orderId);
-        newStatus = order?.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery';
+        newStatus = order?.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'ready_for_delivery';
+      }
+      
+      console.log('🔍 Frontend status mapping:', {
+        action: action,
+        newStatus: newStatus,
+        statusMap: statusMap
+      });
+      
+      // Check if we have a valid status
+      if (!newStatus) {
+        console.error('❌ No status mapping found for action:', action);
+        toast.error(`Unknown action: ${action}`);
+        return;
       }
       
       // Handle decline action with reason prompt
@@ -140,6 +162,7 @@ export default function Orders() {
         }
         await orderService.declineOrder(orderId, reason);
         toast.success('Order declined successfully');
+        await loadUserAndOrders(true); // Force refresh after status update
       } else {
         // Update status for other actions
         await orderService.updateOrderStatus(orderId, { status: newStatus });
@@ -147,7 +170,7 @@ export default function Orders() {
       }
       
       // Refresh orders list
-      await loadUserAndOrders();
+      await loadUserAndOrders(true); // Force refresh after status update
     } catch (error) {
       console.error('❌ Error processing quick action:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order';
@@ -182,6 +205,9 @@ export default function Orders() {
       'ready_for_delivery': 'bg-green-100 text-green-800',
       'out_for_delivery': 'bg-purple-100 text-purple-800',
       'delivered': 'bg-emerald-100 text-emerald-800',
+      
+      // Final statuses
+      'completed': 'bg-emerald-100 text-emerald-800',
       
       // Legacy statuses (for backward compatibility)
       'ready': 'bg-green-100 text-green-800',
@@ -218,6 +244,9 @@ export default function Orders() {
       'out_for_delivery': 'Out for Delivery',
       'delivered': 'Delivered',
       
+      // Final statuses
+      'completed': 'Completed',
+      
       // Legacy statuses (for backward compatibility)
       'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
       'delivering': 'Out for Delivery'
@@ -237,15 +266,17 @@ export default function Orders() {
       'pending': 100,      // Highest priority - needs immediate response
       'confirmed': 90,     // High priority - confirmed but not started
       'preparing': 80,     // Medium-high - in progress
-      'ready': 70,         // Medium - ready for next step
-      'ready_for_pickup': 60,    // Medium - ready for pickup
-      'ready_for_delivery': 60,  // Medium - ready for delivery
-      'out_for_delivery': 50,    // Lower - out for delivery
-      'delivering': 50,    // Lower - delivering
+      'ready_for_pickup': 70,    // Medium - ready for pickup
+      'ready_for_delivery': 70,  // Medium - ready for delivery
+      'out_for_delivery': 60,    // Lower - out for delivery
       'delivered': 10,     // Low - completed
       'picked_up': 10,     // Low - completed
+      'completed': 5,      // Very low - fully completed
       'cancelled': 0,      // Lowest - cancelled
-      'declined': 0        // Lowest - declined
+      'declined': 0,       // Lowest - declined
+      // Legacy statuses
+      'ready': 70,         // Medium - ready for next step
+      'delivering': 60     // Lower - delivering
     };
     
     priority += statusPriority[order.status] || 0;
@@ -284,7 +315,7 @@ export default function Orders() {
       priority += 20; // Pending orders older than 2 hours are urgent
     }
     
-    if (order.status === 'ready' && ageInHours > 1) {
+    if ((order.status === 'ready_for_pickup' || order.status === 'ready_for_delivery') && ageInHours > 1) {
       priority += 25; // Ready orders older than 1 hour are very urgent (customer waiting)
     }
     
@@ -304,7 +335,7 @@ export default function Orders() {
           break;
         case 'in_progress':
           // Show all orders that are NOT completed (priority queue)
-          filteredOrders = orders.filter(order => !['cancelled', 'declined', 'delivered', 'picked_up'].includes(order.status));
+          filteredOrders = orders.filter(order => !['cancelled', 'declined', 'delivered', 'picked_up', 'completed'].includes(order.status));
           break;
         case 'delivered':
         case 'completed':
@@ -330,10 +361,8 @@ export default function Orders() {
             'pending', 
             'confirmed', 
             'preparing', 
-            'ready', 
             'ready_for_pickup',
             'ready_for_delivery',
-            'delivering',
             'out_for_delivery'
           ].includes(order.status));
           break;
@@ -445,7 +474,7 @@ export default function Orders() {
     if (order.status === 'confirmed' && ageInHours > 6) return true;
     
     // Ready orders older than 1 hour are urgent (customer waiting for pickup/delivery)
-    if (order.status === 'ready' && ageInHours > 1) return true;
+    if ((order.status === 'ready_for_pickup' || order.status === 'ready_for_delivery') && ageInHours > 1) return true;
     
     // Any order older than 24 hours is urgent
     if (ageInHours > 24) return true;
@@ -1000,7 +1029,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
   // Calculate delivery info when modal opens and order is ready for delivery
   useEffect(() => {
-    if (order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready') && order.deliveryMethod !== 'pickup') {
+    if (order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') && order.deliveryMethod !== 'pickup') {
       calculateDeliveryInfo();
     }
   }, [order]);
@@ -1032,6 +1061,9 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'ready_for_delivery': 'bg-green-100 text-green-800',
       'out_for_delivery': 'bg-purple-100 text-purple-800',
       'delivered': 'bg-emerald-100 text-emerald-800',
+      
+      // Final statuses
+      'completed': 'bg-emerald-100 text-emerald-800',
       
       // Legacy statuses (for backward compatibility)
       'ready': 'bg-green-100 text-green-800',
@@ -1067,6 +1099,9 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'ready_for_delivery': 'Ready for Delivery',
       'out_for_delivery': 'Out for Delivery',
       'delivered': 'Delivered',
+      
+      // Final statuses
+      'completed': 'Completed',
       
       // Legacy statuses (for backward compatibility)
       'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
@@ -1550,7 +1585,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 )}
                 
                 {/* Delivery Distance and Time Information */}
-                {order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready') && (
+                {order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') && (
                   <div className="mt-3 pt-3 border-t border-gray-200 bg-blue-50 rounded-lg p-3">
                     <h5 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                       <TruckIcon className="w-4 h-4" />

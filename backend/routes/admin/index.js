@@ -464,7 +464,7 @@ const getArtisanRevenue = async (req, res) => {
         $match: {
           artisan: artisan._id,
           createdAt: { $gte: startDate },
-          status: { $in: ['confirmed', 'preparing', 'ready', 'delivered'] }
+          status: { $in: ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'picked_up', 'out_for_delivery', 'delivered', 'completed'] }
         }
       },
       {

@@ -96,18 +96,19 @@ export default function DashboardFixed() {
         const ordersArray = Array.isArray(orders) ? orders : [];
         
         // Calculate artisan statistics based on actual orders
-        // Only count completed/delivered orders for revenue calculations
-        const completedOrders = ordersArray.filter(order => 
+        // Count orders that have been paid for (authorized or captured) for revenue calculations
+        const paidOrders = ordersArray.filter(order => 
+          order.paymentStatus === 'authorized' || order.paymentStatus === 'captured' || 
           order.status === 'delivered' || order.status === 'completed' || order.status === 'picked_up'
         );
         
         // Calculate revenue breakdown
-        const productRevenue = completedOrders.reduce((sum, order) => {
+        const productRevenue = paidOrders.reduce((sum, order) => {
           const productAmount = (order.totalAmount || 0) - (order.deliveryFee || 0);
           return sum + productAmount;
         }, 0);
         
-        const deliveryRevenue = completedOrders.reduce((sum, order) => {
+        const deliveryRevenue = paidOrders.reduce((sum, order) => {
           // Only count personal delivery fees as revenue for artisan
           if (order.deliveryMethod === 'personalDelivery' && order.deliveryFee > 0) {
             return sum + order.deliveryFee;
@@ -135,7 +136,7 @@ export default function DashboardFixed() {
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
           }).length,
-          revenueThisMonth: completedOrders.filter(order => {
+          revenueThisMonth: paidOrders.filter(order => {
             const orderDate = new Date(order.createdAt);
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();

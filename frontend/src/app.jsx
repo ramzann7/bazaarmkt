@@ -9,6 +9,7 @@ import "./styles/mobile-improvements.css";
 import { performanceService } from "./services/performanceService";
 import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
+import './utils/authDebug'; // Import auth debug utilities
 import { preloadProfileFast } from "./services/profileService";
 import { preloadService } from "./services/preloadService";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";

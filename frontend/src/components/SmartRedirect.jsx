@@ -35,7 +35,7 @@ export default function SmartRedirect() {
       // Get user profile to check role and onboarding status
       const profile = await getProfile();
       const userId = profile._id;
-      const userRole = profile.role;
+      const userRole = profile.role || profile.userType; // Check both role and userType for compatibility
       
       // Check if user is new (first time after registration)
       const isNewUser = onboardingService.isNewUser(userId);

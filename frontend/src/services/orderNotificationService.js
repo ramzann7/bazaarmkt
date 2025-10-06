@@ -112,26 +112,15 @@ class OrderNotificationService {
       const { getProfile } = await import('./authservice');
       const profile = await getProfile();
       
-      console.log('🔍 OrderNotificationService: User profile for notifications:', {
-        userId: profile._id,
-        email: profile.email,
-        role: profile.role,
-        userType: profile.userType
-      });
-      
       // Check both role and userType for compatibility
       const userRole = profile.role || profile.userType;
       
       if (['artisan', 'producer', 'food_maker'].includes(userRole)) {
-        console.log('🔔 OrderNotificationService: User is artisan, checking for new orders');
         // Handle artisan notifications for new orders
         await this.checkForNewArtisanOrders(isLoginTriggered);
       } else if (userRole === 'patron') {
-        console.log('🔔 OrderNotificationService: User is patron, checking for order updates');
         // Handle patron notifications for order updates
         await this.checkForOrderUpdates(isLoginTriggered);
-      } else {
-        console.log('⚠️ OrderNotificationService: Unknown user role, skipping notifications:', userRole);
       }
 
     } catch (error) {
@@ -142,49 +131,19 @@ class OrderNotificationService {
   // Check for new orders (artisan-specific)
   async checkForNewArtisanOrders(isLoginTriggered = false) {
     try {
-      console.log('🔍 OrderNotificationService: Checking for new artisan orders...', isLoginTriggered ? '(LOGIN TRIGGERED)' : '');
-      
       // Get pending orders
       const { orderService } = await import('./orderService');
       const orders = await orderService.getArtisanOrders();
       
-      console.log('📦 OrderNotificationService: All artisan orders:', {
-        total: orders.length,
-        orders: orders.map(order => ({
-          id: order._id,
-          status: order.status,
-          totalAmount: order.totalAmount
-        }))
-      });
-      
       const pendingOrders = orders.filter(order => 
         ['pending', 'confirmed', 'preparing'].includes(order.status)
       );
-
-      console.log('⏳ OrderNotificationService: Pending orders:', {
-        count: pendingOrders.length,
-        orders: pendingOrders.map(order => ({
-          id: order._id,
-          status: order.status,
-          totalAmount: order.totalAmount
-        }))
-      });
 
       // Check for new orders
       const currentPendingIds = new Set(pendingOrders.map(order => order._id));
       const newOrders = pendingOrders.filter(order => 
         !this.pendingOrders.has(order._id)
       );
-
-      console.log('🆕 OrderNotificationService: New orders detected:', {
-        count: newOrders.length,
-        orders: newOrders.map(order => ({
-          id: order._id,
-          status: order.status,
-          totalAmount: order.totalAmount
-        })),
-        previousPendingCount: this.pendingOrders.size
-      });
 
       // Update our tracking
       this.pendingOrders = currentPendingIds;
@@ -194,20 +153,15 @@ class OrderNotificationService {
       
       if (isLoginTriggered && pendingOrders.length > 0) {
         // For login-triggered notifications, show all pending orders
-        console.log('🔔 OrderNotificationService: Login triggered - showing all pending orders');
         ordersToNotify = pendingOrders;
       } else if (newOrders.length > 0) {
         // For regular polling, only show new orders
-        console.log('🔔 OrderNotificationService: Regular polling - showing only new orders');
         ordersToNotify = newOrders;
       }
 
       // Notify about orders
       if (ordersToNotify.length > 0) {
-        console.log('🔔 OrderNotificationService: Triggering notifications for orders:', ordersToNotify.length);
         this.notifyNewOrders(ordersToNotify);
-      } else {
-        console.log('ℹ️ OrderNotificationService: No orders to notify about');
       }
 
       // Update cache
@@ -221,34 +175,14 @@ class OrderNotificationService {
   // Check for order updates (patron-specific)
   async checkForOrderUpdates(isLoginTriggered = false) {
     try {
-      console.log('🔍 OrderNotificationService: Checking for patron order updates...', isLoginTriggered ? '(LOGIN TRIGGERED)' : '');
-      
       // Get user's orders
       const { orderService } = await import('./orderService');
       const orders = await orderService.getPatronOrders();
-      
-      console.log('📦 OrderNotificationService: All patron orders:', {
-        total: orders.length,
-        orders: orders.map(order => ({
-          id: order._id,
-          status: order.status,
-          totalAmount: order.totalAmount
-        }))
-      });
       
       // Filter for orders that might have status updates (include all statuses for comprehensive tracking)
       const trackableOrders = orders.filter(order => 
         ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up', 'completed', 'cancelled', 'declined'].includes(order.status)
       );
-
-      console.log('⏳ OrderNotificationService: Trackable orders:', {
-        count: trackableOrders.length,
-        orders: trackableOrders.map(order => ({
-          id: order._id,
-          status: order.status,
-          totalAmount: order.totalAmount
-        }))
-      });
 
       // Check for status changes
       const currentOrderStatuses = new Map(trackableOrders.map(order => [order._id, order.status]));
@@ -257,17 +191,6 @@ class OrderNotificationService {
       const updatedOrders = trackableOrders.filter(order => {
         const previousStatus = previousStatuses.get(order._id);
         return previousStatus && previousStatus !== order.status;
-      });
-
-      console.log('🔄 OrderNotificationService: Updated orders detected:', {
-        count: updatedOrders.length,
-        orders: updatedOrders.map(order => ({
-          id: order._id,
-          previousStatus: previousStatuses.get(order._id),
-          newStatus: order.status,
-          totalAmount: order.totalAmount
-        })),
-        previousOrderCount: previousStatuses.size
       });
 
       // Update our tracking
@@ -283,21 +206,16 @@ class OrderNotificationService {
         );
         
         if (actionRequiredOrders.length > 0) {
-          console.log('🔔 OrderNotificationService: Login triggered - showing action-required orders');
           ordersToNotify = actionRequiredOrders;
         }
       } else if (updatedOrders.length > 0) {
         // For regular polling, show all status updates
-        console.log('🔔 OrderNotificationService: Regular polling - showing status updates');
         ordersToNotify = updatedOrders;
       }
 
       // Notify about order updates
       if (ordersToNotify.length > 0) {
-        console.log('🔔 OrderNotificationService: Triggering notifications for order updates:', ordersToNotify.length);
         this.notifyOrderUpdates(ordersToNotify);
-      } else {
-        console.log('ℹ️ OrderNotificationService: No order updates to notify about');
       }
 
     } catch (error) {
@@ -307,25 +225,15 @@ class OrderNotificationService {
 
   // Notify about new orders
   notifyNewOrders(newOrders) {
-    console.log('🔔 OrderNotificationService: notifyNewOrders called with:', newOrders.length, 'orders');
-    
     // Play notification sound
     if (this.notificationSound) {
-      console.log('🔊 OrderNotificationService: Playing notification sound');
       this.notificationSound();
-    } else {
-      console.log('⚠️ OrderNotificationService: No notification sound available');
     }
 
     // Show toast notification
-    console.log('🍞 OrderNotificationService: Attempting to show toast notification');
     import('react-hot-toast').then(({ default: toast }) => {
-      console.log('✅ OrderNotificationService: react-hot-toast imported successfully');
-      
       if (newOrders.length === 1) {
-        const message = `New order received! Order #${newOrders[0]._id.slice(-6)}`;
-        console.log('🍞 OrderNotificationService: Showing single order toast:', message);
-        toast.success(message, {
+        toast.success(`New order received! Order #${newOrders[0]._id.slice(-6)}`, {
           duration: 5000,
           onClick: () => {
             // Navigate to orders page
@@ -333,9 +241,7 @@ class OrderNotificationService {
           }
         });
       } else {
-        const message = `${newOrders.length} new orders received!`;
-        console.log('🍞 OrderNotificationService: Showing multiple orders toast:', message);
-        toast.success(message, {
+        toast.success(`${newOrders.length} new orders received!`, {
           duration: 5000,
           onClick: () => {
             window.location.href = '/orders';
@@ -343,11 +249,10 @@ class OrderNotificationService {
         });
       }
     }).catch(error => {
-      console.error('❌ OrderNotificationService: Could not show toast notification:', error);
+      console.warn('Could not show toast notification:', error);
     });
 
     // Dispatch custom event for components to listen to
-    console.log('📡 OrderNotificationService: Dispatching newOrdersReceived event');
     window.dispatchEvent(new CustomEvent('newOrdersReceived', {
       detail: { orders: newOrders, count: newOrders.length }
     }));
@@ -358,21 +263,13 @@ class OrderNotificationService {
 
   // Notify about order updates (for patrons)
   notifyOrderUpdates(updatedOrders) {
-    console.log('🔔 OrderNotificationService: notifyOrderUpdates called with:', updatedOrders.length, 'orders');
-    
     // Play notification sound
     if (this.notificationSound) {
-      console.log('🔊 OrderNotificationService: Playing notification sound for order updates');
       this.notificationSound();
-    } else {
-      console.log('⚠️ OrderNotificationService: No notification sound available for order updates');
     }
 
     // Show toast notification for each updated order
-    console.log('🍞 OrderNotificationService: Attempting to show order update toast notifications');
     import('react-hot-toast').then(({ default: toast }) => {
-      console.log('✅ OrderNotificationService: react-hot-toast imported successfully for order updates');
-      
       updatedOrders.forEach(order => {
         const statusMessages = {
           'confirmed': '✅ Order confirmed by artisan!',
@@ -406,7 +303,6 @@ class OrderNotificationService {
         if (requiresAction) {
           // Special handling for action-required notifications
           const finalMessage = actionMessage ? `${actionMessage} Order #${order._id.slice(-6)}` : `${message} Order #${order._id.slice(-6)}`;
-          console.log('🍞 OrderNotificationService: Showing action-required toast:', finalMessage);
           toast.success(finalMessage, {
             duration: duration,
             style: {
@@ -421,7 +317,6 @@ class OrderNotificationService {
           });
         } else if (isPositive) {
           const finalMessage = `${message} Order #${order._id.slice(-6)}`;
-          console.log('🍞 OrderNotificationService: Showing positive toast:', finalMessage);
           toast.success(finalMessage, {
             duration: duration,
             onClick: () => {
@@ -431,7 +326,6 @@ class OrderNotificationService {
           });
         } else {
           const finalMessage = `${message} Order #${order._id.slice(-6)}`;
-          console.log('🍞 OrderNotificationService: Showing error toast:', finalMessage);
           toast.error(finalMessage, {
             duration: duration,
             onClick: () => {
@@ -442,11 +336,10 @@ class OrderNotificationService {
         }
       });
     }).catch(error => {
-      console.error('❌ OrderNotificationService: Could not show order update toast notification:', error);
+      console.error('Could not show order update toast notification:', error);
     });
 
     // Dispatch custom event for components to listen to
-    console.log('📡 OrderNotificationService: Dispatching orderUpdatesReceived event');
     window.dispatchEvent(new CustomEvent('orderUpdatesReceived', {
       detail: { orders: updatedOrders, count: updatedOrders.length }
     }));

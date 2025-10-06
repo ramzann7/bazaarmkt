@@ -60,7 +60,8 @@ export default function Dashboard() {
         setUser(userData);
         
         // Check if user is artisan, if not redirect to home
-        if (userData.role !== 'artisan' && userData.role !== 'producer' && userData.role !== 'food_maker') {
+        const userRole = userData.role || userData.userType; // Check both role and userType for compatibility
+        if (userRole !== 'artisan' && userRole !== 'producer' && userRole !== 'food_maker') {
           toast.error("Dashboard is only available for artisans");
           navigate("/");
           return null;

@@ -1534,9 +1534,34 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               })}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-gray-900">Total</span>
-                <span className="text-lg font-semibold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</span>
+              <div className="space-y-2">
+                {/* Subtotal */}
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Subtotal</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    ${(order.subtotal || order.totalAmount || 0).toFixed(2)}
+                  </span>
+                </div>
+                
+                {/* Delivery Fee */}
+                {order.deliveryFee && order.deliveryFee > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Delivery Fee
+                      {order.deliveryMethod === 'personalDelivery' && ' (Personal Delivery)'}
+                      {order.deliveryMethod === 'professionalDelivery' && ' (Professional Delivery)'}
+                    </span>
+                    <span className="text-sm font-medium text-gray-800">
+                      ${order.deliveryFee.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Total */}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="text-lg font-semibold text-gray-900">Total</span>
+                  <span className="text-lg font-semibold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1554,6 +1579,35 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 <p className="text-sm text-emerald-700">
                   {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
                 </p>
+                
+                {/* Pickup Time Windows */}
+                {order.pickupTimeWindows && Object.keys(order.pickupTimeWindows).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-200">
+                    <h5 className="text-sm font-semibold text-emerald-800 mb-2 flex items-center gap-2">
+                      <ClockIcon className="w-4 h-4" />
+                      Scheduled Pickup Time
+                    </h5>
+                    {Object.entries(order.pickupTimeWindows).map(([artisanId, timeWindow]) => (
+                      <div key={artisanId} className="text-sm text-emerald-700">
+                        {timeWindow.date && timeWindow.timeSlot && (
+                          <p>
+                            <span className="font-medium">Date:</span> {new Date(timeWindow.date).toLocaleDateString()}
+                          </p>
+                        )}
+                        {timeWindow.timeSlot && (
+                          <p>
+                            <span className="font-medium">Time:</span> {timeWindow.timeSlot}
+                          </p>
+                        )}
+                        {timeWindow.startTime && timeWindow.endTime && (
+                          <p>
+                            <span className="font-medium">Time:</span> {timeWindow.startTime} - {timeWindow.endTime}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

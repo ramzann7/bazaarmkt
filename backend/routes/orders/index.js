@@ -1559,25 +1559,35 @@ const getArtisanOrders = async (req, res) => {
         console.log('🔍 Using guest info for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
       }
       
-      // Return optimized order structure with only essential fields
+      // Return complete order structure with all necessary fields
       return {
         _id: order._id,
         status: order.status,
         totalAmount: order.totalAmount,
+        subtotal: order.subtotal,
+        deliveryFee: order.deliveryFee,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         deliveryMethod: order.deliveryMethod,
         deliveryAddress: order.deliveryAddress,
+        deliveryInstructions: order.deliveryInstructions,
         pickupTime: order.pickupTime,
+        pickupTimeWindows: order.pickupTimeWindows,
+        deliveryMethodDetails: order.deliveryMethodDetails,
         paymentStatus: order.paymentStatus,
+        isGuestOrder: order.isGuestOrder,
+        guestInfo: order.guestInfo,
         items: order.items?.map(item => ({
           _id: item._id,
           productId: item.productId,
+          product: item.product,
           name: item.name || item.productName,
           price: item.price || item.unitPrice,
+          unitPrice: item.unitPrice || item.price,
           quantity: item.quantity,
-          totalPrice: item.totalPrice,
-          productType: item.productType
+          totalPrice: item.totalPrice || item.itemTotal,
+          productType: item.productType,
+          artisanId: item.artisanId
         })) || [],
         // Preserve the original artisan data for frontend compatibility
         artisan: order.artisan || artisan,

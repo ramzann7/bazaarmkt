@@ -285,7 +285,10 @@ export const AuthProvider = ({ children }) => {
               currentEmail: user.email,
               freshEmail: freshProfile.email
             });
-            // Don't update user if there's a mismatch
+            
+            // Force logout when there's a profile mismatch for security
+            console.log('🔒 AuthContext: Forcing logout due to background profile mismatch');
+            logout();
             return;
           }
           
@@ -435,6 +438,10 @@ export const AuthProvider = ({ children }) => {
           tokenEmail: getUserEmailFromToken(token),
           profileEmail: profile.email
         });
+        
+        // Force logout when there's a profile mismatch for security
+        console.log('🔒 AuthContext: Forcing logout due to profile mismatch');
+        logout();
         throw new Error(`Profile mismatch: token user ${tokenUserId} != profile user ${profileUserId}`);
       }
       

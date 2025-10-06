@@ -187,6 +187,8 @@ const getProfile = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     console.log('🔍 Profile API: Token decoded - userId:', decoded.userId, 'email:', decoded.email);
+    console.log('🔍 Profile API: Request headers - user-agent:', req.headers['user-agent']?.substring(0, 50));
+    console.log('🔍 Profile API: Request timestamp:', new Date().toISOString());
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
@@ -195,6 +197,7 @@ const getProfile = async (req, res) => {
     const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
     
     console.log('🔍 Profile API: Found user - _id:', user?._id, 'email:', user?.email);
+    console.log('🔍 Profile API: User lookup result - userId match:', user?._id?.toString() === decoded.userId);
     if (!user) {
       // Connection managed by middleware - no close needed
       return res.status(404).json({

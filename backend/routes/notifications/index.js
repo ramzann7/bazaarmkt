@@ -840,39 +840,41 @@ const sendNotification = async (req, res) => {
       });
     }
     
+    // For guest orders (no userId), only send email notifications, skip platform notifications
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'userId is required for platform notifications'
-      });
+      console.log('📧 Guest order notification - skipping platform notification, sending email only');
+      // Continue to email notification logic below
     }
     
-    const db = req.db; // Use shared connection from middleware
-    const notificationsCollection = db.collection('notifications');
-    
-    const notification = {
-      userId: new (require('mongodb')).ObjectId(userId),
-      title,
-      message,
-      type,
-      orderId: notificationData.orderId || null,
-      orderNumber: notificationData.orderDetails?.orderNumber || notificationData.orderNumber || null,
-      status: notificationData.orderDetails?.orderStatus || notificationData.status || null,
-      updateType: notificationData.updateType || null,
-      updateDetails: notificationData.orderDetails || notificationData.updateDetails || null,
-      isRead: false,
-      createdAt: new Date()
-    };
-    
-    await notificationsCollection.insertOne(notification);
-    // Connection managed by middleware - no close needed
-    
-    console.log('✅ Platform notification saved for user:', userId);
+    // Only create platform notifications for registered users (not guests)
+    if (userId) {
+      const db = req.db; // Use shared connection from middleware
+      const notificationsCollection = db.collection('notifications');
+      
+      const notification = {
+        userId: new (require('mongodb')).ObjectId(userId),
+        title,
+        message,
+        type,
+        orderId: notificationData.orderId || null,
+        orderNumber: notificationData.orderDetails?.orderNumber || notificationData.orderNumber || null,
+        status: notificationData.orderDetails?.orderStatus || notificationData.status || null,
+        updateType: notificationData.updateType || null,
+        updateDetails: notificationData.orderDetails || notificationData.updateDetails || null,
+        isRead: false,
+        createdAt: new Date()
+      };
+      
+      await notificationsCollection.insertOne(notification);
+      // Connection managed by middleware - no close needed
+      
+      console.log('✅ Platform notification saved for user:', userId);
+    }
     
     res.json({
       success: true,
-      message: 'Notification sent successfully',
-      data: notification
+      message: userId ? 'Notification sent successfully' : 'Email notification sent (guest order)',
+      data: userId ? { userId, type, orderId: notificationData.orderId } : { isGuest: true, type, orderId: notificationData.orderId }
     });
   } catch (error) {
     console.error('Send notification error:', error);

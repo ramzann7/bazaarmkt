@@ -31,8 +31,23 @@ class OrderNotificationService {
       gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
       
       this.notificationSound = () => {
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.3);
+        try {
+          // Create a new oscillator each time to avoid "cannot call start more than once" error
+          const newOscillator = audioContext.createOscillator();
+          const newGainNode = audioContext.createGain();
+          
+          newOscillator.connect(newGainNode);
+          newGainNode.connect(audioContext.destination);
+          
+          newOscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+          newGainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          newGainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+          
+          newOscillator.start(audioContext.currentTime);
+          newOscillator.stop(audioContext.currentTime + 0.3);
+        } catch (error) {
+          console.warn('Could not play notification sound:', error);
+        }
       };
     } catch (error) {
       console.warn('Could not initialize notification sound:', error);

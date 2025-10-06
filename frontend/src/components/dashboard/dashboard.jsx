@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { 
   UserIcon, 
   ShoppingBagIcon, 
@@ -30,7 +31,7 @@ import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, isAuthenticated, isLoading: isAuthLoading, isProviderReady } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [artisanStats, setArtisanStats] = useState({
     totalOrders: 0,
@@ -52,31 +53,26 @@ export default function Dashboard() {
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
   const [isLoadingWallet, setIsLoadingWallet] = useState(true);
 
-  // Optimized user profile loading
-  const { execute: loadUser, isLoading: isUserLoading } = useAsyncOperation(
-    async () => {
-      try {
-        const userData = await getProfile();
-        setUser(userData);
-        
-        // Check if user is artisan, if not redirect to home
-        const userRole = userData.role || userData.userType; // Check both role and userType for compatibility
-        if (userRole !== 'artisan' && userRole !== 'producer' && userRole !== 'food_maker') {
-          toast.error("Dashboard is only available for artisans");
-          navigate("/");
-          return null;
-        }
-        
-        return userData;
-      } catch (err) {
-        toast.error("Session expired. Please login again.");
-        logoutUser();
+  // Check user role and authentication status
+  useEffect(() => {
+    if (!isAuthLoading && isProviderReady) {
+      if (!isAuthenticated || !user) {
+        toast.error("Please login to access the dashboard");
         navigate("/login");
-        throw err;
+        return;
       }
-    },
-    []
-  );
+      
+      // Check if user is artisan, if not redirect to home
+      const userRole = user.role || user.userType; // Check both role and userType for compatibility
+      if (userRole !== 'artisan' && userRole !== 'producer' && userRole !== 'food_maker') {
+        toast.error("Dashboard is only available for artisans");
+        navigate("/");
+        return;
+      }
+      
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, user, isAuthLoading, isProviderReady, navigate]);
 
   // Optimized artisan stats loading
   const { execute: loadArtisanStats, isLoading: isStatsLoading } = useAsyncOperation(
@@ -189,21 +185,22 @@ export default function Dashboard() {
     []
   );
 
-  // Load all data on component mount
+  // Load all data when user is available
   useOptimizedEffect(() => {
     const loadAllData = async () => {
+      if (!user || !isAuthenticated) {
+        return; // Wait for user to be available
+      }
+      
       setIsLoading(true);
       try {
-        const userData = await loadUser();
-        if (userData) {
-          // Load data in parallel but handle errors individually
-          await Promise.allSettled([
-            loadArtisanStats(),
-            loadRecentOrders(),
-            loadRevenueData(),
-            loadWalletBalance()
-          ]);
-        }
+        // Load data in parallel but handle errors individually
+        await Promise.allSettled([
+          loadArtisanStats(),
+          loadRecentOrders(),
+          loadRevenueData(),
+          loadWalletBalance()
+        ]);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
         toast.error('Failed to load some dashboard data');
@@ -213,7 +210,7 @@ export default function Dashboard() {
     };
 
     loadAllData();
-  }, [], { skipFirstRender: false });
+  }, [user, isAuthenticated], { skipFirstRender: false });
 
   // Refresh data function
   const refreshData = async () => {
@@ -263,7 +260,7 @@ export default function Dashboard() {
     });
   };
 
-  if (isLoading || isUserLoading) {
+  if (isLoading || isAuthLoading || !isProviderReady) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

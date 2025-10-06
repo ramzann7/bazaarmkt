@@ -290,11 +290,11 @@ const createGuestPaymentIntent = async (req, res) => {
 
     const finalAmount = totalAmount + deliveryFee;
 
-    // Create Stripe PaymentIntent for guest with authorization (not immediate capture)
+    // Create Stripe PaymentIntent for guest with automatic capture
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100), // Convert to cents
       currency: 'cad',
-      capture_method: 'manual', // Authorize now, capture later
+      capture_method: 'automatic', // Capture immediately for guest orders
       metadata: {
         orderType: 'guest_order',
         guestEmail: guestInfo?.email || 'guest@example.com',
@@ -437,7 +437,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       items: enrichedItems,
       totalAmount: totalAmount,
       status: 'pending', // Orders start as pending confirmation by artisan
-      paymentStatus: 'authorized', // Payment authorized but not captured until order completion
+      paymentStatus: !userId ? 'captured' : 'authorized', // Guest orders are captured immediately, authenticated orders are authorized
       paymentMethod: 'stripe',
       paymentIntentId: paymentIntentId,
       deliveryAddress: orderData.deliveryAddress || {},

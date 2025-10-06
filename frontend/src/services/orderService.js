@@ -153,6 +153,10 @@ export const orderService = {
       // Clear product cache after status update as inventory might be restored
       clearProductCaches();
       
+      // Clear order-related caches to ensure fresh data
+      const { cacheService, CACHE_KEYS } = await import('./cacheService');
+      cacheService.clear(); // Clear all caches to ensure fresh data
+      
       // Trigger toast notification for order status update
       try {
         const { orderNotificationService } = await import('./orderNotificationService');
@@ -214,6 +218,13 @@ export const orderService = {
       }, {
         headers: getAuthHeaders()
       });
+      
+      // Clear product cache after order decline as inventory might be restored
+      clearProductCaches();
+      
+      // Clear order-related caches to ensure fresh data
+      const { cacheService, CACHE_KEYS } = await import('./cacheService');
+      cacheService.clear(); // Clear all caches to ensure fresh data
       
       return response.data;
     } catch (error) {

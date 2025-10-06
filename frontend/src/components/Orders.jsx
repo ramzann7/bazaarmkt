@@ -1460,8 +1460,16 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       
       await orderService.updateOrderStatus(order._id, { status: newStatus });
       toast.success(`Order status updated to ${getStatusDisplayText(newStatus, order.deliveryMethod)}`);
-      onRefresh();
+      
+      // Close the modal first
       onClose();
+      
+      // Wait a moment for backend processing, then refresh
+      setTimeout(async () => {
+        console.log('🔄 Refreshing orders after status update...');
+        await onRefresh();
+      }, 500); // 500ms delay to ensure backend has processed the update
+      
     } catch (error) {
       console.error('❌ Error updating order status:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order status';
@@ -1505,8 +1513,15 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       toast.success('Order declined successfully');
       setShowDeclineModal(false);
       setDeclineReason('');
-      onRefresh();
+      
+      // Close the modal first
       onClose();
+      
+      // Wait a moment for backend processing, then refresh
+      setTimeout(async () => {
+        console.log('🔄 Refreshing orders after decline...');
+        await onRefresh();
+      }, 500); // 500ms delay to ensure backend has processed the update
     } catch (error) {
       console.error('❌ Error declining order:', error);
       console.error('❌ Error response:', error.response?.data);

@@ -162,6 +162,59 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, [initializationAttempted]);
 
+  // Manual initialization trigger as fallback
+  const manualInitialize = React.useCallback(() => {
+    if (!initializationAttempted) {
+      console.log('🚀 AuthContext: Manual initialization triggered');
+      setInitializationAttempted(true);
+      
+      const initializeAuth = async () => {
+        const startTime = performance.now();
+        console.log('🚀 AuthContext: Manual initialization starting...');
+        
+        try {
+          const token = authToken.getToken();
+          
+          if (token) {
+            console.log('🔑 AuthContext: Manual init - Token found');
+            const tokenInfo = getUserIdFromToken(token);
+            const tokenEmail = getUserEmailFromToken(token);
+            console.log('🔍 AuthContext: Manual init - Token details:', { userId: tokenInfo, email: tokenEmail });
+            
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            setIsInitialized(true);
+            setIsProviderReady(true);
+            
+            // Load fresh profile
+            const profile = await getProfile();
+            console.log('🔍 AuthContext: Manual init - Profile loaded:', { userId: profile._id, email: profile.email });
+            setUser(profile);
+            
+            const endTime = performance.now();
+            console.log(`✅ AuthContext: Manual initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
+          } else {
+            console.log('🔓 AuthContext: Manual init - No token found');
+            setIsAuthenticated(false);
+            setUser(null);
+            setIsLoading(false);
+            setIsInitialized(true);
+            setIsProviderReady(true);
+          }
+        } catch (error) {
+          console.error('❌ AuthContext: Manual initialization error:', error);
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsLoading(false);
+          setIsInitialized(true);
+          setIsProviderReady(true);
+        }
+      };
+      
+      initializeAuth();
+    }
+  }, [initializationAttempted]);
+
   // Fallback initialization with timeout in case useEffect doesn't trigger
   useEffect(() => {
     const fallbackTimer = setTimeout(() => {
@@ -376,59 +429,6 @@ export const AuthProvider = ({ children }) => {
       window.removeEventListener('authStateChanged', handleAuthStateChange);
     };
   }, [refreshUser]);
-
-  // Manual initialization trigger as fallback
-  const manualInitialize = React.useCallback(() => {
-    if (!initializationAttempted) {
-      console.log('🚀 AuthContext: Manual initialization triggered');
-      setInitializationAttempted(true);
-      
-      const initializeAuth = async () => {
-        const startTime = performance.now();
-        console.log('🚀 AuthContext: Manual initialization starting...');
-        
-        try {
-          const token = authToken.getToken();
-          
-          if (token) {
-            console.log('🔑 AuthContext: Manual init - Token found');
-            const tokenInfo = getUserIdFromToken(token);
-            const tokenEmail = getUserEmailFromToken(token);
-            console.log('🔍 AuthContext: Manual init - Token details:', { userId: tokenInfo, email: tokenEmail });
-            
-            setIsAuthenticated(true);
-            setIsLoading(false);
-            setIsInitialized(true);
-            setIsProviderReady(true);
-            
-            // Load fresh profile
-            const profile = await getProfile();
-            console.log('🔍 AuthContext: Manual init - Profile loaded:', { userId: profile._id, email: profile.email });
-            setUser(profile);
-            
-            const endTime = performance.now();
-            console.log(`✅ AuthContext: Manual initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
-          } else {
-            console.log('🔓 AuthContext: Manual init - No token found');
-            setIsAuthenticated(false);
-            setUser(null);
-            setIsLoading(false);
-            setIsInitialized(true);
-            setIsProviderReady(true);
-          }
-        } catch (error) {
-          console.error('❌ AuthContext: Manual initialization error:', error);
-          setIsAuthenticated(false);
-          setUser(null);
-          setIsLoading(false);
-          setIsInitialized(true);
-          setIsProviderReady(true);
-        }
-      };
-      
-      initializeAuth();
-    }
-  }, [initializationAttempted]);
 
   const value = {
     user,

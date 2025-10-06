@@ -37,10 +37,19 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isProviderReady, setIsProviderReady] = useState(false);
+  const [initializationAttempted, setInitializationAttempted] = useState(false);
 
   // Initialize auth state on app load - Optimized for performance
   useEffect(() => {
     console.log('🚀 AuthContext: useEffect triggered');
+    
+    // Prevent multiple initializations in StrictMode
+    if (initializationAttempted) {
+      console.log('🚀 AuthContext: Initialization already attempted, skipping...');
+      return;
+    }
+    
+    setInitializationAttempted(true);
     
     const initializeAuth = async () => {
       const startTime = performance.now();
@@ -151,7 +160,19 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
-  }, []);
+  }, [initializationAttempted]);
+
+  // Fallback initialization with timeout in case useEffect doesn't trigger
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => {
+      if (!initializationAttempted) {
+        console.log('🚀 AuthContext: Fallback initialization triggered after timeout');
+        manualInitialize();
+      }
+    }, 1000); // 1 second fallback
+
+    return () => clearTimeout(fallbackTimer);
+  }, [initializationAttempted, manualInitialize]);
 
   // Login function - Optimized for immediate response
   const login = async (userData) => {
@@ -356,6 +377,59 @@ export const AuthProvider = ({ children }) => {
     };
   }, [refreshUser]);
 
+  // Manual initialization trigger as fallback
+  const manualInitialize = React.useCallback(() => {
+    if (!initializationAttempted) {
+      console.log('🚀 AuthContext: Manual initialization triggered');
+      setInitializationAttempted(true);
+      
+      const initializeAuth = async () => {
+        const startTime = performance.now();
+        console.log('🚀 AuthContext: Manual initialization starting...');
+        
+        try {
+          const token = authToken.getToken();
+          
+          if (token) {
+            console.log('🔑 AuthContext: Manual init - Token found');
+            const tokenInfo = getUserIdFromToken(token);
+            const tokenEmail = getUserEmailFromToken(token);
+            console.log('🔍 AuthContext: Manual init - Token details:', { userId: tokenInfo, email: tokenEmail });
+            
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            setIsInitialized(true);
+            setIsProviderReady(true);
+            
+            // Load fresh profile
+            const profile = await getProfile();
+            console.log('🔍 AuthContext: Manual init - Profile loaded:', { userId: profile._id, email: profile.email });
+            setUser(profile);
+            
+            const endTime = performance.now();
+            console.log(`✅ AuthContext: Manual initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
+          } else {
+            console.log('🔓 AuthContext: Manual init - No token found');
+            setIsAuthenticated(false);
+            setUser(null);
+            setIsLoading(false);
+            setIsInitialized(true);
+            setIsProviderReady(true);
+          }
+        } catch (error) {
+          console.error('❌ AuthContext: Manual initialization error:', error);
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsLoading(false);
+          setIsInitialized(true);
+          setIsProviderReady(true);
+        }
+      };
+      
+      initializeAuth();
+    }
+  }, [initializationAttempted]);
+
   const value = {
     user,
     isAuthenticated,
@@ -366,7 +440,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     refreshUser,
-    setUser
+    setUser,
+    manualInitialize
   };
 
   // Don't render children until provider is ready

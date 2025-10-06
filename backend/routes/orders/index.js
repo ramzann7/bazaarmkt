@@ -1592,13 +1592,35 @@ const getArtisanOrders = async (req, res) => {
         console.log('🔍 Using guest info for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
       }
       
+      // Calculate subtotal and deliveryFee if missing (for older orders)
+      let subtotal = order.subtotal;
+      let deliveryFee = order.deliveryFee;
+      
+      if (subtotal === undefined || deliveryFee === undefined) {
+        // For older orders, calculate deliveryFee based on deliveryMethod
+        if (deliveryFee === undefined) {
+          if (order.deliveryMethod === 'personalDelivery') {
+            deliveryFee = 5; // Default personal delivery fee
+          } else if (order.deliveryMethod === 'professionalDelivery') {
+            deliveryFee = 10; // Default professional delivery fee
+          } else {
+            deliveryFee = 0; // Pickup has no delivery fee
+          }
+        }
+        
+        // Calculate subtotal if missing
+        if (subtotal === undefined) {
+          subtotal = (order.totalAmount || 0) - (deliveryFee || 0);
+        }
+      }
+      
       // Return complete order structure with all necessary fields
       return {
         _id: order._id,
         status: order.status,
         totalAmount: order.totalAmount,
-        subtotal: order.subtotal,
-        deliveryFee: order.deliveryFee,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         deliveryMethod: order.deliveryMethod,
@@ -1641,10 +1663,42 @@ const getArtisanOrders = async (req, res) => {
       _id: ordersWithPatronInfo[0]._id,
       status: ordersWithPatronInfo[0].status,
       totalAmount: ordersWithPatronInfo[0].totalAmount,
+      subtotal: ordersWithPatronInfo[0].subtotal,
+      deliveryFee: ordersWithPatronInfo[0].deliveryFee,
+      deliveryAddress: ordersWithPatronInfo[0].deliveryAddress,
       itemsCount: ordersWithPatronInfo[0].items?.length || 0,
+      items: ordersWithPatronInfo[0].items?.map(item => ({
+        name: item.name,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+        product: item.product?.name
+      })) || [],
       createdAt: ordersWithPatronInfo[0].createdAt,
       hasPatron: !!ordersWithPatronInfo[0].patron
     } : 'No orders');
+    
+    // Debug specific order if it exists
+    const specificOrder = ordersWithPatronInfo.find(order => order._id.toString().includes('8555CDBF'));
+    if (specificOrder) {
+      console.log('🔍 DEBUGGING ORDER 8555CDBF:', {
+        _id: specificOrder._id,
+        status: specificOrder.status,
+        totalAmount: specificOrder.totalAmount,
+        subtotal: specificOrder.subtotal,
+        deliveryFee: specificOrder.deliveryFee,
+        deliveryAddress: specificOrder.deliveryAddress,
+        deliveryMethod: specificOrder.deliveryMethod,
+        items: specificOrder.items?.map(item => ({
+          name: item.name,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          product: item.product,
+          productId: item.productId
+        })) || [],
+        artisan: specificOrder.artisan,
+        patron: specificOrder.patron
+      });
+    }
     
     res.json({
       success: true,
@@ -1718,13 +1772,35 @@ const getPatronOrders = async (req, res) => {
         console.log('🔍 Looked up artisan for order', order._id.toString().slice(-8), ':', artisan?.artisanName || 'not found');
       }
       
+      // Calculate subtotal and deliveryFee if missing (for older orders)
+      let subtotal = order.subtotal;
+      let deliveryFee = order.deliveryFee;
+      
+      if (subtotal === undefined || deliveryFee === undefined) {
+        // For older orders, calculate deliveryFee based on deliveryMethod
+        if (deliveryFee === undefined) {
+          if (order.deliveryMethod === 'personalDelivery') {
+            deliveryFee = 5; // Default personal delivery fee
+          } else if (order.deliveryMethod === 'professionalDelivery') {
+            deliveryFee = 10; // Default professional delivery fee
+          } else {
+            deliveryFee = 0; // Pickup has no delivery fee
+          }
+        }
+        
+        // Calculate subtotal if missing
+        if (subtotal === undefined) {
+          subtotal = (order.totalAmount || 0) - (deliveryFee || 0);
+        }
+      }
+      
       // Return complete order structure with all necessary fields
       return {
         _id: order._id,
         status: order.status,
         totalAmount: order.totalAmount,
-        subtotal: order.subtotal,
-        deliveryFee: order.deliveryFee,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         deliveryMethod: order.deliveryMethod,
@@ -1760,6 +1836,28 @@ const getPatronOrders = async (req, res) => {
         artisan: artisan
       };
     }));
+    
+    // Debug specific order if it exists
+    const specificOrder = ordersWithArtisan.find(order => order._id.toString().includes('8555CDBF'));
+    if (specificOrder) {
+      console.log('🔍 DEBUGGING PATRON ORDER 8555CDBF:', {
+        _id: specificOrder._id,
+        status: specificOrder.status,
+        totalAmount: specificOrder.totalAmount,
+        subtotal: specificOrder.subtotal,
+        deliveryFee: specificOrder.deliveryFee,
+        deliveryAddress: specificOrder.deliveryAddress,
+        deliveryMethod: specificOrder.deliveryMethod,
+        items: specificOrder.items?.map(item => ({
+          name: item.name,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          product: item.product,
+          productId: item.productId
+        })) || [],
+        artisan: specificOrder.artisan
+      });
+    }
     
     res.json({
       success: true,
@@ -2983,6 +3081,80 @@ router.get('/artisan', getArtisanOrders);
 router.get('/artisan/completed', getArtisanCompletedOrders);
 router.get('/artisan/stats', getArtisanStats);
 router.get('/debug', debugOrders);
+router.get('/debug/:id', async (req, res) => {
+  try {
+    const db = req.db;
+    if (!db) {
+      return res.status(503).json({ success: false, message: 'Database connection not available' });
+    }
+    
+    const ordersCollection = db.collection('orders');
+    let order;
+    
+    // Try to find by full ObjectId first
+    if ((require('mongodb')).ObjectId.isValid(req.params.id)) {
+      order = await ordersCollection.findOne({ _id: new (require('mongodb')).ObjectId(req.params.id) });
+    }
+    
+    // If not found, try to find by partial ID match
+    if (!order) {
+      const allOrders = await ordersCollection.find({}).toArray();
+      order = allOrders.find(o => o._id.toString().includes(req.params.id));
+    }
+    
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    
+    // Calculate subtotal and deliveryFee if missing (for older orders)
+    let subtotal = order.subtotal;
+    let deliveryFee = order.deliveryFee;
+    
+    if (subtotal === undefined || deliveryFee === undefined) {
+      // For older orders, calculate deliveryFee based on deliveryMethod
+      if (deliveryFee === undefined) {
+        if (order.deliveryMethod === 'personalDelivery') {
+          deliveryFee = 5; // Default personal delivery fee
+        } else if (order.deliveryMethod === 'professionalDelivery') {
+          deliveryFee = 10; // Default professional delivery fee
+        } else {
+          deliveryFee = 0; // Pickup has no delivery fee
+        }
+      }
+      
+      // Calculate subtotal if missing
+      if (subtotal === undefined) {
+        subtotal = (order.totalAmount || 0) - (deliveryFee || 0);
+      }
+    }
+    
+    res.json({
+      success: true,
+      order: {
+        _id: order._id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        subtotal: subtotal,
+        deliveryFee: deliveryFee,
+        deliveryAddress: order.deliveryAddress,
+        deliveryMethod: order.deliveryMethod,
+        deliveryInstructions: order.deliveryInstructions,
+        items: order.items?.map(item => ({
+          name: item.name,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          product: item.product,
+          productId: item.productId
+        })) || [],
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Debug order error:', error);
+    res.status(500).json({ success: false, message: 'Error fetching order', error: error.message });
+  }
+});
 router.get('/:id', getOrderById);
 router.put('/:id/status', updateOrderStatus);
 router.put('/:id/cancel', cancelOrder);

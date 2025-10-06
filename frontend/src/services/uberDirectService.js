@@ -1,5 +1,5 @@
 // src/services/uberDirectService.js
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -8,7 +8,7 @@ export const uberDirectService = {
   // Get delivery quote from backend (which calls Uber Direct API)
   async getDeliveryQuote(pickupLocation, dropoffLocation, packageDetails = {}) {
     try {
-      const response = await axios.post(`${API_URL}/delivery/uber-direct/quote`, {
+      const response = await api.post(`${API_URL}/delivery/uber-direct/quote`, {
         pickupLocation,
         dropoffLocation,
         packageDetails
@@ -148,7 +148,7 @@ export const uberDirectService = {
   // Create delivery request
   async createDeliveryRequest(quoteId, orderDetails, pickupLocation, dropoffLocation) {
     try {
-      const response = await axios.post(`${API_URL}/delivery/uber-direct/create`, {
+      const response = await api.post(`${API_URL}/delivery/uber-direct/create`, {
         quoteId,
         orderDetails,
         pickupLocation,
@@ -168,7 +168,7 @@ export const uberDirectService = {
   // Get delivery tracking information
   async getDeliveryTracking(deliveryId) {
     try {
-      const response = await axios.get(`${API_URL}/delivery/uber-direct/tracking/${deliveryId}`);
+      const response = await api.get(`${API_URL}/delivery/uber-direct/tracking/${deliveryId}`);
       return response.data;
     } catch (error) {
       console.error('❌ Error getting delivery tracking:', error);
@@ -182,7 +182,7 @@ export const uberDirectService = {
   // Cancel delivery
   async cancelDelivery(deliveryId, reason = 'Order cancelled') {
     try {
-      const response = await axios.post(`${API_URL}/delivery/uber-direct/cancel/${deliveryId}`, {
+      const response = await api.post(`${API_URL}/delivery/uber-direct/cancel/${deliveryId}`, {
         reason
       });
       return response.data;
@@ -198,7 +198,7 @@ export const uberDirectService = {
   // Check availability in area
   async checkAvailability(location) {
     try {
-      const response = await axios.post(`${API_URL}/delivery/uber-direct/availability`, {
+      const response = await api.post(`${API_URL}/delivery/uber-direct/availability`, {
         location
       });
       return response.data;

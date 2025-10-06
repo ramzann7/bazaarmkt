@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -13,7 +13,7 @@ export const guestService = {
   // Check if user already exists by email
   checkExistingUser: async (email) => {
     try {
-      const response = await axios.get(`${API_URL}/auth/check-email/${encodeURIComponent(email)}`);
+      const response = await api.get(`${API_URL}/auth/check-email/${encodeURIComponent(email)}`);
       return {
         exists: true,
         user: response.data.user,
@@ -42,7 +42,7 @@ export const guestService = {
       console.log('🔍 Guest service API_URL:', API_URL);
       console.log('🔍 Guest service full URL:', `${API_URL}/auth/guest`);
       console.log('🔍 Guest info being sent:', guestInfo);
-      const response = await axios.post(`${API_URL}/auth/guest`, guestInfo);
+      const response = await api.post(`${API_URL}/auth/guest`, guestInfo);
       return response.data;
     } catch (error) {
       console.error('Error creating guest profile:', error);
@@ -53,7 +53,7 @@ export const guestService = {
   // Get guest profile by guest ID
   getGuestProfile: async (guestId) => {
     try {
-      const response = await axios.get(`${API_URL}/auth/guest/${guestId}`);
+      const response = await api.get(`${API_URL}/auth/guest/${guestId}`);
       return response.data;
     } catch (error) {
       console.error('Error getting guest profile:', error);
@@ -64,7 +64,7 @@ export const guestService = {
   // Update guest profile
   updateGuestProfile: async (guestId, updates) => {
     try {
-      const response = await axios.put(`${API_URL}/auth/guest/${guestId}`, updates, {
+      const response = await api.put(`${API_URL}/auth/guest/${guestId}`, updates, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -77,7 +77,7 @@ export const guestService = {
   // Update user profile (for both guests and regular users)
   updateUserProfile: async (userId, updates) => {
     try {
-      const response = await axios.put(`${API_URL}/auth/update-profile/${userId}`, updates, {
+      const response = await api.put(`${API_URL}/auth/update-profile/${userId}`, updates, {
         headers: getAuthHeaders()
       });
       return response.data;
@@ -90,7 +90,7 @@ export const guestService = {
   // Convert guest to regular user
   convertToUser: async (guestId, userData) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/guest/${guestId}/convert`, userData);
+      const response = await api.post(`${API_URL}/auth/guest/${guestId}/convert`, userData);
       return response.data;
     } catch (error) {
       console.error('Error converting guest to user:', error);
@@ -129,7 +129,7 @@ export const guestService = {
   // Create token for existing user
   createTokenForExistingUser: async (userId) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/token-for-existing`, { userId });
+      const response = await api.post(`${API_URL}/auth/token-for-existing`, { userId });
       return response.data;
     } catch (error) {
       console.error('Error creating token for existing user:', error);
@@ -140,7 +140,7 @@ export const guestService = {
   // Create a permanent account from guest user
   createAccount: async (userData) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/guest/convert`, userData, {
+      const response = await api.post(`${API_URL}/auth/guest/convert`, userData, {
         headers: getAuthHeaders()
       });
       return response.data;

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -7,7 +7,7 @@ const API_URL = config.API_URL;
 export const getFinancialDashboardData = async (timeRange = '30d') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/financial-dashboard`, {
+    const response = await api.get(`${API_URL}/admin/financial-dashboard`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -25,7 +25,7 @@ export const getFinancialDashboardData = async (timeRange = '30d') => {
 export const getTransactionHistory = async (params = {}) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/transactions`, {
+    const response = await api.get(`${API_URL}/admin/transactions`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -43,7 +43,7 @@ export const getTransactionHistory = async (params = {}) => {
 export const getPayoutSchedule = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/payouts`, {
+    const response = await api.get(`${API_URL}/admin/payouts`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -60,7 +60,7 @@ export const getPayoutSchedule = async () => {
 export const exportTransactionData = async (format = 'csv', filters = {}) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/transactions/export`, {
+    const response = await api.get(`${API_URL}/admin/transactions/export`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -89,7 +89,7 @@ export const exportTransactionData = async (format = 'csv', filters = {}) => {
 export const updateCommissionRates = async (rates) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.put(`${API_URL}/admin/commission-rates`, rates, {
+    const response = await api.put(`${API_URL}/admin/commission-rates`, rates, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -107,7 +107,7 @@ export const updateCommissionRates = async (rates) => {
 export const getRevenueAnalytics = async (timeRange = '30d', groupBy = 'day') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/revenue-analytics`, {
+    const response = await api.get(`${API_URL}/admin/revenue-analytics`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -125,7 +125,7 @@ export const getRevenueAnalytics = async (timeRange = '30d', groupBy = 'day') =>
 export const getArtisanPerformance = async (timeRange = '30d') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/artisan-performance`, {
+    const response = await api.get(`${API_URL}/admin/artisan-performance`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -143,7 +143,7 @@ export const getArtisanPerformance = async (timeRange = '30d') => {
 export const getCategoryPerformance = async (timeRange = '30d') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/category-performance`, {
+    const response = await api.get(`${API_URL}/admin/category-performance`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -161,7 +161,7 @@ export const getCategoryPerformance = async (timeRange = '30d') => {
 export const getFinancialAlerts = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/financial-alerts`, {
+    const response = await api.get(`${API_URL}/admin/financial-alerts`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -178,7 +178,7 @@ export const getFinancialAlerts = async () => {
 export const processManualPayout = async (artisanId, amount, notes = '') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.post(`${API_URL}/admin/process-payout`, {
+    const response = await api.post(`${API_URL}/admin/process-payout`, {
       artisanId,
       amount,
       notes
@@ -200,7 +200,7 @@ export const processManualPayout = async (artisanId, amount, notes = '') => {
 export const getDashboardSettings = async () => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_URL}/admin/dashboard-settings`, {
+    const response = await api.get(`${API_URL}/admin/dashboard-settings`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -217,7 +217,7 @@ export const getDashboardSettings = async () => {
 export const updateDashboardSettings = async (settings) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.put(`${API_URL}/admin/dashboard-settings`, settings, {
+    const response = await api.put(`${API_URL}/admin/dashboard-settings`, settings, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'

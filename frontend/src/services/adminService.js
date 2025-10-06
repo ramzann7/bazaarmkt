@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -6,7 +6,7 @@ const API_URL = config.API_URL;
 // Get dashboard statistics
 export const getStats = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/stats`, {
+    const response = await api.get(`${API_URL}/admin/stats`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -27,7 +27,7 @@ export const getStats = async () => {
 // Get all users
 export const getUsers = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/users`, {
+    const response = await api.get(`${API_URL}/admin/users`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -42,7 +42,7 @@ export const getUsers = async () => {
 // Get all products
 export const getProducts = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/products`, {
+    const response = await api.get(`${API_URL}/admin/products`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -57,7 +57,7 @@ export const getProducts = async () => {
 // Get all artisans
 export const getArtisans = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/artisans`, {
+    const response = await api.get(`${API_URL}/admin/artisans`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -72,7 +72,7 @@ export const getArtisans = async () => {
 // Update user status
 export const updateUserStatus = async (userId, isActive) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/users/${userId}/status`, 
+    const response = await api.patch(`${API_URL}/admin/users/${userId}/status`, 
       { isActive },
       {
         headers: {
@@ -90,7 +90,7 @@ export const updateUserStatus = async (userId, isActive) => {
 // Update user role
 export const updateUserRole = async (userId, role) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/users/${userId}/role`, 
+    const response = await api.patch(`${API_URL}/admin/users/${userId}/role`, 
       { role },
       {
         headers: {
@@ -108,7 +108,7 @@ export const updateUserRole = async (userId, role) => {
 // Update product status
 export const updateProductStatus = async (productId, isActive) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/products/${productId}/status`, 
+    const response = await api.patch(`${API_URL}/admin/products/${productId}/status`, 
       { isActive },
       {
         headers: {
@@ -126,7 +126,7 @@ export const updateProductStatus = async (productId, isActive) => {
 // Set featured product
 export const setFeaturedProduct = async (productId, isFeatured) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/products/${productId}/featured`, 
+    const response = await api.patch(`${API_URL}/admin/products/${productId}/featured`, 
       { isFeatured },
       {
         headers: {
@@ -144,7 +144,7 @@ export const setFeaturedProduct = async (productId, isFeatured) => {
 // Delete product
 export const deleteProduct = async (productId) => {
   try {
-    const response = await axios.delete(`${API_URL}/admin/products/${productId}`, {
+    const response = await api.delete(`${API_URL}/admin/products/${productId}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -159,7 +159,7 @@ export const deleteProduct = async (productId) => {
 // Update artisan status
 export const updateArtisanStatus = async (artisanId, isActive) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/artisans/${artisanId}/status`, 
+    const response = await api.patch(`${API_URL}/admin/artisans/${artisanId}/status`, 
       { isActive },
       {
         headers: {
@@ -177,7 +177,7 @@ export const updateArtisanStatus = async (artisanId, isActive) => {
 // Update artisan verification
 export const updateArtisanVerification = async (artisanId, isVerified) => {
   try {
-    const response = await axios.patch(`${API_URL}/admin/artisans/${artisanId}/verification`, 
+    const response = await api.patch(`${API_URL}/admin/artisans/${artisanId}/verification`, 
       { isVerified },
       {
         headers: {
@@ -195,7 +195,7 @@ export const updateArtisanVerification = async (artisanId, isVerified) => {
 // Get analytics data
 export const getAnalytics = async (period = 30) => {
   try {
-    const response = await axios.get(`${API_URL}/admin/analytics?period=${period}`, {
+    const response = await api.get(`${API_URL}/admin/analytics?period=${period}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -214,7 +214,7 @@ export const getPromotionalStats = async (period = 30) => {
     console.log('🔍 getPromotionalStats - Token:', { hasToken: !!token, tokenLength: token?.length });
     console.log('🔍 getPromotionalStats - URL:', `${API_URL}/admin/promotional/stats?period=${period}`);
     
-    const response = await axios.get(`${API_URL}/admin/promotional/stats?period=${period}`, {
+    const response = await api.get(`${API_URL}/admin/promotional/stats?period=${period}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -231,7 +231,7 @@ export const getPromotionalStats = async (period = 30) => {
 export const getActivePromotions = async () => {
   try {
     console.log('🔍 getActivePromotions - URL:', `${API_URL}/admin/promotional/active`);
-    const response = await axios.get(`${API_URL}/admin/promotional/active`, {
+    const response = await api.get(`${API_URL}/admin/promotional/active`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -247,7 +247,7 @@ export const getActivePromotions = async () => {
 // Get promotional pricing configuration
 export const getPromotionalPricing = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/promotional/pricing`, {
+    const response = await api.get(`${API_URL}/admin/promotional/pricing`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -262,7 +262,7 @@ export const getPromotionalPricing = async () => {
 // Update promotional pricing
 export const updatePromotionalPricing = async (pricingData) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/promotional/pricing`, pricingData, {
+    const response = await api.put(`${API_URL}/admin/promotional/pricing`, pricingData, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -277,7 +277,7 @@ export const updatePromotionalPricing = async (pricingData) => {
 // Initialize default promotional pricing
 export const initializeDefaultPricing = async () => {
   try {
-    const response = await axios.post(`${API_URL}/admin/promotional/pricing/initialize`, {}, {
+    const response = await api.post(`${API_URL}/admin/promotional/pricing/initialize`, {}, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -294,7 +294,7 @@ export const initializeDefaultPricing = async () => {
 // Get platform settings
 export const getPlatformSettings = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/platform-settings`, {
+    const response = await api.get(`${API_URL}/admin/platform-settings`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -309,7 +309,7 @@ export const getPlatformSettings = async () => {
 // Update platform settings
 export const updatePlatformSettings = async (settingsData) => {
   try {
-    const response = await axios.put(`${API_URL}/admin/platform-settings`, settingsData, {
+    const response = await api.put(`${API_URL}/admin/platform-settings`, settingsData, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -324,7 +324,7 @@ export const updatePlatformSettings = async (settingsData) => {
 // Reset platform settings to defaults
 export const resetPlatformSettings = async () => {
   try {
-    const response = await axios.post(`${API_URL}/admin/platform-settings/reset-defaults`, {}, {
+    const response = await api.post(`${API_URL}/admin/platform-settings/reset-defaults`, {}, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -339,7 +339,7 @@ export const resetPlatformSettings = async () => {
 // Get platform fee percentage (public)
 export const getPlatformFeePercentage = async () => {
   try {
-    const response = await axios.get(`${API_URL}/admin/platform-settings/fee-percentage`);
+    const response = await api.get(`${API_URL}/admin/platform-settings/fee-percentage`);
     return response.data.data.platformFeePercentage;
   } catch (error) {
     console.error('Error fetching platform fee percentage:', error);
@@ -350,7 +350,7 @@ export const getPlatformFeePercentage = async () => {
 // Calculate platform fee for an order
 export const calculatePlatformFee = async (orderAmount) => {
   try {
-    const response = await axios.post(`${API_URL}/admin/platform-settings/calculate-fee`, {
+    const response = await api.post(`${API_URL}/admin/platform-settings/calculate-fee`, {
       orderAmount
     });
     return response.data.data;

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -11,7 +11,7 @@ class GeographicSettingsService {
   // Get current geographic settings
   async getCurrentSettings() {
     try {
-      const response = await axios.get(`${this.baseURL}/current`);
+      const response = await api.get(`${this.baseURL}/current`);
       return response.data;
     } catch (error) {
       console.error('Error getting geographic settings:', error);
@@ -22,7 +22,7 @@ class GeographicSettingsService {
   // Check location access
   async checkLocationAccess(latitude, longitude, country = null, region = null) {
     try {
-      const response = await axios.post(`${this.baseURL}/check-access`, {
+      const response = await api.post(`${this.baseURL}/check-access`, {
         latitude,
         longitude,
         country,
@@ -38,7 +38,7 @@ class GeographicSettingsService {
   // Get address validation rules for a country
   async getAddressValidationRules(country) {
     try {
-      const response = await axios.get(`${this.baseURL}/address-validation/${encodeURIComponent(country)}`);
+      const response = await api.get(`${this.baseURL}/address-validation/${encodeURIComponent(country)}`);
       return response.data;
     } catch (error) {
       console.error('Error getting address validation rules:', error);
@@ -52,7 +52,7 @@ class GeographicSettingsService {
   async getSettings() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/`, {
+      const response = await api.get(`${this.baseURL}/`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -68,7 +68,7 @@ class GeographicSettingsService {
   async updateSettings(settingsData) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${this.baseURL}/`, settingsData, {
+      const response = await api.put(`${this.baseURL}/`, settingsData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -85,7 +85,7 @@ class GeographicSettingsService {
   async getSettingsHistory(limit = 10) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/history?limit=${limit}`, {
+      const response = await api.get(`${this.baseURL}/history?limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -101,7 +101,7 @@ class GeographicSettingsService {
   async testSettings(testData) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${this.baseURL}/test`, testData, {
+      const response = await api.post(`${this.baseURL}/test`, testData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -118,7 +118,7 @@ class GeographicSettingsService {
   async getDefaultSettings() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/defaults`, {
+      const response = await api.get(`${this.baseURL}/defaults`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -144,7 +144,7 @@ class GeographicSettingsService {
       let region = null;
       
       try {
-        const geocodingResponse = await axios.get(
+        const geocodingResponse = await api.get(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`
         );
         

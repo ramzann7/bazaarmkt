@@ -1,11 +1,11 @@
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_BASE_URL = config.API_URL;
 
 class CommunityService {
   constructor() {
-    this.api = axios.create({
+    this.api = api.create({
       baseURL: `${API_BASE_URL}/community`,
       withCredentials: true,
     });

@@ -1,5 +1,5 @@
 // src/services/favoriteService.js
-import axios from 'axios';
+import api from './apiClient';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 
 const API_URL = '/api';
@@ -17,7 +17,7 @@ export const favoriteService = {
         return cached;
       }
       
-      const response = await axios.get(`${API_URL}/favorites/artisans`, {
+      const response = await api.get(`${API_URL}/favorites/artisans`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -35,7 +35,7 @@ export const favoriteService = {
   addFavoriteArtisan: async (artisanId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/favorites/artisans`, { artisanId }, {
+      const response = await api.post(`${API_URL}/favorites/artisans`, { artisanId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -54,7 +54,7 @@ export const favoriteService = {
   removeFavoriteArtisan: async (artisanId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.delete(`${API_URL}/favorites/artisans/${artisanId}`, {
+      const response = await api.delete(`${API_URL}/favorites/artisans/${artisanId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -83,7 +83,7 @@ export const favoriteService = {
   // Get favorite count for an artisan
   getFavoriteCount: async (artisanId) => {
     try {
-      const response = await axios.get(`${API_URL}/favorites/artisans/${artisanId}/count`);
+      const response = await api.get(`${API_URL}/favorites/artisans/${artisanId}/count`);
       return response.data.count || 0;
     } catch (error) {
       console.error('Error getting favorite count:', error);

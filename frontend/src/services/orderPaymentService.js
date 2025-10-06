@@ -1,9 +1,9 @@
 // src/services/orderPaymentService.js
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 // Create axios instance for order payment API calls
-const orderPaymentApi = axios.create({
+const orderPaymentApi = api.create({
   baseURL: config.API_URL,
   timeout: 15000,
   headers: {

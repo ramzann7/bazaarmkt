@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from './apiClient';
 import { normalizeProductData, logCategoryUsage } from '../utils/categoryUtils';
 import config from '../config/environment.js';
 
@@ -70,7 +70,7 @@ export const getAllProducts = async (filters = {}) => {
     }
   });
   
-  const response = await axios.get(`${API_URL}?${params.toString()}`);
+  const response = await api.get(`${API_URL}?${params.toString()}`);
   // Extract products array from response if it exists, otherwise return the data as is
   const productsData = response.data.products || response.data;
   setCache(cacheKey, productsData);
@@ -88,7 +88,7 @@ export const getFeaturedProducts = async () => {
   }
   
   console.log('Fetching featured products from API...');
-  const response = await axios.get(`${API_URL}/featured`);
+  const response = await api.get(`${API_URL}/featured`);
   console.log('Featured products API response:', response.data);
   
   // Return the full response data which includes success, products, and count
@@ -113,7 +113,7 @@ export const getPopularProducts = async () => {
   }
   
   console.log('Fetching popular products from API...');
-  const response = await axios.get(`${API_URL}/popular`);
+  const response = await api.get(`${API_URL}/popular`);
   console.log('Popular products API response:', response.data);
   
   // Return the full response data which includes success, products, and count
@@ -144,7 +144,7 @@ export const searchProducts = async (searchQuery, filters = {}) => {
   });
   
   // Use the main endpoint which supports both search and filters
-  const response = await axios.get(`${API_URL}?${params.toString()}`);
+  const response = await api.get(`${API_URL}?${params.toString()}`);
   // Extract products array from response if it exists, otherwise return the data as is
   return response.data.products || response.data;
 };
@@ -155,14 +155,14 @@ export const getSearchSuggestions = async (query) => {
     return { suggestions: [] };
   }
   
-  const response = await axios.get(`${API_URL}/suggestions?q=${encodeURIComponent(query)}`);
+  const response = await api.get(`${API_URL}/suggestions?q=${encodeURIComponent(query)}`);
   return response.data;
 };
 
 // Get seller's products
 export const getMyProducts = async () => {
   const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_URL}/my-products`, {
+  const response = await api.get(`${API_URL}/my-products`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   // API returns { success: true, data: products, count: N }
@@ -171,13 +171,13 @@ export const getMyProducts = async () => {
 
 // Get products by producer ID
 export const getProductsByProducer = async (producerId) => {
-  const response = await axios.get(`${API_URL}/producer/${producerId}`);
+  const response = await api.get(`${API_URL}/producer/${producerId}`);
   return response.data;
 };
 
 // Get single product by ID
 export const getProductById = async (productId) => {
-  const response = await axios.get(`${API_URL}/${productId}`);
+  const response = await api.get(`${API_URL}/${productId}`);
   return response.data;
 };
 
@@ -253,7 +253,7 @@ export const createProduct = async (productData) => {
   console.log('🔍 ProductService.createProduct - Request headers:', headers);
   console.log('🔍 ProductService.createProduct - API URL:', API_URL);
   
-  const response = await axios.post(API_URL, requestData, { headers });
+  const response = await api.post(API_URL, requestData, { headers });
   
   console.log('🔍 ProductService.createProduct - Response:', response.data);
   
@@ -303,14 +303,14 @@ export const updateProduct = async (productId, productData) => {
     headers['Content-Type'] = 'application/json';
   }
   
-  const response = await axios.put(`${API_URL}/${productId}`, requestData, { headers });
+  const response = await api.put(`${API_URL}/${productId}`, requestData, { headers });
   return response.data;
 };
 
 // Update product inventory
 export const updateInventory = async (productId, inventoryData) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`${API_URL}/${productId}/inventory`, inventoryData, {
+  const response = await api.patch(`${API_URL}/${productId}/inventory`, inventoryData, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -319,7 +319,7 @@ export const updateInventory = async (productId, inventoryData) => {
 // Reduce product inventory (for purchases)
 export const reduceInventory = async (productId, quantity) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`${API_URL}/${productId}/reduce-inventory`, 
+  const response = await api.patch(`${API_URL}/${productId}/reduce-inventory`, 
     { quantity },
     { headers: { Authorization: `Bearer ${token}` } }
   );
@@ -329,7 +329,7 @@ export const reduceInventory = async (productId, quantity) => {
 // Delete product
 export const deleteProduct = async (productId) => {
   const token = localStorage.getItem('token');
-  const response = await axios.delete(`${API_URL}/${productId}`, {
+  const response = await api.delete(`${API_URL}/${productId}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -338,7 +338,7 @@ export const deleteProduct = async (productId) => {
 // Update product stock (for purchases)
 export const updateProductStock = async (productId, quantity) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`${API_URL}/${productId}/stock`, 
+  const response = await api.patch(`${API_URL}/${productId}/stock`, 
     { quantity },
     { headers: { Authorization: `Bearer ${token}` } }
   );
@@ -347,7 +347,7 @@ export const updateProductStock = async (productId, quantity) => {
 
 // Get product categories
 export const getProductCategories = async () => {
-  const response = await axios.get(`${API_URL}/categories/list`);
+  const response = await api.get(`${API_URL}/categories/list`);
   return response.data;
 };
 
@@ -359,7 +359,7 @@ export const uploadImage = async (file) => {
   const formData = new FormData();
   formData.append('photo', file);
   
-        const response = await axios.post(`http://localhost:4000/api/upload/photo`, formData, {
+        const response = await api.post(`http://localhost:4000/api/upload/photo`, formData, {
     headers: { 
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'

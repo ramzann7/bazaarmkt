@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { authToken } from './authservice';
+import api from './apiClient';
 import { geocodingService } from './geocodingService';
 import { normalizeSearchFilters, logCategoryUsage } from '../utils/categoryUtils';
 import config from '../config/environment.js';
@@ -60,7 +59,7 @@ class EnhancedSearchService {
       params.append('includeDistance', 'true');
       params.append('includeSponsored', 'true'); // New parameter for sponsored products
       
-      const response = await axios.get(`${this.baseURL}/enhanced-search?${params.toString()}`);
+      const response = await api.get(`${this.baseURL}/enhanced-search?${params.toString()}`);
       
       // Get sponsored products for this search
       let sponsoredProducts = [];
@@ -159,7 +158,7 @@ class EnhancedSearchService {
         }
       });
 
-      const response = await axios.get(`${this.baseURL}/enhanced-subcategory-search?${params.toString()}`);
+      const response = await api.get(`${this.baseURL}/enhanced-subcategory-search?${params.toString()}`);
       
       // Get enhanced sponsored products for this subcategory
       let sponsoredProducts = [];
@@ -318,7 +317,7 @@ class EnhancedSearchService {
         params.append('userLng', userLocation.longitude);
       }
       
-      const response = await axios.get(`${this.baseURL}/enhanced-suggestions?${params.toString()}`);
+      const response = await api.get(`${this.baseURL}/enhanced-suggestions?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Enhanced suggestions error:', error);
@@ -620,7 +619,7 @@ class EnhancedSearchService {
       const token = authToken.getToken();
       if (!token) return [];
 
-      const response = await axios.get(`${this.baseURL}/personalized/${userId}?limit=${limit}`, {
+      const response = await api.get(`${this.baseURL}/personalized/${userId}?limit=${limit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;

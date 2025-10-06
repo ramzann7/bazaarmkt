@@ -2909,6 +2909,44 @@ const confirmOrderReceipt = async (req, res) => {
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
     
+    // Send notification to artisan that order receipt has been confirmed
+    try {
+      if (updatedOrder.artisan) {
+        const artisanNotificationData = {
+          type: 'order_receipt_confirmed',
+          userId: updatedOrder.artisan,
+          orderId: updatedOrder._id,
+          orderData: updatedOrder,
+          userEmail: null, // Will be fetched from artisan profile
+          orderNumber: updatedOrder._id.toString().slice(-8),
+          status: 'completed',
+          updateType: 'receipt_confirmed',
+          updateDetails: {
+            newStatus: 'completed',
+            previousStatus: updatedOrder.status,
+            reason: 'Order receipt confirmed by customer',
+            statusDisplayText: 'Completed',
+            receiptConfirmed: true
+          },
+          userInfo: {
+            id: updatedOrder.artisan,
+            isGuest: false,
+            email: null, // Will be fetched from artisan profile
+            firstName: null // Will be fetched from artisan profile
+          },
+          message: `Order #${updatedOrder._id.toString().slice(-8)} receipt has been confirmed by the customer`,
+          title: `Order Receipt Confirmed - #${updatedOrder._id.toString().slice(-8)}`,
+          timestamp: new Date().toISOString()
+        };
+        
+        await sendNotificationDirect(artisanNotificationData, db);
+        console.log('✅ Artisan order receipt confirmation notification sent');
+      }
+    } catch (notificationError) {
+      console.error('❌ Error sending receipt confirmation notification:', notificationError);
+      // Don't fail the receipt confirmation if notification fails
+    }
+    
     res.json({
       success: true,
       message: 'Order receipt confirmed successfully',

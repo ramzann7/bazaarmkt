@@ -204,7 +204,7 @@ export default function Orders() {
           return;
         }
         const result = await orderService.confirmOrderReceipt(orderId);
-        toast.success(`✅ Order confirmed! Artisan has been credited $${(result.data.creditedAmount || 0).toFixed(2)}`);
+        toast.success(`✅ Order confirmed successfully!`);
         await loadUserAndOrders();
         return;
       }
@@ -1487,7 +1487,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     setIsLoading(true);
     try {
       const result = await orderService.confirmOrderReceipt(order._id);
-      toast.success(`✅ Order confirmed! Artisan has been credited $${(result.data.creditedAmount || 0).toFixed(2)}`);
+      toast.success(`✅ Order confirmed successfully!`);
       onRefresh();
       onClose();
     } catch (error) {

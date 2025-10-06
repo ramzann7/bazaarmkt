@@ -61,7 +61,12 @@ router.get('/pricing', async (req, res) => {
 // Get featured promotional products
 router.get('/products/featured', async (req, res) => {
   try {
-    const { db } = req;
+    const db = req.db; // Use req.db instead of destructuring
+    if (!db) {
+      console.error('Database not available in featured products endpoint');
+      return res.status(503).json({ success: false, message: 'Database unavailable' });
+    }
+    
     const { limit = 6 } = req.query;
     
     const products = await db.collection('products')
@@ -69,7 +74,7 @@ router.get('/products/featured', async (req, res) => {
       .limit(parseInt(limit))
       .toArray();
     
-    res.json({ success: true, data: products });
+    res.json({ success: true, data: products, products: products, count: products.length });
   } catch (error) {
     console.error('Get featured promotional products error:', error);
     res.status(500).json({ success: false, message: error.message });

@@ -1187,6 +1187,41 @@ router.delete('/:id', deleteProduct);
 router.put('/:id/inventory', updateInventory); // Frontend uses PUT
 router.patch('/:id/inventory', updateInventory); // Also support PATCH
 router.patch('/:id/stock', updateStock);
+// Get popular products (best selling products)
+const getPopularProducts = async (req, res) => {
+  try {
+    const db = req.db;
+    if (!db) {
+      console.error('Database not available in popular products endpoint');
+      return res.status(503).json({ success: false, message: 'Database unavailable' });
+    }
+    
+    const productsCollection = db.collection('products');
+    
+    // Get products sorted by soldCount (descending) and limit to 8
+    const products = await productsCollection
+      .find({ status: 'active' }) // Only active products
+      .sort({ soldCount: -1 }) // Sort by sold count descending
+      .limit(8)
+      .toArray();
+    
+    res.json({ 
+      success: true, 
+      data: products, 
+      products: products, 
+      count: products.length 
+    });
+  } catch (error) {
+    console.error('Get popular products error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get popular products',
+      error: error.message 
+    });
+  }
+};
+
+router.get('/popular', getPopularProducts);
 router.patch('/:id/reduce-inventory', reduceInventory);
 router.get('/:id', getProductById); // This must be LAST - catches everything else
 router.get('/', getProducts); // Base route

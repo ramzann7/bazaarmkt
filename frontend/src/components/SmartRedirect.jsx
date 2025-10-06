@@ -34,6 +34,14 @@ export default function SmartRedirect() {
 
       // Get user profile to check role and onboarding status
       const profile = await getProfile();
+      
+      // Check if profile is valid
+      if (!profile || !profile._id) {
+        console.error('SmartRedirect: Invalid profile received:', profile);
+        setRedirectPath('/login');
+        return;
+      }
+      
       const userId = profile._id;
       const userRole = profile.role || profile.userType; // Check both role and userType for compatibility
       

@@ -29,7 +29,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('needs_action'); // Default to needs action for artisans
+  const [filter, setFilter] = useState('active'); // Default to active orders (priority queue shows all active orders with pending prioritized)
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -136,13 +136,19 @@ export default function Orders() {
             ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
           );
           break;
+        case 'active':
+          // Show all active orders (not cancelled, completed, or declined) - priority sorting will handle prioritization
+          filteredOrders = allOrders.filter(order => 
+            !['cancelled', 'completed', 'declined'].includes(order.status)
+          );
+          break;
         case 'all':
           // Show all orders (no additional filtering)
           break;
         default:
-          // Default to needs_action for artisans
+          // Default: Show all active orders (not cancelled, completed, or declined) - priority sorting will handle prioritization
           filteredOrders = allOrders.filter(order => 
-            ['pending'].includes(order.status)
+            !['cancelled', 'completed', 'declined'].includes(order.status)
           );
       }
     } else {
@@ -664,6 +670,7 @@ export default function Orders() {
               {isArtisan(userRole) ? (
                 // Simplified artisan filters
                 [
+                  { key: 'active', label: 'Active Orders', icon: '⚡' },
                   { key: 'needs_action', label: 'Needs Action', icon: '🚨' },
                   { key: 'in_progress', label: 'In Progress', icon: '👨‍🍳' },
                   { key: 'all', label: 'All Orders', icon: '📦' }

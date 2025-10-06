@@ -1694,14 +1694,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="space-y-2">
-                {/* Subtotal */}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Subtotal</span>
-                  <span className="text-sm font-medium text-gray-800">
-                    ${(order.subtotal || order.totalAmount || 0).toFixed(2)}
-                  </span>
-                </div>
-                
                 {/* Delivery Fee */}
                 {order.deliveryFee && order.deliveryFee > 0 && (
                   <div className="flex justify-between items-center">

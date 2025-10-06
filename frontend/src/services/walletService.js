@@ -1,4 +1,4 @@
-import { api } from './authservice';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;

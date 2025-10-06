@@ -1,4 +1,4 @@
-import { api } from './authservice';
+import api from './apiClient';
 import { cacheService, CACHE_KEYS } from './cacheService';
 import { clearProductCache } from './productService';
 import { cartService } from './cartService';

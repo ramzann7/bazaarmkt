@@ -42,11 +42,9 @@ class WalletService {
   async createTopUpPaymentIntent(amount, currency = 'CAD') {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${this.baseURL}/top-up/create-payment-intent`, {
+      const response = await api.post(`${this.baseURL}/top-up/create-payment-intent`, {
         amount,
         currency
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;
     } catch (error) {
@@ -59,10 +57,8 @@ class WalletService {
   async confirmTopUp(paymentIntentId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${this.baseURL}/top-up/confirm`, {
+      const response = await api.post(`${this.baseURL}/top-up/confirm`, {
         paymentIntentId
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       return response.data;
     } catch (error) {
@@ -75,9 +71,7 @@ class WalletService {
   async updatePayoutSettings(settings) {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`${this.baseURL}/payout-settings`, settings, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.put(`${this.baseURL}/payout-settings`, settings);
       return response.data;
     } catch (error) {
       console.error('Error updating payout settings:', error);
@@ -89,9 +83,7 @@ class WalletService {
   async getWalletStats(period = '30') {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/transactions?limit=50`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${this.baseURL}/transactions?limit=50`);
       
       // Return the stats data in the expected format
       return {
@@ -145,9 +137,7 @@ class WalletService {
   async getWalletAnalytics(period = 'month') {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/analytics?period=${period}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${this.baseURL}/analytics?period=${period}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet analytics:', error);
@@ -159,9 +149,7 @@ class WalletService {
   async getWalletStats() {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/balance`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${this.baseURL}/balance`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet stats:', error);

@@ -162,9 +162,7 @@ export const getProfileFast = async () => {
   return cacheService.getOrSet(
     cacheKey,
     async () => {
-      const response = await api.get(`${config.API_URL}/auth/profile`, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.get(`${config.API_URL}/auth/profile`);
       return response.data.data?.user || response.data.user;
     },
     CACHE_TTL.USER_PROFILE
@@ -182,9 +180,7 @@ export const preloadProfileFast = () => {
   // Only preload if not already cached
   if (!cacheService.getFast(cacheKey)) {
     cacheService.preload(cacheKey, async () => {
-      const response = await api.get(`${config.API_URL}/auth/profile`, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.get(`${config.API_URL}/auth/profile`);
       return response.data.data?.user || response.data.user;
     }, CACHE_TTL.USER_PROFILE);
   }

@@ -3,11 +3,7 @@ import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
 
-// Helper function to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+// Helper function to get auth headers (now handled by apiClient)
 
 export const guestService = {
   // Check if user already exists by email
@@ -65,7 +61,6 @@ export const guestService = {
   updateGuestProfile: async (guestId, updates) => {
     try {
       const response = await api.put(`${API_URL}/auth/guest/${guestId}`, updates, {
-        headers: getAuthHeaders()
       });
       return response.data;
     } catch (error) {
@@ -78,7 +73,6 @@ export const guestService = {
   updateUserProfile: async (userId, updates) => {
     try {
       const response = await api.put(`${API_URL}/auth/update-profile/${userId}`, updates, {
-        headers: getAuthHeaders()
       });
       return response.data;
     } catch (error) {
@@ -141,7 +135,6 @@ export const guestService = {
   createAccount: async (userData) => {
     try {
       const response = await api.post(`${API_URL}/auth/guest/convert`, userData, {
-        headers: getAuthHeaders()
       });
       return response.data;
     } catch (error) {

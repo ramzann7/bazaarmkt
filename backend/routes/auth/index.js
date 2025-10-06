@@ -14,7 +14,19 @@ const { createAuthService } = require('../../services');
 // User registration
 const register = async (req, res) => {
   try {
-    const { email, password, firstName, lastName, phone, userType = 'customer' } = req.body;
+    const { 
+      email, 
+      password, 
+      firstName, 
+      lastName, 
+      phone, 
+      role = 'customer',
+      addresses = [],
+      artisanData = null,
+      artisanName,
+      type,
+      description
+    } = req.body;
     
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({
@@ -25,11 +37,11 @@ const register = async (req, res) => {
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
+    const artisansCollection = db.collection('artisans');
     
     // Check if user already exists
     const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      // Connection managed by middleware - no close needed
       return res.status(400).json({
         success: false,
         message: 'User with this email already exists'
@@ -40,14 +52,15 @@ const register = async (req, res) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     
-    // Create user
+    // Create user with all provided data
     const user = {
       email: email.toLowerCase(),
       password: hashedPassword,
       firstName,
       lastName,
       phone: phone || '',
-      role: userType, // Database uses 'role' field
+      role: role, // Database uses 'role' field
+      addresses: addresses || [],
       isActive: true,
       isVerified: false,
       createdAt: new Date(),
@@ -57,6 +70,31 @@ const register = async (req, res) => {
     const result = await usersCollection.insertOne(user);
     const userId = result.insertedId;
     
+    let artisan = null;
+    
+    // Create artisan profile if user is registering as artisan
+    if (role === 'artisan') {
+      const artisanProfile = {
+        user: userId,
+        artisanName: artisanName || artisanData?.artisanName || `${firstName} ${lastName}`,
+        type: type || artisanData?.type || 'food_beverages',
+        description: description || artisanData?.description || `Artisan profile for ${firstName} ${lastName}`,
+        category: [type || artisanData?.type || 'food_beverages'],
+        specialties: [],
+        address: artisanData?.address || (addresses.length > 0 ? addresses[0] : {}),
+        isActive: true,
+        isVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const artisanResult = await artisansCollection.insertOne(artisanProfile);
+      artisan = {
+        _id: artisanResult.insertedId,
+        ...artisanProfile
+      };
+    }
+    
     // Generate JWT token
     const token = jwt.sign(
       { userId: userId.toString(), email: user.email, userType: user.role },
@@ -64,24 +102,38 @@ const register = async (req, res) => {
       { expiresIn: '7d' }
     );
     
-    // Connection managed by middleware - no close needed
+    // Prepare response data
+    const responseData = {
+      user: {
+        _id: userId,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        userType: user.role, // Frontend expects userType
+        addresses: user.addresses,
+        isActive: user.isActive,
+        isVerified: user.isVerified
+      },
+      token
+    };
+    
+    // Include artisan data if created
+    if (artisan) {
+      responseData.artisan = {
+        _id: artisan._id,
+        artisanName: artisan.artisanName,
+        type: artisan.type,
+        description: artisan.description,
+        category: artisan.category,
+        address: artisan.address
+      };
+    }
     
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      data: {
-        user: {
-          _id: userId,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          userType: user.role, // Frontend expects userType
-          isActive: user.isActive,
-          isVerified: user.isVerified
-        },
-        token
-      }
+      data: responseData
     });
   } catch (error) {
     console.error('Registration error:', error);

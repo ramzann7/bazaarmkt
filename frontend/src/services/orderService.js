@@ -151,6 +151,24 @@ export const orderService = {
       // Clear product cache after status update as inventory might be restored
       clearProductCaches();
       
+      // Trigger toast notification for order status update
+      try {
+        const { orderNotificationService } = await import('./orderNotificationService');
+        const { getProfile } = await import('./authservice');
+        const profile = await getProfile();
+        const userRole = profile.role || profile.userType;
+        
+        // Get the updated order data from response
+        const updatedOrder = response.data?.data?.order || response.data?.order;
+        if (updatedOrder && statusData.status) {
+          orderNotificationService.triggerOrderStatusUpdateNotification(updatedOrder, statusData.status, userRole);
+          console.log('✅ Order status update toast notification triggered');
+        }
+      } catch (toastError) {
+        console.error('❌ Error triggering toast notification:', toastError);
+        // Don't fail the status update if toast notification fails
+      }
+      
       return response.data;
     } catch (error) {
       console.error('❌ Error updating order status:', error);

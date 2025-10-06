@@ -286,6 +286,19 @@ export const AuthProvider = ({ children }) => {
         }
       }, 100);
       
+      // Trigger immediate notification check for new orders/updates
+      setTimeout(async () => {
+        try {
+          const { orderNotificationService } = await import('../services/orderNotificationService');
+          // Force an immediate check for new orders/updates after login
+          await orderNotificationService.checkForNewOrders();
+          console.log('✅ Immediate order notification check triggered after login');
+        } catch (notificationError) {
+          console.error('❌ Error triggering immediate notification check:', notificationError);
+          // Don't fail login if notification check fails
+        }
+      }, 500); // Small delay to ensure user is fully logged in
+      
       toast.success('Login successful!');
     } catch (error) {
       console.error('Login error:', error);

@@ -1335,6 +1335,17 @@ const Cart = () => {
       console.error('❌ Error sending order completion notification:', notificationError);
       // Don't fail the order flow if notification fails
     }
+
+    // Trigger immediate toast notification for order creation
+    try {
+      const { orderNotificationService } = await import('../services/orderNotificationService');
+      const userRole = isGuest ? 'guest' : (userProfile?.role || 'patron');
+      orderNotificationService.triggerOrderCreatedNotification(orderData, userRole);
+      console.log('✅ Order creation toast notification triggered');
+    } catch (toastError) {
+      console.error('❌ Error triggering toast notification:', toastError);
+      // Don't fail the order flow if toast notification fails
+    }
       
     // Clear cart
     cartService.clearCart(currentUserId);

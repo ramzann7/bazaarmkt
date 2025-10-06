@@ -19,7 +19,8 @@ import PriorityOrderQueue from './PriorityOrderQueue';
 
 export default function Orders() {
   const location = useLocation();
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]); // Cache all orders
+  const [orders, setOrders] = useState([]); // Filtered orders for display
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
@@ -28,6 +29,7 @@ export default function Orders() {
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] = useState(null);
+  const [ordersLoaded, setOrdersLoaded] = useState(false); // Track if orders have been loaded
 
   useEffect(() => {
     loadUserAndOrders();
@@ -36,12 +38,12 @@ export default function Orders() {
     return () => clearInterval(interval);
   }, []);
 
-  // Reload orders when filter changes
+  // Apply filter when filter changes (no API call needed)
   useEffect(() => {
-    if (userRole) {
-      loadUserAndOrders();
+    if (ordersLoaded) {
+      applyFilter();
     }
-  }, [filter]);
+  }, [filter, ordersLoaded]);
 
   // Handle order confirmation from checkout
   useEffect(() => {
@@ -70,35 +72,101 @@ export default function Orders() {
   const loadUserAndOrders = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
-      const includeAllOrders = filter === 'all';
-      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', includeAllOrders ? '(ALL ORDERS)' : '(ACTIVE ORDERS)');
+      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)');
       const userProfile = await getProfile();
       setUserRole(userProfile.userType || userProfile.role);
       
-      // Load orders based on user role and filter preference
-      let ordersData;
-      if (userProfile.userType === 'artisan' || userProfile.role === 'artisan') {
-        console.log('📋 Loading artisan orders...', includeAllOrders ? '(ALL)' : '(ACTIVE)');
-        ordersData = await orderService.getArtisanOrders(includeAllOrders);
-      } else {
-        console.log('📋 Loading patron orders...', includeAllOrders ? '(ALL)' : '(ACTIVE)');
-        ordersData = await orderService.getPatronOrders(includeAllOrders);
+      // Only load orders from API if not already loaded or force refresh
+      if (!ordersLoaded || forceRefresh) {
+        console.log('📋 Loading all orders from API...');
+        let ordersData;
+        if (userProfile.userType === 'artisan' || userProfile.role === 'artisan') {
+          ordersData = await orderService.getArtisanOrders(true); // Always load all orders
+        } else {
+          ordersData = await orderService.getPatronOrders(true); // Always load all orders
+        }
+        
+        console.log('📦 All orders loaded from API:', {
+          count: ordersData.length,
+          statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
+        });
+        
+        setAllOrders(ordersData);
+        setOrdersLoaded(true);
       }
       
-      console.log('📦 Orders loaded:', {
-        count: ordersData.length,
-        filter: filter,
-        includeAll: includeAllOrders,
-        statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
-      });
+      // Apply current filter to cached orders
+      applyFilter();
       
-      setOrders(ordersData);
     } catch (error) {
       console.error('Error loading orders:', error);
       toast.error('Failed to load orders');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const applyFilter = () => {
+    if (!ordersLoaded) return;
+    
+    console.log('🔍 Applying filter:', filter, 'to', allOrders.length, 'orders');
+    
+    let filteredOrders = [...allOrders];
+    
+    // Apply status-based filtering
+    if (userRole === 'artisan') {
+      switch (filter) {
+        case 'needs_action':
+          filteredOrders = allOrders.filter(order => 
+            ['pending'].includes(order.status)
+          );
+          break;
+        case 'in_progress':
+          filteredOrders = allOrders.filter(order => 
+            ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
+          );
+          break;
+        case 'all':
+          // Show all orders (no additional filtering)
+          break;
+        default:
+          // Default to active orders
+          filteredOrders = allOrders.filter(order => 
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
+          );
+      }
+    } else {
+      // Patron filtering
+      switch (filter) {
+        case 'active':
+          filteredOrders = allOrders.filter(order => 
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+          );
+          break;
+        case 'delivered':
+          filteredOrders = allOrders.filter(order => 
+            ['delivered', 'picked_up', 'completed'].includes(order.status)
+          );
+          break;
+        case 'all':
+          // Show all orders (no additional filtering)
+          break;
+        default:
+          // Default to active orders
+          filteredOrders = allOrders.filter(order => 
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+          );
+      }
+    }
+    
+    console.log('📦 Filtered orders:', {
+      filter: filter,
+      totalOrders: allOrders.length,
+      filteredCount: filteredOrders.length,
+      statuses: filteredOrders.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
+    });
+    
+    setOrders(filteredOrders);
   };
 
   const handleOrderClick = (order) => {

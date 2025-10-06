@@ -737,9 +737,9 @@ export default function Register() {
 
           {/* Business Benefits */}
           {formData.role === 'artisan' && (
-            <div className="mt-6 p-4 bg-gradient-to-br from-[#3C6E47] bg-opacity-5 to-[#D77A61] bg-opacity-5 rounded-xl border border-[#3C6E47] border-opacity-20">
-              <h4 className="font-semibold text-[#3C6E47] mb-2">Why sell on Bazaar?</h4>
-              <ul className="text-sm text-gray-700 space-y-1">
+            <div className="mt-6 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+              <h4 className="font-semibold text-gray-800 mb-2">Why sell on Bazaar?</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>
                 <li>• Simple onboarding & payments</li>

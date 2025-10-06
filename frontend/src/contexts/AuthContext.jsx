@@ -82,18 +82,23 @@ export const AuthProvider = ({ children }) => {
               console.log('✅ AuthContext: Cache match - using cached profile');
               setUser(cachedProfile);
               
-              // Load fresh profile in background (non-blocking)
-              setTimeout(async () => {
-                try {
-                  console.log('🔄 AuthContext: Refreshing profile in background...');
-                  const profile = await getProfile();
-                  console.log('🔍 AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
-                  setUser(profile);
-                  console.log('✅ AuthContext: Background profile refresh completed');
-                } catch (error) {
-                  console.error('❌ AuthContext: Background profile refresh failed:', error);
-                }
-              }, 100); // Small delay to ensure UI is responsive
+              // Load fresh profile in background (non-blocking) - but only if not already loading
+              if (!this.isRefreshing) {
+                this.isRefreshing = true;
+                setTimeout(async () => {
+                  try {
+                    console.log('🔄 AuthContext: Refreshing profile in background...');
+                    const profile = await getProfile();
+                    console.log('🔍 AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
+                    setUser(profile);
+                    console.log('✅ AuthContext: Background profile refresh completed');
+                  } catch (error) {
+                    console.error('❌ AuthContext: Background profile refresh failed:', error);
+                  } finally {
+                    this.isRefreshing = false;
+                  }
+                }, 500); // Increased delay to prevent excessive refreshes
+              }
             } else {
               console.warn('⚠️ AuthContext: Cache mismatch detected, clearing cache and loading fresh profile');
               console.log('🔍 AuthContext: Cache mismatch details:', {

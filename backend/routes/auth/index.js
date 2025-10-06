@@ -20,7 +20,7 @@ const register = async (req, res) => {
       firstName, 
       lastName, 
       phone, 
-      role = 'customer',
+      role = 'patron',
       addresses = [],
       artisanData = null,
       artisanName,
@@ -97,24 +97,25 @@ const register = async (req, res) => {
     
     // Generate JWT token
     const token = jwt.sign(
-      { userId: userId.toString(), email: user.email, userType: user.role },
+      { userId: userId.toString(), email: user.email, userType: role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
     // Prepare response data
     const responseData = {
-      user: {
-        _id: userId,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        userType: user.role, // Frontend expects userType
-        addresses: user.addresses,
-        isActive: user.isActive,
-        isVerified: user.isVerified
-      },
+        user: {
+          _id: userId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          role: role, // Backend uses 'role'
+          userType: role, // Frontend expects userType
+          addresses: user.addresses,
+          isActive: user.isActive,
+          isVerified: user.isVerified
+        },
       token
     };
     

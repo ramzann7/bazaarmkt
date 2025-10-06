@@ -267,7 +267,7 @@ export const AuthProvider = ({ children }) => {
           // Ensure profile has required fields with defaults
           const normalizedProfile = {
             ...freshProfile,
-            userType: freshProfile.userType || 'customer', // Default to customer if not set
+            userType: freshProfile.userType || 'patron', // Default to patron if not set
             artisan: freshProfile.artisan, // Explicitly preserve artisan data
             artisanId: freshProfile.artisanId, // Explicitly preserve artisanId
             firstName: freshProfile.firstName || '',
@@ -393,7 +393,7 @@ export const AuthProvider = ({ children }) => {
       // Ensure profile has required fields with defaults
       const normalizedProfile = {
         ...profile,
-        userType: profile.userType || 'customer', // Default to customer if not set
+        userType: profile.userType || 'patron', // Default to patron if not set
         artisan: profile.artisan, // Explicitly preserve artisan data
         artisanId: profile.artisanId, // Explicitly preserve artisanId
         firstName: profile.firstName || '',

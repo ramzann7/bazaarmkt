@@ -1658,6 +1658,13 @@ const getArtisanOrders = async (req, res) => {
       };
     }));
     
+    // Fix nested deliveryAddress structure for all orders
+    ordersWithPatronInfo.forEach(order => {
+      if (order.deliveryAddress && order.deliveryAddress.deliveryAddress) {
+        order.deliveryAddress = order.deliveryAddress.deliveryAddress;
+      }
+    });
+    
     console.log('🔍 Final orders count:', ordersWithPatronInfo.length);
     console.log('🔍 Sample order structure:', ordersWithPatronInfo.length > 0 ? {
       _id: ordersWithPatronInfo[0]._id,
@@ -1836,6 +1843,13 @@ const getPatronOrders = async (req, res) => {
         artisan: artisan
       };
     }));
+    
+    // Fix nested deliveryAddress structure for all orders
+    ordersWithArtisan.forEach(order => {
+      if (order.deliveryAddress && order.deliveryAddress.deliveryAddress) {
+        order.deliveryAddress = order.deliveryAddress.deliveryAddress;
+      }
+    });
     
     // Debug specific order if it exists
     const specificOrder = ordersWithArtisan.find(order => order._id.toString().includes('8555CDBF'));
@@ -3128,6 +3142,12 @@ router.get('/debug/:id', async (req, res) => {
       }
     }
     
+    // Fix nested deliveryAddress structure
+    let deliveryAddress = order.deliveryAddress;
+    if (deliveryAddress && deliveryAddress.deliveryAddress) {
+      deliveryAddress = deliveryAddress.deliveryAddress;
+    }
+    
     res.json({
       success: true,
       order: {
@@ -3136,7 +3156,7 @@ router.get('/debug/:id', async (req, res) => {
         totalAmount: order.totalAmount,
         subtotal: subtotal,
         deliveryFee: deliveryFee,
-        deliveryAddress: order.deliveryAddress,
+        deliveryAddress: deliveryAddress,
         deliveryMethod: order.deliveryMethod,
         deliveryInstructions: order.deliveryInstructions,
         items: order.items?.map(item => ({

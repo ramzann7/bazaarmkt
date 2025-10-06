@@ -72,7 +72,10 @@ export const AuthProvider = ({ children }) => {
             console.log('🔍 AuthContext: Cached profile userId:', cachedProfile._id, 'Token userId:', userId);
             
             // Validate that cached profile matches token userId
+            console.log('🔍 AuthContext: Cache validation - cachedProfile._id:', cachedProfile._id, 'token userId:', userId, 'match:', cachedProfile._id?.toString() === userId);
+            
             if (cachedProfile._id && cachedProfile._id.toString() === userId) {
+              console.log('✅ AuthContext: Cache match - using cached profile');
               setUser(cachedProfile);
               
               // Load fresh profile in background (non-blocking)
@@ -80,6 +83,7 @@ export const AuthProvider = ({ children }) => {
                 try {
                   console.log('🔄 AuthContext: Refreshing profile in background...');
                   const profile = await getProfile();
+                  console.log('🔍 AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
                   setUser(profile);
                   console.log('✅ AuthContext: Background profile refresh completed');
                 } catch (error) {
@@ -88,9 +92,15 @@ export const AuthProvider = ({ children }) => {
               }, 100); // Small delay to ensure UI is responsive
             } else {
               console.warn('⚠️ AuthContext: Cache mismatch detected, clearing cache and loading fresh profile');
+              console.log('🔍 AuthContext: Cache mismatch details:', {
+                cachedUserId: cachedProfile._id,
+                tokenUserId: userId,
+                cachedEmail: cachedProfile.email
+              });
               cacheService.delete(cacheKey);
               // Load fresh profile immediately
               const profile = await getProfile();
+              console.log('🔍 AuthContext: Fresh profile loaded after cache clear:', { userId: profile._id, email: profile.email });
               setUser(profile);
             }
             
@@ -156,12 +166,14 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       
       // Cache the user profile immediately
+      console.log('🔍 AuthContext: Caching user profile:', { userId: user._id, email: user.email });
       updateProfileCache(user);
       
       // Clear any existing cart count cache to force refresh
       if (user._id) {
         const cartCountKey = `cart_count_${user._id}`;
         cacheService.delete(cartCountKey);
+        console.log('🔍 AuthContext: Cleared cart count cache for user:', user._id);
       }
       
       // Force immediate profile refresh for better UX

@@ -1,4 +1,4 @@
-import { authToken } from './authservice';
+import { api } from './authservice';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -7,21 +7,8 @@ class RevenueService {
   // Get artisan revenue summary
   async getArtisanRevenueSummary(period = 'month') {
     try {
-      const token = authToken.getToken();
-      const response = await fetch(`${API_URL}/revenue/artisan/summary?period=${period}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch revenue summary');
-      }
-
-      const data = await response.json();
-      return data.data;
+      const response = await api.get(`${API_URL}/revenue/artisan/summary?period=${period}`);
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching revenue summary:', error);
       throw error;
@@ -31,21 +18,8 @@ class RevenueService {
   // Get revenue breakdown for a specific order
   async getRevenueBreakdown(orderId) {
     try {
-      const token = authToken.getToken();
-      const response = await fetch(`${API_URL}/revenue/breakdown/${orderId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch revenue breakdown');
-      }
-
-      const data = await response.json();
-      return data.data;
+      const response = await api.get(`${API_URL}/revenue/breakdown/${orderId}`);
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching revenue breakdown:', error);
       throw error;

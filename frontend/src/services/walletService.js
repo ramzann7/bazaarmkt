@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { api } from './authservice';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
@@ -11,10 +11,7 @@ class WalletService {
   // Get wallet balance and basic info
   async getWalletBalance() {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${this.baseURL}/balance`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${this.baseURL}/balance`);
       return response.data;
     } catch (error) {
       console.error('Error fetching wallet balance:', error);
@@ -25,16 +22,13 @@ class WalletService {
   // Get wallet transaction history
   async getTransactions(page = 1, limit = 20, type = null, status = null) {
     try {
-      const token = localStorage.getItem('token');
       const params = new URLSearchParams({ page, limit });
       
       if (type) params.append('type', type);
       if (status) params.append('status', status);
       
       console.log('WalletService: Fetching transactions from:', `${this.baseURL}/transactions?${params}`);
-      const response = await axios.get(`${this.baseURL}/transactions?${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(`${this.baseURL}/transactions?${params}`);
       console.log('WalletService: Transactions response:', response.data);
       return response.data;
     } catch (error) {

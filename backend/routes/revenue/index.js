@@ -67,15 +67,15 @@ const getArtisanRevenueSummary = async (req, res) => {
 
     // Get all completed orders for this artisan in the period (orders that have revenue recognized)
     const orders = await ordersCollection.find({
-      artisan: artisan._id,
+      artisan: artisan._id, // Orders use artisan document _id, not user _id
       createdAt: { $gte: startDate },
-      status: { $in: ['completed'] }
+      status: { $in: ['completed', 'delivered', 'picked_up'] } // Include more completed statuses
     }).sort({ createdAt: 1 }).toArray();
 
     // Get revenue records from the new revenue recognition system
     const revenuesCollection = db.collection('revenues');
     const revenueRecords = await revenuesCollection.find({
-      artisanId: artisan._id,
+      artisanId: artisan._id, // Use artisan document _id to match orders
       createdAt: { $gte: startDate },
       status: 'completed'
     }).sort({ createdAt: 1 }).toArray();

@@ -1,16 +1,10 @@
-import axios from 'axios';
-import { authToken } from './authservice';
+import { api } from './authservice';
 import { cacheService, CACHE_KEYS } from './cacheService';
 import { clearProductCache } from './productService';
 import { cartService } from './cartService';
 import config from '../config/environment.js';
 
 const API_URL = config.API_URL;
-
-const getAuthHeaders = () => ({
-  Authorization: `Bearer ${authToken.getToken()}`,
-  'Content-Type': 'application/json'
-});
 
 // Helper function to clear all product-related caches after order creation
 const clearProductCaches = () => {
@@ -28,8 +22,7 @@ export const orderService = {
   // Get orders for the current user (patron) - active orders by default
   getPatronOrders: async (includeAll = false) => {
     try {
-      const response = await axios.get(`${API_URL}/orders/buyer`, {
-        headers: getAuthHeaders(),
+      const response = await api.get(`${API_URL}/orders/buyer`, {
         params: {
           _t: Date.now(), // Cache busting parameter
           ...(includeAll && { all: 'true' }) // Include all orders if requested
@@ -46,8 +39,7 @@ export const orderService = {
   // Get orders for the current artisan - active orders by default
   getArtisanOrders: async (includeAll = false) => {
     try {
-      const response = await axios.get(`${API_URL}/orders/artisan`, {
-        headers: getAuthHeaders(),
+      const response = await api.get(`${API_URL}/orders/artisan`, {
         params: {
           _t: Date.now(), // Cache busting parameter
           ...(includeAll && { all: 'true' }) // Include all orders if requested
@@ -64,9 +56,7 @@ export const orderService = {
   // Get a specific order by ID
   getOrderById: async (orderId) => {
     try {
-      const response = await axios.get(`${API_URL}/orders/${orderId}`, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.get(`${API_URL}/orders/${orderId}`);
       // API returns { success: true, data: { order: {...} } }
       return response.data.data?.order || response.data.order || response.data;
     } catch (error) {
@@ -129,9 +119,7 @@ export const orderService = {
       }
 
       
-      const response = await axios.post(`${API_URL}/orders`, orderData, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.post(`${API_URL}/orders`, orderData);
       
       // Clear product cache after successful order creation to ensure fresh inventory data
       clearProductCaches();
@@ -146,9 +134,7 @@ export const orderService = {
   // Update order status (artisan only)
   updateOrderStatus: async (orderId, statusData) => {
     try {
-      const response = await axios.put(`${API_URL}/orders/${orderId}/status`, statusData, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.put(`${API_URL}/orders/${orderId}/status`, statusData);
       
       // Clear product cache after status update as inventory might be restored
       clearProductCaches();
@@ -185,9 +171,7 @@ export const orderService = {
   // Update payment status
   updatePaymentStatus: async (orderId, paymentStatus) => {
     try {
-      const response = await axios.put(`${API_URL}/orders/${orderId}/payment`, { paymentStatus }, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.put(`${API_URL}/orders/${orderId}/payment`, { paymentStatus });
       return response.data;
     } catch (error) {
       console.error('Error updating payment status:', error);
@@ -198,9 +182,7 @@ export const orderService = {
   // Cancel order (patron only)
   cancelOrder: async (orderId) => {
     try {
-      const response = await axios.put(`${API_URL}/orders/${orderId}/cancel`, {}, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.put(`${API_URL}/orders/${orderId}/cancel`, {});
       return response.data;
     } catch (error) {
       console.error('Error cancelling order:', error);
@@ -212,11 +194,9 @@ export const orderService = {
   declineOrder: async (orderId, reason) => {
     try {
       // Use the status update endpoint with 'declined' or 'cancelled' status
-      const response = await axios.put(`${API_URL}/orders/${orderId}/status`, { 
+      const response = await api.put(`${API_URL}/orders/${orderId}/status`, { 
         status: 'declined',
         updateReason: reason 
-      }, {
-        headers: getAuthHeaders()
       });
       
       // Clear product cache after order decline as inventory might be restored
@@ -236,9 +216,7 @@ export const orderService = {
   // Patron confirms order receipt (patron only)
   confirmOrderReceipt: async (orderId) => {
     try {
-      const response = await axios.post(`${API_URL}/orders/${orderId}/confirm-receipt`, {}, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.post(`${API_URL}/orders/${orderId}/confirm-receipt`, {});
       
       return response.data;
     } catch (error) {
@@ -250,9 +228,7 @@ export const orderService = {
   // Get artisan statistics
   getArtisanStats: async () => {
     try {
-      const response = await axios.get(`${API_URL}/orders/artisan/stats`, {
-        headers: getAuthHeaders()
-      });
+      const response = await api.get(`${API_URL}/orders/artisan/stats`);
       return response.data;
     } catch (error) {
       console.error('Error fetching artisan stats:', error);

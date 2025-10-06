@@ -1404,6 +1404,19 @@ const updateOrderStatus = async (req, res) => {
           console.error('❌ Error releasing payment for guest order:', paymentError);
           // Don't fail the order completion if payment release fails
         }
+        
+        // Process revenue recognition for guest order completion
+        try {
+          if (updatedOrder.artisan) {
+            const { createWalletService } = require('../../services');
+            const walletService = await createWalletService();
+            
+            const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+            console.log('✅ Guest order revenue recognition completed:', revenueResult.data);
+          }
+        } catch (revenueError) {
+          console.error('❌ Error processing guest order revenue recognition:', revenueError);
+        }
       }
     }
     
@@ -2585,30 +2598,22 @@ const capturePaymentAndTransfer = async (req, res) => {
         }
       );
       
-      // Update wallet balance
-      const walletsCollection = db.collection('wallets');
-      await walletsCollection.updateOne(
-        { artisanId: order.artisan },
-        {
-          $inc: { balance: artisanAmount },
-          $set: { updatedAt: new Date() }
-        },
-        { upsert: true }
-      );
-
-      // Record wallet transaction for artisan
-      await recordWalletTransaction({
-        artisanId: order.artisan,
-        type: 'order_revenue',
-        amount: artisanAmount,
-        description: `Revenue from order #${order._id} (after ${(feeCalculation.feeRate * 100).toFixed(1)}% platform fee)`,
-        status: 'completed',
-        orderId: order._id,
-        stripeTransferId: transfer.id,
-        platformFee: platformFee,
-        platformFeeRate: feeCalculation.feeRate,
-        totalOrderAmount: order.totalAmount
+      // Get updated order data for revenue recognition
+      const updatedOrder = await ordersCollection.findOne({ 
+        _id: new (require('mongodb')).ObjectId(req.params.id) 
       });
+      
+      // Process comprehensive revenue recognition and wallet crediting
+      try {
+        const { createWalletService } = require('../../services');
+        const walletService = await createWalletService();
+        
+        const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+        console.log('✅ Payment capture revenue recognition completed:', revenueResult.data);
+      } catch (revenueError) {
+        console.error('❌ Error processing payment capture revenue recognition:', revenueError);
+        // Continue with response even if revenue processing fails
+      }
       
       res.json({
         success: true,
@@ -2618,7 +2623,8 @@ const capturePaymentAndTransfer = async (req, res) => {
           capturedAmount: order.totalAmount,
           platformFee: platformFee,
           artisanAmount: artisanAmount,
-          transferId: transfer.id
+          transferId: transfer.id,
+          creditedAmount: artisanAmount
         }
       });
       
@@ -2715,31 +2721,19 @@ const autoCapturePayment = async (req, res) => {
               }
             );
             
-            // Update wallet balance
-            const walletsCollection = db.collection('wallets');
-            await walletsCollection.updateOne(
-              { artisanId: order.artisan },
-              {
-                $inc: { balance: artisanAmount },
-                $set: { updatedAt: new Date() }
-              },
-              { upsert: true }
-            );
-
-            // Record wallet transaction
-            await recordWalletTransaction({
-              artisanId: order.artisan,
-              type: 'order_revenue',
-              amount: artisanAmount,
-              description: `Auto-captured revenue from order #${order._id} (after ${(feeCalculation.feeRate * 100).toFixed(1)}% platform fee)`,
-              status: 'completed',
-              orderId: order._id,
-              stripeTransferId: transfer.id,
-              platformFee: platformFee,
-              platformFeeRate: feeCalculation.feeRate,
-              totalOrderAmount: order.totalAmount,
-              autoCaptured: true
-            });
+            // Get updated order data for revenue recognition
+            const updatedOrder = await ordersCollection.findOne({ _id: order._id });
+            
+            // Process comprehensive revenue recognition and wallet crediting
+            try {
+              const { createWalletService } = require('../../services');
+              const walletService = await createWalletService();
+              
+              const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+              console.log('✅ Auto-capture revenue recognition completed for order:', order._id);
+            } catch (revenueError) {
+              console.error('❌ Error processing auto-capture revenue recognition for order:', order._id, revenueError);
+            }
             
             capturedCount++;
           }
@@ -2908,6 +2902,20 @@ const confirmOrderReceipt = async (req, res) => {
     const updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
+    
+    // Process revenue recognition and wallet crediting
+    try {
+      if (updatedOrder.artisan) {
+        const { createWalletService } = require('../../services');
+        const walletService = await createWalletService();
+        
+        const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+        console.log('✅ Revenue recognition completed:', revenueResult.data);
+      }
+    } catch (revenueError) {
+      console.error('❌ Error processing revenue recognition:', revenueError);
+      // Don't fail the receipt confirmation if revenue processing fails
+    }
     
     // Send notification to artisan that order receipt has been confirmed
     try {

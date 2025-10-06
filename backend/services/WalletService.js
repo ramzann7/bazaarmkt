@@ -356,6 +356,132 @@ class WalletService extends BaseService {
   }
 
   /**
+   * Process order completion revenue recognition
+   * Credits artisan wallet and creates transaction/revenue records
+   */
+  async processOrderCompletion(orderData, db) {
+    try {
+      console.log('💰 Processing order completion revenue recognition for order:', orderData._id);
+      
+      // Get platform settings for fee calculations
+      const platformSettingsService = require('./platformSettingsService');
+      const settingsService = new platformSettingsService(db);
+      const settings = await settingsService.getPlatformSettings();
+      
+      // Calculate revenue components
+      const orderSubtotal = orderData.subtotal || orderData.totalAmount || 0;
+      const deliveryFee = orderData.deliveryFee || 0;
+      const totalRevenue = orderSubtotal + deliveryFee;
+      
+      // Calculate platform fee (percentage of revenue)
+      const platformFeeRate = (settings.platformFeePercentage || 15) / 100;
+      const platformFee = totalRevenue * platformFeeRate;
+      
+      // Calculate payment processing fee (Stripe fee)
+      const paymentProcessingFeeRate = (settings.paymentProcessingFee || 2.9) / 100;
+      const paymentProcessingFee = totalRevenue * paymentProcessingFeeRate;
+      
+      // Calculate net earnings for artisan
+      const netEarnings = totalRevenue - platformFee - paymentProcessingFee;
+      
+      console.log('💰 Revenue breakdown:', {
+        orderId: orderData._id,
+        subtotal: orderSubtotal,
+        deliveryFee: deliveryFee,
+        totalRevenue: totalRevenue,
+        platformFee: platformFee,
+        paymentProcessingFee: paymentProcessingFee,
+        netEarnings: netEarnings
+      });
+      
+      // Credit artisan wallet with net earnings
+      const walletResult = await this.addFunds(
+        orderData.artisan.toString(),
+        netEarnings,
+        'order_completion',
+        {
+          orderId: orderData._id,
+          orderNumber: orderData._id.toString().slice(-8),
+          revenueBreakdown: {
+            subtotal: orderSubtotal,
+            deliveryFee: deliveryFee,
+            totalRevenue: totalRevenue,
+            platformFee: platformFee,
+            paymentProcessingFee: paymentProcessingFee,
+            netEarnings: netEarnings
+          },
+          completionType: 'order_completed'
+        }
+      );
+      
+      // Create revenue record
+      const revenueRecord = await this.create('revenues', {
+        orderId: this.createObjectId(orderData._id),
+        artisanId: this.createObjectId(orderData.artisan),
+        revenue: {
+          subtotal: orderSubtotal,
+          deliveryFee: deliveryFee,
+          totalRevenue: totalRevenue,
+          platformFee: platformFee,
+          paymentProcessingFee: paymentProcessingFee,
+          netEarnings: netEarnings
+        },
+        fees: {
+          platformFeeRate: platformFeeRate,
+          platformFeeAmount: platformFee,
+          paymentProcessingFeeRate: paymentProcessingFeeRate,
+          paymentProcessingFeeAmount: paymentProcessingFee
+        },
+        orderDetails: {
+          orderNumber: orderData._id.toString().slice(-8),
+          totalAmount: orderData.totalAmount,
+          deliveryMethod: orderData.deliveryMethod,
+          status: orderData.status,
+          completedAt: new Date()
+        },
+        transactionId: walletResult.transactionId,
+        status: 'completed',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      console.log('✅ Order completion revenue processed:', {
+        orderId: orderData._id,
+        artisanId: orderData.artisan,
+        netEarnings: netEarnings,
+        transactionId: walletResult.transactionId,
+        revenueId: revenueRecord.insertedId
+      });
+      
+      return {
+        success: true,
+        data: {
+          orderId: orderData._id,
+          artisanId: orderData.artisan,
+          revenue: {
+            subtotal: orderSubtotal,
+            deliveryFee: deliveryFee,
+            totalRevenue: totalRevenue,
+            platformFee: platformFee,
+            paymentProcessingFee: paymentProcessingFee,
+            netEarnings: netEarnings
+          },
+          walletTransaction: walletResult,
+          revenueRecord: {
+            id: revenueRecord.insertedId,
+            orderId: orderData._id,
+            artisanId: orderData.artisan
+          }
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Error processing order completion revenue:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get wallet analytics
    */
   async getWalletAnalytics() {

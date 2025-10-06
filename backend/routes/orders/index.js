@@ -579,17 +579,26 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           _id: result.insertedId,
           orderNumber: result.insertedId,
           totalAmount: totalAmount,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
           status: 'pending',
           items: order.items,
           deliveryAddress: order.deliveryAddress,
           deliveryMethod: order.deliveryMethod,
+          deliveryInstructions: order.deliveryInstructions,
+          pickupTimeWindows: order.pickupTimeWindows,
+          deliveryMethodDetails: order.deliveryMethodDetails,
           isGuestOrder: order.isGuestOrder,
-          guestInfo: order.guestInfo
+          guestInfo: order.guestInfo,
+          createdAt: order.createdAt
         },
         userInfo: {
           id: userId,
           isGuest: order.isGuestOrder,
-          email: order.isGuestOrder ? order.guestInfo?.email : null
+          email: order.isGuestOrder ? order.guestInfo?.email : null,
+          firstName: order.isGuestOrder ? order.guestInfo?.firstName : null,
+          lastName: order.isGuestOrder ? order.guestInfo?.lastName : null,
+          phone: order.isGuestOrder ? order.guestInfo?.phone : null
         },
         timestamp: new Date().toISOString()
       };
@@ -607,17 +616,26 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
             _id: result.insertedId,
             orderNumber: result.insertedId,
             totalAmount: totalAmount,
+            subtotal: order.subtotal,
+            deliveryFee: order.deliveryFee,
             status: 'pending',
             items: order.items,
             deliveryAddress: order.deliveryAddress,
             deliveryMethod: order.deliveryMethod,
+            deliveryInstructions: order.deliveryInstructions,
+            pickupTimeWindows: order.pickupTimeWindows,
+            deliveryMethodDetails: order.deliveryMethodDetails,
             isGuestOrder: order.isGuestOrder,
-            guestInfo: order.guestInfo
+            guestInfo: order.guestInfo,
+            createdAt: order.createdAt
           },
           userInfo: {
             id: userId,
             isGuest: order.isGuestOrder,
-            email: order.isGuestOrder ? order.guestInfo?.email : null
+            email: order.isGuestOrder ? order.guestInfo?.email : null,
+            firstName: order.isGuestOrder ? order.guestInfo?.firstName : null,
+            lastName: order.isGuestOrder ? order.guestInfo?.lastName : null,
+            phone: order.isGuestOrder ? order.guestInfo?.phone : null
           },
           timestamp: new Date().toISOString()
         };
@@ -1938,18 +1956,28 @@ const createGuestOrder = async (req, res) => {
           orderData: {
             _id: orderId,
             orderNumber: orderId,
-            totalAmount: totalAmount,
+            totalAmount: finalAmount,
+            subtotal: order.subtotal,
+            deliveryFee: order.deliveryFee,
             status: 'pending',
             items: order.items,
             deliveryAddress: order.deliveryAddress,
+            deliveryMethod: order.deliveryMethod,
+            deliveryInstructions: order.deliveryInstructions,
+            pickupTimeWindows: order.pickupTimeWindows,
+            deliveryMethodDetails: order.deliveryMethodDetails,
             notes: order.notes,
             isGuestOrder: true,
-            guestInfo: order.guestInfo
+            guestInfo: order.guestInfo,
+            createdAt: order.createdAt
           },
           userInfo: {
             id: null,
             isGuest: true,
-            email: order.guestInfo?.email
+            email: order.guestInfo?.email,
+            firstName: order.guestInfo?.firstName,
+            lastName: order.guestInfo?.lastName,
+            phone: order.guestInfo?.phone
           },
           timestamp: new Date().toISOString()
         };

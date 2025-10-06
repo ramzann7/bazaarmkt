@@ -177,10 +177,16 @@ export const notificationService = {
           _id: notificationData.orderId,
           orderNumber: notificationData.orderDetails.orderNumber,
           totalAmount: notificationData.orderDetails.totalAmount,
+          subtotal: notificationData.orderDetails.subtotal,
+          deliveryFee: notificationData.orderDetails.deliveryFee,
           items: notificationData.orderDetails.items,
           deliveryAddress: notificationData.orderDetails.deliveryAddress,
-          createdAt: new Date().toISOString(),
-          deliveryMethod: notificationData.isGuest ? 'pickup' : 'delivery'
+          deliveryMethod: notificationData.orderDetails.deliveryMethod,
+          deliveryInstructions: notificationData.orderDetails.deliveryInstructions,
+          pickupTimeWindows: notificationData.orderDetails.pickupTimeWindows,
+          selectedPickupTimes: notificationData.orderDetails.selectedPickupTimes,
+          artisan: notificationData.orderDetails.artisan,
+          createdAt: new Date().toISOString()
         };
         
         // Send email via Brevo
@@ -201,8 +207,15 @@ export const notificationService = {
           userName: notificationData.userName || 'Customer',
           orderNumber: notificationData.orderDetails.orderNumber,
           totalAmount: notificationData.orderDetails.totalAmount,
+          subtotal: notificationData.orderDetails.subtotal,
+          deliveryFee: notificationData.orderDetails.deliveryFee,
           items: notificationData.orderDetails.items,
           deliveryAddress: notificationData.orderDetails.deliveryAddress,
+          deliveryMethod: notificationData.orderDetails.deliveryMethod,
+          deliveryInstructions: notificationData.orderDetails.deliveryInstructions,
+          pickupTimeWindows: notificationData.orderDetails.pickupTimeWindows,
+          selectedPickupTimes: notificationData.orderDetails.selectedPickupTimes,
+          artisan: notificationData.orderDetails.artisan,
           estimatedDelivery: notificationData.orderDetails.estimatedDelivery,
           orderDate: notificationData.orderDetails.orderDate,
           orderTime: notificationData.orderDetails.orderTime,

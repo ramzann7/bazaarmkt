@@ -1287,10 +1287,17 @@ const sendEmailNotification = async (req, res) => {
       const orderData = {
         orderNumber: data.orderNumber,
         totalAmount: data.totalAmount,
+        subtotal: data.subtotal,
+        deliveryFee: data.deliveryFee,
         items: data.items || [],
         deliveryMethod: data.deliveryMethod || 'pickup',
         deliveryAddress: data.deliveryAddress,
-        artisanName: data.artisanName
+        deliveryInstructions: data.deliveryInstructions,
+        pickupTimeWindows: data.pickupTimeWindows,
+        selectedPickupTimes: data.selectedPickupTimes,
+        artisan: data.artisan,
+        artisanName: data.artisan?.artisanName || data.artisanName,
+        createdAt: new Date().toISOString()
       };
       
       const notificationData = {

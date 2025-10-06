@@ -314,7 +314,7 @@ export default function Register() {
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <Logo showText={false} className="w-20 h-20" />
           </div>
-                      <h2 className="text-4xl font-bold text-gray-900 mb-2">Join Bazaar</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join Bazaar</h2>
           <p className="text-gray-600 text-lg">Create your account and start your journey</p>
         </div>
 
@@ -330,8 +330,8 @@ export default function Register() {
                   onClick={() => setFormData({ ...formData, role: 'patron' })}
                   className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                     formData.role === 'patron'
-                      ? 'border-primary bg-primary-50 text-primary-dark'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      ? 'border-[#D77A61] bg-[#D77A61] bg-opacity-10 text-[#D77A61]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-[#D77A61] hover:text-[#D77A61]'
                   }`}
                 >
                   <UserIcon className="w-8 h-8 mx-auto mb-2" />
@@ -343,8 +343,8 @@ export default function Register() {
                   onClick={() => setFormData({ ...formData, role: 'artisan' })}
                   className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                     formData.role === 'artisan'
-                      ? 'border-primary bg-primary-50 text-primary-dark'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      ? 'border-[#3C6E47] bg-[#3C6E47] bg-opacity-10 text-[#3C6E47]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-[#3C6E47] hover:text-[#3C6E47]'
                   }`}
                 >
                   <Logo showText={false} className="w-12 h-12 mx-auto mb-2" />
@@ -718,17 +718,28 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full btn-primary btn-large disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full btn-large disabled:opacity-50 disabled:cursor-not-allowed ${
+                formData.role === 'artisan' 
+                  ? 'bg-[#3C6E47] text-white hover:bg-[#2D5A3A] focus:ring-[#3C6E47]' 
+                  : 'bg-[#D77A61] text-white hover:bg-[#C66A51] focus:ring-[#D77A61]'
+              }`}
             >
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Creating Account...
+                </div>
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
 
           {/* Business Benefits */}
           {formData.role === 'artisan' && (
-            <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-primary-200">
-              <h4 className="font-semibold text-secondary mb-2">Why sell on Bazaar?</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
+            <div className="mt-6 p-4 bg-gradient-to-br from-[#3C6E47] bg-opacity-5 to-[#D77A61] bg-opacity-5 rounded-xl border border-[#3C6E47] border-opacity-20">
+              <h4 className="font-semibold text-[#3C6E47] mb-2">Why sell on Bazaar?</h4>
+              <ul className="text-sm text-gray-700 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>
                 <li>• Simple onboarding & payments</li>
@@ -745,9 +756,19 @@ export default function Register() {
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-primary hover:text-primary-dark transition-colors duration-300"
+              className="font-semibold text-[#D77A61] hover:text-[#3C6E47] transition-colors duration-300"
             >
               Sign in here
+            </Link>
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            By creating an account, you agree to our{" "}
+            <Link to="/terms" className="text-[#D77A61] hover:text-[#3C6E47] font-medium">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" className="text-[#D77A61] hover:text-[#3C6E47] font-medium">
+              Privacy Policy
             </Link>
           </p>
         </div>

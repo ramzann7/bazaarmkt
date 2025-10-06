@@ -11,6 +11,26 @@ const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STR
 const PlatformSettingsService = require('../../services/platformSettingsService');
 const redisCacheService = require('../../services/redisCacheService');
 
+// Import notification service functions
+const { sendNotification } = require('../notifications/index');
+
+// Helper function to send notifications directly
+const sendNotificationDirect = async (notificationData, db) => {
+  try {
+    const mockReq = { body: notificationData, db: db };
+    const mockRes = { 
+      json: (data) => console.log('✅ Notification response:', data),
+      status: (code) => ({ json: (data) => console.log(`❌ Notification error (${code}):`, data) })
+    };
+    
+    await sendNotification(mockReq, mockRes);
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending notification directly:', error);
+    return false;
+  }
+};
+
 // Cache configuration
 const CACHE_TTL = 300; // 5 minutes in seconds
 const getCacheKey = (artisanId) => `completed_orders:${artisanId}`;
@@ -603,7 +623,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         timestamp: new Date().toISOString()
       };
 
-      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, customerNotificationData);
+      await sendNotificationDirect(customerNotificationData, db);
       console.log('✅ Customer order placement notification sent');
 
       // Send notification to artisan about new pending order
@@ -640,7 +660,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           timestamp: new Date().toISOString()
         };
 
-        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        await sendNotificationDirect(artisanNotificationData, db);
         console.log('✅ Artisan new order notification sent');
       }
     } catch (notificationError) {
@@ -899,7 +919,7 @@ const createOrder = async (req, res) => {
         timestamp: new Date().toISOString()
       };
 
-      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, customerNotificationData);
+      await sendNotificationDirect(customerNotificationData, db);
       console.log('✅ Customer order placement notification sent');
 
       // Send notification to artisan about new pending order
@@ -925,7 +945,7 @@ const createOrder = async (req, res) => {
           timestamp: new Date().toISOString()
         };
 
-        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        await sendNotificationDirect(artisanNotificationData, db);
         console.log('✅ Artisan new order notification sent');
       }
     } catch (notificationError) {
@@ -1322,8 +1342,8 @@ const updateOrderStatus = async (req, res) => {
         timestamp: new Date().toISOString()
       };
 
-      // Send notification to backend notification service
-      await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, notificationData);
+      // Send notification directly using the notification service
+      await sendNotificationDirect(notificationData, db);
       console.log(`✅ Order ${status} notification sent for order ${updatedOrder._id}`);
     } catch (notificationError) {
       console.error('❌ Error sending order status update notification:', notificationError);
@@ -2154,7 +2174,7 @@ const createGuestOrder = async (req, res) => {
           timestamp: new Date().toISOString()
         };
 
-        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        await sendNotificationDirect(artisanNotificationData, db);
         console.log('✅ Artisan new guest order notification sent');
       }
     } catch (notificationError) {
@@ -2283,7 +2303,7 @@ const cancelOrder = async (req, res) => {
           message: `Order #${order._id.toString().slice(-8)} has been cancelled by the customer`
         };
         
-        await axios.post(`${process.env.API_URL || 'http://localhost:4000'}/api/notifications/send`, artisanNotificationData);
+        await sendNotificationDirect(artisanNotificationData, db);
         console.log('✅ Artisan order cancellation notification sent');
       }
     } catch (notificationError) {

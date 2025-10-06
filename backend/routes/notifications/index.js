@@ -1386,3 +1386,5 @@ router.get('/preferences', verifyJWT, getNotificationPreferences);
 router.put('/preferences', verifyJWT, updateNotificationPreferences);
 
 module.exports = router;
+module.exports.sendNotification = sendNotification;
+module.exports.sendEmailNotification = sendEmailNotification;

@@ -1349,29 +1349,86 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
-    const updatedOrder = await ordersCollection.findOne({ 
+    let updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
+    
+    // For guest orders, automatically complete them when marked as delivered
+    // since guests don't have a way to confirm delivery
+    if (updatedOrder.isGuestOrder && status === 'delivered') {
+      console.log('🔄 Auto-completing guest order after delivery:', updatedOrder._id);
+      
+      const autoCompleteResult = await ordersCollection.updateOne(
+        { _id: new (require('mongodb')).ObjectId(req.params.id) },
+        { 
+          $set: { 
+            status: 'completed',
+            completedAt: new Date(),
+            updatedAt: new Date(),
+            lastStatusUpdate: {
+              status: 'completed',
+              updatedAt: new Date(),
+              updatedBy: decoded.userId,
+              autoCompleted: true,
+              previousStatus: 'delivered'
+            }
+          }
+        }
+      );
+      
+      if (autoCompleteResult.modifiedCount > 0) {
+        // Update the order object to reflect the new status
+        updatedOrder = await ordersCollection.findOne({ 
+          _id: new (require('mongodb')).ObjectId(req.params.id) 
+        });
+        console.log('✅ Guest order auto-completed:', updatedOrder._id);
+        
+        // Release payment for guest orders when completed
+        try {
+          if (updatedOrder.paymentIntentId) {
+            console.log('💰 Releasing payment for completed guest order:', updatedOrder._id);
+            await capturePaymentAndTransfer({
+              body: { 
+                orderId: req.params.id,
+                amount: updatedOrder.totalAmount,
+                autoComplete: true
+              },
+              params: { id: req.params.id },
+              db: db
+            }, {
+              json: (data) => console.log('✅ Payment released for guest order:', data),
+              status: (code) => ({ json: (data) => console.log(`❌ Payment release error (${code}):`, data) })
+            });
+          }
+        } catch (paymentError) {
+          console.error('❌ Error releasing payment for guest order:', paymentError);
+          // Don't fail the order completion if payment release fails
+        }
+      }
+    }
     
     // Send order status update notification
     try {
       const axios = require('axios');
       
       // Determine notification type based on status
+      // Use the final status for guest orders that were auto-completed
+      const finalStatus = updatedOrder.status;
       let notificationType = 'order_update';
-      if (status === 'declined') {
+      
+      if (finalStatus === 'declined') {
         notificationType = 'order_declined';
-      } else if (status === 'confirmed') {
+      } else if (finalStatus === 'confirmed') {
         notificationType = 'order_confirmed';
-      } else if (status === 'preparing') {
+      } else if (finalStatus === 'preparing') {
         notificationType = 'order_preparing';
-      } else if (status === 'ready_for_pickup') {
+      } else if (finalStatus === 'ready_for_pickup') {
         notificationType = 'order_ready_for_pickup';
-      } else if (status === 'ready_for_delivery') {
+      } else if (finalStatus === 'ready_for_delivery') {
         notificationType = 'order_ready_for_delivery';
-      } else if (status === 'out_for_delivery') {
+      } else if (finalStatus === 'out_for_delivery') {
         notificationType = 'order_out_for_delivery';
-      } else if (status === 'delivered' || status === 'picked_up') {
+      } else if (finalStatus === 'delivered' || finalStatus === 'picked_up' || finalStatus === 'completed') {
         notificationType = 'order_completed';
       }
       
@@ -1390,13 +1447,14 @@ const updateOrderStatus = async (req, res) => {
         orderData: updatedOrder,
         userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (userInfo?.email || null),
         orderNumber: updatedOrder._id.toString().slice(-8),
-        status: status,
-        updateType: status === 'declined' ? 'order_declined' : 'status_change',
+        status: finalStatus, // Use the final status (completed for auto-completed guest orders)
+        updateType: finalStatus === 'declined' ? 'order_declined' : 'status_change',
         updateDetails: {
-          newStatus: status,
+          newStatus: finalStatus,
           previousStatus: req.body.previousStatus || 'unknown',
-          reason: status === 'declined' ? updateReason : null,
-          statusDisplayText: getStatusDisplayText(status, updatedOrder.deliveryMethod)
+          reason: finalStatus === 'declined' ? updateReason : null,
+          statusDisplayText: getStatusDisplayText(finalStatus, updatedOrder.deliveryMethod),
+          autoCompleted: updatedOrder.lastStatusUpdate?.autoCompleted || false
         },
         userInfo: {
           id: updatedOrder.userId,
@@ -1410,7 +1468,7 @@ const updateOrderStatus = async (req, res) => {
 
       // Send notification directly using the notification service
       await sendNotificationDirect(notificationData, db);
-      console.log(`✅ Order ${status} notification sent for order ${updatedOrder._id}`);
+      console.log(`✅ Order ${finalStatus} notification sent for order ${updatedOrder._id}`);
     } catch (notificationError) {
       console.error('❌ Error sending order status update notification:', notificationError);
       // Don't fail the status update if notification fails
@@ -1424,9 +1482,15 @@ const updateOrderStatus = async (req, res) => {
     
     // Connection managed by middleware - no close needed
     
+    // Determine the response message based on what happened
+    let responseMessage = 'Order status updated successfully';
+    if (updatedOrder.isGuestOrder && updatedOrder.lastStatusUpdate?.autoCompleted) {
+      responseMessage = 'Order delivered and automatically completed for guest user';
+    }
+    
     res.json({
       success: true,
-      message: 'Order status updated successfully',
+      message: responseMessage,
       data: { order: updatedOrder }
     });
   } catch (error) {

@@ -1695,7 +1695,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="space-y-2">
                 {/* Delivery Fee */}
-                {order.deliveryFee && order.deliveryFee > 0 && (
+                {(order.deliveryFee !== undefined && order.deliveryFee !== null && order.deliveryFee > 0) && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">
                       Delivery Fee

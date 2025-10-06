@@ -176,7 +176,6 @@ const login = async (req, res) => {
 // Get user profile
 const getProfile = async (req, res) => {
   try {
-    const requestId = Math.random().toString(36).substring(7);
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
       return res.status(401).json({
@@ -187,25 +186,11 @@ const getProfile = async (req, res) => {
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    console.log(`🔍 Profile API [${requestId}]: Token decoded - userId:`, decoded.userId, 'email:', decoded.email);
-    console.log(`🔍 Profile API [${requestId}]: Request headers - user-agent:`, req.headers['user-agent']?.substring(0, 50));
-    console.log(`🔍 Profile API [${requestId}]: Request timestamp:`, new Date().toISOString());
-    
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
     const artisansCollection = db.collection('artisans');
     
-    // Force fresh database lookup by using a new query
-    const user = await usersCollection.findOne({ 
-      _id: new (require('mongodb')).ObjectId(decoded.userId) 
-    }, { 
-      // Force fresh read from database, not from cache
-      readPreference: 'primary'
-    });
-    
-    console.log(`🔍 Profile API [${requestId}]: Found user - _id:`, user?._id, 'email:', user?.email);
-    console.log(`🔍 Profile API [${requestId}]: User lookup result - userId match:`, user?._id?.toString() === decoded.userId);
-    console.log(`🔍 Profile API [${requestId}]: Database query - requested userId:`, decoded.userId, 'found userId:', user?._id?.toString());
+    const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
     if (!user) {
       // Connection managed by middleware - no close needed
       return res.status(404).json({

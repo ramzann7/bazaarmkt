@@ -30,7 +30,6 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  console.log('🚀 AuthProvider: Component initialized');
   
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -41,11 +40,9 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state on app load - Optimized for performance
   useEffect(() => {
-    console.log('🚀 AuthContext: useEffect triggered');
     
     // Prevent multiple initializations in StrictMode
     if (initializationAttempted) {
-      console.log('🚀 AuthContext: Initialization already attempted, skipping...');
       return;
     }
     
@@ -53,18 +50,12 @@ export const AuthProvider = ({ children }) => {
     
     const initializeAuth = async () => {
       const startTime = performance.now();
-      console.log('🚀 AuthContext: Starting initialization...');
       
       try {
         const token = authToken.getToken();
         
         if (token) {
-          console.log('🔑 AuthContext: Token found, setting authenticated state...');
           
-          // Debug: Log token details
-          const tokenInfo = getUserIdFromToken(token);
-          const tokenEmail = getUserEmailFromToken(token);
-          console.log('🔍 AuthContext: Token details - userId:', tokenInfo, 'email:', tokenEmail);
           
           // Set authenticated immediately for better UX
           setIsAuthenticated(true);
@@ -133,9 +124,7 @@ export const AuthProvider = ({ children }) => {
           setUser(profile);
           
           const endTime = performance.now();
-          console.log(`✅ AuthContext: Profile loaded in ${(endTime - startTime).toFixed(2)}ms`);
         } else {
-          console.log('🔓 AuthContext: No token found, setting unauthenticated state');
           setIsAuthenticated(false);
           setUser(null);
           setIsLoading(false);
@@ -143,10 +132,8 @@ export const AuthProvider = ({ children }) => {
           setIsProviderReady(true);
           
           const endTime = performance.now();
-          console.log(`⚡ AuthContext: Quick initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
         }
       } catch (error) {
-        console.error('❌ AuthContext: Initialization error:', error);
         setIsAuthenticated(false);
         setUser(null);
         setIsLoading(false);
@@ -244,30 +231,25 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(true);
       
       // Clear all existing caches to prevent stale data
-      console.log('🧹 AuthContext: Clearing all user caches during login...');
       const { clearAllUserCaches } = await import('../services/authservice');
       clearAllUserCaches();
       
       // Cache the user profile immediately
-      console.log('🔍 AuthContext: Caching user profile:', { userId: user._id, email: user.email });
       updateProfileCache(user);
       
       // Clear any existing cart count cache to force refresh
       if (user._id) {
         const cartCountKey = `cart_count_${user._id}`;
         cacheService.delete(cartCountKey);
-        console.log('🔍 AuthContext: Cleared cart count cache for user:', user._id);
       }
       
       // Force immediate profile refresh for better UX
       setTimeout(async () => {
         try {
-          console.log('🔄 AuthContext: Starting background profile refresh...');
           const freshProfile = await getProfile(true); // Force refresh to bypass cache
           
           // Validate that we have a valid profile
           if (!freshProfile || !freshProfile._id) {
-            console.error('❌ AuthContext: Invalid profile data received:', freshProfile);
             return;
           }
           
@@ -275,19 +257,9 @@ export const AuthProvider = ({ children }) => {
           const currentUserId = user._id?.toString();
           const freshUserId = freshProfile._id?.toString();
           
-          console.log('🔍 AuthContext: Profile validation - current user:', currentUserId, 'fresh profile:', freshUserId);
           
           if (currentUserId !== freshUserId) {
-            console.warn('⚠️ AuthContext: Profile mismatch detected in background refresh!');
-            console.log('🔍 AuthContext: Mismatch details:', {
-              currentUserId: currentUserId,
-              freshUserId: freshUserId,
-              currentEmail: user.email,
-              freshEmail: freshProfile.email
-            });
-            
             // Force logout when there's a profile mismatch for security
-            console.log('🔒 AuthContext: Forcing logout due to background profile mismatch');
             logout();
             return;
           }
@@ -307,15 +279,9 @@ export const AuthProvider = ({ children }) => {
             paymentMethods: freshProfile.paymentMethods || []
           };
           
-          console.log('🔍 AuthContext: Background profile refresh - Normalized profile:', {
-            userId: normalizedProfile._id,
-            email: normalizedProfile.email,
-            userType: normalizedProfile.userType
-          });
           
           setUser(normalizedProfile);
         } catch (error) {
-          console.error('❌ AuthContext: Background profile refresh failed:', error);
           // Don't throw error here as it's a background operation
         }
       }, 100);
@@ -396,14 +362,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No authentication token');
       }
       
-      console.log('🔄 AuthContext: refreshUser - Starting profile refresh...');
-      console.log('🔍 AuthContext: refreshUser - Token details:', {
-        userId: getUserIdFromToken(token),
-        email: getUserEmailFromToken(token)
-      });
       
       // Clear ALL user caches to force fresh data
-      console.log('🧹 AuthContext: refreshUser - Clearing all user caches...');
       const { clearAllUserCaches } = await import('../services/authservice');
       clearAllUserCaches();
       
@@ -423,24 +383,9 @@ export const AuthProvider = ({ children }) => {
       const tokenUserId = getUserIdFromToken(token);
       const profileUserId = profile._id?.toString();
       
-      console.log('🔍 AuthContext: refreshUser - Profile validation:', {
-        tokenUserId: tokenUserId,
-        profileUserId: profileUserId,
-        tokenEmail: getUserEmailFromToken(token),
-        profileEmail: profile.email
-      });
       
       if (tokenUserId !== profileUserId) {
-        console.error('❌ AuthContext: refreshUser - Profile mismatch detected!');
-        console.error('🔍 AuthContext: refreshUser - Mismatch details:', {
-          tokenUserId: tokenUserId,
-          profileUserId: profileUserId,
-          tokenEmail: getUserEmailFromToken(token),
-          profileEmail: profile.email
-        });
-        
         // Force logout when there's a profile mismatch for security
-        console.log('🔒 AuthContext: Forcing logout due to profile mismatch');
         logout();
         throw new Error(`Profile mismatch: token user ${tokenUserId} != profile user ${profileUserId}`);
       }
@@ -460,17 +405,11 @@ export const AuthProvider = ({ children }) => {
         paymentMethods: profile.paymentMethods || []
       };
       
-      console.log('🔍 AuthContext: refreshUser - Normalized profile:', {
-        userId: normalizedProfile._id,
-        email: normalizedProfile.email,
-        userType: normalizedProfile.userType
-      });
       
       setUser(normalizedProfile);
       setIsAuthenticated(true);
       return normalizedProfile;
     } catch (error) {
-      console.error('❌ Profile refresh error:', error);
       // If refresh fails, user might be logged out
       if (error.response?.status === 401) {
         logout();

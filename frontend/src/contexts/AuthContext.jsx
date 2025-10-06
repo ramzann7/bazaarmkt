@@ -245,7 +245,7 @@ export const AuthProvider = ({ children }) => {
       
       // Clear all existing caches to prevent stale data
       console.log('🧹 AuthContext: Clearing all user caches during login...');
-      const { clearAllUserCaches } = require('../services/authservice');
+      const { clearAllUserCaches } = await import('../services/authservice');
       clearAllUserCaches();
       
       // Cache the user profile immediately
@@ -332,8 +332,9 @@ export const AuthProvider = ({ children }) => {
     authToken.removeToken();
     
     // Clear all user caches to prevent wrong user data persistence
-    const { clearAllUserCaches } = require('../services/authservice');
-    clearAllUserCaches();
+    import('../services/authservice').then(({ clearAllUserCaches }) => {
+      clearAllUserCaches();
+    });
     
     // Clear localStorage backup
     localStorage.removeItem('user_profile_backup');
@@ -400,7 +401,7 @@ export const AuthProvider = ({ children }) => {
       
       // Clear ALL user caches to force fresh data
       console.log('🧹 AuthContext: refreshUser - Clearing all user caches...');
-      const { clearAllUserCaches } = require('../services/authservice');
+      const { clearAllUserCaches } = await import('../services/authservice');
       clearAllUserCaches();
       
       // Also clear profile cache

@@ -119,16 +119,19 @@ class OrderNotificationService {
         userType: profile.userType
       });
       
-      if (['artisan', 'producer', 'food_maker'].includes(profile.role)) {
+      // Check both role and userType for compatibility
+      const userRole = profile.role || profile.userType;
+      
+      if (['artisan', 'producer', 'food_maker'].includes(userRole)) {
         console.log('🔔 OrderNotificationService: User is artisan, checking for new orders');
         // Handle artisan notifications for new orders
         await this.checkForNewArtisanOrders();
-      } else if (profile.role === 'patron') {
+      } else if (userRole === 'patron') {
         console.log('🔔 OrderNotificationService: User is patron, checking for order updates');
         // Handle patron notifications for order updates
         await this.checkForOrderUpdates();
       } else {
-        console.log('⚠️ OrderNotificationService: Unknown user role, skipping notifications:', profile.role);
+        console.log('⚠️ OrderNotificationService: Unknown user role, skipping notifications:', userRole);
       }
 
     } catch (error) {

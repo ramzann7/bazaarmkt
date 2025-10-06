@@ -201,11 +201,28 @@ export default function PendingOrdersWidget() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-gray-900">
-                    {order.buyer?.firstName} {order.buyer?.lastName}
+                    {order.patron?.firstName || order.guestInfo?.firstName} {order.patron?.lastName || order.guestInfo?.lastName}
+                    {order.guestInfo && <span className="text-xs text-gray-500 ml-1">(Guest)</span>}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {order.items?.length || 0} items • {formatDate(order.createdAt)}
-                  </p>
+                  <div className="mt-1">
+                    <p className="text-xs text-gray-500">
+                      {order.items?.length || 0} items • {formatDate(order.createdAt)}
+                    </p>
+                    {order.items && order.items.length > 0 && (
+                      <div className="mt-1">
+                        {order.items.slice(0, 2).map((item, index) => (
+                          <p key={index} className="text-xs text-gray-600 truncate">
+                            • {item.product?.name || item.name || 'Product'} (Qty: {item.quantity})
+                          </p>
+                        ))}
+                        {order.items.length > 2 && (
+                          <p className="text-xs text-gray-500 italic">
+                            +{order.items.length - 2} more item{order.items.length - 2 !== 1 ? 's' : ''}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-orange-600 transition-colors" />
               </div>

@@ -392,7 +392,18 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No authentication token');
       }
       
-      // Clear profile cache to force fresh data
+      console.log('🔄 AuthContext: refreshUser - Starting profile refresh...');
+      console.log('🔍 AuthContext: refreshUser - Token details:', {
+        userId: getUserIdFromToken(token),
+        email: getUserEmailFromToken(token)
+      });
+      
+      // Clear ALL user caches to force fresh data
+      console.log('🧹 AuthContext: refreshUser - Clearing all user caches...');
+      const { clearAllUserCaches } = require('../services/authservice');
+      clearAllUserCaches();
+      
+      // Also clear profile cache
       const { clearProfileCache } = await import('../services/profileService');
       clearProfileCache();
       
@@ -402,6 +413,28 @@ export const AuthProvider = ({ children }) => {
       if (!profile) {
         console.error('❌ AuthContext: refreshUser - Profile is null/undefined');
         throw new Error('Profile data is null or undefined');
+      }
+      
+      // Validate that profile matches the token
+      const tokenUserId = getUserIdFromToken(token);
+      const profileUserId = profile._id?.toString();
+      
+      console.log('🔍 AuthContext: refreshUser - Profile validation:', {
+        tokenUserId: tokenUserId,
+        profileUserId: profileUserId,
+        tokenEmail: getUserEmailFromToken(token),
+        profileEmail: profile.email
+      });
+      
+      if (tokenUserId !== profileUserId) {
+        console.error('❌ AuthContext: refreshUser - Profile mismatch detected!');
+        console.error('🔍 AuthContext: refreshUser - Mismatch details:', {
+          tokenUserId: tokenUserId,
+          profileUserId: profileUserId,
+          tokenEmail: getUserEmailFromToken(token),
+          profileEmail: profile.email
+        });
+        throw new Error(`Profile mismatch: token user ${tokenUserId} != profile user ${profileUserId}`);
       }
       
       // Ensure profile has required fields with defaults

@@ -41,7 +41,9 @@ export const AuthProvider = ({ children }) => {
   // Initialize auth state on app load - Optimized for performance
   useEffect(() => {
     console.log('🚀 AuthContext: useEffect triggered');
-    const initializeAuth = async () => {
+    
+    try {
+      const initializeAuth = async () => {
       const startTime = performance.now();
       console.log('🚀 AuthContext: Starting initialization...');
       
@@ -149,7 +151,10 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    initializeAuth();
+      initializeAuth();
+    } catch (error) {
+      console.error('❌ AuthContext: useEffect error:', error);
+    }
   }, []);
 
   // Login function - Optimized for immediate response

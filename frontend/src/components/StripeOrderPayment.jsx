@@ -18,7 +18,6 @@ const CARD_ELEMENT_OPTIONS = {
     },
   },
   hidePostalCode: true, // Hide postal code field since we provide our own
-  supportedCountries: ['CA'], // Configure for Canadian postal codes
 };
 
 

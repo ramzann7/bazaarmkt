@@ -151,7 +151,7 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-      initializeAuth();
+    initializeAuth();
     } catch (error) {
       console.error('❌ AuthContext: useEffect error:', error);
     }

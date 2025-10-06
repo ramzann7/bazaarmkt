@@ -27,7 +27,22 @@ const sendNotificationDirect = async (notificationData, db) => {
     await sendNotification(mockReq, mockRes);
     
         // Send email notification if user has email and it's an order status update
-        if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order')) {
+        // For patrons, only send emails for specific statuses: confirmation, declined, out_for_delivery
+        const patronEmailStatuses = ['confirmed', 'declined', 'out_for_delivery'];
+        const isPatronEmailAllowed = notificationData.userInfo?.isGuest || 
+                                   !notificationData.userId || 
+                                   patronEmailStatuses.includes(notificationData.status);
+        
+        // Log email filtering for patrons
+        if (notificationData.userEmail && notificationData.userId && !notificationData.userInfo?.isGuest) {
+          if (!isPatronEmailAllowed) {
+            console.log(`📧 Patron email filtered out for status: ${notificationData.status} (only emails sent for: ${patronEmailStatuses.join(', ')})`);
+          } else {
+            console.log(`📧 Patron email allowed for status: ${notificationData.status}`);
+          }
+        }
+        
+        if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order') && isPatronEmailAllowed) {
           try {
             const emailReq = {
               body: {

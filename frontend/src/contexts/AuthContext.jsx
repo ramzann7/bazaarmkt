@@ -30,6 +30,8 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  console.log('🚀 AuthProvider: Component initialized');
+  
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +40,7 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state on app load - Optimized for performance
   useEffect(() => {
+    console.log('🚀 AuthContext: useEffect triggered');
     const initializeAuth = async () => {
       const startTime = performance.now();
       console.log('🚀 AuthContext: Starting initialization...');

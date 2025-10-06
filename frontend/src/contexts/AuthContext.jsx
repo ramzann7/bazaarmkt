@@ -243,6 +243,11 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setIsAuthenticated(true);
       
+      // Clear all existing caches to prevent stale data
+      console.log('🧹 AuthContext: Clearing all user caches during login...');
+      const { clearAllUserCaches } = require('../services/authservice');
+      clearAllUserCaches();
+      
       // Cache the user profile immediately
       console.log('🔍 AuthContext: Caching user profile:', { userId: user._id, email: user.email });
       updateProfileCache(user);
@@ -257,11 +262,30 @@ export const AuthProvider = ({ children }) => {
       // Force immediate profile refresh for better UX
       setTimeout(async () => {
         try {
-          const freshProfile = await getProfile();
+          console.log('🔄 AuthContext: Starting background profile refresh...');
+          const freshProfile = await getProfile(true); // Force refresh to bypass cache
           
           // Validate that we have a valid profile
           if (!freshProfile || !freshProfile._id) {
             console.error('❌ AuthContext: Invalid profile data received:', freshProfile);
+            return;
+          }
+          
+          // Validate that the fresh profile matches the logged-in user
+          const currentUserId = user._id?.toString();
+          const freshUserId = freshProfile._id?.toString();
+          
+          console.log('🔍 AuthContext: Profile validation - current user:', currentUserId, 'fresh profile:', freshUserId);
+          
+          if (currentUserId !== freshUserId) {
+            console.warn('⚠️ AuthContext: Profile mismatch detected in background refresh!');
+            console.log('🔍 AuthContext: Mismatch details:', {
+              currentUserId: currentUserId,
+              freshUserId: freshUserId,
+              currentEmail: user.email,
+              freshEmail: freshProfile.email
+            });
+            // Don't update user if there's a mismatch
             return;
           }
           

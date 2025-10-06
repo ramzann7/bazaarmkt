@@ -1610,18 +1610,26 @@ const getArtisanOrders = async (req, res) => {
         paymentStatus: order.paymentStatus,
         isGuestOrder: order.isGuestOrder,
         guestInfo: order.guestInfo,
-        items: order.items?.map(item => ({
-          _id: item._id,
-          productId: item.productId,
-          product: item.product,
-          name: item.name || item.productName,
-          price: item.price || item.unitPrice,
-          unitPrice: item.unitPrice || item.price,
-          quantity: item.quantity,
-          totalPrice: item.totalPrice || item.itemTotal,
-          productType: item.productType,
-          artisanId: item.artisanId
-        })) || [],
+        items: await Promise.all((order.items || []).map(async (item) => {
+          // Populate product information if productId exists
+          let product = item.product;
+          if (item.productId && !product) {
+            product = await productsCollection.findOne({ _id: item.productId });
+          }
+          
+          return {
+            _id: item._id,
+            productId: item.productId,
+            product: product,
+            name: item.name || item.productName || product?.name,
+            price: item.price || item.unitPrice,
+            unitPrice: item.unitPrice || item.price,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice || item.itemTotal,
+            productType: item.productType,
+            artisanId: item.artisanId
+          };
+        })),
         // Preserve the original artisan data for frontend compatibility
         artisan: order.artisan || artisan,
         patron: patronInfo
@@ -1676,6 +1684,7 @@ const getPatronOrders = async (req, res) => {
     const db = req.db;
     const ordersCollection = db.collection('orders');
     const artisansCollection = db.collection('artisans');
+    const productsCollection = db.collection('products');
     
     // Define active order statuses (orders that need action or are in progress)
     const activeStatuses = ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'];
@@ -1709,8 +1718,45 @@ const getPatronOrders = async (req, res) => {
         console.log('🔍 Looked up artisan for order', order._id.toString().slice(-8), ':', artisan?.artisanName || 'not found');
       }
       
+      // Return complete order structure with all necessary fields
       return {
-        ...order,
+        _id: order._id,
+        status: order.status,
+        totalAmount: order.totalAmount,
+        subtotal: order.subtotal,
+        deliveryFee: order.deliveryFee,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        deliveryMethod: order.deliveryMethod,
+        deliveryAddress: order.deliveryAddress,
+        deliveryInstructions: order.deliveryInstructions,
+        pickupTime: order.pickupTime,
+        pickupTimeWindows: order.pickupTimeWindows,
+        deliveryMethodDetails: order.deliveryMethodDetails,
+        paymentStatus: order.paymentStatus,
+        isGuestOrder: order.isGuestOrder,
+        guestInfo: order.guestInfo,
+        lastStatusUpdate: order.lastStatusUpdate,
+        items: await Promise.all((order.items || []).map(async (item) => {
+          // Populate product information if productId exists
+          let product = item.product;
+          if (item.productId && !product) {
+            product = await productsCollection.findOne({ _id: item.productId });
+          }
+          
+          return {
+            _id: item._id,
+            productId: item.productId,
+            product: product,
+            name: item.name || item.productName || product?.name,
+            price: item.price || item.unitPrice,
+            unitPrice: item.unitPrice || item.price,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice || item.itemTotal,
+            productType: item.productType,
+            artisanId: item.artisanId
+          };
+        })),
         artisan: artisan
       };
     }));

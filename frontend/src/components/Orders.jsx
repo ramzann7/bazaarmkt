@@ -17,6 +17,11 @@ import OrderTimeline from './OrderTimeline';
 import { geocodingService } from '../services/geocodingService';
 import PriorityOrderQueue from './PriorityOrderQueue';
 
+// Helper function to check if user is artisan (compatible with both role and userType)
+const isArtisan = (userRole) => {
+  return userRole === 'artisan';
+};
+
 export default function Orders() {
   const location = useLocation();
   const [allOrders, setAllOrders] = useState([]); // Cache all orders
@@ -24,7 +29,7 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('active'); // Default to active orders
+  const [filter, setFilter] = useState('needs_action'); // Default to needs action for artisans
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -38,12 +43,12 @@ export default function Orders() {
     return () => clearInterval(interval);
   }, []);
 
-  // Apply filter when filter changes (no API call needed)
+  // Apply filter when filter or userRole changes (no API call needed)
   useEffect(() => {
-    if (ordersLoaded) {
+    if (ordersLoaded && userRole) {
       applyFilter();
     }
-  }, [filter, ordersLoaded]);
+  }, [filter, ordersLoaded, userRole]);
 
   // Handle order confirmation from checkout
   useEffect(() => {
@@ -74,13 +79,14 @@ export default function Orders() {
       setIsLoading(true);
       console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)');
       const userProfile = await getProfile();
-      setUserRole(userProfile.userType || userProfile.role);
+      const actualUserRole = userProfile.role || userProfile.userType; // Check both role and userType for compatibility
+      setUserRole(actualUserRole);
       
       // Only load orders from API if not already loaded or force refresh
       if (!ordersLoaded || forceRefresh) {
         console.log('📋 Loading all orders from API...');
         let ordersData;
-        if (userProfile.userType === 'artisan' || userProfile.role === 'artisan') {
+        if (actualUserRole === 'artisan') {
           ordersData = await orderService.getArtisanOrders(true); // Always load all orders
         } else {
           ordersData = await orderService.getPatronOrders(true); // Always load all orders
@@ -107,14 +113,18 @@ export default function Orders() {
   };
 
   const applyFilter = () => {
-    if (!ordersLoaded) return;
+    if (!ordersLoaded || !userRole) {
+      console.log('🔍 Skipping filter - ordersLoaded:', ordersLoaded, 'userRole:', userRole);
+      return;
+    }
     
-    console.log('🔍 Applying filter:', filter, 'to', allOrders.length, 'orders');
+    console.log('🔍 Applying filter:', filter, 'userRole:', userRole, 'to', allOrders.length, 'orders');
     
     let filteredOrders = [...allOrders];
     
-    // Apply status-based filtering
-    if (userRole === 'artisan') {
+    // Apply status-based filtering (check both role and userType for compatibility)
+    const actualUserRole = userRole || 'patron'; // Default to patron if not set
+    if (actualUserRole === 'artisan') {
       switch (filter) {
         case 'needs_action':
           filteredOrders = allOrders.filter(order => 
@@ -130,9 +140,9 @@ export default function Orders() {
           // Show all orders (no additional filtering)
           break;
         default:
-          // Default to active orders
+          // Default to needs_action for artisans
           filteredOrders = allOrders.filter(order => 
-            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
+            ['pending'].includes(order.status)
           );
       }
     } else {
@@ -152,15 +162,16 @@ export default function Orders() {
           // Show all orders (no additional filtering)
           break;
         default:
-          // Default to active orders
+          // Default to active orders for patrons
           filteredOrders = allOrders.filter(order => 
             ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
           );
       }
     }
     
-    console.log('📦 Filtered orders:', {
+    console.log('📦 Filtered orders result:', {
       filter: filter,
+      userRole: userRole,
       totalOrders: allOrders.length,
       filteredCount: filteredOrders.length,
       statuses: filteredOrders.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
@@ -173,6 +184,7 @@ export default function Orders() {
     setSelectedOrder(order);
     setShowOrderDetails(true);
   };
+
 
 
   const handleQuickAction = async (orderId, action) => {
@@ -404,7 +416,7 @@ export default function Orders() {
     
     if (filter === 'all') {
       filteredOrders = orders;
-    } else if (userRole === 'artisan') {
+    } else if (isArtisan(userRole)) {
       switch (filter) {
         case 'needs_action':
           // Show only pending orders that need artisan action (confirm/decline)
@@ -455,7 +467,7 @@ export default function Orders() {
     }
     
     // Sort by priority (highest first) for artisans
-    if (userRole === 'artisan') {
+    if (isArtisan(userRole)) {
       return filteredOrders.sort((a, b) => {
         const priorityA = calculateOrderPriority(a);
         const priorityB = calculateOrderPriority(b);
@@ -476,7 +488,7 @@ export default function Orders() {
   const getOrderStats = () => {
     const total = orders.length;
     
-    if (userRole === 'artisan') {
+    if (isArtisan(userRole)) {
       // For artisans: focus on orders that need action
       const needsAction = orders.filter(o => o.status === 'pending').length;
       const inProgress = orders.filter(o => !['cancelled', 'declined', 'delivered', 'picked_up'].includes(o.status)).length;
@@ -568,10 +580,10 @@ export default function Orders() {
             <ShoppingBagIcon className="w-8 h-8 text-orange-600" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            {userRole === 'artisan' ? 'Order Management' : 'My Orders'}
+            {isArtisan(userRole) ? 'Order Management' : 'My Orders'}
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            {userRole === 'artisan' 
+            {isArtisan(userRole) 
               ? 'Manage your customer orders and track order fulfillment' 
               : 'Track your order history and delivery status'
             }
@@ -580,7 +592,7 @@ export default function Orders() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {userRole === 'artisan' ? (
+          {isArtisan(userRole) ? (
             <>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
@@ -649,7 +661,7 @@ export default function Orders() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex flex-wrap gap-2">
-              {userRole === 'artisan' ? (
+              {isArtisan(userRole) ? (
                 // Simplified artisan filters
                 [
                   { key: 'needs_action', label: 'Needs Action', icon: '🚨' },
@@ -749,8 +761,8 @@ export default function Orders() {
             </h3>
             <p className="text-gray-600 mb-4">
               {filter === 'all' 
-                ? (userRole === 'artisan' ? 'No customer orders yet.' : 'Start shopping to see your orders here.')
-                : userRole === 'artisan' 
+                ? (isArtisan(userRole) ? 'No customer orders yet.' : 'Start shopping to see your orders here.')
+                : isArtisan(userRole) 
                   ? 'Great! All orders are being handled properly.'
                   : 'Try selecting a different filter or start shopping.'
               }
@@ -766,8 +778,8 @@ export default function Orders() {
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
             {filteredOrders.map((order, index) => {
               // Get priority information for artisans
-              const priorityInfo = userRole === 'artisan' ? getPriorityInfo(order) : null;
-              const orderIsUrgent = userRole === 'artisan' ? isUrgent(order) : false;
+              const priorityInfo = isArtisan(userRole) ? getPriorityInfo(order) : null;
+              const orderIsUrgent = isArtisan(userRole) ? isUrgent(order) : false;
               
               return (
                 <div
@@ -790,7 +802,7 @@ export default function Orders() {
                       <h3 className="text-lg font-bold text-gray-900">
                         Order #{order._id ? order._id.slice(-8).toUpperCase() : 'Unknown'}
                       </h3>
-                      {userRole === 'artisan' && priorityInfo && (
+                      {isArtisan(userRole) && priorityInfo && (
                         <div className="flex items-center gap-1">
                           <span className={`px-2 py-1 text-xs font-bold ${priorityInfo.color} text-white rounded-full ${
                             priorityInfo.level === 'urgent' ? 'animate-pulse' : ''
@@ -835,10 +847,10 @@ export default function Orders() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="font-medium">
-                      {userRole === 'artisan' ? '👤 Customer:' : '🏪 Artisan:'}
+                      {isArtisan(userRole) ? '👤 Customer:' : '🏪 Artisan:'}
                     </span> 
                     <span>
-                      {userRole === 'artisan' 
+                      {isArtisan(userRole) 
                         ? (order.patron 
                             ? `${order.patron?.firstName} ${order.patron?.lastName}`
                             : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`
@@ -1530,10 +1542,10 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           {/* Artisan/Customer Information */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h4 className="font-medium text-gray-900 mb-2">
-              {userRole === 'artisan' ? 'Customer Information' : 'Artisan Information'}
+              {isArtisan(userRole) ? 'Customer Information' : 'Artisan Information'}
             </h4>
             <div className="space-y-1">
-              {userRole === 'artisan' ? (
+              {isArtisan(userRole) ? (
                 <>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Name:</span> 
@@ -1746,7 +1758,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                             <div className="flex items-center gap-2">
                               <ClockIcon className="w-4 h-4 text-green-600" />
                               <span className="text-sm font-medium text-green-800">
-                                {userRole === 'artisan' ? 'Estimated Travel Time' : 'Estimated Delivery Time'}: {estimatedDeliveryTime.formattedTime}
+                                {isArtisan(userRole) ? 'Estimated Travel Time' : 'Estimated Delivery Time'}: {estimatedDeliveryTime.formattedTime}
                               </span>
                             </div>
                           )}
@@ -1915,7 +1927,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </button>
               )}
               
-              {userRole === 'artisan' && (
+              {isArtisan(userRole) && (
                 <>
                   {order.status === 'pending' && (
                     <>

@@ -194,7 +194,7 @@ export const AuthProvider = ({ children }) => {
           // Ensure profile has required fields with defaults
           const normalizedProfile = {
             ...freshProfile,
-            userType: freshProfile.userType, // Explicitly preserve userType
+            userType: freshProfile.userType || 'customer', // Default to customer if not set
             artisan: freshProfile.artisan, // Explicitly preserve artisan data
             artisanId: freshProfile.artisanId, // Explicitly preserve artisanId
             firstName: freshProfile.firstName || '',
@@ -206,9 +206,16 @@ export const AuthProvider = ({ children }) => {
             paymentMethods: freshProfile.paymentMethods || []
           };
           
+          console.log('🔍 AuthContext: Background profile refresh - Normalized profile:', {
+            userId: normalizedProfile._id,
+            email: normalizedProfile.email,
+            userType: normalizedProfile.userType
+          });
+          
           setUser(normalizedProfile);
         } catch (error) {
           console.error('❌ AuthContext: Background profile refresh failed:', error);
+          // Don't throw error here as it's a background operation
         }
       }, 100);
       
@@ -293,10 +300,16 @@ export const AuthProvider = ({ children }) => {
       
       const profile = await getProfile(true); // Force refresh to get latest data
       
+      // Validate profile data
+      if (!profile) {
+        console.error('❌ AuthContext: refreshUser - Profile is null/undefined');
+        throw new Error('Profile data is null or undefined');
+      }
+      
       // Ensure profile has required fields with defaults
       const normalizedProfile = {
         ...profile,
-        userType: profile.userType, // Explicitly preserve userType
+        userType: profile.userType || 'customer', // Default to customer if not set
         artisan: profile.artisan, // Explicitly preserve artisan data
         artisanId: profile.artisanId, // Explicitly preserve artisanId
         firstName: profile.firstName || '',
@@ -307,6 +320,12 @@ export const AuthProvider = ({ children }) => {
         accountSettings: profile.accountSettings || {},
         paymentMethods: profile.paymentMethods || []
       };
+      
+      console.log('🔍 AuthContext: refreshUser - Normalized profile:', {
+        userId: normalizedProfile._id,
+        email: normalizedProfile.email,
+        userType: normalizedProfile.userType
+      });
       
       setUser(normalizedProfile);
       setIsAuthenticated(true);

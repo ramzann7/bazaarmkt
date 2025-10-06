@@ -704,11 +704,36 @@ export default function OrderConfirmation() {
             )})}
           </div>
 
-          {/* Total Amount */}
+          {/* Order Breakdown */}
           <div className="border-t border-stone-200 pt-6 mt-6 print:pt-4 print:mt-4 print:border-gray-300">
-            <div className="flex justify-between items-center">
-              <span className="text-xl font-semibold text-stone-800 print:text-lg font-display">Total Amount</span>
-              <span className="text-3xl font-bold text-amber-600 print:text-2xl print:text-gray-900">${(totalAmount || 0).toFixed(2)}</span>
+            <div className="space-y-3 print:space-y-2">
+              {/* Subtotal */}
+              <div className="flex justify-between items-center">
+                <span className="text-lg text-stone-700 print:text-base">Subtotal</span>
+                <span className="text-lg font-semibold text-stone-800 print:text-base">
+                  ${orders.reduce((sum, order) => sum + (order.subtotal || order.totalAmount || 0), 0).toFixed(2)}
+                </span>
+              </div>
+              
+              {/* Delivery Fee */}
+              {orders.some(order => order.deliveryFee && order.deliveryFee > 0) && (
+                <div className="flex justify-between items-center">
+                  <span className="text-lg text-stone-700 print:text-base">
+                    Delivery Fee
+                    {orders[0]?.deliveryMethod === 'personalDelivery' && ' (Personal Delivery)'}
+                    {orders[0]?.deliveryMethod === 'professionalDelivery' && ' (Professional Delivery)'}
+                  </span>
+                  <span className="text-lg font-semibold text-stone-800 print:text-base">
+                    ${orders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              
+              {/* Total Amount */}
+              <div className="flex justify-between items-center pt-3 border-t border-stone-200 print:border-gray-300">
+                <span className="text-xl font-semibold text-stone-800 print:text-lg font-display">Total Amount</span>
+                <span className="text-3xl font-bold text-amber-600 print:text-2xl print:text-gray-900">${(totalAmount || 0).toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </div>

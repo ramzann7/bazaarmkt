@@ -436,6 +436,8 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       userId: userId ? new (require('mongodb')).ObjectId(userId) : null,
       items: enrichedItems,
       totalAmount: totalAmount,
+      subtotal: totalAmount - deliveryFee, // Store subtotal without delivery fee
+      deliveryFee: deliveryFee, // Store delivery fee separately
       status: 'pending', // Orders start as pending confirmation by artisan
       paymentStatus: !userId ? 'captured' : 'authorized', // Guest orders are captured immediately, authenticated orders are authorized
       paymentMethod: 'stripe',
@@ -1790,14 +1792,37 @@ const createGuestOrder = async (req, res) => {
       });
     }
     
+    // Calculate delivery fee if applicable
+    let deliveryFee = 0;
+    const deliveryMethod = req.body.deliveryMethod || 'pickup';
+    if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
+      // Get artisan delivery settings
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: validatedItems[0]?.artisanId });
+      
+      if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
+        deliveryFee = artisan.deliveryOptions.deliveryFee;
+      } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
+        deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+      }
+    }
+
+    const finalAmount = totalAmount + deliveryFee;
+
     // Create guest order
     const order = {
       userId: null, // Guest order
       guestInfo: guestInfo || {},
       items: validatedItems,
-      totalAmount,
+      totalAmount: finalAmount,
+      subtotal: totalAmount, // Store subtotal without delivery fee
+      deliveryFee: deliveryFee, // Store delivery fee separately
       status: 'pending',
       deliveryAddress: deliveryAddress || {},
+      deliveryMethod: deliveryMethod,
+      deliveryInstructions: req.body.deliveryInstructions || '',
+      pickupTimeWindows: req.body.pickupTimeWindows || {},
+      deliveryMethodDetails: req.body.deliveryMethodDetails || [],
       paymentMethod: paymentMethod || 'credit_card',
       paymentDetails: paymentDetails || {},
       notes: notes || '',

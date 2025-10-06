@@ -1315,17 +1315,21 @@ const Cart = () => {
     try {
       const userInfo = {
         id: user?.id || currentUserId || userProfile?.id,
-        email: user?.email || userProfile?.email,
-        isGuest: !user && !userProfile
+        email: isGuest ? deliveryForm.email : (user?.email || userProfile?.email),
+        phone: isGuest ? deliveryForm.phone : (user?.phone || userProfile?.phone),
+        isGuest: isGuest,
+        firstName: isGuest ? deliveryForm.firstName : (user?.firstName || userProfile?.firstName),
+        lastName: isGuest ? deliveryForm.lastName : (user?.lastName || userProfile?.lastName)
       };
       
       console.log('📧 Notification userInfo:', userInfo);
+      console.log('📧 Order data for notification:', orderData);
       
-      if (userInfo.email || userInfo.isGuest) {
+      if (userInfo.email) {
         await notificationService.sendOrderCompletionNotification(orderData, userInfo);
         console.log('✅ Order completion notification sent');
       } else {
-        console.log('⚠️ Skipping notification - no email available and not a guest');
+        console.log('⚠️ Skipping notification - no email available');
       }
     } catch (notificationError) {
       console.error('❌ Error sending order completion notification:', notificationError);
@@ -1336,17 +1340,37 @@ const Cart = () => {
     cartService.clearCart(currentUserId);
     
     // Navigate to order confirmation with the correct data structure
+    const orderWithDeliveryInfo = {
+      ...orderData,
+      deliveryAddress: selectedAddress || deliveryForm,
+      deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+      deliveryInstructions: deliveryForm.instructions || '',
+      pickupTimeWindows: selectedPickupTimes,
+      guestInfo: isGuest ? {
+        firstName: deliveryForm.firstName || 'Guest',
+        lastName: deliveryForm.lastName || 'User',
+        email: deliveryForm.email || '',
+        phone: deliveryForm.phone || ''
+      } : null
+    };
+
     navigate('/order-confirmation', { 
       state: { 
-        orders: [orderData], // Wrap single order in array for OrderConfirmation component
+        orders: [orderWithDeliveryInfo], // Wrap single order in array for OrderConfirmation component
         message: 'Order placed successfully!',
         orderSummary: {
           total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
           itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
           items: cart
         },
-        deliveryAddress: selectedAddress || deliveryForm,
-        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup'
+        guestInfo: isGuest ? {
+          firstName: deliveryForm.firstName || 'Guest',
+          lastName: deliveryForm.lastName || 'User',
+          email: deliveryForm.email || '',
+          phone: deliveryForm.phone || ''
+        } : null,
+        selectedPickupTimes: selectedPickupTimes,
+        isPickupOrder: Object.values(selectedDeliveryMethods)[0] === 'pickup'
       } 
     });
   };

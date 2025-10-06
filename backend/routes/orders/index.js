@@ -616,13 +616,28 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       await invalidateArtisanCache(enrichedItems[0].artisanId);
     }
 
+    // Fetch the complete order data to return to frontend
+    const completeOrder = await ordersCollection.findOne({ _id: result.insertedId });
+    
+    // Populate artisan information for the order
+    let orderWithArtisan = { ...completeOrder };
+    if (completeOrder.artisan) {
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: completeOrder.artisan });
+      orderWithArtisan.artisan = artisan;
+    } else if (completeOrder.items && completeOrder.items.length > 0 && completeOrder.items[0].artisanId) {
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: completeOrder.items[0].artisanId });
+      orderWithArtisan.artisan = artisan;
+    }
+    
     res.json({
       success: true,
       message: 'Order created successfully',
       data: {
+        ...orderWithArtisan,
         orderId: result.insertedId,
         paymentIntentId: paymentIntentId,
-        totalAmount: totalAmount,
         inventoryUpdates: inventoryUpdates // Include inventory update details
       }
     });
@@ -1928,14 +1943,26 @@ const createGuestOrder = async (req, res) => {
       // Don't fail the order creation if notification fails
     }
     
+    // Populate artisan information for the guest order
+    let orderWithArtisan = { ...order };
+    if (order.artisan) {
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: order.artisan });
+      orderWithArtisan.artisan = artisan;
+    } else if (order.items && order.items.length > 0 && order.items[0].artisanId) {
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+      orderWithArtisan.artisan = artisan;
+    }
+
     res.status(201).json({
       success: true,
       message: 'Guest order created successfully',
       data: {
         order: {
           _id: orderId,
-          ...order,
-          totalAmount
+          ...orderWithArtisan,
+          totalAmount: finalAmount
         }
       }
     });

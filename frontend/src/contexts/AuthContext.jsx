@@ -291,7 +291,7 @@ export const AuthProvider = ({ children }) => {
         try {
           const { orderNotificationService } = await import('../services/orderNotificationService');
           // Force an immediate check for new orders/updates after login
-          await orderNotificationService.checkForNewOrders();
+          await orderNotificationService.checkForNewOrders(true); // Pass true for login-triggered
           console.log('✅ Immediate order notification check triggered after login');
         } catch (notificationError) {
           console.error('❌ Error triggering immediate notification check:', notificationError);

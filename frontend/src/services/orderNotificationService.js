@@ -93,7 +93,7 @@ class OrderNotificationService {
   }
 
   // Check for new orders and order updates
-  async checkForNewOrders() {
+  async checkForNewOrders(isLoginTriggered = false) {
     try {
       const token = authToken.getToken();
       if (!token) {
@@ -125,11 +125,11 @@ class OrderNotificationService {
       if (['artisan', 'producer', 'food_maker'].includes(userRole)) {
         console.log('🔔 OrderNotificationService: User is artisan, checking for new orders');
         // Handle artisan notifications for new orders
-        await this.checkForNewArtisanOrders();
+        await this.checkForNewArtisanOrders(isLoginTriggered);
       } else if (userRole === 'patron') {
         console.log('🔔 OrderNotificationService: User is patron, checking for order updates');
         // Handle patron notifications for order updates
-        await this.checkForOrderUpdates();
+        await this.checkForOrderUpdates(isLoginTriggered);
       } else {
         console.log('⚠️ OrderNotificationService: Unknown user role, skipping notifications:', userRole);
       }
@@ -140,9 +140,9 @@ class OrderNotificationService {
   }
 
   // Check for new orders (artisan-specific)
-  async checkForNewArtisanOrders() {
+  async checkForNewArtisanOrders(isLoginTriggered = false) {
     try {
-      console.log('🔍 OrderNotificationService: Checking for new artisan orders...');
+      console.log('🔍 OrderNotificationService: Checking for new artisan orders...', isLoginTriggered ? '(LOGIN TRIGGERED)' : '');
       
       // Get pending orders
       const { orderService } = await import('./orderService');
@@ -189,12 +189,25 @@ class OrderNotificationService {
       // Update our tracking
       this.pendingOrders = currentPendingIds;
 
-      // Notify about new orders
-      if (newOrders.length > 0) {
-        console.log('🔔 OrderNotificationService: Triggering notifications for new orders');
-        this.notifyNewOrders(newOrders);
+      // Determine which orders to notify about
+      let ordersToNotify = [];
+      
+      if (isLoginTriggered && pendingOrders.length > 0) {
+        // For login-triggered notifications, show all pending orders
+        console.log('🔔 OrderNotificationService: Login triggered - showing all pending orders');
+        ordersToNotify = pendingOrders;
+      } else if (newOrders.length > 0) {
+        // For regular polling, only show new orders
+        console.log('🔔 OrderNotificationService: Regular polling - showing only new orders');
+        ordersToNotify = newOrders;
+      }
+
+      // Notify about orders
+      if (ordersToNotify.length > 0) {
+        console.log('🔔 OrderNotificationService: Triggering notifications for orders:', ordersToNotify.length);
+        this.notifyNewOrders(ordersToNotify);
       } else {
-        console.log('ℹ️ OrderNotificationService: No new orders to notify about');
+        console.log('ℹ️ OrderNotificationService: No orders to notify about');
       }
 
       // Update cache

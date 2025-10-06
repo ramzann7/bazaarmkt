@@ -1652,8 +1652,8 @@ const getArtisanOrders = async (req, res) => {
             artisanId: item.artisanId
           };
         })),
-        // Preserve the original artisan data for frontend compatibility
-        artisan: order.artisan || artisan,
+        // Use the fully populated artisan object (includes pickup address)
+        artisan: artisan,
         patron: patronInfo
       };
     }));
@@ -1818,6 +1818,7 @@ const getPatronOrders = async (req, res) => {
             artisanId: item.artisanId
           };
         })),
+        // Use the fully populated artisan object (includes pickup address)
         artisan: artisan
       };
     }));

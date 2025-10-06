@@ -1678,22 +1678,48 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     </h5>
                     {Object.entries(order.pickupTimeWindows).map(([artisanId, timeWindow]) => (
                       <div key={artisanId} className="text-sm text-emerald-700">
-                        {timeWindow.date && timeWindow.timeSlot && (
+                        {timeWindow.date && (
                           <p>
                             <span className="font-medium">Date:</span> {new Date(timeWindow.date).toLocaleDateString()}
                           </p>
                         )}
                         {timeWindow.timeSlot && (
                           <p>
-                            <span className="font-medium">Time:</span> {timeWindow.timeSlot}
+                            <span className="font-medium">Time:</span> {
+                              typeof timeWindow.timeSlot === 'string' 
+                                ? timeWindow.timeSlot 
+                                : timeWindow.timeSlot.label || `${timeWindow.timeSlot.start} - ${timeWindow.timeSlot.end}`
+                            }
                           </p>
                         )}
-                        {timeWindow.startTime && timeWindow.endTime && (
+                        {timeWindow.fullLabel && (
+                          <p>
+                            <span className="font-medium">Scheduled:</span> {timeWindow.fullLabel}
+                          </p>
+                        )}
+                        {timeWindow.startTime && timeWindow.endTime && !timeWindow.timeSlot && (
                           <p>
                             <span className="font-medium">Time:</span> {timeWindow.startTime} - {timeWindow.endTime}
                           </p>
                         )}
                       </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Pickup Instructions */}
+                {order.deliveryMethodDetails && order.deliveryMethodDetails.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-200">
+                    <h5 className="text-sm font-semibold text-emerald-800 mb-2 flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-4 h-4" />
+                      Pickup Instructions
+                    </h5>
+                    {order.deliveryMethodDetails.map((detail, index) => (
+                      detail.method === 'pickup' && detail.instructions && (
+                        <p key={index} className="text-sm text-emerald-700 bg-emerald-100 p-2 rounded-lg border border-emerald-200">
+                          {detail.instructions}
+                        </p>
+                      )
                     ))}
                   </div>
                 )}

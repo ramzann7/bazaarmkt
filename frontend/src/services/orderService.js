@@ -184,6 +184,13 @@ export const orderService = {
     try {
       const response = await api.put(`${API_URL}/orders/${orderId}/cancel`, { reason });
       
+      // Clear product cache after cancellation as inventory might be restored
+      clearProductCaches();
+      
+      // Clear order-related caches to ensure fresh data
+      const { cacheService, CACHE_KEYS } = await import('./cacheService');
+      cacheService.clear(); // Clear all caches to ensure fresh data
+      
       // Send notification to patron about successful cancellation
       try {
         const { notificationService } = await import('./notificationService');
@@ -268,6 +275,10 @@ export const orderService = {
   confirmOrderReceipt: async (orderId) => {
     try {
       const response = await api.post(`${API_URL}/orders/${orderId}/confirm-receipt`, {});
+      
+      // Clear order-related caches to ensure fresh data
+      const { cacheService, CACHE_KEYS } = await import('./cacheService');
+      cacheService.clear(); // Clear all caches to ensure fresh data
       
       return response.data;
     } catch (error) {

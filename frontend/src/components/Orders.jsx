@@ -1441,7 +1441,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     try {
       await orderService.cancelOrder(order._id, reason);
       toast.success('Order cancelled successfully');
-      onRefresh();
+      onRefresh(true); // Force refresh after cancellation
       onClose();
     } catch (error) {
       console.error('Error cancelling order:', error);
@@ -1469,7 +1469,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       // Wait a moment for backend processing, then refresh
       setTimeout(async () => {
         console.log('🔄 Refreshing orders after status update...');
-        await onRefresh();
+        await onRefresh(true); // Force refresh after status update
       }, 500); // 500ms delay to ensure backend has processed the update
       
     } catch (error) {
@@ -1490,7 +1490,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     try {
       const result = await orderService.confirmOrderReceipt(order._id);
       toast.success(`✅ Order confirmed successfully!`);
-      onRefresh();
+      onRefresh(true); // Force refresh after receipt confirmation
       onClose();
     } catch (error) {
       console.error('❌ Error confirming order receipt:', error);
@@ -1522,7 +1522,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       // Wait a moment for backend processing, then refresh
       setTimeout(async () => {
         console.log('🔄 Refreshing orders after decline...');
-        await onRefresh();
+        await onRefresh(true); // Force refresh after decline
       }, 500); // 500ms delay to ensure backend has processed the update
     } catch (error) {
       console.error('❌ Error declining order:', error);

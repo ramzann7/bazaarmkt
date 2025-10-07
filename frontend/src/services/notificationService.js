@@ -75,8 +75,14 @@ export const notificationService = {
         await notificationService.sendPlatformNotification(notificationData);
         // Check if user has email notifications enabled
         if (userInfo.email) {
-          const preferences = await notificationService.getNotificationPreferences(userInfo.id);
-          if (preferences.email?.orderUpdates) {
+          try {
+            const preferences = await notificationService.getNotificationPreferences(userInfo.id);
+            if (preferences?.email?.orderUpdates) {
+              await notificationService.sendOrderCompletionEmail(notificationData);
+            }
+          } catch (preferencesError) {
+            console.warn('⚠️ Could not get notification preferences, using defaults:', preferencesError);
+            // Default to sending email if preferences can't be retrieved
             await notificationService.sendOrderCompletionEmail(notificationData);
           }
         }
@@ -133,9 +139,17 @@ export const notificationService = {
       // For patrons, send platform notification and email if enabled
       if (!userInfo.isGuest) {
         await notificationService.sendPlatformNotification(notificationData);
-        const preferences = await notificationService.getNotificationPreferences(userInfo.id);
-        if (preferences.email?.orderUpdates && userInfo.email) {
-          await notificationService.sendOrderUpdateEmail(notificationData);
+        try {
+          const preferences = await notificationService.getNotificationPreferences(userInfo.id);
+          if (preferences?.email?.orderUpdates && userInfo.email) {
+            await notificationService.sendOrderUpdateEmail(notificationData);
+          }
+        } catch (preferencesError) {
+          console.warn('⚠️ Could not get notification preferences for order update, using defaults:', preferencesError);
+          // Default to sending email if preferences can't be retrieved
+          if (userInfo.email) {
+            await notificationService.sendOrderUpdateEmail(notificationData);
+          }
         }
       }
 

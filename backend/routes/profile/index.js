@@ -1415,6 +1415,21 @@ const addPaymentMethod = async (req, res) => {
     }
     console.log('✅ Payment method data received:', JSON.stringify(paymentMethod, null, 2));
 
+    // Ensure paymentMethods field exists as an array before adding
+    console.log('💳 Checking if user has paymentMethods field...');
+    if (!user.paymentMethods || !Array.isArray(user.paymentMethods)) {
+      console.log('💳 Initializing paymentMethods array for user');
+      await usersCollection.updateOne(
+        { _id: new ObjectId(decoded.userId) },
+        { 
+          $set: { 
+            paymentMethods: [],
+            updatedAt: new Date()
+          }
+        }
+      );
+    }
+
     // Add payment method to user's payment methods array
     console.log('💳 Attempting to update user with payment method...');
     const result = await usersCollection.updateOne(

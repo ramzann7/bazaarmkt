@@ -1466,9 +1466,12 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
-    // Restore inventory if order is declined
-    if (status === 'declined') {
+    // Restore inventory if order is declined or cancelled
+    // Note: Cancelled status can be set by admins or system, patrons use dedicated /cancel endpoint
+    if (status === 'declined' || status === 'cancelled') {
       const productsCollection = db.collection('products');
+      
+      console.log(`🔄 Restoring inventory for ${status} order:`, order._id);
       
       for (const item of order.items) {
         try {
@@ -1501,7 +1504,7 @@ const updateOrderStatus = async (req, res) => {
               { $set: updateFields }
             );
             
-            console.log(`✅ Restored inventory for declined order - product ${product.name} (${product.productType}):`, {
+            console.log(`✅ Restored inventory for ${status} order - product ${product.name} (${product.productType}):`, {
               quantity: item.quantity,
               updatedFields: updateFields
             });

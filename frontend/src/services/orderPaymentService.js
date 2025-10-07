@@ -1,6 +1,8 @@
 // src/services/orderPaymentService.js
 import api from './apiClient';
 import config from '../config/environment.js';
+import { clearProductCache, clearFeaturedProductsCache, clearPopularProductsCache } from './productService';
+import { cacheService, CACHE_KEYS } from './cacheService';
 
 // Use the existing api instance which already has authentication and base configuration
 const orderPaymentApi = api;
@@ -35,6 +37,23 @@ export const orderPaymentService = {
         paymentIntentId,
         orderData
       });
+      
+      // Clear all product caches after successful order creation
+      console.log('🧹 Clearing product caches after order creation...');
+      
+      // Clear productService Map cache
+      clearProductCache(); // Clears all products
+      clearFeaturedProductsCache(); // Specifically clear featured
+      clearPopularProductsCache(); // Specifically clear popular
+      
+      // Clear cacheService global cache
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.PRODUCT_DETAILS);
+      
+      console.log('✅ Product caches cleared after order creation (both Map and global cache)');
+      
       return response.data;
     } catch (error) {
       console.error('Error confirming payment and creating order:', error);

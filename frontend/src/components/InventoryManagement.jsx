@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { productService, clearProductCache } from '../services/productService';
+import { productService, clearProductCache, clearFeaturedProductsCache, clearPopularProductsCache } from '../services/productService';
 import { cacheService, CACHE_KEYS } from '../services/cacheService';
 import InventoryModel from '../models/InventoryModel';
 
@@ -45,11 +45,13 @@ const InventoryManagement = ({
       const updatedProduct = response.data.data || response.data.product;
       
       // Clear product caches to ensure fresh data on home/search pages
-      clearProductCache();
-      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      clearProductCache(); // Clear all products in Map cache
+      clearFeaturedProductsCache(); // Clear featured in Map cache
+      clearPopularProductsCache(); // Clear popular in Map cache
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS); // Clear global cache
       cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
       cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
-      console.log('🧹 Cleared product caches after stock update');
+      console.log('🧹 Cleared product caches after stock update (Map + global)');
       
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
@@ -90,11 +92,13 @@ const InventoryManagement = ({
       console.log('🔍 Updated product from API:', updatedProduct);
       
       // Clear product caches to ensure fresh data on home/search pages
-      clearProductCache();
-      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      clearProductCache(); // Clear all products in Map cache
+      clearFeaturedProductsCache(); // Clear featured in Map cache
+      clearPopularProductsCache(); // Clear popular in Map cache
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS); // Clear global cache
       cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
       cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
-      console.log('🧹 Cleared product caches after capacity update');
+      console.log('🧹 Cleared product caches after capacity update (Map + global)');
       
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
@@ -127,11 +131,13 @@ const InventoryManagement = ({
       const updatedProduct = response.data.data || response.data.product;
       
       // Clear product caches to ensure fresh data on home/search pages
-      clearProductCache();
-      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      clearProductCache(); // Clear all products in Map cache
+      clearFeaturedProductsCache(); // Clear featured in Map cache
+      clearPopularProductsCache(); // Clear popular in Map cache
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS); // Clear global cache
       cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
       cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
-      console.log('🧹 Cleared product caches after available quantity update');
+      console.log('🧹 Cleared product caches after available quantity update (Map + global)');
       
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);

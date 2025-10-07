@@ -1,6 +1,6 @@
 import api from './apiClient';
 import { cacheService, CACHE_KEYS } from './cacheService';
-import { clearProductCache } from './productService';
+import { clearProductCache, clearFeaturedProductsCache, clearPopularProductsCache } from './productService';
 import { cartService } from './cartService';
 import config from '../config/environment.js';
 
@@ -9,13 +9,22 @@ const API_URL = config.API_URL;
 // Helper function to clear all product-related caches after order creation
 const clearProductCaches = () => {
   console.log('🧹 Clearing all product-related caches after order creation');
-  clearProductCache();
+  
+  // Clear productService Map cache
+  clearProductCache(); // Clears all products in Map
+  clearFeaturedProductsCache(); // Specifically clear featured in Map
+  clearPopularProductsCache(); // Specifically clear popular in Map
+  
+  // Clear cacheService global cache
   cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
   cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
   cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
   cacheService.delete(CACHE_KEYS.PRODUCT_DETAILS);
+  
   // Clear cart cache to ensure fresh product availability checks
   cartService.clearCartCache();
+  
+  console.log('✅ All product caches cleared (Map + global)');
 };
 
 export const orderService = {

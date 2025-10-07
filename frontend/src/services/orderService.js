@@ -245,6 +245,14 @@ export const orderService = {
       return response.data;
     } catch (error) {
       console.error('❌ Error confirming order receipt:', error);
+      console.error('❌ Error response:', error.response?.data);
+      
+      // If already completed, treat as success (idempotent operation)
+      if (error.response?.data?.alreadyCompleted) {
+        console.log('ℹ️ Order already completed, treating as success');
+        return { success: true, message: error.response.data.message };
+      }
+      
       throw error;
     }
   },

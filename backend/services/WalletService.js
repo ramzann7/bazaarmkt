@@ -394,9 +394,22 @@ class WalletService extends BaseService {
         netEarnings: netEarnings
       });
       
+      // Get the user ID from the artisan record
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ 
+        _id: this.createObjectId(orderData.artisan) 
+      });
+      
+      if (!artisan || !artisan.user) {
+        throw new Error(`Artisan user not found for artisan ID: ${orderData.artisan}`);
+      }
+      
+      const artisanUserId = artisan.user.toString();
+      console.log('💰 Crediting wallet for artisan user:', artisanUserId);
+      
       // Credit artisan wallet with net earnings
       const walletResult = await this.addFunds(
-        orderData.artisan.toString(),
+        artisanUserId,
         netEarnings,
         'order_completion',
         {

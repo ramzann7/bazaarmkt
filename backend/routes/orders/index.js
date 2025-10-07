@@ -3098,10 +3098,18 @@ const confirmOrderReceipt = async (req, res) => {
     }
     
     // Check if order can be confirmed as received
+    if (order.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Order has already been confirmed',
+        alreadyCompleted: true
+      });
+    }
+    
     if (order.status !== 'delivered' && order.status !== 'picked_up') {
       return res.status(400).json({
         success: false,
-        message: 'Order must be delivered or picked up to confirm receipt'
+        message: `Order must be delivered or picked up to confirm receipt. Current status: ${order.status}`
       });
     }
     

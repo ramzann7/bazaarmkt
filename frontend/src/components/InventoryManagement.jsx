@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
-import { productService } from '../services/productService';
+import { productService, clearProductCache } from '../services/productService';
+import { cacheService, CACHE_KEYS } from '../services/cacheService';
 import InventoryModel from '../models/InventoryModel';
 
 import config from '../config/environment.js';
@@ -42,6 +43,14 @@ const InventoryManagement = ({
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       const updatedProduct = response.data.data || response.data.product;
+      
+      // Clear product caches to ensure fresh data on home/search pages
+      clearProductCache();
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
+      console.log('🧹 Cleared product caches after stock update');
+      
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);
@@ -80,6 +89,13 @@ const InventoryManagement = ({
       
       console.log('🔍 Updated product from API:', updatedProduct);
       
+      // Clear product caches to ensure fresh data on home/search pages
+      clearProductCache();
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
+      console.log('🧹 Cleared product caches after capacity update');
+      
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);
@@ -109,6 +125,14 @@ const InventoryManagement = ({
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       const updatedProduct = response.data.data || response.data.product;
+      
+      // Clear product caches to ensure fresh data on home/search pages
+      clearProductCache();
+      cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
+      cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
+      console.log('🧹 Cleared product caches after available quantity update');
+      
       // Create new inventory model with updated data
       const newInventoryModel = new InventoryModel(updatedProduct);
       setInventoryModel(newInventoryModel);

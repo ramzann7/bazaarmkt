@@ -202,6 +202,7 @@ const StripeOrderPayment = ({
             console.log('✅ Payment method saved successfully');
           } catch (saveError) {
             console.error('❌ Error saving card:', saveError);
+            console.error('❌ Save error details:', saveError.response?.data);
             toast.error('Failed to save card for future use, but payment was successful');
             // Don't fail the payment if saving fails
           }

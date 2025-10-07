@@ -120,11 +120,26 @@ export default function DashboardFixed() {
         const totalRevenue = productRevenue + deliveryRevenue;
         
         // Calculate earnings (net after platform and payment processing fees)
-        // Platform fee: 15% of product revenue only
-        // Payment processing fee: 2.9% of total revenue
-        // Delivery fee: artisan keeps 100%
-        const platformFeeRate = 0.15; // 15% platform fee on products only
-        const paymentProcessingRate = 0.029; // 2.9% payment processing fee
+        // Get platform settings for accurate fee calculations
+        let platformFeeRate = 0.15; // Default 15% if settings not available
+        let paymentProcessingRate = 0.029; // Default 2.9% if settings not available
+        
+        try {
+          const { getPlatformSettings } = await import('../../services/adminService');
+          const platformSettings = await getPlatformSettings();
+          
+          if (platformSettings) {
+            platformFeeRate = (platformSettings.platformFeePercentage || 15) / 100;
+            paymentProcessingRate = (platformSettings.paymentProcessingFee || 2.9) / 100;
+            console.log('📊 Dashboard: Using platform settings:', {
+              platformFeeRate: `${platformSettings.platformFeePercentage}%`,
+              paymentProcessingRate: `${platformSettings.paymentProcessingFee}%`
+            });
+          }
+        } catch (error) {
+          console.warn('📊 Dashboard: Could not fetch platform settings, using defaults:', error);
+        }
+        
         const platformFee = productRevenue * platformFeeRate;
         const paymentProcessingFee = totalRevenue * paymentProcessingRate;
         const totalEarnings = totalRevenue - platformFee - paymentProcessingFee;

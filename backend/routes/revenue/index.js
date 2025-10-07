@@ -230,6 +230,23 @@ const getArtisanRevenueSummary = async (req, res) => {
     const trends = Array.from(trendData.values())
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    // Get platform fee rate from settings
+    let platformFeeRate = 0.15; // Default fallback
+    try {
+      if (revenueRecords.length > 0 && revenueRecords[0].fees?.platformFeeRate) {
+        // Use fee rate from revenue record
+        platformFeeRate = revenueRecords[0].fees.platformFeeRate;
+      } else {
+        // Fetch from platform settings
+        const platformSettingsService = require('../../services/platformSettingsService');
+        const settingsService = new platformSettingsService(db);
+        platformFeeRate = await settingsService.getPlatformFeeRate();
+      }
+    } catch (error) {
+      console.warn('Could not fetch platform fee rate, using default 0.15:', error);
+      platformFeeRate = 0.15;
+    }
+
     // Connection managed by middleware
 
     // Format response to match frontend component expectations
@@ -292,11 +309,9 @@ const getArtisanRevenueSummary = async (req, res) => {
           }
         },
         
-        // Additional metrics (get from platform settings)
-        commissionRate: revenueRecords.length > 0 ? 
-          (revenueRecords[0].fees?.platformFeeRate || 0.15) : 0.15,
-        platformFeePercentage: revenueRecords.length > 0 ? 
-          ((revenueRecords[0].fees?.platformFeeRate || 0.15) * 100) : 15,
+        // Additional metrics (from platform settings or revenue records)
+        commissionRate: platformFeeRate,
+        platformFeePercentage: platformFeeRate * 100,
         averageOrderValue: summary.orderCount > 0 
           ? summary.totalGross / summary.orderCount 
           : 0,

@@ -809,6 +809,8 @@ const updateInventory = async (req, res) => {
       console.log(`🔄 Product status updated from ${currentProduct.status} to ${newStatus} based on inventory`);
     }
     
+    console.log('💾 Inventory update - Final update data being saved:', updateData);
+    
     const result = await productsCollection.updateOne(
       { 
         _id: new (require('mongodb')).ObjectId(req.params.id),
@@ -816,6 +818,11 @@ const updateInventory = async (req, res) => {
       },
       { $set: updateData }
     );
+    
+    console.log('💾 Inventory update - MongoDB update result:', {
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount
+    });
     
     if (result.matchedCount === 0) {
       return res.status(404).json({
@@ -826,6 +833,17 @@ const updateInventory = async (req, res) => {
     
     const updatedProduct = await productsCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
+    });
+    
+    console.log('✅ Inventory update complete - Returning product:', {
+      _id: updatedProduct._id,
+      name: updatedProduct.name,
+      productType: updatedProduct.productType,
+      stock: updatedProduct.stock,
+      totalCapacity: updatedProduct.totalCapacity,
+      remainingCapacity: updatedProduct.remainingCapacity,
+      availableQuantity: updatedProduct.availableQuantity,
+      status: updatedProduct.status
     });
     
     res.json({

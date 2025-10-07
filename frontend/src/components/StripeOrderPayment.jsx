@@ -136,6 +136,18 @@ const StripeOrderPayment = ({
             console.log('💳 Payment method data to save:', paymentMethodData);
             
             await orderPaymentService.savePaymentMethod(paymentMethodData);
+            
+            // Update the profile cache to include the new payment method
+            try {
+              const { updateProfileCache } = await import('../services/profileService');
+              // Get current profile and add the new payment method
+              const { getProfile } = await import('../services/authservice');
+              const currentProfile = await getProfile(true); // Force refresh
+              updateProfileCache(currentProfile);
+            } catch (cacheError) {
+              console.warn('Could not update profile cache:', cacheError);
+            }
+            
             toast.success('Card saved for future use!');
             console.log('✅ Payment method saved successfully');
           } catch (saveError) {

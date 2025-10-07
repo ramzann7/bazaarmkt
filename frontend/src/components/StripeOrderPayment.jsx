@@ -83,7 +83,18 @@ const StripeOrderPayment = ({
           console.log('Saved card payment result:', paymentResult);
         } catch (savedCardError) {
           console.error('Error using saved Stripe PaymentMethod:', savedCardError);
-          setPaymentError('Unable to use saved card. Please enter your card details manually.');
+          
+          // Check if this is the "payment method not attached to customer" error
+          if (savedCardError.message && savedCardError.message.includes('attach it to a Customer first')) {
+            setPaymentError('This saved card is no longer valid and cannot be used. Please delete it from your Profile > Payment Methods, then use a new card for this purchase.');
+            setUseSavedCard(false); // Switch to new card input automatically
+            
+            // Remove the broken payment method from the list
+            onPaymentError?.(new Error('INVALID_SAVED_CARD: ' + selectedSavedCard.stripePaymentMethodId));
+          } else {
+            setPaymentError('Unable to use saved card. Please enter your card details manually.');
+            setUseSavedCard(false); // Switch to new card input
+          }
           return;
         }
       } else {

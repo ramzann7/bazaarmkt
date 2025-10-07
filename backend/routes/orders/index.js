@@ -315,6 +315,8 @@ const createPaymentIntent = async (req, res) => {
       // Continue without customer - payment will still work but saved cards won't be reusable
     }
 
+    console.log('💳 Creating payment intent with customer:', stripeCustomerId);
+    
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100), // Convert to cents
       currency: 'cad',
@@ -326,6 +328,13 @@ const createPaymentIntent = async (req, res) => {
         itemCount: validatedItems.length,
         deliveryMethod: deliveryMethod || 'pickup'
       }
+    });
+    
+    console.log('✅ Payment intent created:', {
+      id: paymentIntent.id,
+      customer: paymentIntent.customer,
+      amount: paymentIntent.amount,
+      status: paymentIntent.status
     });
 
     res.json({

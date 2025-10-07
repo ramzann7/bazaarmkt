@@ -258,7 +258,7 @@ export default function Orders() {
           return;
         }
         await orderService.declineOrder(orderId, reason);
-        toast.success('Order declined successfully');
+        // Note: Toast notification handled by orderNotificationService
         // Refresh orders list with a small delay to ensure backend has processed the update
         setTimeout(async () => {
           await loadUserAndOrders(true); // Force refresh after status update
@@ -267,7 +267,7 @@ export default function Orders() {
       } else {
         // Update status for other actions
         await orderService.updateOrderStatus(orderId, { status: newStatus });
-        toast.success(`Order updated to ${newStatus}`);
+        // Note: Toast notification handled by orderNotificationService
       }
       
       // Refresh orders list with a small delay to ensure backend has processed the update
@@ -1461,7 +1461,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       });
       
       await orderService.updateOrderStatus(order._id, { status: newStatus });
-      toast.success(`Order status updated to ${getStatusDisplayText(newStatus, order.deliveryMethod)}`);
+      // Note: Toast notification is handled by orderNotificationService.triggerOrderStatusUpdateNotification
+      // No need for duplicate toast here
       
       // Close the modal first
       onClose();
@@ -1512,7 +1513,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     try {
       const result = await orderService.declineOrder(order._id, declineReason.trim());
       console.log('✅ Decline Order Success:', result);
-      toast.success('Order declined successfully');
+      // Note: Toast notification handled by orderNotificationService
       setShowDeclineModal(false);
       setDeclineReason('');
       

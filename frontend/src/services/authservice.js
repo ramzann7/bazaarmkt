@@ -92,23 +92,61 @@ export const authToken = {
 // Optimized getProfile with caching - Performance focused
 export const getProfile = async (forceRefresh = false) => {
   const token = authToken.getToken();
+  
+  if (!token) {
+    console.warn('⚠️ getProfile: No token available');
+    return null;
+  }
+  
   const userId = getUserIdFromToken(token);
   const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
   
   // Clear cache if force refresh is requested
   if (forceRefresh) {
+    console.log('🔄 getProfile: Force refresh requested, clearing cache:', cacheKey);
     cacheService.delete(cacheKey);
   }
   
-  return cacheService.getOrSet(
-    cacheKey,
-    async () => {
-      const response = await api.get('/auth/profile');
-      // The auth/profile endpoint returns { success: true, data: { user: userObject } }
-      return response.data.data?.user || response.data.user;
-    },
-    CACHE_TTL.USER_PROFILE
-  );
+  try {
+    return await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        console.log('📡 getProfile: Fetching profile from API...');
+        const response = await api.get('/auth/profile');
+        console.log('📦 getProfile: API response:', {
+          hasData: !!response.data,
+          hasDataUser: !!response.data?.data?.user,
+          hasUser: !!response.data?.user,
+          success: response.data?.success
+        });
+        
+        // The auth/profile endpoint returns { success: true, data: { user: userObject } }
+        const profile = response.data.data?.user || response.data.user;
+        
+        if (!profile) {
+          console.error('❌ getProfile: API returned no profile data!', response.data);
+          return null;
+        }
+        
+        console.log('✅ getProfile: Profile fetched successfully:', profile._id);
+        return profile;
+      },
+      CACHE_TTL.USER_PROFILE
+    );
+  } catch (error) {
+    console.error('❌ getProfile: Error fetching profile:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // Clear cache on error to allow retry
+    cacheService.delete(cacheKey);
+    
+    // Don't throw - return null to allow graceful handling
+    return null;
+  }
 };
 
 // Preload profile data

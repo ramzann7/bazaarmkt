@@ -1323,7 +1323,22 @@ const Cart = () => {
       }
     } catch (error) {
       console.error('Error creating payment intent:', error);
-      toast.error('Failed to initialize payment. Please try again.');
+      
+      // Handle specific error types
+      if (error.response?.data?.message) {
+        const errorMessage = error.response.data.message;
+        
+        // Check for inventory-related errors
+        if (errorMessage.includes('Insufficient inventory')) {
+          toast.error(`❌ ${errorMessage}. Please adjust your cart quantities.`);
+        } else if (errorMessage.includes('Product not found')) {
+          toast.error('❌ Some items in your cart are no longer available. Please refresh your cart.');
+        } else {
+          toast.error(`❌ ${errorMessage}`);
+        }
+      } else {
+        toast.error('Failed to initialize payment. Please try again.');
+      }
     } finally {
       setIsCreatingPaymentIntent(false);
     }
@@ -1414,6 +1429,29 @@ const Cart = () => {
     toast.error('Payment failed. Please try again.');
   };
 
+  // Validate cart inventory before checkout
+  const validateCartInventory = async () => {
+    try {
+      // Check if we need to validate inventory for any items
+      const itemsToValidate = cart.map(item => ({
+        productId: item._id,
+        quantity: item.quantity,
+        name: item.name
+      }));
+
+      if (itemsToValidate.length === 0) {
+        return { isValid: true };
+      }
+
+      // For now, we'll let the payment intent creation handle inventory validation
+      // In the future, we could add a dedicated inventory validation endpoint
+      return { isValid: true };
+    } catch (error) {
+      console.error('❌ Error validating cart inventory:', error);
+      return { isValid: false, error: 'Failed to validate cart inventory' };
+    }
+  };
+
   // Handle checkout - go directly to Stripe payment
   const handleCheckout = async () => {
     try {
@@ -1437,8 +1475,15 @@ const Cart = () => {
       }
 
       if (isAddressRequired() && !selectedAddress && 
-          (!deliveryForm.street && !deliveryForm.deliveryAddress?.street)) {
+      (!deliveryForm.street && !deliveryForm.deliveryAddress?.street)) {
         toast.error('Please provide delivery address');
+        return;
+      }
+
+      // Validate cart inventory
+      const inventoryValidation = await validateCartInventory();
+      if (!inventoryValidation.isValid) {
+        toast.error(inventoryValidation.error || 'Cart validation failed');
         return;
       }
       

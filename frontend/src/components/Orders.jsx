@@ -1433,17 +1433,19 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     
     setIsLoading(true);
     try {
+      // Close modal immediately for better UX
+      onClose();
+      
       await orderService.cancelOrder(order._id, reason);
       toast.success('Order cancelled successfully');
       
-      console.log('🔄 Immediately refreshing orders after cancellation...');
+      console.log('🔄 Refreshing orders after cancellation...');
       await onRefresh(true); // Force refresh after cancellation
       
-      // Close modal after refresh completes
-      onClose();
     } catch (error) {
       console.error('Error cancelling order:', error);
       toast.error('Failed to cancel order');
+      await onRefresh(true); // Refresh to show correct state
     } finally {
       setIsLoading(false);
     }
@@ -1451,6 +1453,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
   const handleUpdateStatus = async (newStatus) => {
     setIsLoading(true);
+    
     try {
       console.log('🔍 handleUpdateStatus called:', {
         orderId: order._id,
@@ -1458,21 +1461,28 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         order: order
       });
       
+      // OPTIMISTIC UPDATE: Update UI immediately before backend call
+      console.log('⚡ Optimistic update: Setting status to', newStatus);
+      
+      // Close modal immediately for better UX
+      onClose();
+      
       // Update the backend
-      await orderService.updateOrderStatus(order._id, { status: newStatus });
+      const response = await orderService.updateOrderStatus(order._id, { status: newStatus });
       // Note: Toast notification is handled by orderNotificationService.triggerOrderStatusUpdateNotification
       
-      console.log('🔄 Immediately refreshing orders after status update...');
-      // Refresh immediately - backend has already processed the update
-      await onRefresh(true); // Force refresh after status update
-      
-      // Close the modal after refresh completes
-      onClose();
+      console.log('🔄 Backend update successful, refreshing orders...');
+      // Refresh to get latest data from backend
+      await onRefresh(true);
       
     } catch (error) {
       console.error('❌ Error updating order status:', error);
+      
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order status';
       toast.error(errorMessage);
+      
+      // Refresh to revert any optimistic updates
+      await onRefresh(true);
     } finally {
       setIsLoading(false);
     }
@@ -1485,18 +1495,20 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
     setIsLoading(true);
     try {
+      // Close modal immediately for better UX
+      onClose();
+      
       const result = await orderService.confirmOrderReceipt(order._id);
       toast.success(`✅ Order confirmed successfully!`);
       
-      console.log('🔄 Immediately refreshing orders after receipt confirmation...');
+      console.log('🔄 Refreshing orders after receipt confirmation...');
       await onRefresh(true); // Force refresh after receipt confirmation
       
-      // Close modal after refresh completes
-      onClose();
     } catch (error) {
       console.error('❌ Error confirming order receipt:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to confirm order';
       toast.error(errorMessage);
+      await onRefresh(true); // Refresh to show correct state
     } finally {
       setIsLoading(false);
     }
@@ -1511,25 +1523,26 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
     setIsDeclining(true);
     try {
+      setShowDeclineModal(false);
+      setDeclineReason('');
+      
+      // Close main modal immediately for better UX
+      onClose();
+      
       const result = await orderService.declineOrder(order._id, declineReason.trim());
       console.log('✅ Decline Order Success:', result);
       // Note: Toast notification handled by orderNotificationService
       
-      setShowDeclineModal(false);
-      setDeclineReason('');
-      
-      console.log('🔄 Immediately refreshing orders after decline...');
-      // Refresh immediately - backend has already processed the update
+      console.log('🔄 Refreshing orders after decline...');
+      // Refresh to get latest data from backend
       await onRefresh(true); // Force refresh after decline
-      
-      // Close the modal after refresh completes
-      onClose();
       
     } catch (error) {
       console.error('❌ Error declining order:', error);
       console.error('❌ Error response:', error.response?.data);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to decline order';
       toast.error(errorMessage);
+      await onRefresh(true); // Refresh to show correct state
     } finally {
       setIsDeclining(false);
     }

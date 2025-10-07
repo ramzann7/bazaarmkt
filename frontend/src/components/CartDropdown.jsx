@@ -52,9 +52,7 @@ export default function CartDropdown({ isOpen, onClose }) {
         }
       }
       
-      console.log('🛒 CartDropdown: Loading cart for userId:', userId, 'user object:', user);
       const cartItems = cartService.getCart(userId);
-      console.log('🛒 CartDropdown: Loaded cart items:', cartItems);
       setCart(cartItems || []);
     } catch (error) {
       console.error('Error loading cart:', error);

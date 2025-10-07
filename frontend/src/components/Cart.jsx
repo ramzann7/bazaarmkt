@@ -1296,15 +1296,11 @@ const Cart = () => {
         response = await orderPaymentService.createPaymentIntent(orderData);
       }
 
-      console.log('Payment intent response:', response);
-      
       if (response.success) {
-        console.log('Setting payment intent:', response.data);
         setPaymentIntent(response.data);
         setCheckoutStep('payment');
         toast.success('Payment form ready');
       } else {
-        console.error('Payment intent creation failed:', response);
         throw new Error(response.message || 'Failed to create payment intent');
       }
     } catch (error) {
@@ -1414,20 +1410,24 @@ const Cart = () => {
   const handlePaymentError = (error) => {
     console.error('Payment error:', error);
     
-    // Clear payment intent to prevent reuse
-    setPaymentIntent(null);
-    
     // Show user-friendly error message based on error type
     if (error.code === 'payment_intent_unexpected_state') {
       toast.error('Payment session expired. Please refresh the page and try again.');
-      // Force a page refresh to clear any cached state
+      // Clear payment intent and force refresh for unexpected state errors
+      setPaymentIntent(null);
       setTimeout(() => {
         window.location.reload();
       }, 2000);
+    } else if (error.code === 'incomplete_cvc' || error.type === 'validation_error') {
+      // Don't clear payment intent for validation errors - just show the error
+      toast.error(error.message || 'Please check your card details and try again.');
     } else if (error.message) {
       toast.error(`Payment failed: ${error.message}`);
+      // Clear payment intent for other errors
+      setPaymentIntent(null);
     } else {
       toast.error('Payment failed. Please try again.');
+      setPaymentIntent(null);
     }
   };
 

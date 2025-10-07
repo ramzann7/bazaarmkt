@@ -119,12 +119,16 @@ const StripeOrderPayment = ({
         // Handle specific Stripe errors
         if (error.code === 'payment_intent_unexpected_state') {
           setPaymentError('Payment session expired. Please refresh the page and try again.');
+          // Only call parent error handler for unexpected state errors
+          onPaymentError?.(error);
+        } else if (error.code === 'incomplete_cvc' || error.type === 'validation_error') {
+          // Don't clear payment intent for validation errors
+          setPaymentError(error.message || 'Please check your card details and try again.');
         } else {
           setPaymentError(error.message);
+          // Call parent error handler for other errors
+          onPaymentError?.(error);
         }
-        
-        // Always call the parent error handler to clear payment intent
-        onPaymentError?.(error);
       } else if (paymentIntent.status === 'succeeded') {
         // Save card for future use if requested (for authenticated users only)
         if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {

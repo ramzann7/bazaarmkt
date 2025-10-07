@@ -9,9 +9,7 @@ export const orderPaymentService = {
   // Create payment intent for authenticated user order
   createPaymentIntent: async (orderData) => {
     try {
-      console.log('Creating payment intent with order data:', orderData);
       const response = await orderPaymentApi.post('/orders/payment-intent', orderData);
-      console.log('Payment intent API response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error creating payment intent:', error);

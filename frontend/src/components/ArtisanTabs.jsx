@@ -2001,10 +2001,15 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
     (profile?.addresses && profile.addresses.length > 0);
   const isPaymentComplete = profile?.paymentMethods && profile.paymentMethods.length > 0;
   
-  const completionSteps = [
+  // For patrons, only require personal info and delivery address
+  // Payment methods are optional and can be added during checkout
+  const completionSteps = isArtisan ? [
     { id: 'personal', name: 'Personal Information', completed: isPersonalComplete },
-    { id: 'address', name: isArtisan ? 'Business Operations' : 'Delivery Address', completed: isAddressComplete },
+    { id: 'address', name: 'Business Operations', completed: isAddressComplete },
     { id: 'payment', name: 'Payment Methods', completed: isPaymentComplete }
+  ] : [
+    { id: 'personal', name: 'Personal Information', completed: isPersonalComplete },
+    { id: 'address', name: 'Delivery Address', completed: isAddressComplete }
   ];
   
   return (

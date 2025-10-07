@@ -1329,6 +1329,9 @@ const Cart = () => {
   // Handle payment success
   const handlePaymentSuccess = async (orderData) => {
     console.log('Payment successful, order created:', orderData);
+    
+    // Clear payment intent to prevent reuse
+    setPaymentIntent(null);
       
     // Send order completion notification
     try {
@@ -1406,7 +1409,18 @@ const Cart = () => {
   // Handle payment error
   const handlePaymentError = (error) => {
     console.error('Payment error:', error);
-    toast.error('Payment failed. Please try again.');
+    
+    // Clear payment intent to prevent reuse
+    setPaymentIntent(null);
+    
+    // Show user-friendly error message based on error type
+    if (error.code === 'payment_intent_unexpected_state') {
+      toast.error('Payment session expired. Please try again.');
+    } else if (error.message) {
+      toast.error(`Payment failed: ${error.message}`);
+    } else {
+      toast.error('Payment failed. Please try again.');
+    }
   };
 
   // Validate cart inventory before checkout

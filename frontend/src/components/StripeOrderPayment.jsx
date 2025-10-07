@@ -118,11 +118,12 @@ const StripeOrderPayment = ({
         
         // Handle specific Stripe errors
         if (error.code === 'payment_intent_unexpected_state') {
-          setPaymentError('Payment session expired. Please try again.');
+          setPaymentError('Payment session expired. Please refresh the page and try again.');
         } else {
           setPaymentError(error.message);
         }
         
+        // Always call the parent error handler to clear payment intent
         onPaymentError?.(error);
       } else if (paymentIntent.status === 'succeeded') {
         // Save card for future use if requested (for authenticated users only)

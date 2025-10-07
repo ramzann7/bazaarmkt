@@ -1466,6 +1466,55 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     
+    // Restore inventory if order is declined
+    if (status === 'declined') {
+      const productsCollection = db.collection('products');
+      
+      for (const item of order.items) {
+        try {
+          const product = await productsCollection.findOne({ 
+            _id: new (require('mongodb')).ObjectId(item.productId) 
+          });
+          
+          if (product) {
+            // Prepare inventory restoration based on product type
+            const updateFields = {
+              soldCount: Math.max(0, (product.soldCount || 0) - item.quantity),
+              updatedAt: new Date()
+            };
+            
+            // Restore the appropriate inventory field based on product type
+            if (product.productType === 'ready_to_ship') {
+              updateFields.stock = (product.stock || 0) + item.quantity;
+              updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
+            } else if (product.productType === 'made_to_order') {
+              updateFields.remainingCapacity = (product.remainingCapacity || 0) + item.quantity;
+            } else if (product.productType === 'scheduled_order') {
+              updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
+            } else {
+              // Fallback for unknown types
+              updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
+            }
+            
+            await productsCollection.updateOne(
+              { _id: new (require('mongodb')).ObjectId(item.productId) },
+              { $set: updateFields }
+            );
+            
+            console.log(`✅ Restored inventory for declined order - product ${product.name} (${product.productType}):`, {
+              quantity: item.quantity,
+              updatedFields: updateFields
+            });
+          } else {
+            console.warn(`⚠️ Product not found for inventory restoration: ${item.productId}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error restoring inventory for product ${item.productId}:`, error);
+          // Continue with other products even if one fails
+        }
+      }
+    }
+    
     let updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
@@ -2532,17 +2581,49 @@ const cancelOrder = async (req, res) => {
       }
     );
     
-    // Restore product quantities
+    // Restore product quantities based on product type
     for (const item of order.items) {
-      await productsCollection.updateOne(
-        { _id: item.productId },
-        { 
-          $inc: { 
-            availableQuantity: item.quantity,
-            soldCount: -item.quantity
+      try {
+        const product = await productsCollection.findOne({ 
+          _id: new (require('mongodb')).ObjectId(item.productId) 
+        });
+        
+        if (product) {
+          // Prepare inventory restoration based on product type
+          const updateFields = {
+            soldCount: Math.max(0, (product.soldCount || 0) - item.quantity),
+            updatedAt: new Date()
+          };
+          
+          // Restore the appropriate inventory field based on product type
+          if (product.productType === 'ready_to_ship') {
+            updateFields.stock = (product.stock || 0) + item.quantity;
+            updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
+          } else if (product.productType === 'made_to_order') {
+            updateFields.remainingCapacity = (product.remainingCapacity || 0) + item.quantity;
+          } else if (product.productType === 'scheduled_order') {
+            updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
+          } else {
+            // Fallback for unknown types
+            updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
           }
+          
+          await productsCollection.updateOne(
+            { _id: new (require('mongodb')).ObjectId(item.productId) },
+            { $set: updateFields }
+          );
+          
+          console.log(`✅ Restored inventory for product ${product.name} (${product.productType}):`, {
+            quantity: item.quantity,
+            updatedFields: updateFields
+          });
+        } else {
+          console.warn(`⚠️ Product not found for inventory restoration: ${item.productId}`);
         }
-      );
+      } catch (error) {
+        console.error(`❌ Error restoring inventory for product ${item.productId}:`, error);
+        // Continue with other products even if one fails
+      }
     }
     
     const updatedOrder = await ordersCollection.findOne({ 

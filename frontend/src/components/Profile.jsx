@@ -1518,11 +1518,13 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         if (!paymentMethodToRemove) {
           throw new Error('Payment method not found at index ' + index);
         }
-        removalId = paymentMethodToRemove.id || paymentMethodToRemove._id || index.toString();
+        removalId = paymentMethodToRemove.stripePaymentMethodId || paymentMethodToRemove.id || paymentMethodToRemove._id || index.toString();
       } else {
-        // Try to find by ID
+        // Try to find by stripePaymentMethodId, id, or _id
         paymentMethodToRemove = paymentMethods.find(method => 
-          method.id === idOrIndex || method._id === idOrIndex
+          method.stripePaymentMethodId === idOrIndex || 
+          method.id === idOrIndex || 
+          method._id === idOrIndex
         );
         if (!paymentMethodToRemove) {
           throw new Error('Payment method not found with ID ' + idOrIndex);
@@ -1539,7 +1541,9 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
       
       // Update local state - remove the payment method by ID
       const updatedMethods = paymentMethods.filter(method => 
-        method.id !== removalId && method._id !== removalId
+        method.stripePaymentMethodId !== removalId && 
+        method.id !== removalId && 
+        method._id !== removalId
       );
       setPaymentMethods(updatedMethods);
       
@@ -1944,7 +1948,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
             </div>
             <button
               type="button"
-              onClick={() => removePaymentMethod(method.id || method._id || index)}
+              onClick={() => removePaymentMethod(method.stripePaymentMethodId || method.id || method._id || index)}
               className="text-red-600 hover:text-red-700"
             >
               <TrashIcon className="w-4 h-4" />

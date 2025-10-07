@@ -1566,9 +1566,11 @@ const deletePaymentMethod = async (req, res) => {
     // Try to find payment method by ID first, then by index for backward compatibility
     let paymentMethodToRemove;
     
-    // First try to find by ID
+    // First try to find by stripePaymentMethodId, id, or _id
     paymentMethodToRemove = user.paymentMethods.find(pm => 
-      pm.id === paymentMethodId || pm._id === paymentMethodId
+      pm.stripePaymentMethodId === paymentMethodId || 
+      pm.id === paymentMethodId || 
+      pm._id === paymentMethodId
     );
     
     // If not found by ID, try by index (for backward compatibility)

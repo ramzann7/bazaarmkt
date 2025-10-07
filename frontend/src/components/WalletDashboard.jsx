@@ -57,7 +57,7 @@ const WalletDashboard = () => {
       const [balanceResponse, statsResponse, transactionsResponse] = await Promise.all([
         walletService.getWalletBalance(),
         walletService.getWalletStats('30'),
-        walletService.getTransactions(1, 10) // Get recent 10 transactions
+        walletService.getTransactions(1, 100) // Get more transactions for accurate summary
       ]);
 
       if (balanceResponse.success) {
@@ -70,11 +70,25 @@ const WalletDashboard = () => {
 
       if (transactionsResponse.success) {
         const transactions = transactionsResponse.data.transactions || [];
+        const summary = transactionsResponse.data.summary || {};
+        
+        console.log('📊 WalletDashboard: Backend summary data:', summary);
+        console.log('📊 WalletDashboard: Transactions count:', transactions.length);
+        
         setRecentTransactions(transactions.slice(0, 5)); // Show only 5 most recent
         
-        // Calculate transaction summary
-        const summary = calculateTransactionSummary(transactions);
-        setTransactionSummary(summary);
+        // Use backend summary data and calculate additional metrics
+        const enhancedSummary = {
+          totalTransactions: summary.transactionCount || 0,
+          totalRevenue: summary.totalCredits || 0,
+          totalSpent: summary.totalDebits || 0,
+          netAmount: summary.netAmount || 0,
+          weeklyTransactions: calculateWeeklyTransactions(transactions),
+          lastTransactionDate: transactions.length > 0 ? transactions[0].createdAt : null
+        };
+        
+        console.log('📊 WalletDashboard: Enhanced summary:', enhancedSummary);
+        setTransactionSummary(enhancedSummary);
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);
@@ -85,27 +99,10 @@ const WalletDashboard = () => {
     }
   };
 
-  const calculateTransactionSummary = (transactions) => {
+  const calculateWeeklyTransactions = (transactions) => {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-
-    const recentTransactions = transactions.filter(t => new Date(t.createdAt) >= thirtyDaysAgo);
-    const weeklyTransactions = transactions.filter(t => new Date(t.createdAt) >= sevenDaysAgo);
-
-    const summary = {
-      totalTransactions: recentTransactions.length,
-      weeklyTransactions: weeklyTransactions.length,
-      totalRevenue: recentTransactions
-        .filter(t => ['revenue', 'order_revenue'].includes(t.type))
-        .reduce((sum, t) => sum + t.amount, 0),
-      totalSpent: recentTransactions
-        .filter(t => ['purchase', 'payout', 'wallet_deduction'].includes(t.type))
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0),
-      lastTransactionDate: transactions.length > 0 ? transactions[0].createdAt : null
-    };
-
-    return summary;
+    return transactions.filter(t => new Date(t.createdAt) >= sevenDaysAgo).length;
   };
 
   const formatCurrency = (amount) => {
@@ -186,7 +183,7 @@ const WalletDashboard = () => {
           </div>
           <div className="text-right">
             <p className="text-sm text-stone-500">
-              {transactionSummary?.totalTransactions || 0} transactions (30 days)
+              {transactionSummary?.totalTransactions || 0} total transactions
             </p>
             <p className="text-xs text-stone-400 mt-1">
               Available for promotions and payouts
@@ -201,7 +198,7 @@ const WalletDashboard = () => {
         <div className="card p-6">
           <h3 className="text-lg font-medium text-stone-800 mb-4 font-display flex items-center">
             <ChartBarIcon className="w-5 h-5 text-amber-600 mr-2" />
-            Transaction Summary (30 days)
+            Transaction Summary (All Time)
           </h3>
           
           {transactionSummary ? (

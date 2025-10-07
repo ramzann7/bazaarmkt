@@ -109,11 +109,6 @@ const StripeOrderPayment = ({
         }
 
         // Process payment with the card element and postal code
-        console.log('Confirming payment with:', {
-          clientSecret: clientSecret ? 'Present' : 'Missing',
-          postalCode: postalCode,
-          cardElement: cardElement ? 'Present' : 'Missing'
-        });
         
         paymentResult = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
@@ -126,7 +121,6 @@ const StripeOrderPayment = ({
           }
         });
         
-        console.log('Payment result:', paymentResult);
       }
 
       const { error, paymentIntent } = paymentResult;
@@ -155,7 +149,6 @@ const StripeOrderPayment = ({
           onPaymentError?.(error);
         }
       } else if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
-        console.log(`Payment ${paymentIntent.status}, proceeding with order creation`);
         // Save card for future use if requested (for authenticated users only)
         if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
           try {
@@ -210,12 +203,8 @@ const StripeOrderPayment = ({
 
         // For requires_capture status, proceed with order creation
         // The backend will handle capturing the payment when creating the order
-        if (paymentIntent.status === 'requires_capture') {
-          console.log('Payment requires_capture, proceeding with order creation - backend will handle capture');
-        }
 
         // Confirm payment and create order
-        console.log('Creating order with payment intent:', paymentIntent.id);
         const result = await orderPaymentService.confirmPaymentAndCreateOrder(
           paymentIntent.id,
           orderData

@@ -20,10 +20,15 @@ export const orderPaymentService = {
   // Create payment intent for guest user order
   createGuestPaymentIntent: async (orderData) => {
     try {
+      console.log('🔍 OrderPaymentService - Sending guest order data:', orderData);
       const response = await orderPaymentApi.post('/orders/guest/payment-intent', orderData);
+      console.log('✅ OrderPaymentService - Guest payment intent created successfully:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Error creating guest payment intent:', error);
+      console.error('❌ OrderPaymentService - Error creating guest payment intent:', error);
+      if (error.response?.data) {
+        console.error('❌ OrderPaymentService - Error response data:', error.response.data);
+      }
       throw error;
     }
   },

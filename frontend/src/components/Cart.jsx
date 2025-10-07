@@ -329,7 +329,6 @@ const Cart = () => {
     try {
       setCartLoading(true);
   
-      console.log('🔍 loadCart called');
       
       // Get current user info
       const token = localStorage.getItem('token');
@@ -341,7 +340,6 @@ const Cart = () => {
         userId = tokenData.userId;
         guestStatus = tokenData.isGuest;
         
-        console.log('🔍 Token found:', { userId, guestStatus });
         
         // Only set currentUserId if it's not already set to avoid race conditions
         if (!currentUserId) {
@@ -351,17 +349,13 @@ const Cart = () => {
           setIsGuest(guestStatus);
         }
       } else {
-        console.log('🔍 No token found, treating as guest');
       }
       
-      console.log('🔍 Final userId for cart loading:', userId);
       
       // Load cart data from localStorage
       const cartData = await cartService.getCart(userId);
-      console.log('🔍 Cart data loaded:', cartData);
       
       if (!cartData || cartData.length === 0) {
-        console.log('🔍 No cart data found, setting empty cart');
         setCart([]);
         setCartByArtisan({});
         return;
@@ -369,7 +363,6 @@ const Cart = () => {
       
       // Load cart by artisan (this fetches fresh artisan data)
       const cartByArtisanData = await cartService.getCartByArtisan(userId);
-      console.log('🔍 Cart by artisan loaded:', cartByArtisanData);
       
       // Set cart state
       setCart(cartData);
@@ -570,7 +563,6 @@ const Cart = () => {
       // No token means guest user
       setCurrentUserId(null);
       setIsGuest(true);
-      console.log('🔍 No token found, setting user as guest');
     }
     
     await loadCart();
@@ -1255,24 +1247,14 @@ const Cart = () => {
       setIsCreatingPaymentIntent(true);
 
       // Prepare order data
-      console.log('🔍 Cart items before mapping:', cart);
       const orderData = {
         items: cart.map(item => {
-          console.log('🔍 Mapping cart item:', {
-            _id: item._id,
-            name: item.name,
-            artisan: item.artisan,
-            // Check if _id is actually the product ID or artisan ID
-            isArtisanId: item.artisan && (item._id === item.artisan._id || item._id === item.artisan)
-          });
-          
           // If _id is the artisan ID, we need to find the actual product ID
           // For now, let's use the _id but this needs to be fixed in the cart service
           let productId = item._id;
           
           // If the _id matches the artisan ID, we have a problem
           if (item.artisan && (item._id === item.artisan._id || item._id === item.artisan)) {
-            console.error('❌ Cart item _id is artisan ID, not product ID:', item);
             // We need to find the actual product ID - this should be fixed in cart service
             productId = item.productId || item._id; // fallback for now
           }
@@ -1364,7 +1346,6 @@ const Cart = () => {
       
       if (userInfo.email) {
         await notificationService.sendOrderCompletionNotification(orderData, userInfo);
-        console.log('✅ Order completion notification sent');
       } else {
         console.log('⚠️ Skipping notification - no email available');
       }
@@ -1378,7 +1359,6 @@ const Cart = () => {
       const { orderNotificationService } = await import('../services/orderNotificationService');
       const userRole = isGuest ? 'guest' : (userProfile?.role || 'patron');
       orderNotificationService.triggerOrderCreatedNotification(orderData, userRole);
-      console.log('✅ Order creation toast notification triggered');
     } catch (toastError) {
       console.error('❌ Error triggering toast notification:', toastError);
       // Don't fail the order flow if toast notification fails
@@ -1465,10 +1445,6 @@ const Cart = () => {
       // Validate pickup time selection for pickup orders
       for (const [artisanId, deliveryMethod] of Object.entries(selectedDeliveryMethods)) {
         if (deliveryMethod === 'pickup' && !selectedPickupTimes[artisanId]) {
-          console.log('❌ Pickup time validation failed for artisan:', artisanId);
-          console.log('   Delivery method:', deliveryMethod);
-          console.log('   Selected pickup time:', selectedPickupTimes[artisanId]);
-          console.log('   Available pickup windows:', pickupTimeWindows[artisanId]);
           toast.error('Please select a pickup time for all pickup orders');
           return;
         }

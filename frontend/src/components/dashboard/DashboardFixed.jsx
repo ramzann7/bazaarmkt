@@ -208,13 +208,20 @@ export default function DashboardFixed() {
               )
               .filter(id => id); // Remove null/undefined
             
-            const uniquePatrons = new Set(buyerIds);
+            // Convert IDs to strings for proper Set comparison
+            const buyerIdStrings = buyerIds.map(id => 
+              typeof id === 'object' ? (id._id || id.toString()) : String(id)
+            );
+            
+            const uniquePatrons = new Set(buyerIdStrings);
             
             console.log('📊 Dashboard: Patron count details:', {
               totalOrders: ordersArray.length,
               paidOrders: paidOrders.length,
               buyerIds: buyerIds,
-              uniquePatrons: uniquePatrons.size
+              buyerIdStrings: buyerIdStrings,
+              uniquePatrons: uniquePatrons.size,
+              uniquePatronsList: Array.from(uniquePatrons)
             });
             
             return uniquePatrons.size;

@@ -129,10 +129,12 @@ export default function FindArtisans() {
     }
   }, []);
 
-  // Load favorite artisans for authenticated patrons
+  // Load favorite artisans for authenticated patrons (defer to not block initial render)
   useEffect(() => {
     if (isAuthenticated && user && user.role === 'patron') {
-      loadFavoriteArtisans();
+      setTimeout(() => {
+        loadFavoriteArtisans();
+      }, 500); // Load favorites after page is rendered
     }
   }, [isAuthenticated, user]);
 
@@ -152,24 +154,30 @@ export default function FindArtisans() {
       );
       setArtisans(data);
       setFilteredArtisans(data);
+      setIsLoading(false); // Set loading false immediately after artisans loaded
       
-      // Load promotional data for all artisans in one bulk call
+      // Load promotional data in background (non-blocking)
       if (data.length > 0) {
-        try {
-          const artisanIds = data.map(artisan => artisan._id);
-          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
-          setArtisanPromotions(promotionalData);
-        } catch (error) {
-          console.error('Error loading bulk promotional features:', error);
-          setArtisanPromotions({});
-        }
+        setTimeout(() => {
+          loadPromotionalDataInBackground(data);
+        }, 100); // Defer to next tick
       }
     } catch (error) {
       console.error('Error loading artisans:', error);
       setError('Failed to load artisans');
       toast.error('Failed to load artisans');
-    } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const loadPromotionalDataInBackground = async (artisansData) => {
+    try {
+      const artisanIds = artisansData.map(artisan => artisan._id);
+      const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
+      setArtisanPromotions(promotionalData);
+    } catch (error) {
+      console.error('Error loading bulk promotional features:', error);
+      setArtisanPromotions({});
     }
   };
 
@@ -315,17 +323,13 @@ export default function FindArtisans() {
       console.log('Response received:', response);
       setArtisans(response || []);
       setFilteredArtisans(response || []);
+      setIsLoading(false); // Set loading false immediately
       
-      // Load promotional data for artisans by type
+      // Load promotional data in background (non-blocking)
       if (response && response.length > 0) {
-        try {
-          const artisanIds = response.map(artisan => artisan._id);
-          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
-          setArtisanPromotions(promotionalData);
-        } catch (error) {
-          console.error('Error loading bulk promotional features for type:', error);
-          setArtisanPromotions({});
-        }
+        setTimeout(() => {
+          loadPromotionalDataInBackground(response);
+        }, 100); // Defer to next tick
       }
     } catch (error) {
       console.error('Error loading artisans by type:', error);
@@ -333,7 +337,6 @@ export default function FindArtisans() {
       toast.error('Failed to load artisans');
       setArtisans([]);
       setFilteredArtisans([]);
-    } finally {
       setIsLoading(false);
     }
   };

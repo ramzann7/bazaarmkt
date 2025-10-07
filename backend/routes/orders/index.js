@@ -426,12 +426,28 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
     }
 
     // Verify payment with Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    let paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
+    // Handle requires_capture status by capturing the payment
+    if (paymentIntent.status === 'requires_capture') {
+      try {
+        console.log(`🔄 Capturing payment intent: ${paymentIntentId}`);
+        paymentIntent = await stripe.paymentIntents.capture(paymentIntentId);
+        console.log(`✅ Payment captured successfully: ${paymentIntentId}`);
+      } catch (captureError) {
+        console.error(`❌ Failed to capture payment ${paymentIntentId}:`, captureError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to capture payment: ' + captureError.message
+        });
+      }
+    }
+
+    // Check if payment is now successful
     if (paymentIntent.status !== 'succeeded') {
       return res.status(400).json({
         success: false,
-        message: 'Payment not successful'
+        message: `Payment not successful. Status: ${paymentIntent.status}`
       });
     }
 

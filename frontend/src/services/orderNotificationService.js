@@ -127,8 +127,19 @@ class OrderNotificationService {
       const { getProfile } = await import('./authservice');
       const profile = await getProfile();
       
+      // Check if profile exists and has role information
+      if (!profile) {
+        console.log('🔍 No profile found, skipping order check');
+        return;
+      }
+      
       // Check both role and userType for compatibility
       const userRole = profile.role || profile.userType;
+      
+      if (!userRole) {
+        console.log('🔍 No user role found in profile, skipping order check');
+        return;
+      }
       
       if (['artisan', 'producer', 'food_maker'].includes(userRole)) {
         // Handle artisan notifications for new orders

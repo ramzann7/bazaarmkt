@@ -76,17 +76,31 @@ export default function Navbar() {
 
   // Update cart count when user changes - optimized to prevent excessive calls
   useOptimizedEffect(() => {
-    if (user) {
+    // Get current user ID (same logic as cart service)
+    let currentUserId = user?._id;
+    if (!currentUserId) {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentUserId = payload.userId;
+        }
+      } catch (tokenError) {
+        console.warn('Could not get userId from token:', tokenError);
+      }
+    }
+    
+    if (currentUserId) {
       setIsGuest(cartService.isGuestUser());
       
       // Cache cart count for authenticated users
-      const cartCountKey = `cart_count_${user._id}`;
+      const cartCountKey = `cart_count_${currentUserId}`;
       let cachedCartCount = cacheService.get(cartCountKey);
       if (cachedCartCount === null) {
-        cachedCartCount = cartService.getCartCount(user._id);
+        cachedCartCount = cartService.getCartCount(currentUserId);
         cacheService.set(cartCountKey, cachedCartCount, CACHE_TTL.CART_COUNT);
       }
-      console.log('🛒 Navbar: Setting cart count for user:', { userId: user._id, count: cachedCartCount, userObject: user });
+      console.log('🛒 Navbar: Setting cart count for user:', { userId: currentUserId, count: cachedCartCount, userObject: user });
       setCartCount(cachedCartCount);
     } else {
       // For guest users, always get fresh cart count
@@ -123,16 +137,34 @@ export default function Navbar() {
       const { userId, count, cart } = event.detail;
       console.log('🛒 Navbar received cart update:', { userId, count, currentUser: user?._id, cartLength: cart?.length });
       
+      // Get current user ID (same logic as cart service)
+      let currentUserId = user?._id;
+      if (!currentUserId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            currentUserId = payload.userId;
+          }
+        } catch (tokenError) {
+          console.warn('Could not get userId from token:', tokenError);
+        }
+      }
+      
+      console.log('🛒 Navbar comparing userIds:', { eventUserId: userId, currentUserId, userObject: user });
+      
       // Update cart count if it's for the current user or guest
-      if ((user && userId === user._id) || (!user && userId === null) || (isGuest && userId === null)) {
+      if (userId === currentUserId || (!currentUserId && userId === null) || (isGuest && userId === null)) {
         console.log('🛒 Updating cart count to:', count);
         setCartCount(count);
         
         // Clear cache for authenticated users
-        if (user?._id && !isGuest) {
-          const cartCountKey = `cart_count_${user._id}`;
+        if (currentUserId && !isGuest) {
+          const cartCountKey = `cart_count_${currentUserId}`;
           cacheService.delete(cartCountKey);
         }
+      } else {
+        console.log('🛒 Cart update ignored - userId mismatch');
       }
     };
 
@@ -147,8 +179,22 @@ export default function Navbar() {
   // Fallback: Periodically check cart count to ensure it's up to date (reduced frequency)
   useEffect(() => {
     const checkCartCount = () => {
-      if (user?._id) {
-        const currentCount = cartService.getCartCount(user._id);
+      // Get current user ID (same logic as cart service)
+      let currentUserId = user?._id;
+      if (!currentUserId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            currentUserId = payload.userId;
+          }
+        } catch (tokenError) {
+          console.warn('Could not get userId from token:', tokenError);
+        }
+      }
+      
+      if (currentUserId) {
+        const currentCount = cartService.getCartCount(currentUserId);
         if (currentCount !== cartCount) {
           console.log('🛒 Cart count mismatch detected, updating:', { current: cartCount, actual: currentCount });
           setCartCount(currentCount);

@@ -235,10 +235,51 @@ const createPaymentIntent = async (req, res) => {
     const finalAmount = totalAmount + deliveryFee;
 
     // Create Stripe PaymentIntent with authorization (not immediate capture)
+    // Get or create Stripe customer for the user
+    let stripeCustomerId = null;
+    try {
+      // Check if user already has a Stripe customer ID
+      const usersCollection = db.collection('users');
+      const user = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+      
+      if (user && user.stripeCustomerId) {
+        stripeCustomerId = user.stripeCustomerId;
+        console.log('✅ Using existing Stripe customer:', stripeCustomerId);
+      } else {
+        // Create new Stripe customer
+        const stripeCustomer = await stripe.customers.create({
+          email: user?.email || undefined,
+          name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : undefined,
+          metadata: {
+            userId: decoded.userId.toString()
+          }
+        });
+        
+        stripeCustomerId = stripeCustomer.id;
+        console.log('✅ Created new Stripe customer:', stripeCustomerId);
+        
+        // Save Stripe customer ID to user document
+        await usersCollection.updateOne(
+          { _id: new (require('mongodb')).ObjectId(decoded.userId) },
+          { 
+            $set: { 
+              stripeCustomerId: stripeCustomerId,
+              updatedAt: new Date()
+            }
+          }
+        );
+        console.log('✅ Saved Stripe customer ID to user profile');
+      }
+    } catch (customerError) {
+      console.error('❌ Error managing Stripe customer:', customerError);
+      // Continue without customer - payment will still work but saved cards won't be reusable
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100), // Convert to cents
       currency: 'cad',
       capture_method: 'manual', // Authorize now, capture later
+      customer: stripeCustomerId, // Attach to Stripe customer for saved card support
       metadata: {
         userId: decoded.userId.toString(),
         orderType: 'regular_order',

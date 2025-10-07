@@ -1430,6 +1430,50 @@ const addPaymentMethod = async (req, res) => {
       );
     }
 
+    // Attach PaymentMethod to Stripe Customer for reusability
+    if (paymentMethod.stripePaymentMethodId) {
+      try {
+        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        
+        // Get or create Stripe customer
+        let stripeCustomerId = user.stripeCustomerId;
+        if (!stripeCustomerId) {
+          const stripeCustomer = await stripe.customers.create({
+            email: user.email || undefined,
+            name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+            metadata: {
+              userId: decoded.userId.toString()
+            }
+          });
+          stripeCustomerId = stripeCustomer.id;
+          console.log('✅ Created new Stripe customer for payment method:', stripeCustomerId);
+          
+          // Save Stripe customer ID to user document
+          await usersCollection.updateOne(
+            { _id: new ObjectId(decoded.userId) },
+            { 
+              $set: { 
+                stripeCustomerId: stripeCustomerId,
+                updatedAt: new Date()
+              }
+            }
+          );
+        } else {
+          console.log('✅ Using existing Stripe customer:', stripeCustomerId);
+        }
+
+        // Attach PaymentMethod to Customer
+        await stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
+          customer: stripeCustomerId,
+        });
+        console.log('✅ PaymentMethod attached to Stripe Customer:', paymentMethod.stripePaymentMethodId);
+        
+      } catch (stripeError) {
+        console.error('❌ Error attaching PaymentMethod to Stripe Customer:', stripeError);
+        // Continue without attachment - payment method will still be saved but may not be reusable
+      }
+    }
+
     // Add payment method to user's payment methods array
     console.log('💳 Attempting to update user with payment method...');
     const result = await usersCollection.updateOne(

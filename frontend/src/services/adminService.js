@@ -294,7 +294,7 @@ export const initializeDefaultPricing = async () => {
 // Get platform settings
 export const getPlatformSettings = async () => {
   try {
-    const response = await api.get(`${API_URL}/admin/platform-settings`, {
+    const response = await api.get(`${API_URL}/platform-settings`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -309,7 +309,7 @@ export const getPlatformSettings = async () => {
 // Update platform settings
 export const updatePlatformSettings = async (settingsData) => {
   try {
-    const response = await api.put(`${API_URL}/admin/platform-settings`, settingsData, {
+    const response = await api.put(`${API_URL}/platform-settings`, settingsData, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -324,7 +324,7 @@ export const updatePlatformSettings = async (settingsData) => {
 // Reset platform settings to defaults
 export const resetPlatformSettings = async () => {
   try {
-    const response = await api.post(`${API_URL}/admin/platform-settings/reset-defaults`, {}, {
+    const response = await api.post(`${API_URL}/platform-settings/reset-defaults`, {}, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -339,7 +339,7 @@ export const resetPlatformSettings = async () => {
 // Get platform fee percentage (public)
 export const getPlatformFeePercentage = async () => {
   try {
-    const response = await api.get(`${API_URL}/admin/platform-settings/fee-percentage`);
+    const response = await api.get(`${API_URL}/platform-settings/fee-percentage`);
     return response.data.data.platformFeePercentage;
   } catch (error) {
     console.error('Error fetching platform fee percentage:', error);
@@ -350,7 +350,7 @@ export const getPlatformFeePercentage = async () => {
 // Calculate platform fee for an order
 export const calculatePlatformFee = async (orderAmount) => {
   try {
-    const response = await api.post(`${API_URL}/admin/platform-settings/calculate-fee`, {
+    const response = await api.post(`${API_URL}/platform-settings/calculate-fee`, {
       orderAmount
     });
     return response.data.data;

@@ -10,7 +10,18 @@ const SpotlightArtisans = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSpotlightArtisans();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (!isMounted) return;
+      await loadSpotlightArtisans();
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadSpotlightArtisans = async () => {

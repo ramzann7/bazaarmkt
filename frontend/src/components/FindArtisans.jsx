@@ -101,6 +101,7 @@ export default function FindArtisans() {
   // Load all artisans when component mounts with optimized caching
   useEffect(() => {
     const startTime = performance.now();
+    let isMounted = true; // Prevent state updates if component unmounts
     
     // Load spotlight artisans first (they don't depend on cache)
     loadSpotlightArtisans();
@@ -109,7 +110,7 @@ export default function FindArtisans() {
     const cacheKey = `${CACHE_KEYS.ARTISAN_DETAILS}_all`;
     const cachedArtisans = cacheService.getFast(cacheKey);
     
-    if (cachedArtisans) {
+    if (cachedArtisans && isMounted) {
       console.log('✅ Using cached artisans for instant loading');
       setArtisans(cachedArtisans);
       setFilteredArtisans(cachedArtisans);
@@ -117,16 +118,24 @@ export default function FindArtisans() {
       
       // Load fresh data in background
       loadAllArtisans().finally(() => {
-        const endTime = performance.now();
-        console.log(`Background refresh completed in ${(endTime - startTime).toFixed(2)}ms`);
+        if (isMounted) {
+          const endTime = performance.now();
+          console.log(`Background refresh completed in ${(endTime - startTime).toFixed(2)}ms`);
+        }
       });
-    } else {
+    } else if (isMounted) {
       // No cache, load normally
       loadAllArtisans().finally(() => {
-        const endTime = performance.now();
-        console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
+        if (isMounted) {
+          const endTime = performance.now();
+          console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
+        }
       });
     }
+    
+    return () => {
+      isMounted = false; // Cleanup
+    };
   }, []);
 
   // Load favorite artisans for authenticated patrons (defer to not block initial render)
@@ -225,24 +234,19 @@ export default function FindArtisans() {
       setError(null);
       const response = await artisanService.searchArtisans(searchTerm);
       setFilteredArtisans(response || []);
+      setIsLoading(false); // Set loading false immediately
       
-      // Load promotional data for search results
+      // Load promotional data in background (non-blocking)
       if (response && response.length > 0) {
-        try {
-          const artisanIds = response.map(artisan => artisan._id);
-          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
-          setArtisanPromotions(promotionalData);
-        } catch (error) {
-          console.error('Error loading bulk promotional features for search:', error);
-          setArtisanPromotions({});
-        }
+        setTimeout(() => {
+          loadPromotionalDataInBackground(response);
+        }, 100);
       }
     } catch (error) {
       console.error('Error searching artisans:', error);
       setError('Failed to search artisans');
       toast.error('Failed to search artisans');
       setFilteredArtisans([]);
-    } finally {
       setIsLoading(false);
     }
   };

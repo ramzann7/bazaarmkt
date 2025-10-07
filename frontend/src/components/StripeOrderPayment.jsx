@@ -210,9 +210,9 @@ const StripeOrderPayment = ({
 
         // For requires_capture status, we need to capture the payment first
         if (paymentIntent.status === 'requires_capture') {
-          console.log('Capturing payment intent:', paymentIntent.id);
+          console.log('Capturing payment intent:', paymentIntent.id, 'with client secret:', clientSecret);
           try {
-            const capturedPaymentIntent = await stripe.confirmPaymentIntent(paymentIntent.id);
+            const capturedPaymentIntent = await stripe.confirmPayment(clientSecret);
             console.log('Payment captured:', capturedPaymentIntent);
             
             if (capturedPaymentIntent.error) {

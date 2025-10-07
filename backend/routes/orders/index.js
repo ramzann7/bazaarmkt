@@ -34,6 +34,15 @@ const sendNotificationDirect = async (notificationData, db) => {
                                    patronEmailStatuses.includes(notificationData.status);
         
         // Log email filtering for patrons
+        console.log('📧 Email notification check:', {
+          hasUserEmail: !!notificationData.userEmail,
+          hasType: !!notificationData.type,
+          typeIncludesOrder: notificationData.type?.includes('order'),
+          isPatronEmailAllowed: isPatronEmailAllowed,
+          status: notificationData.status,
+          userEmail: notificationData.userEmail
+        });
+        
         if (notificationData.userEmail && notificationData.userId && !notificationData.userInfo?.isGuest) {
           if (!isPatronEmailAllowed) {
             console.log(`📧 Patron email filtered out for status: ${notificationData.status} (only emails sent for: ${patronEmailStatuses.join(', ')})`);
@@ -43,6 +52,13 @@ const sendNotificationDirect = async (notificationData, db) => {
         }
         
         if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order') && isPatronEmailAllowed) {
+          console.log('📧 Sending email notification for status update:', {
+            to: notificationData.userEmail,
+            status: notificationData.status,
+            type: notificationData.type,
+            orderNumber: notificationData.orderNumber
+          });
+          
           try {
             const emailReq = {
               body: {

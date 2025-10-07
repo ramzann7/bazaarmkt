@@ -1296,11 +1296,15 @@ const Cart = () => {
         response = await orderPaymentService.createPaymentIntent(orderData);
       }
 
+      console.log('Payment intent response:', response);
+      
       if (response.success) {
+        console.log('Setting payment intent:', response.data);
         setPaymentIntent(response.data);
         setCheckoutStep('payment');
         toast.success('Payment form ready');
       } else {
+        console.error('Payment intent creation failed:', response);
         throw new Error(response.message || 'Failed to create payment intent');
       }
     } catch (error) {
@@ -1415,7 +1419,11 @@ const Cart = () => {
     
     // Show user-friendly error message based on error type
     if (error.code === 'payment_intent_unexpected_state') {
-      toast.error('Payment session expired. Please try again.');
+      toast.error('Payment session expired. Please refresh the page and try again.');
+      // Force a page refresh to clear any cached state
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } else if (error.message) {
       toast.error(`Payment failed: ${error.message}`);
     } else {

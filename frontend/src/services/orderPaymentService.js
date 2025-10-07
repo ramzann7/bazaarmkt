@@ -9,7 +9,9 @@ export const orderPaymentService = {
   // Create payment intent for authenticated user order
   createPaymentIntent: async (orderData) => {
     try {
+      console.log('Creating payment intent with order data:', orderData);
       const response = await orderPaymentApi.post('/orders/payment-intent', orderData);
+      console.log('Payment intent API response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error creating payment intent:', error);
@@ -20,15 +22,12 @@ export const orderPaymentService = {
   // Create payment intent for guest user order
   createGuestPaymentIntent: async (orderData) => {
     try {
-      console.log('🔍 OrderPaymentService - Sending guest order data:', orderData);
+      console.log('Creating guest payment intent with order data:', orderData);
       const response = await orderPaymentApi.post('/orders/guest/payment-intent', orderData);
-      console.log('✅ OrderPaymentService - Guest payment intent created successfully:', response.data);
+      console.log('Guest payment intent API response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ OrderPaymentService - Error creating guest payment intent:', error);
-      if (error.response?.data) {
-        console.error('❌ OrderPaymentService - Error response data:', error.response.data);
-      }
+      console.error('Error creating guest payment intent:', error);
       throw error;
     }
   },

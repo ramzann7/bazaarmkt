@@ -318,9 +318,9 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     authToken.removeToken();
     
-    // Clear all user caches to prevent wrong user data persistence
-    import('../services/authservice').then(({ clearAllUserCaches }) => {
-      clearAllUserCaches();
+    // Clear all user caches INCLUDING cart on logout
+    import('../services/authservice').then(({ clearAllCachesIncludingCart }) => {
+      clearAllCachesIncludingCart();
     });
     
     // Clear localStorage backup

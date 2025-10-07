@@ -215,7 +215,7 @@ export default function Profile() {
             navigate('/login');
           } else {
             console.warn('⚠️ Profile refresh failed but existing data available, continuing...');
-            toast.warning('Could not refresh profile data. Using cached data.');
+            toast('Could not refresh profile data. Using cached data.', { icon: '⚠️' });
           }
         })
         .finally(() => {

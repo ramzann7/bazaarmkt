@@ -268,11 +268,16 @@ export default function Profile() {
       if (isPatron) {
         setTabs(patronTabs);
         setIsArtisan(false);
+        // Set default tab to personal for patrons if coming from setup or no tab set
+        const isProfileComplete = profile.firstName && profile.lastName && profile.phone && profile.addresses?.length > 0;
+        if (isProfileComplete && (activeTab === 'setup' || !activeTab)) {
+          setActiveTab('personal');
+        }
       } else if (isArtisanUser) {
         setTabs(artisanTabs);
         setIsArtisan(true);
-        // Only set overview as default tab if no tab is currently active
-        if (!activeTab) {
+        // Set default tab to overview for artisans
+        if (activeTab === 'setup' || !activeTab) {
           setActiveTab('overview');
         }
       } else {
@@ -280,7 +285,17 @@ export default function Profile() {
         setIsArtisan(false);
       }
       
-      setNeedsSetup(userRole === 'setup');
+      // Check if setup is needed based on user role and completion status
+      if (userRole === 'setup') {
+        setNeedsSetup(true);
+      } else {
+        // Check if profile is complete for patrons
+        const isProfileComplete = isPatron 
+          ? (profile.firstName && profile.lastName && profile.phone && profile.addresses?.length > 0)
+          : (profile.firstName && profile.lastName && profile.phone); // For artisans, just check basic info here
+        
+        setNeedsSetup(!isProfileComplete);
+      }
     }
   }, [profile]);
 

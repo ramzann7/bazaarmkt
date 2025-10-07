@@ -1594,8 +1594,9 @@ const deletePaymentMethod = async (req, res) => {
 
     console.log('✅ Payment method to remove:', paymentMethodToRemove);
 
-    // Remove the payment method from the array using $pull
-    const result = await usersCollection.updateOne(
+    // Remove the payment method from the array using $pull with the exact object
+    // We need to match the exact object structure for $pull to work
+    const pullResult = await usersCollection.updateOne(
       { _id: new ObjectId(decoded.userId) },
       { 
         $pull: { paymentMethods: paymentMethodToRemove },
@@ -1603,11 +1604,57 @@ const deletePaymentMethod = async (req, res) => {
       }
     );
 
-    if (result.modifiedCount === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment method not found or already removed'
-      });
+    console.log('🔍 $pull result:', pullResult);
+
+    // If $pull didn't work (common with object matching), try alternative approach
+    if (pullResult.modifiedCount === 0) {
+      console.log('⚠️ $pull failed, trying alternative removal method...');
+      
+      // Get the current user document
+      const currentUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+      if (!currentUser || !currentUser.paymentMethods) {
+        return res.status(400).json({
+          success: false,
+          message: 'User or payment methods not found'
+        });
+      }
+
+      // Find the index of the payment method to remove
+      const paymentMethodIndex = currentUser.paymentMethods.findIndex(pm => 
+        pm.stripePaymentMethodId === paymentMethodId || 
+        pm.id === paymentMethodId || 
+        pm._id === paymentMethodId
+      );
+
+      if (paymentMethodIndex === -1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment method not found'
+        });
+      }
+
+      // Remove the payment method by index using $unset and $pull
+      const newPaymentMethods = [...currentUser.paymentMethods];
+      newPaymentMethods.splice(paymentMethodIndex, 1);
+
+      const result = await usersCollection.updateOne(
+        { _id: new ObjectId(decoded.userId) },
+        { 
+          $set: { 
+            paymentMethods: newPaymentMethods,
+            updatedAt: new Date() 
+          }
+        }
+      );
+
+      console.log('🔍 Alternative removal result:', result);
+
+      if (result.modifiedCount === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to remove payment method'
+        });
+      }
     }
 
     res.json({

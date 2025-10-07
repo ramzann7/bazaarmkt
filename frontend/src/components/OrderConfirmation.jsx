@@ -899,20 +899,6 @@ export default function OrderConfirmation() {
                   </div>
                 )}
 
-                {/* Pickup Hours */}
-                {pickupOrder.artisan?.pickupHours && (
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
-                    <div className="flex items-start gap-3">
-                      <ClockIcon className="w-5 h-5 text-blue-600 mt-1 print:hidden" />
-                      <div>
-                        <h4 className="text-sm font-medium text-blue-800 mb-1">🕒 Pickup Hours</h4>
-                        <p className="text-sm text-blue-700">
-                          {pickupOrder.artisan.pickupHours}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Pickup Instructions */}
                 {pickupOrder.artisan?.pickupInstructions && (

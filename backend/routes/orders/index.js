@@ -245,6 +245,28 @@ const createPaymentIntent = async (req, res) => {
       if (user && user.stripeCustomerId) {
         stripeCustomerId = user.stripeCustomerId;
         console.log('✅ Using existing Stripe customer:', stripeCustomerId);
+        
+        // Migrate existing PaymentMethods to Customer if needed
+        if (user.paymentMethods && Array.isArray(user.paymentMethods)) {
+          for (const paymentMethod of user.paymentMethods) {
+            if (paymentMethod.stripePaymentMethodId) {
+              try {
+                // Check if PaymentMethod is already attached to customer
+                const pm = await stripe.paymentMethods.retrieve(paymentMethod.stripePaymentMethodId);
+                if (!pm.customer) {
+                  console.log('🔄 Migrating PaymentMethod to Customer:', paymentMethod.stripePaymentMethodId);
+                  await stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
+                    customer: stripeCustomerId,
+                  });
+                  console.log('✅ PaymentMethod migrated to Customer:', paymentMethod.stripePaymentMethodId);
+                }
+              } catch (migrationError) {
+                console.warn('⚠️ Could not migrate PaymentMethod:', paymentMethod.stripePaymentMethodId, migrationError.message);
+                // Continue - this PaymentMethod might not be usable but others might be
+              }
+            }
+          }
+        }
       } else {
         // Create new Stripe customer
         const stripeCustomer = await stripe.customers.create({
@@ -269,6 +291,24 @@ const createPaymentIntent = async (req, res) => {
           }
         );
         console.log('✅ Saved Stripe customer ID to user profile');
+        
+        // Migrate existing PaymentMethods to the new Customer
+        if (user && user.paymentMethods && Array.isArray(user.paymentMethods)) {
+          for (const paymentMethod of user.paymentMethods) {
+            if (paymentMethod.stripePaymentMethodId) {
+              try {
+                console.log('🔄 Migrating PaymentMethod to new Customer:', paymentMethod.stripePaymentMethodId);
+                await stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
+                  customer: stripeCustomerId,
+                });
+                console.log('✅ PaymentMethod migrated to Customer:', paymentMethod.stripePaymentMethodId);
+              } catch (migrationError) {
+                console.warn('⚠️ Could not migrate PaymentMethod:', paymentMethod.stripePaymentMethodId, migrationError.message);
+                // Continue - this PaymentMethod might not be usable but others might be
+              }
+            }
+          }
+        }
       }
     } catch (customerError) {
       console.error('❌ Error managing Stripe customer:', customerError);

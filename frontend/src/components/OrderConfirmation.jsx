@@ -438,93 +438,6 @@ export default function OrderConfirmation() {
                     </div>
                   </div>
 
-                  {/* Enhanced Pickup Information for Pickup Orders */}
-                  {order.deliveryMethod === 'pickup' && (
-                    <div className="bg-emerald-50 rounded-lg p-4 mb-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
-                      <div className="flex items-start gap-3 mb-4">
-                        <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium text-emerald-800 mb-2">Pickup Location</h4>
-                          
-                          {/* Pickup Location Description */}
-                          {order.artisan?.pickupLocation && (
-                            <div className="mb-3">
-                              <p className="text-sm font-medium text-emerald-800 mb-1">📍 Location Details</p>
-                              <p className="text-sm text-emerald-700">
-                                {order.artisan.pickupLocation}
-                              </p>
-                            </div>
-                          )}
-                          
-                          {/* Pickup Address */}
-                          {order.artisan?.pickupAddress ? (
-                            <div className="mb-3">
-                              <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Address</p>
-                              <p className="text-sm text-emerald-700">
-                                {order.artisan.pickupAddress.street}<br />
-                                {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="mb-3">
-                              <p className="text-sm font-medium text-emerald-800 mb-1">🏢 Business Location</p>
-                              <p className="text-sm text-emerald-700">
-                                {order.artisan?.businessName || order.artisan?.artisanName || 'Artisan Location'}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Pickup Hours */}
-                      {order.artisan?.pickupHours && (
-                        <div className="bg-emerald-100 rounded-lg p-3 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
-                          <div className="flex items-start gap-2">
-                            <ClockIcon className="w-4 h-4 text-emerald-600 mt-0.5 print:hidden" />
-                            <div>
-                              <p className="text-xs font-medium text-emerald-800 print:text-gray-800 mb-1">Pickup Hours</p>
-                              <p className="text-xs text-emerald-700 print:text-gray-600">
-                                {order.artisan.pickupHours}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Pickup Instructions */}
-                      {order.artisan?.pickupInstructions && (
-                        <div className="bg-emerald-100 rounded-lg p-4 mb-3 print:bg-gray-100 print:rounded-none print:p-2 print:mb-2">
-                          <div className="flex items-start gap-3">
-                            <BellIcon className="w-5 h-5 text-emerald-600 mt-0.5 print:hidden" />
-                            <div className="flex-1">
-                              <p className="text-sm font-semibold text-emerald-800 print:text-gray-800 mb-2">📋 Important Pickup Instructions</p>
-                              <p className="text-sm text-emerald-700 print:text-gray-600 leading-relaxed">
-                                {order.artisan.pickupInstructions}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Additional Pickup Information */}
-                      <div className="bg-emerald-100 rounded-lg p-4 print:bg-gray-100 print:rounded-none print:p-2">
-                        <div className="flex items-start gap-3">
-                          <div className="w-5 h-5 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
-                            <span className="text-white text-xs">ℹ</span>
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-emerald-800 print:text-gray-800 mb-2">ℹ️ Pickup Information</p>
-                            <div className="space-y-2 text-sm text-emerald-700 print:text-gray-600">
-                              <p>• <strong>Contact:</strong> You'll receive a notification when your order is ready for pickup</p>
-                              <p>• <strong>Identification:</strong> Please bring a valid ID and order confirmation</p>
-                              <p>• <strong>Payment:</strong> Order is already paid - no additional payment required</p>
-                              <p>• <strong>Questions:</strong> Contact the artisan directly if you have any pickup questions</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   <div className="flex items-start justify-between mb-4 print:mb-3">
                     <div className="flex-1">
@@ -675,30 +588,6 @@ export default function OrderConfirmation() {
                   </div>
                   )}
                   
-                  {/* Pickup Time Information */}
-                  {order.deliveryMethod === 'pickup' && (() => {
-                    // Try to get pickup time from order data first, then from navigation state
-                    const pickupTimeWindow = order.pickupTimeWindow || 
-                      (orderData.selectedPickupTimes && orderData.selectedPickupTimes[order.artisan?._id]);
-                    
-                    
-                    if (pickupTimeWindow) {
-                      const pickupTime = formatPickupTime(pickupTimeWindow);
-                      return pickupTime ? (
-                        <>
-                          <div className="flex items-center gap-2 text-amber-600">
-                            <CalendarIcon className="w-4 h-4 print:hidden" />
-                            <span className="font-medium print:text-xs">Pickup Date: {pickupTime.date}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-amber-600">
-                            <ClockIcon className="w-4 h-4 print:hidden" />
-                            <span className="font-medium print:text-xs">Pickup Time: {pickupTime.time}</span>
-                          </div>
-                        </>
-                      ) : null;
-                    }
-                    return null;
-                  })()}
                 </div>
               </div>
             )})}
@@ -932,82 +821,135 @@ export default function OrderConfirmation() {
         )}
 
         {/* Pickup Information Card - Always show for pickup orders */}
-        {isPickupOrder && (
-          <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
-            <div className="flex items-center gap-3 mb-6 print:mb-4">
-              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center print:hidden">
-                <MapPinIcon className="w-6 h-6 text-amber-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-stone-800 print:text-lg font-display">Pickup Information</h2>
-            </div>
+        {isPickupOrder && (() => {
+          // Find pickup order and get pickup data
+          const pickupOrder = orders.find(order => order.deliveryMethod === 'pickup');
+          if (!pickupOrder) return null;
 
-            <div className="space-y-4 print:space-y-2">
-              {/* Pickup Location */}
-              {(() => {
-                // Find pickup order and get pickup location from artisan data
-                const pickupOrder = orders.find(order => order.deliveryMethod === 'pickup');
-                if (pickupOrder?.artisan?.pickupAddress) {
-                  const pickupAddress = pickupOrder.artisan.pickupAddress;
-                  return (
-                    <div className="flex items-start gap-3 bg-emerald-50 rounded-lg p-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
-                      <MapPinIcon className="w-5 h-5 text-amber-600 mt-1 print:hidden" />
+          const pickupTimeWindow = pickupOrder.pickupTimeWindow || 
+            (orderData.selectedPickupTimes && orderData.selectedPickupTimes[pickupOrder.artisan?._id]);
+          const pickupTime = pickupTimeWindow ? formatPickupTime(pickupTimeWindow) : null;
+
+          return (
+            <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
+              <div className="flex items-center gap-3 mb-6 print:mb-4">
+                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center print:hidden">
+                  <MapPinIcon className="w-6 h-6 text-amber-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-stone-800 print:text-lg font-display">Pickup Information</h2>
+              </div>
+
+              <div className="space-y-6 print:space-y-4">
+                {/* Pickup Location */}
+                {pickupOrder.artisan?.pickupAddress && (
+                  <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-emerald-800 mb-2">📍 Pickup Location</h4>
+                        
+                        {/* Pickup Location Description */}
+                        {pickupOrder.artisan?.pickupLocation && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-emerald-800 mb-1">Location Details</p>
+                            <p className="text-sm text-emerald-700">
+                              {pickupOrder.artisan.pickupLocation}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Pickup Address */}
+                        <div className="mb-3">
+                          <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Address</p>
+                          <p className="font-medium text-emerald-900 print:text-sm">
+                            {pickupOrder.artisan?.artisanName || pickupOrder.artisan?.businessName || 'Artisan Location'}
+                          </p>
+                          <p className="text-sm text-emerald-700 mt-1">
+                            {pickupOrder.artisan.pickupAddress.street}<br />
+                            {pickupOrder.artisan.pickupAddress.city}, {pickupOrder.artisan.pickupAddress.state} {pickupOrder.artisan.pickupAddress.zipCode}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pickup Time Information */}
+                {pickupTime && (
+                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <CalendarIcon className="w-5 h-5 text-amber-600 mt-1 print:hidden" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-amber-800 mb-2">📅 Scheduled Pickup Time</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-amber-700">
+                            <CalendarIcon className="w-4 h-4 print:hidden" />
+                            <span className="font-medium">Date: {pickupTime.date}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-amber-700">
+                            <ClockIcon className="w-4 h-4 print:hidden" />
+                            <span className="font-medium">Time: {pickupTime.time}</span>
+                          </div>
+                          <p className="text-xs text-amber-600 mt-2">
+                            Please arrive within this time window for pickup
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pickup Hours */}
+                {pickupOrder.artisan?.pickupHours && (
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <ClockIcon className="w-5 h-5 text-blue-600 mt-1 print:hidden" />
                       <div>
-                        <p className="text-sm font-medium text-emerald-800 mb-1 print:text-xs">Pickup Location</p>
-                        <p className="font-medium text-emerald-900 print:text-sm">
-                          {pickupOrder.artisan?.artisanName || pickupOrder.artisan?.businessName || 'Artisan Location'}
-                        </p>
-                        <p className="text-sm text-emerald-700 mt-1 print:text-xs">
-                          {pickupAddress.street}<br />
-                          {pickupAddress.city}, {pickupAddress.state} {pickupAddress.zipCode}
+                        <h4 className="text-sm font-medium text-blue-800 mb-1">🕒 Pickup Hours</h4>
+                        <p className="text-sm text-blue-700">
+                          {pickupOrder.artisan.pickupHours}
                         </p>
                       </div>
                     </div>
-                  );
-                }
-                return null;
-              })()}
+                  </div>
+                )}
 
-              {/* Pickup Time Information */}
-              {(() => {
-                // Find pickup order and get pickup time from order data or navigation state
-                const pickupOrder = orders.find(order => order.deliveryMethod === 'pickup');
-                if (pickupOrder) {
-                  const pickupTimeWindow = pickupOrder.pickupTimeWindow || 
-                    (orderData.selectedPickupTimes && orderData.selectedPickupTimes[pickupOrder.artisan?._id]);
-                  
-                  if (pickupTimeWindow) {
-                    const pickupTime = formatPickupTime(pickupTimeWindow);
-                    return pickupTime ? (
-                <div className="flex items-start gap-3">
-                        <CalendarIcon className="w-5 h-5 text-amber-400 mt-1 print:hidden" />
-                  <div>
-                          <p className="text-sm text-stone-600 print:text-xs">Scheduled Pickup Time</p>
-                          <p className="font-medium text-stone-800 text-emerald-700 print:text-sm">
-                            {pickupTime.full}
-                          </p>
-                          <p className="text-xs text-amber-600 mt-1">
-                            Please arrive within this time window
-                    </p>
+                {/* Pickup Instructions */}
+                {pickupOrder.artisan?.pickupInstructions && (
+                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <BellIcon className="w-5 h-5 text-orange-600 mt-1 print:hidden" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-orange-800 mb-2">📋 Important Pickup Instructions</h4>
+                        <p className="text-sm text-orange-700 leading-relaxed">
+                          {pickupOrder.artisan.pickupInstructions}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* General Pickup Information */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                      <span className="text-white text-xs">ℹ</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-2">ℹ️ Important Information</h4>
+                      <div className="space-y-2 text-sm text-gray-700">
+                        <p>• <strong>Contact:</strong> You'll receive a notification when your order is ready for pickup</p>
+                        <p>• <strong>Identification:</strong> Please bring a valid ID and order confirmation</p>
+                        <p>• <strong>Payment:</strong> Order is already paid - no additional payment required</p>
+                        <p>• <strong>Questions:</strong> Contact the artisan directly if you have any pickup questions</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                    ) : null;
-                  }
-                }
-                return null;
-              })()}
-
-                  <div className="flex items-start gap-3">
-                    <MapPinIcon className="w-5 h-5 text-amber-400 mt-1 print:hidden" />
-                    <div>
-                      <p className="text-sm text-stone-600 print:text-xs">Pickup Instructions</p>
-                      <p className="font-medium text-stone-800 text-emerald-700 print:text-sm">
-                        Visit the artisan location to collect your order. Bring your email confirmation.
-                      </p>
-                    </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* What's Next Timeline Card */}
         <div className="card p-8 mb-8 print:hidden">

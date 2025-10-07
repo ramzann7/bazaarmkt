@@ -1462,11 +1462,22 @@ const addPaymentMethod = async (req, res) => {
           console.log('✅ Using existing Stripe customer:', stripeCustomerId);
         }
 
-        // Attach PaymentMethod to Customer
-        await stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
-          customer: stripeCustomerId,
-        });
-        console.log('✅ PaymentMethod attached to Stripe Customer:', paymentMethod.stripePaymentMethodId);
+        // Check if PaymentMethod is already attached to Customer
+        const existingPM = await stripe.paymentMethods.retrieve(paymentMethod.stripePaymentMethodId);
+        
+        if (existingPM.customer === stripeCustomerId) {
+          console.log('✅ PaymentMethod already attached to Stripe Customer:', paymentMethod.stripePaymentMethodId);
+        } else if (existingPM.customer && existingPM.customer !== stripeCustomerId) {
+          // PaymentMethod is attached to a different customer - this shouldn't happen
+          console.error('❌ PaymentMethod is attached to a different customer:', existingPM.customer);
+          throw new Error('This payment method is already in use by another account');
+        } else {
+          // PaymentMethod is not attached to any customer, attach it now
+          await stripe.paymentMethods.attach(paymentMethod.stripePaymentMethodId, {
+            customer: stripeCustomerId,
+          });
+          console.log('✅ PaymentMethod attached to Stripe Customer:', paymentMethod.stripePaymentMethodId);
+        }
         
       } catch (stripeError) {
         console.error('❌ Error attaching PaymentMethod to Stripe Customer:', stripeError);

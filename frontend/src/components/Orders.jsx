@@ -479,23 +479,36 @@ export default function Orders() {
       }
     }
     
-    // Sort by priority (highest first) for artisans
-    if (isArtisan(userRole)) {
-      return filteredOrders.sort((a, b) => {
+    // Define active vs completed/cancelled statuses
+    const activeStatuses = ['pending', 'confirmed', 'processing', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'picked_up', 'delivered'];
+    const inactiveStatuses = ['completed', 'cancelled', 'declined'];
+    
+    // Sort function that prioritizes active orders, then by date
+    return filteredOrders.sort((a, b) => {
+      const aIsActive = activeStatuses.includes(a.status);
+      const bIsActive = activeStatuses.includes(b.status);
+      
+      // If one is active and the other is not, active comes first
+      if (aIsActive && !bIsActive) return -1;
+      if (!aIsActive && bIsActive) return 1;
+      
+      // Both are active or both are inactive
+      if (isArtisan(userRole)) {
+        // For artisans: within same category (active/inactive), sort by priority
         const priorityA = calculateOrderPriority(a);
         const priorityB = calculateOrderPriority(b);
         
-        // If priorities are equal, sort by creation date (oldest first)
+        // If priorities are equal, sort by creation date (newest first)
         if (priorityA === priorityB) {
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return new Date(b.createdAt) - new Date(a.createdAt);
         }
         
         return priorityB - priorityA;
-      });
-    }
-    
-    // For patrons, sort by creation date (newest first)
-    return filteredOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+      
+      // For patrons: within same category (active/inactive), sort by creation date (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
   };
 
   const getOrderStats = () => {

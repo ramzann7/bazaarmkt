@@ -82,7 +82,10 @@ export const profileService = {
 
   // Delete payment method
   deletePaymentMethod: async (paymentMethodId) => {
-    const response = await api.delete(`${API_URL}/profile/payment-methods/${paymentMethodId}`);
+    // URL encode the payment method ID to handle special characters like underscores
+    const encodedId = encodeURIComponent(paymentMethodId);
+    console.log('🔗 Deleting payment method with ID:', paymentMethodId, 'Encoded:', encodedId);
+    const response = await api.delete(`${API_URL}/profile/payment-methods/${encodedId}`);
     return response.data;
   },
 

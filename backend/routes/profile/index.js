@@ -1529,9 +1529,11 @@ const deletePaymentMethod = async (req, res) => {
     const usersCollection = db.collection('users');
     
     const { paymentMethodId } = req.params;
-    console.log('🔄 Deleting payment method with ID:', paymentMethodId);
+    // Decode the URL-encoded payment method ID
+    const decodedPaymentMethodId = decodeURIComponent(paymentMethodId);
+    console.log('🔄 Deleting payment method with ID:', paymentMethodId, 'Decoded:', decodedPaymentMethodId);
     
-    if (!paymentMethodId) {
+    if (!decodedPaymentMethodId) {
       return res.status(400).json({
         success: false,
         message: 'Payment method ID is required'
@@ -1568,9 +1570,9 @@ const deletePaymentMethod = async (req, res) => {
     
     // First try to find by stripePaymentMethodId, id, or _id
     paymentMethodToRemove = user.paymentMethods.find(pm => 
-      pm.stripePaymentMethodId === paymentMethodId || 
-      pm.id === paymentMethodId || 
-      pm._id === paymentMethodId
+      pm.stripePaymentMethodId === decodedPaymentMethodId || 
+      pm.id === decodedPaymentMethodId || 
+      pm._id === decodedPaymentMethodId
     );
     
     // If not found by ID, try by index (for backward compatibility)
@@ -1581,11 +1583,11 @@ const deletePaymentMethod = async (req, res) => {
         console.log('🔍 Found payment method by index:', index);
       }
     } else {
-      console.log('🔍 Found payment method by ID:', paymentMethodId);
+      console.log('🔍 Found payment method by ID:', decodedPaymentMethodId);
     }
 
     if (!paymentMethodToRemove) {
-      console.log('❌ Payment method not found with ID/index:', paymentMethodId);
+      console.log('❌ Payment method not found with ID/index:', decodedPaymentMethodId);
       return res.status(404).json({
         success: false,
         message: 'Payment method not found'
@@ -1621,9 +1623,9 @@ const deletePaymentMethod = async (req, res) => {
 
       // Find the index of the payment method to remove
       const paymentMethodIndex = currentUser.paymentMethods.findIndex(pm => 
-        pm.stripePaymentMethodId === paymentMethodId || 
-        pm.id === paymentMethodId || 
-        pm._id === paymentMethodId
+        pm.stripePaymentMethodId === decodedPaymentMethodId || 
+        pm.id === decodedPaymentMethodId || 
+        pm._id === decodedPaymentMethodId
       );
 
       if (paymentMethodIndex === -1) {

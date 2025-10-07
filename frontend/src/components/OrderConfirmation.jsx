@@ -662,27 +662,35 @@ export default function OrderConfirmation() {
                 <div className="flex items-start gap-3">
                   <ClockIcon className="w-5 h-5 text-amber-600 mt-0.5 print:hidden" />
                   <div>
-                    <h4 className="font-medium text-amber-800 print:text-gray-800 mb-2">Delivery Timeline</h4>
-                    {orders[0]?.deliveryMethod === 'personalDelivery' && (
-                      <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
-                        <p>• <strong>Personal Delivery:</strong> Delivered directly by the artisan</p>
-                        <p>• <strong>Delivery Window:</strong> 2-4 business days after order confirmation</p>
-                        <p>• <strong>Delivery Hours:</strong> 9 AM - 6 PM, Monday to Friday</p>
-                        <p>• <strong>Contact:</strong> You'll receive a call/text before delivery</p>
-                      </div>
-                    )}
+                    <h4 className="font-medium text-amber-800 print:text-gray-800 mb-2">Delivery Information</h4>
+                    {orders[0]?.deliveryMethod === 'personalDelivery' && (() => {
+                      const artisan = orders[0]?.artisan;
+                      const hasDeliveryInfo = artisan?.deliveryInstructions || artisan?.deliveryTimeSlots?.length > 0;
+                      
+                      return (
+                        <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                          <p>• <strong>Personal Delivery:</strong> Delivered directly by the artisan</p>
+                          {artisan?.deliveryInstructions && (
+                            <p>• <strong>Instructions:</strong> {artisan.deliveryInstructions}</p>
+                          )}
+                          {artisan?.deliveryTimeSlots?.length > 0 && (
+                            <p>• <strong>Available Times:</strong> {artisan.deliveryTimeSlots.join(', ')}</p>
+                          )}
+                          {!hasDeliveryInfo && (
+                            <p>• <strong>Contact:</strong> You'll receive a call/text before delivery</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {orders[0]?.deliveryMethod === 'professionalDelivery' && (
                       <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
                         <p>• <strong>Professional Delivery:</strong> Delivered by certified courier</p>
-                        <p>• <strong>Delivery Window:</strong> 1-3 business days after order confirmation</p>
-                        <p>• <strong>Delivery Hours:</strong> 8 AM - 8 PM, Monday to Saturday</p>
                         <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
                       </div>
                     )}
                     {orders[0]?.deliveryMethod === 'delivery' && (
                       <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
                         <p>• <strong>Standard Delivery:</strong> Delivered via standard shipping</p>
-                        <p>• <strong>Delivery Window:</strong> 3-7 business days after order confirmation</p>
                         <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
                       </div>
                     )}

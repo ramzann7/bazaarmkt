@@ -1255,12 +1255,34 @@ const Cart = () => {
       setIsCreatingPaymentIntent(true);
 
       // Prepare order data
+      console.log('🔍 Cart items before mapping:', cart);
       const orderData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          quantity: item.quantity,
-          productType: item.productType || 'ready_to_ship'
-        })),
+        items: cart.map(item => {
+          console.log('🔍 Mapping cart item:', {
+            _id: item._id,
+            name: item.name,
+            artisan: item.artisan,
+            // Check if _id is actually the product ID or artisan ID
+            isArtisanId: item.artisan && (item._id === item.artisan._id || item._id === item.artisan)
+          });
+          
+          // If _id is the artisan ID, we need to find the actual product ID
+          // For now, let's use the _id but this needs to be fixed in the cart service
+          let productId = item._id;
+          
+          // If the _id matches the artisan ID, we have a problem
+          if (item.artisan && (item._id === item.artisan._id || item._id === item.artisan)) {
+            console.error('❌ Cart item _id is artisan ID, not product ID:', item);
+            // We need to find the actual product ID - this should be fixed in cart service
+            productId = item.productId || item._id; // fallback for now
+          }
+          
+          return {
+            productId: productId,
+            quantity: item.quantity,
+            productType: item.productType || 'ready_to_ship'
+          };
+        }),
         deliveryAddress: selectedAddress || deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
@@ -1612,11 +1634,18 @@ const Cart = () => {
                 onPaymentSuccess={handlePaymentSuccess}
                 onPaymentError={handlePaymentError}
                 orderData={{
-                  items: cart.map(item => ({
-                    productId: item._id,
-                    quantity: item.quantity,
-                    productType: item.productType || 'ready_to_ship'
-                  })),
+                  items: cart.map(item => {
+                    // Use the same logic as above for consistency
+                    let productId = item._id;
+                    if (item.artisan && (item._id === item.artisan._id || item._id === item.artisan)) {
+                      productId = item.productId || item._id; // fallback for now
+                    }
+                    return {
+                      productId: productId,
+                      quantity: item.quantity,
+                      productType: item.productType || 'ready_to_ship'
+                    };
+                  }),
                   deliveryAddress: selectedAddress || deliveryForm,
                   deliveryInstructions: deliveryForm.instructions || '',
                   deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',

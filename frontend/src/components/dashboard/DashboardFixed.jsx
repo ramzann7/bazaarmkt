@@ -96,31 +96,47 @@ export default function DashboardFixed() {
         const ordersArray = Array.isArray(orders) ? orders : [];
         
         // Calculate artisan statistics based on actual orders
-        // Count orders that have been paid for (authorized or captured) for revenue calculations
-        const paidOrders = ordersArray.filter(order => 
-          order.paymentStatus === 'authorized' || order.paymentStatus === 'captured' || 
-          order.status === 'delivered' || order.status === 'completed' || order.status === 'picked_up'
+        // Only count COMPLETED orders (patron confirmed receipt) for revenue
+        // This matches when revenue is actually credited to wallet
+        const completedOrders = ordersArray.filter(order => 
+          order.status === 'completed'
         );
         
-        // Calculate revenue breakdown
-        const productRevenue = paidOrders.reduce((sum, order) => {
-          const productAmount = (order.totalAmount || 0) - (order.deliveryFee || 0);
-          return sum + productAmount;
+        console.log('📊 Dashboard: Total orders:', ordersArray.length);
+        console.log('📊 Dashboard: Completed orders:', completedOrders.length);
+        
+        // Calculate revenue breakdown (gross amounts before fees)
+        const productRevenue = completedOrders.reduce((sum, order) => {
+          // Product revenue = subtotal (excluding delivery fee)
+          const subtotal = (order.subtotal || ((order.totalAmount || 0) - (order.deliveryFee || 0)));
+          return sum + subtotal;
         }, 0);
         
-        const deliveryRevenue = paidOrders.reduce((sum, order) => {
-          // Only count personal delivery fees as revenue for artisan
-          if (order.deliveryMethod === 'personalDelivery' && order.deliveryFee > 0) {
-            return sum + order.deliveryFee;
-          }
-          return sum;
+        const deliveryRevenue = completedOrders.reduce((sum, order) => {
+          // All delivery fees are revenue (artisan keeps 100%)
+          return sum + (order.deliveryFee || 0);
         }, 0);
         
         const totalRevenue = productRevenue + deliveryRevenue;
         
-        // Calculate earnings (product revenue after platform fee + 100% delivery revenue)
-        const platformFeeRate = 0.1; // 10% platform fee on products only
-        const totalEarnings = (productRevenue * (1 - platformFeeRate)) + deliveryRevenue;
+        // Calculate earnings (net after platform and payment processing fees)
+        // Platform fee: 15% of product revenue only
+        // Payment processing fee: 2.9% of total revenue
+        // Delivery fee: artisan keeps 100%
+        const platformFeeRate = 0.15; // 15% platform fee on products only
+        const paymentProcessingRate = 0.029; // 2.9% payment processing fee
+        const platformFee = productRevenue * platformFeeRate;
+        const paymentProcessingFee = totalRevenue * paymentProcessingRate;
+        const totalEarnings = totalRevenue - platformFee - paymentProcessingFee;
+        
+        console.log('📊 Dashboard: Revenue breakdown:', {
+          productRevenue,
+          deliveryRevenue,
+          totalRevenue,
+          platformFee,
+          paymentProcessingFee,
+          totalEarnings
+        });
 
         const stats = {
           totalOrders: ordersArray.length,
@@ -136,18 +152,20 @@ export default function DashboardFixed() {
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
           }).length,
-          revenueThisMonth: paidOrders.filter(order => {
+          revenueThisMonth: completedOrders.filter(order => {
             const orderDate = new Date(order.createdAt);
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
           }).reduce((sum, order) => sum + (order.totalAmount || 0), 0),
           pendingOrders: ordersArray.filter(order => 
-            order.status === 'pending' || order.status === 'confirmed'
+            ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'out_for_delivery'].includes(order.status)
           ).length,
-          completedOrders: ordersArray.filter(order => 
-            order.status === 'delivered' || order.status === 'completed'
-          ).length,
-          totalPatrons: new Set(ordersArray.map(order => order.buyer?._id || order.buyerId)).size,
+          completedOrders: completedOrders.length,
+          totalPatrons: new Set(
+            completedOrders
+              .map(order => order.buyer?._id || order.buyerId)
+              .filter(id => id) // Remove null/undefined
+          ).size,
           viewsThisMonth: 0
         };
         

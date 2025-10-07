@@ -35,6 +35,7 @@ const StripeOrderPayment = ({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [useSavedCard, setUseSavedCard] = useState(savedPaymentMethods.length > 0);
   const [selectedSavedCard, setSelectedSavedCard] = useState(savedPaymentMethods.find(method => method.isDefault) || savedPaymentMethods[0] || null);
   const [saveCardForFuture, setSaveCardForFuture] = useState(false);
@@ -48,7 +49,8 @@ const StripeOrderPayment = ({
     }
 
     // Prevent double submission
-    if (isProcessing) {
+    if (isProcessing || hasSubmitted) {
+      console.log('Payment submission blocked - already processing or submitted');
       return;
     }
 
@@ -59,6 +61,7 @@ const StripeOrderPayment = ({
     }
 
     setIsProcessing(true);
+    setHasSubmitted(true);
     setPaymentError(null);
 
     try {
@@ -137,8 +140,9 @@ const StripeOrderPayment = ({
           // Only call parent error handler for unexpected state errors
           onPaymentError?.(error);
         } else if (error.code === 'incomplete_cvc' || error.type === 'validation_error') {
-          // Don't clear payment intent for validation errors
+          // Don't clear payment intent for validation errors, allow retry
           setPaymentError(error.message || 'Please check your card details and try again.');
+          setHasSubmitted(false); // Allow retry for validation errors
         } else {
           setPaymentError(error.message);
           // Call parent error handler for other errors
@@ -215,6 +219,10 @@ const StripeOrderPayment = ({
       onPaymentError?.(error);
     } finally {
       setIsProcessing(false);
+      // Only reset hasSubmitted for non-critical errors
+      if (paymentError && (paymentError.includes('validation') || paymentError.includes('incomplete'))) {
+        setHasSubmitted(false);
+      }
     }
   };
 
@@ -418,9 +426,9 @@ const StripeOrderPayment = ({
 
         <button
           type="submit"
-          disabled={!stripe || isProcessing}
+          disabled={!stripe || isProcessing || hasSubmitted}
           className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
-            !stripe || isProcessing
+            !stripe || isProcessing || hasSubmitted
               ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
               : 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg hover:shadow-xl'
           }`}
@@ -429,6 +437,11 @@ const StripeOrderPayment = ({
             <>
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               Processing Payment...
+            </>
+          ) : hasSubmitted ? (
+            <>
+              <CreditCardIcon className="w-5 h-5" />
+              Payment Submitted
             </>
           ) : (
             <>

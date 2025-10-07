@@ -1529,8 +1529,14 @@ const deletePaymentMethod = async (req, res) => {
     const usersCollection = db.collection('users');
     
     const { paymentMethodId } = req.params;
-    // Decode the URL-encoded payment method ID
-    const decodedPaymentMethodId = decodeURIComponent(paymentMethodId);
+    // Decode the URL-encoded payment method ID (safe decode that won't throw)
+    let decodedPaymentMethodId;
+    try {
+      decodedPaymentMethodId = decodeURIComponent(paymentMethodId);
+    } catch (decodeError) {
+      console.warn('⚠️ URL decode failed, using original ID:', decodeError.message);
+      decodedPaymentMethodId = paymentMethodId;
+    }
     console.log('🔄 Deleting payment method with ID:', paymentMethodId, 'Decoded:', decodedPaymentMethodId);
     
     if (!decodedPaymentMethodId) {

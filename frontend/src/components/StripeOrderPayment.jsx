@@ -47,6 +47,17 @@ const StripeOrderPayment = ({
       return;
     }
 
+    // Prevent double submission
+    if (isProcessing) {
+      return;
+    }
+
+    // Check if we have a valid client secret
+    if (!clientSecret) {
+      setPaymentError('Payment session not available. Please refresh and try again.');
+      return;
+    }
+
     setIsProcessing(true);
     setPaymentError(null);
 
@@ -103,7 +114,15 @@ const StripeOrderPayment = ({
       const { error, paymentIntent } = paymentResult;
 
       if (error) {
-        setPaymentError(error.message);
+        console.error('Stripe payment error:', error);
+        
+        // Handle specific Stripe errors
+        if (error.code === 'payment_intent_unexpected_state') {
+          setPaymentError('Payment session expired. Please try again.');
+        } else {
+          setPaymentError(error.message);
+        }
+        
         onPaymentError?.(error);
       } else if (paymentIntent.status === 'succeeded') {
         // Save card for future use if requested (for authenticated users only)

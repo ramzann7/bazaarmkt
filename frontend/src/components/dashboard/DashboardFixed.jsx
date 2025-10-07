@@ -176,11 +176,23 @@ export default function DashboardFixed() {
             ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'out_for_delivery'].includes(order.status)
           ).length,
           completedOrders: completedOrders.length,
-          totalPatrons: new Set(
-            completedOrders
-              .map(order => order.buyer?._id || order.buyerId)
-              .filter(id => id) // Remove null/undefined
-          ).size,
+          totalPatrons: (() => {
+            const paidOrders = ordersArray.filter(order => 
+              // Count patrons from all paid orders (not cancelled/declined)
+              !['cancelled', 'declined'].includes(order.status)
+            );
+            const buyerIds = paidOrders.map(order => order.buyer?._id || order.buyerId).filter(id => id);
+            const uniquePatrons = new Set(buyerIds);
+            
+            console.log('📊 Dashboard: Patron count details:', {
+              totalOrders: ordersArray.length,
+              paidOrders: paidOrders.length,
+              buyerIds: buyerIds,
+              uniquePatrons: uniquePatrons.size
+            });
+            
+            return uniquePatrons.size;
+          })(),
           viewsThisMonth: 0
         };
         

@@ -199,7 +199,15 @@ const StripeOrderPayment = ({
           } catch (saveError) {
             console.error('❌ Error saving card:', saveError);
             console.error('❌ Save error details:', saveError.response?.data);
-            toast.error('Failed to save card for future use, but payment was successful');
+            
+            // Handle specific error for payment methods that can't be reused
+            if (saveError.response?.data?.error === 'PAYMENT_METHOD_NOT_REUSABLE') {
+              toast.error('This card cannot be saved for future use. Your payment was successful, but you\'ll need to enter card details for future orders.', {
+                duration: 6000
+              });
+            } else {
+              toast.error('Failed to save card for future use, but payment was successful');
+            }
             // Don't fail the payment if saving fails
           }
         }

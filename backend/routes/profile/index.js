@@ -1470,11 +1470,19 @@ const addPaymentMethod = async (req, res) => {
         
       } catch (stripeError) {
         console.error('❌ Error attaching PaymentMethod to Stripe Customer:', stripeError);
-        // Continue without attachment - payment method will still be saved but may not be reusable
+        
+        // Don't save payment method if Stripe attachment fails
+        // This prevents saving unusable payment methods to the database
+        return res.status(400).json({
+          success: false,
+          message: 'This payment method cannot be saved for future use. It may have been used in a previous payment without being attached to your account. Please use a new card.',
+          error: 'PAYMENT_METHOD_NOT_REUSABLE',
+          details: stripeError.message
+        });
       }
     }
 
-    // Add payment method to user's payment methods array
+    // Add payment method to user's payment methods array (only if Stripe attachment succeeded)
     console.log('💳 Attempting to update user with payment method...');
     const result = await usersCollection.updateOne(
       { _id: new ObjectId(decoded.userId) },
@@ -1513,17 +1521,30 @@ const addPaymentMethod = async (req, res) => {
 // Delete payment method
 const deletePaymentMethod = async (req, res) => {
   try {
+    console.log('🔍 Delete payment method endpoint called');
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(401).json({
         success: false,
         message: 'No token provided'
       });
     }
 
+    console.log('🔑 Token found, verifying...');
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('✅ JWT verified for user:', decoded.userId);
+    } catch (jwtError) {
+      console.error('❌ JWT verification failed:', jwtError.message);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
     
     const db = req.db;
     const usersCollection = db.collection('users');

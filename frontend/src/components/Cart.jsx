@@ -1408,7 +1408,12 @@ const Cart = () => {
 
   // Handle payment error
   const handlePaymentError = (error) => {
-    console.error('Payment error:', error);
+    console.error('Payment error details:', {
+      code: error.code,
+      type: error.type,
+      message: error.message,
+      fullError: error
+    });
     
     // Show user-friendly error message based on error type
     if (error.code === 'payment_intent_unexpected_state') {
@@ -1421,13 +1426,16 @@ const Cart = () => {
     } else if (error.code === 'incomplete_cvc' || error.type === 'validation_error') {
       // Don't clear payment intent for validation errors - just show the error
       toast.error(error.message || 'Please check your card details and try again.');
-    } else if (error.message) {
-      toast.error(`Payment failed: ${error.message}`);
-      // Clear payment intent for other errors
-      setPaymentIntent(null);
     } else {
-      toast.error('Payment failed. Please try again.');
-      setPaymentIntent(null);
+      // For other errors, show the error but don't clear payment intent immediately
+      // Let the user try again with the same payment intent
+      toast.error(error.message || 'Payment failed. Please try again.');
+      
+      // Only clear payment intent for specific critical errors
+      if (error.code === 'card_declined' || error.code === 'expired_card') {
+        // These are terminal errors, clear the payment intent
+        setPaymentIntent(null);
+      }
     }
   };
 

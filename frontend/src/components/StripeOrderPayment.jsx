@@ -67,10 +67,17 @@ const StripeOrderPayment = ({
       if (useSavedCard && selectedSavedCard && !isGuest && selectedSavedCard.stripePaymentMethodId) {
         // Use saved Stripe PaymentMethod ID
         try {
+          console.log('Confirming payment with saved card:', {
+            clientSecret: clientSecret ? 'Present' : 'Missing',
+            paymentMethodId: selectedSavedCard.stripePaymentMethodId
+          });
+          
           // Confirm payment with the saved Stripe PaymentMethod ID
           paymentResult = await stripe.confirmCardPayment(clientSecret, {
             payment_method: selectedSavedCard.stripePaymentMethodId,
           });
+          
+          console.log('Saved card payment result:', paymentResult);
         } catch (savedCardError) {
           console.error('Error using saved Stripe PaymentMethod:', savedCardError);
           setPaymentError('Unable to use saved card. Please enter your card details manually.');
@@ -99,6 +106,12 @@ const StripeOrderPayment = ({
         }
 
         // Process payment with the card element and postal code
+        console.log('Confirming payment with:', {
+          clientSecret: clientSecret ? 'Present' : 'Missing',
+          postalCode: postalCode,
+          cardElement: cardElement ? 'Present' : 'Missing'
+        });
+        
         paymentResult = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
             card: cardElement,
@@ -109,6 +122,8 @@ const StripeOrderPayment = ({
             },
           }
         });
+        
+        console.log('Payment result:', paymentResult);
       }
 
       const { error, paymentIntent } = paymentResult;

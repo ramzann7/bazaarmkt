@@ -231,7 +231,7 @@ const getArtisanRevenueSummary = async (req, res) => {
       .sort((a, b) => a.date.localeCompare(b.date));
 
     // Get platform fee rate from settings
-    let platformFeeRate = 0.15; // Default fallback
+    let platformFeeRate = 0.10; // Default fallback 10%
     try {
       if (revenueRecords.length > 0 && revenueRecords[0].fees?.platformFeeRate) {
         // Use fee rate from revenue record
@@ -243,8 +243,8 @@ const getArtisanRevenueSummary = async (req, res) => {
         platformFeeRate = await settingsService.getPlatformFeeRate();
       }
     } catch (error) {
-      console.warn('Could not fetch platform fee rate, using default 0.15:', error);
-      platformFeeRate = 0.15;
+      console.warn('Could not fetch platform fee rate, using default 0.10:', error);
+      platformFeeRate = 0.10;
     }
 
     // Connection managed by middleware

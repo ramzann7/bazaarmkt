@@ -64,13 +64,13 @@ const calculatePlatformFee = async (db, amount, feeType = 'order') => {
     return await platformSettingsService.calculatePlatformFee(amount, feeType);
   } catch (error) {
     console.error('Error calculating platform fee:', error);
-    // Fallback to simple 15% calculation
-    const platformFee = amount * 0.15;
+    // Fallback to simple 10% calculation
+    const platformFee = amount * 0.10;
     return {
       totalAmount: amount,
       platformFee: Math.round(platformFee * 100) / 100,
       artisanAmount: Math.round((amount - platformFee) * 100) / 100,
-      feeRate: 0.15,
+      feeRate: 0.10,
       feeType: 'percentage'
     };
   }

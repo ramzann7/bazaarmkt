@@ -60,16 +60,16 @@ class PlatformSettingsService {
   /**
    * Get platform fee rate
    * @param {string} feeType - Type of fee (e.g., 'order', 'transaction')
-   * @returns {number} Fee rate as decimal (e.g., 0.15 for 15%)
+   * @returns {number} Fee rate as decimal (e.g., 0.10 for 10%)
    */
   async getPlatformFeeRate(feeType = 'order') {
     try {
       const settings = await this.getPlatformSettings();
       // Use existing platformFeePercentage field (convert from percentage to decimal)
-      return (settings.platformFeePercentage || 15) / 100; // Default 15%
+      return (settings.platformFeePercentage || 10) / 100; // Default 10%
     } catch (error) {
       console.error('Error getting platform fee rate:', error);
-      return 0.15; // Default 15%
+      return 0.10; // Default 10%
     }
   }
 
@@ -84,7 +84,7 @@ class PlatformSettingsService {
       const settings = await this.getPlatformSettings();
       
       // Use existing platformFeePercentage field from the collection
-      const feeRate = (settings.platformFeePercentage || 15) / 100; // Convert percentage to decimal
+      const feeRate = (settings.platformFeePercentage || 10) / 100; // Convert percentage to decimal
       const platformFee = amount * feeRate;
       const artisanAmount = amount - platformFee;
 
@@ -98,13 +98,13 @@ class PlatformSettingsService {
       };
     } catch (error) {
       console.error('Error calculating platform fee:', error);
-      // Fallback to simple 15% calculation
-      const platformFee = amount * 0.15;
+      // Fallback to simple 10% calculation
+      const platformFee = amount * 0.10;
       return {
         totalAmount: amount,
         platformFee: Math.round(platformFee * 100) / 100,
         artisanAmount: Math.round((amount - platformFee) * 100) / 100,
-        feeRate: 0.15,
+        feeRate: 0.10,
         feeType: 'percentage',
         feeCategory: feeType
       };
@@ -159,7 +159,7 @@ class PlatformSettingsService {
    */
   getDefaultSettings() {
     return {
-      platformFeePercentage: 15, // 15% platform fee
+      platformFeePercentage: 10, // 10% platform fee
       currency: 'CAD',
       paymentProcessingFee: 2.9,
       minimumOrderAmount: 5,
@@ -192,7 +192,7 @@ class PlatformSettingsService {
     try {
       const settings = await this.getPlatformSettings();
       return {
-        platformFeeRate: (settings.platformFeePercentage || 15) / 100,
+        platformFeeRate: (settings.platformFeePercentage || 10) / 100,
         autoCaptureHours: settings.autoCaptureHours || 48,
         currency: settings.currency || 'CAD',
         minOrderAmount: settings.minimumOrderAmount || 5,
@@ -201,7 +201,7 @@ class PlatformSettingsService {
     } catch (error) {
       console.error('Error getting payment settings:', error);
       return {
-        platformFeeRate: 0.15,
+        platformFeeRate: 0.10,
         autoCaptureHours: 48,
         currency: 'CAD',
         minOrderAmount: 5,

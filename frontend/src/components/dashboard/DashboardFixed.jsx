@@ -121,7 +121,7 @@ export default function DashboardFixed() {
         
         // Calculate earnings (net after platform and payment processing fees)
         // Get platform settings for accurate fee calculations
-        let platformFeeRate = 0.15; // Default 15% if settings not available
+        let platformFeeRate = 0.10; // Default 10% if settings not available
         let paymentProcessingRate = 0.029; // Default 2.9% if settings not available
         
         try {
@@ -129,7 +129,7 @@ export default function DashboardFixed() {
           const platformSettings = await getPlatformSettings();
           
           if (platformSettings) {
-            platformFeeRate = (platformSettings.platformFeePercentage || 15) / 100;
+            platformFeeRate = (platformSettings.platformFeePercentage || 10) / 100;
             paymentProcessingRate = (platformSettings.paymentProcessingFee || 2.9) / 100;
             console.log('📊 Dashboard: Using platform settings:', {
               platformFeeRate: `${platformSettings.platformFeePercentage}%`,

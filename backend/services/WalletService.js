@@ -384,7 +384,7 @@ class WalletService extends BaseService {
       const totalRevenue = orderSubtotal + deliveryFee;
       
       // Calculate platform fee (percentage of revenue)
-      const platformFeeRate = (settings.platformFeePercentage || 15) / 100;
+      const platformFeeRate = (settings.platformFeePercentage || 10) / 100;
       const platformFee = totalRevenue * platformFeeRate;
       
       // Calculate payment processing fee (Stripe fee)

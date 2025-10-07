@@ -769,7 +769,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         if (artisanId) {
         // Note: This is for legacy orders that were created with immediate payment
         // New orders will use the capture payment flow with proper platform fee calculation
-        await recordWalletTransaction({
+        await recordWalletTransaction(db, {
           artisanId: artisanId,
           type: 'order_revenue',
           amount: totalAmount * 0.85, // 85% to artisan, 15% platform fee (legacy)
@@ -3123,14 +3123,25 @@ const confirmOrderReceipt = async (req, res) => {
     // Process revenue recognition and wallet crediting
     try {
       if (updatedOrder.artisan) {
+        console.log('💰 Starting revenue processing for order:', {
+          orderId: updatedOrder._id,
+          artisanId: updatedOrder.artisan,
+          totalAmount: updatedOrder.totalAmount,
+          subtotal: updatedOrder.subtotal,
+          deliveryFee: updatedOrder.deliveryFee
+        });
+        
         const { createWalletService } = require('../../services');
         const walletService = await createWalletService();
         
         const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
-        console.log('✅ Revenue recognition completed:', revenueResult.data);
+        console.log('✅ Revenue recognition completed successfully:', revenueResult.data);
+      } else {
+        console.warn('⚠️ No artisan found on order - skipping revenue processing');
       }
     } catch (revenueError) {
       console.error('❌ Error processing revenue recognition:', revenueError);
+      console.error('❌ Revenue error stack:', revenueError.stack);
       // Don't fail the receipt confirmation if revenue processing fails
     }
     

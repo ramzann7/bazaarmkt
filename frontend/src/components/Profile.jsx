@@ -206,14 +206,23 @@ export default function Profile() {
         })
         .catch(err => {
           console.error('❌ Failed to load profile:', err);
-          toast.error('Failed to load profile');
-          navigate('/login');
+          
+          // Only redirect to login if we don't have ANY profile data
+          // If profile exists from previous load, just show warning and keep using it
+          if (!profile) {
+            console.error('❌ No profile data available, redirecting to login');
+            toast.error('Session expired. Please login again.');
+            navigate('/login');
+          } else {
+            console.warn('⚠️ Profile refresh failed but existing data available, continuing...');
+            toast.warning('Could not refresh profile data. Using cached data.');
+          }
         })
         .finally(() => {
           setIsLoading(false);
         });
     }
-  }, [location.pathname, isProviderReady, navigate]); // Removed refreshUser, user, isLoading from dependencies
+  }, [location.pathname, isProviderReady, navigate, profile]); // Added profile to dependencies
 
   // Reset refresh flag when navigating away from profile
   useEffect(() => {

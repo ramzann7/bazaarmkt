@@ -416,7 +416,7 @@ const StripeOrderPayment = ({
           </div>
         )}
 
-        {paymentError && (
+        {paymentError && !isProcessing && (
           <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
             <ExclamationTriangleIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
             <span className="text-red-800 text-sm">{paymentError}</span>

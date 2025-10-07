@@ -31,12 +31,10 @@ export const orderPaymentService = {
   // Confirm payment and create order
   confirmPaymentAndCreateOrder: async (paymentIntentId, orderData) => {
     try {
-      console.log('Confirming payment and creating order:', { paymentIntentId, orderData });
       const response = await orderPaymentApi.post('/orders/confirm-payment', {
         paymentIntentId,
         orderData
       });
-      console.log('Order creation response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error confirming payment and creating order:', error);
@@ -48,12 +46,10 @@ export const orderPaymentService = {
   // Save payment method with Stripe PaymentMethod ID
   savePaymentMethod: async (paymentMethodData) => {
     try {
-      console.log('Saving payment method to backend:', paymentMethodData);
       // Backend expects payment method data wrapped in a 'paymentMethod' object
       const response = await orderPaymentApi.post('/profile/payment-methods', {
         paymentMethod: paymentMethodData
       });
-      console.log('Payment method save response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error saving payment method:', error);

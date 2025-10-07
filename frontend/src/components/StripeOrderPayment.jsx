@@ -125,11 +125,6 @@ const StripeOrderPayment = ({
 
       const { error, paymentIntent } = paymentResult;
       
-      console.log('Payment intent details:', {
-        id: paymentIntent?.id,
-        status: paymentIntent?.status,
-        error: error?.code || error?.type || 'none'
-      });
 
       if (error) {
         console.error('Stripe payment error:', error);
@@ -160,14 +155,6 @@ const StripeOrderPayment = ({
               ? paymentIntent.payment_method 
               : paymentIntent.payment_method.id;
             
-            console.log('💳 Saving payment method:', {
-              saveCardForFuture,
-              isGuest,
-              paymentMethod: paymentIntent.payment_method,
-              stripePaymentMethodId,
-              savedMethodsCount: savedPaymentMethods.length
-            });
-            
             const paymentMethodData = {
               stripePaymentMethodId,
               brand: paymentIntent.payment_method_details?.card?.brand || 'card',
@@ -178,8 +165,6 @@ const StripeOrderPayment = ({
               isDefault: savedPaymentMethods.length === 0, // First card is default
               type: 'credit_card'
             };
-            
-            console.log('💳 Payment method data to save:', paymentMethodData);
             
             await orderPaymentService.savePaymentMethod(paymentMethodData);
             
@@ -195,7 +180,6 @@ const StripeOrderPayment = ({
             }
             
             toast.success('Card saved for future use!');
-            console.log('✅ Payment method saved successfully');
           } catch (saveError) {
             console.error('❌ Error saving card:', saveError);
             console.error('❌ Save error details:', saveError.response?.data);
@@ -220,7 +204,6 @@ const StripeOrderPayment = ({
           paymentIntent.id,
           orderData
         );
-        console.log('Order creation result:', result);
 
         if (result.success) {
           // Clear any error state before showing success
@@ -232,7 +215,6 @@ const StripeOrderPayment = ({
         }
       } else {
         // Handle other payment intent statuses
-        console.log('Payment intent status not handled:', paymentIntent.status);
         if (paymentIntent.status === 'processing') {
           setPaymentError('Payment is being processed. Please wait a moment and refresh the page to check status.');
         } else if (paymentIntent.status === 'requires_action') {

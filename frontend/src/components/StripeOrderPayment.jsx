@@ -149,6 +149,9 @@ const StripeOrderPayment = ({
           onPaymentError?.(error);
         }
       } else if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
+        // Clear any error state immediately on success
+        setPaymentError(null);
+        
         // Save card for future use if requested (for authenticated users only)
         if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
           try {
@@ -212,6 +215,8 @@ const StripeOrderPayment = ({
         console.log('Order creation result:', result);
 
         if (result.success) {
+          // Clear any error state before showing success
+          setPaymentError(null);
           toast.success('Payment successful! Order created.');
           onPaymentSuccess?.(result.data);
         } else {

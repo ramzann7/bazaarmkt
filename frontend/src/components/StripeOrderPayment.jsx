@@ -154,8 +154,8 @@ const StripeOrderPayment = ({
           // Call parent error handler for other errors
           onPaymentError?.(error);
         }
-      } else if (paymentIntent.status === 'succeeded') {
-        console.log('Payment succeeded, proceeding with order creation');
+      } else if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
+        console.log(`Payment ${paymentIntent.status}, proceeding with order creation`);
         // Save card for future use if requested (for authenticated users only)
         if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
           try {
@@ -223,8 +223,14 @@ const StripeOrderPayment = ({
         }
       } else {
         // Handle other payment intent statuses
-        console.log('Payment intent status not succeeded:', paymentIntent.status);
-        setPaymentError(`Payment status: ${paymentIntent.status}. Please try again.`);
+        console.log('Payment intent status not handled:', paymentIntent.status);
+        if (paymentIntent.status === 'processing') {
+          setPaymentError('Payment is being processed. Please wait a moment and refresh the page to check status.');
+        } else if (paymentIntent.status === 'requires_action') {
+          setPaymentError('Payment requires additional action. Please complete the required steps.');
+        } else {
+          setPaymentError(`Payment status: ${paymentIntent.status}. Please try again.`);
+        }
         setHasSubmitted(false); // Allow retry
       }
     } catch (error) {

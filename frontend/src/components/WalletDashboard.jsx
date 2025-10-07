@@ -250,51 +250,79 @@ const WalletDashboard = () => {
           </h3>
           
           <div className="space-y-4">
-            {walletData?.payoutSettings ? (
+            {hasBankInfo ? (
               <>
                 <div className="flex justify-between items-center">
                   <span className="text-stone-600">Status:</span>
-                  <span className={`font-medium ${walletData.payoutSettings.enabled ? 'text-emerald-600' : 'text-stone-500'}`}>
-                    {walletData.payoutSettings.enabled ? 'Enabled' : 'Disabled'}
+                  <span className="font-medium text-emerald-600">
+                    Active
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-stone-600">Schedule:</span>
-                  <span className="font-medium text-stone-800 capitalize">
-                    {walletData.payoutSettings.schedule}
+                  <span className="font-medium text-stone-800">
+                    Weekly (Every Friday)
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className="text-stone-600">Minimum:</span>
+                  <span className="text-stone-600">Minimum Payout:</span>
                   <span className="font-medium text-stone-800">
-                    {formatCurrency(walletData.payoutSettings.minimumPayout)}
+                    {formatCurrency(50)}
                   </span>
                 </div>
                 
-                {walletData.payoutSettings.nextPayoutDate && (
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="text-blue-700 font-medium">Next Payout:</span>
-                      <span className="text-blue-800 font-bold">
-                        {new Date(walletData.payoutSettings.nextPayoutDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      {walletData.balance >= walletData.payoutSettings.minimumPayout 
-                        ? 'Eligible for payout' 
-                        : `Need ${formatCurrency(walletData.payoutSettings.minimumPayout - walletData.balance)} more`}
-                    </p>
+                <div className="flex justify-between items-center">
+                  <span className="text-stone-600">Current Balance:</span>
+                  <span className="font-medium text-stone-800">
+                    {formatCurrency(walletData?.balance || 0)}
+                  </span>
+                </div>
+                
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-blue-700 font-medium">Next Payout:</span>
+                    <span className="text-blue-800 font-bold">
+                      {(() => {
+                        const today = new Date();
+                        const dayOfWeek = today.getDay();
+                        const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
+                        const nextFriday = new Date(today);
+                        nextFriday.setDate(today.getDate() + daysUntilFriday);
+                        return nextFriday.toLocaleDateString('en-CA', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        });
+                      })()}
+                    </span>
                   </div>
-                )}
+                  <p className="text-xs text-blue-600 mt-1">
+                    {(walletData?.balance || 0) >= 50
+                      ? '✓ Eligible for payout' 
+                      : `Need ${formatCurrency(50 - (walletData?.balance || 0))} more to reach minimum`}
+                  </p>
+                </div>
+                
+                <div className="text-xs text-stone-500 pt-2 border-t border-stone-200">
+                  <p>• Payouts are processed automatically every Friday</p>
+                  <p>• Funds typically arrive within 2-3 business days</p>
+                  <p>• Bank account: {artisanProfile?.bankInfo?.accountNumber ? `****${artisanProfile.bankInfo.accountNumber.slice(-4)}` : 'Configured'}</p>
+                </div>
               </>
             ) : (
-              <div className="text-center py-4 text-stone-500">
-                <p>Payout settings not configured</p>
-                {!hasBankInfo && (
-                  <p className="text-xs mt-2">Add bank information to enable payouts</p>
-                )}
+              <div className="text-center py-6 text-stone-500">
+                <ExclamationTriangleIcon className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                <p className="font-medium text-stone-700 mb-2">Bank Information Required</p>
+                <p className="text-sm mb-4">Add your bank account to receive weekly payouts</p>
+                <a
+                  href="/profile?tab=payment"
+                  className="btn-primary text-sm inline-flex items-center"
+                >
+                  Add Bank Information
+                  <ArrowRightIcon className="w-4 h-4 ml-2" />
+                </a>
               </div>
             )}
           </div>

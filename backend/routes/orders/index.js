@@ -311,11 +311,22 @@ const createPaymentIntent = async (req, res) => {
         }
       }
     } catch (customerError) {
-      console.error('❌ Error managing Stripe customer:', customerError);
-      // Continue without customer - payment will still work but saved cards won't be reusable
+      console.error('❌ CRITICAL ERROR managing Stripe customer:', customerError);
+      console.error('❌ Stack trace:', customerError.stack);
+      
+      // IMPORTANT: If we can't create/get a customer, payment methods won't be reusable
+      // We should still continue to allow the payment, but warn clearly
+      console.error('⚠️ PROCEEDING WITHOUT CUSTOMER - SAVED CARDS WILL NOT WORK');
+      stripeCustomerId = null;
     }
 
     console.log('💳 Creating payment intent with customer:', stripeCustomerId);
+    
+    // CRITICAL: Verify we have a customer ID before creating payment intent
+    if (!stripeCustomerId) {
+      console.error('⚠️ WARNING: No Stripe customer ID available! PaymentMethods will not be reusable.');
+      console.log('⚠️ This usually means the customer creation/retrieval failed.');
+    }
     
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100), // Convert to cents

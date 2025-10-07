@@ -191,55 +191,8 @@ export const orderService = {
       const { cacheService, CACHE_KEYS } = await import('./cacheService');
       cacheService.clear(); // Clear all caches to ensure fresh data
       
-      // Send notification to patron about successful cancellation
-      try {
-        const { notificationService } = await import('./notificationService');
-        const { authService } = await import('./authservice');
-        
-        // Get current user info
-        const user = await authService.getProfile();
-        if (user && user.id) {
-          const notificationData = {
-            type: 'order_cancelled',
-            userId: user.id,
-            orderId: orderId,
-            userEmail: user.email,
-            userPhone: user.phone,
-            userName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'Customer'),
-            isGuest: false,
-            orderDetails: {
-              orderNumber: orderId,
-              status: 'cancelled',
-              orderDate: new Date().toLocaleDateString(),
-              orderTime: new Date().toLocaleTimeString(),
-              cancellationReason: reason
-            },
-            timestamp: new Date().toISOString()
-          };
-
-          // Send platform notification
-          await notificationService.sendPlatformNotification(notificationData);
-          
-          // Send email notification if user has email
-          if (user.email) {
-            try {
-              const preferences = await notificationService.getNotificationPreferences(user.id);
-              if (preferences?.email?.orderUpdates) {
-                await notificationService.sendOrderUpdateEmail(notificationData);
-              }
-            } catch (preferencesError) {
-              console.warn('⚠️ Could not get notification preferences for cancellation, using defaults:', preferencesError);
-              // Default to sending email if preferences can't be retrieved
-              await notificationService.sendOrderUpdateEmail(notificationData);
-            }
-          }
-          
-          console.log('✅ Order cancellation notification sent to patron');
-        }
-      } catch (notificationError) {
-        console.error('❌ Error sending cancellation notification to patron:', notificationError);
-        // Don't fail the cancellation if notification fails
-      }
+      // Note: Cancellation notifications are sent to artisans by the backend
+      // No patron notification needed here as per requirements
       
       return response.data;
     } catch (error) {

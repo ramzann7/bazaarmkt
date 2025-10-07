@@ -208,24 +208,10 @@ const StripeOrderPayment = ({
           }
         }
 
-        // For requires_capture status, we need to capture the payment first
+        // For requires_capture status, proceed with order creation
+        // The backend will handle capturing the payment when creating the order
         if (paymentIntent.status === 'requires_capture') {
-          console.log('Capturing payment intent:', paymentIntent.id, 'with client secret:', clientSecret);
-          try {
-            const capturedPaymentIntent = await stripe.confirmPayment(clientSecret);
-            console.log('Payment captured:', capturedPaymentIntent);
-            
-            if (capturedPaymentIntent.error) {
-              throw new Error(capturedPaymentIntent.error.message);
-            }
-            
-            if (capturedPaymentIntent.paymentIntent.status !== 'succeeded') {
-              throw new Error(`Payment capture failed with status: ${capturedPaymentIntent.paymentIntent.status}`);
-            }
-          } catch (captureError) {
-            console.error('Error capturing payment:', captureError);
-            throw new Error(`Failed to capture payment: ${captureError.message}`);
-          }
+          console.log('Payment requires_capture, proceeding with order creation - backend will handle capture');
         }
 
         // Confirm payment and create order

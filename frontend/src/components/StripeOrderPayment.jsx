@@ -130,6 +130,12 @@ const StripeOrderPayment = ({
       }
 
       const { error, paymentIntent } = paymentResult;
+      
+      console.log('Payment intent details:', {
+        id: paymentIntent?.id,
+        status: paymentIntent?.status,
+        error: error?.code || error?.type || 'none'
+      });
 
       if (error) {
         console.error('Stripe payment error:', error);
@@ -149,6 +155,7 @@ const StripeOrderPayment = ({
           onPaymentError?.(error);
         }
       } else if (paymentIntent.status === 'succeeded') {
+        console.log('Payment succeeded, proceeding with order creation');
         // Save card for future use if requested (for authenticated users only)
         if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
           try {
@@ -201,10 +208,12 @@ const StripeOrderPayment = ({
         }
 
         // Confirm payment and create order
+        console.log('Creating order with payment intent:', paymentIntent.id);
         const result = await orderPaymentService.confirmPaymentAndCreateOrder(
           paymentIntent.id,
           orderData
         );
+        console.log('Order creation result:', result);
 
         if (result.success) {
           toast.success('Payment successful! Order created.');
@@ -212,6 +221,11 @@ const StripeOrderPayment = ({
         } else {
           throw new Error(result.message || 'Failed to create order');
         }
+      } else {
+        // Handle other payment intent statuses
+        console.log('Payment intent status not succeeded:', paymentIntent.status);
+        setPaymentError(`Payment status: ${paymentIntent.status}. Please try again.`);
+        setHasSubmitted(false); // Allow retry
       }
     } catch (error) {
       console.error('Payment processing error:', error);

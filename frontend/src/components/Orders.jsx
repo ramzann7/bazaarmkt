@@ -36,6 +36,7 @@ export default function Orders() {
   const [confirmationData, setConfirmationData] = useState(null);
   const [ordersLoaded, setOrdersLoaded] = useState(false); // Track if orders have been loaded
   const [updatingOrderId, setUpdatingOrderId] = useState(null); // Track which order is being updated
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render when data changes
 
   useEffect(() => {
     loadUserAndOrders();
@@ -100,6 +101,7 @@ export default function Orders() {
         
         setAllOrders(ordersData);
         setOrdersLoaded(true);
+        setRefreshKey(prev => prev + 1); // Increment to force re-render
       }
       
       // Apply current filter to cached orders
@@ -795,7 +797,7 @@ export default function Orders() {
               
               return (
                 <div
-                  key={order._id}
+                  key={`${order._id}-${order.status}-${refreshKey}`}
                   className={`bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
                     orderIsUrgent 
                       ? 'border-red-300 bg-red-50 shadow-red-100' 

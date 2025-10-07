@@ -219,7 +219,7 @@ const StripeOrderPayment = ({
         if (result.success) {
           // Clear any error state before showing success
           setPaymentError(null);
-          toast.success('Payment successful! Order created.');
+          // Note: Toast notification handled by Cart.jsx → orderNotificationService.triggerOrderCreatedNotification
           onPaymentSuccess?.(result.data);
         } else {
           throw new Error(result.message || 'Failed to create order');

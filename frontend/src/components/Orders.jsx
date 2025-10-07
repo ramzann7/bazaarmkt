@@ -205,7 +205,8 @@ export default function Orders() {
         }
         const result = await orderService.confirmOrderReceipt(orderId);
         toast.success(`✅ Order confirmed successfully!`);
-        await loadUserAndOrders();
+        await loadUserAndOrders(true); // Force refresh to see completed status
+        setUpdatingOrderId(null); // Clear updating state
         return;
       }
       

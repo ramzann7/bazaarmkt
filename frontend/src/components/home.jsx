@@ -205,6 +205,31 @@ export default function Home() {
     console.log(`Home component basic data loading took ${(endTime - startTime).toFixed(2)}ms`);
   }, [], { skipFirstRender: false });
 
+  // Refresh data when page becomes visible (handles tab switching and navigation)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔄 Home page became visible, refreshing product data...');
+        // Clear caches to get fresh data
+        cacheService.delete(CACHE_KEYS.FEATURED_PRODUCTS);
+        cacheService.delete(CACHE_KEYS.POPULAR_PRODUCTS);
+        cacheService.delete(CACHE_KEYS.NEARBY_PRODUCTS);
+        
+        // Reload data
+        loadFeaturedProducts();
+        loadPopularProducts();
+      }
+    };
+
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadFeaturedProducts, loadPopularProducts]);
+
     // Load user location on component mount
   useEffect(() => {
     const loadUserLocation = () => {

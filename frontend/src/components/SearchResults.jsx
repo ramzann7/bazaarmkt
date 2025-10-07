@@ -106,6 +106,9 @@ export default function SearchResults() {
   useEffect(() => {
     getCurrentLocation();
     loadCurrentUser();
+    // Clear product cache on mount to ensure fresh inventory data
+    clearProductCache();
+    console.log('🧹 SearchResults: Cleared product cache on mount');
   }, []);
 
   useEffect(() => {
@@ -122,6 +125,23 @@ export default function SearchResults() {
       setIsLoading(false);
     }
   }, [query, categoryParam, subcategoryParam, userLocation]);
+
+  // Refresh search results when page becomes visible (handles tab switching)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && (query || categoryParam || subcategoryParam)) {
+        console.log('🔄 SearchResults page became visible, refreshing data...');
+        clearProductCache();
+        performSearch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [query, categoryParam, subcategoryParam, performSearch]);
 
   useEffect(() => {
     applyFiltersAndSort();

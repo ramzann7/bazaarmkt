@@ -420,7 +420,9 @@ export default function OrderConfirmation() {
                               <div className="flex items-center gap-1">
                                 <span className="text-yellow-500 print:text-gray-600">⭐</span>
                                 <span className="text-xs text-stone-600">
-                                  {order.artisan.rating.average || order.artisan.rating}/5
+                                  {typeof order.artisan.rating === 'object' 
+                                    ? (order.artisan.rating.average || 0).toFixed(1)
+                                    : (order.artisan.rating || 0).toFixed(1)}/5
                                 </span>
                               </div>
                             )}
@@ -526,7 +528,7 @@ export default function OrderConfirmation() {
                                     <div>
                                       <h5 className="text-xs font-semibold text-emerald-800 mb-1">Ready to Ship</h5>
                                       <p className="text-xs text-emerald-700">
-                                        This item is ready and will be shipped immediately. Expected delivery within 1-3 business days.
+                                        This item is ready and will be shipped immediately.
                                       </p>
                                     </div>
                                   </div>

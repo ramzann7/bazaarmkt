@@ -36,7 +36,23 @@ export default function CartDropdown({ isOpen, onClose }) {
   const loadCart = () => {
     setIsLoading(true);
     try {
-      const userId = user?._id || null;
+      // Use the same logic as cartService - get userId from token if user object is not available
+      let userId = user?._id || null;
+      
+      // If user object is not available, try to get userId from token (same as cartService logic)
+      if (!userId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userId = payload.userId;
+          }
+        } catch (tokenError) {
+          console.warn('Could not get userId from token:', tokenError);
+        }
+      }
+      
+      console.log('🛒 CartDropdown: Loading cart for userId:', userId, 'user object:', user);
       const cartItems = cartService.getCart(userId);
       console.log('🛒 CartDropdown: Loaded cart items:', cartItems);
       setCart(cartItems || []);
@@ -75,7 +91,19 @@ export default function CartDropdown({ isOpen, onClose }) {
       // Add to updating set for instant UI feedback
       setUpdatingItems(prev => new Set([...prev, productId]));
       
-      const userId = user?._id || null;
+      // Use the same logic as cartService - get userId from token if user object is not available
+      let userId = user?._id || null;
+      if (!userId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userId = payload.userId;
+          }
+        } catch (tokenError) {
+          console.warn('Could not get userId from token:', tokenError);
+        }
+      }
       
       // Optimistically update the UI immediately
       setCart(prevCart => 
@@ -154,7 +182,19 @@ export default function CartDropdown({ isOpen, onClose }) {
       // Add to updating set for instant UI feedback
       setUpdatingItems(prev => new Set([...prev, productId]));
       
-      const userId = user?._id || null;
+      // Use the same logic as cartService - get userId from token if user object is not available
+      let userId = user?._id || null;
+      if (!userId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userId = payload.userId;
+          }
+        } catch (tokenError) {
+          console.warn('Could not get userId from token:', tokenError);
+        }
+      }
       
       // Optimistically remove from UI
       setCart(prevCart => prevCart.filter(item => item._id !== productId));

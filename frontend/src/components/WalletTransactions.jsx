@@ -97,7 +97,7 @@ const WalletTransactions = () => {
   };
 
   const formatAmount = (amount, type) => {
-    const isCredit = ['revenue', 'top_up', 'refund', 'adjustment'].includes(type);
+    const isCredit = ['revenue', 'order_revenue', 'top_up', 'wallet_topup', 'refund', 'adjustment'].includes(type);
     const sign = isCredit ? '+' : '-';
     return `${sign}${walletService.formatCurrency(Math.abs(amount))}`;
   };

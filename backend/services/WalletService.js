@@ -50,17 +50,27 @@ class WalletService extends BaseService {
       throw new Error('User not found');
     }
     
+    // Determine transaction type and description based on payment method
+    let transactionType = 'wallet_topup';
+    let description = `Wallet top-up of $${amount.toFixed(2)}`;
+    
+    if (paymentMethod === 'order_completion') {
+      transactionType = 'order_revenue';
+      const orderNumber = metadata?.orderNumber || 'Unknown';
+      description = `Revenue from order #${orderNumber} - $${amount.toFixed(2)}`;
+    }
+    
     // Create transaction record
     const transaction = await this.create(this.transactionsCollection, {
       userId: this.createObjectId(userId),
-      type: 'wallet_topup',
+      type: transactionType,
       amount: amount,
-      description: `Wallet top-up of $${amount}`,
+      description: description,
       paymentMethod: paymentMethod,
       status: 'completed',
       metadata: {
         ...metadata,
-        topupAmount: amount
+        transactionType: transactionType
       }
     });
     

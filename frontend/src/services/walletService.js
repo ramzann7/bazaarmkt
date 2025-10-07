@@ -85,10 +85,15 @@ class WalletService {
       const token = localStorage.getItem('token');
       const response = await api.get(`${this.baseURL}/transactions?limit=50`);
       
-      // Return the stats data in the expected format
+      // Return the summary data in the expected format
       return {
         success: true,
-        data: response.data.data.stats
+        data: response.data.data?.summary || {
+          totalCredits: 0,
+          totalDebits: 0,
+          netAmount: 0,
+          transactionCount: 0
+        }
       };
     } catch (error) {
       console.error('Error fetching wallet stats:', error);
@@ -108,7 +113,9 @@ class WalletService {
   getTransactionTypeDisplay(type) {
     const typeMap = {
       'revenue': 'Revenue',
+      'order_revenue': 'Order Revenue',
       'top_up': 'Top-up',
+      'wallet_topup': 'Wallet Top-up',
       'purchase': 'Purchase',
       'payout': 'Payout',
       'refund': 'Refund',
@@ -122,7 +129,9 @@ class WalletService {
   getTransactionTypeColor(type) {
     const colorMap = {
       'revenue': 'text-green-600',
+      'order_revenue': 'text-green-600',
       'top_up': 'text-blue-600',
+      'wallet_topup': 'text-blue-600',
       'purchase': 'text-red-600',
       'payout': 'text-purple-600',
       'refund': 'text-yellow-600',
@@ -160,6 +169,7 @@ class WalletService {
   getTransactionTypeIcon(type) {
     const iconMap = {
       'revenue': '💰',
+      'order_revenue': '💰',
       'order_completion': '💰',
       'top_up': '💳',
       'wallet_topup': '💳',

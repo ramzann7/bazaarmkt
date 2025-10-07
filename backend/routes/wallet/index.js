@@ -47,7 +47,7 @@ const getWalletBalance = async (req, res) => {
 
     // Calculate wallet statistics
     const totalEarnings = await transactionsCollection.aggregate([
-      { $match: { userId: new ObjectId(decoded.userId), type: 'order_completion', amount: { $gt: 0 } } },
+      { $match: { userId: new ObjectId(decoded.userId), type: { $in: ['order_revenue', 'order_completion', 'revenue'] }, amount: { $gt: 0 } } },
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]).toArray();
 
@@ -267,7 +267,7 @@ const getWalletAnalytics = async (req, res) => {
       {
         $match: {
           userId: new ObjectId(decoded.userId),
-          type: 'order_completion',
+          type: { $in: ['order_revenue', 'order_completion', 'revenue'] },
           amount: { $gt: 0 },
           createdAt: { $gte: startDate }
         }

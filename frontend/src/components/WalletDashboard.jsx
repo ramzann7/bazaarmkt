@@ -97,10 +97,10 @@ const WalletDashboard = () => {
       totalTransactions: recentTransactions.length,
       weeklyTransactions: weeklyTransactions.length,
       totalRevenue: recentTransactions
-        .filter(t => t.type === 'revenue')
+        .filter(t => ['revenue', 'order_revenue'].includes(t.type))
         .reduce((sum, t) => sum + t.amount, 0),
       totalSpent: recentTransactions
-        .filter(t => ['purchase', 'payout'].includes(t.type))
+        .filter(t => ['purchase', 'payout', 'wallet_deduction'].includes(t.type))
         .reduce((sum, t) => sum + Math.abs(t.amount), 0),
       lastTransactionDate: transactions.length > 0 ? transactions[0].createdAt : null
     };

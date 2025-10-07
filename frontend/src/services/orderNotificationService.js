@@ -125,7 +125,9 @@ class OrderNotificationService {
 
       // Get user profile to determine notification type
       const { getProfile } = await import('./authservice');
+      console.log('🔍 Attempting to get profile for order notifications...');
       const profile = await getProfile();
+      console.log('🔍 Profile result:', profile ? 'Found profile' : 'Profile is null/undefined');
       
       // Check if profile exists and has role information
       if (!profile) {

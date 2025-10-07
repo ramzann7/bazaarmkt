@@ -1435,9 +1435,11 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       return;
     }
 
+    const reason = prompt('Please provide a reason for cancelling this order (optional):');
+    
     setIsLoading(true);
     try {
-      await orderService.cancelOrder(order._id);
+      await orderService.cancelOrder(order._id, reason);
       toast.success('Order cancelled successfully');
       onRefresh();
       onClose();

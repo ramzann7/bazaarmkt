@@ -36,6 +36,12 @@ export const notificationService = {
   sendOrderCompletionNotification: async (orderData, userInfo) => {
     try {
       console.log('📧 Sending order completion notification:', { orderData, userInfo });
+      console.log('📧 User info details:', {
+        id: userInfo.id,
+        email: userInfo.email,
+        isGuest: userInfo.isGuest,
+        hasEmail: !!userInfo.email
+      });
       
       const notificationData = {
         type: 'order_completion',
@@ -324,6 +330,13 @@ export const notificationService = {
   // Send platform notification (for patrons)
   sendPlatformNotification: async (notificationData) => {
     try {
+      console.log('📱 Sending platform notification:', {
+        userId: notificationData.userId,
+        type: notificationData.type,
+        orderId: notificationData.orderId,
+        hasToken: !!localStorage.getItem('token')
+      });
+      
       const token = localStorage.getItem('token');
       const platformData = {
         userId: notificationData.userId,
@@ -339,10 +352,12 @@ export const notificationService = {
         isRead: false
       };
 
+      console.log('📱 Platform notification data:', platformData);
+      
       const response = await axios.post(`${API_URL}/notifications/send`, platformData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log('✅ Platform notification sent successfully');
+      console.log('✅ Platform notification sent successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error sending platform notification:', error);

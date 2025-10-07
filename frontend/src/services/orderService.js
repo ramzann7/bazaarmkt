@@ -180,9 +180,60 @@ export const orderService = {
   },
 
   // Cancel order (patron only)
-  cancelOrder: async (orderId) => {
+  cancelOrder: async (orderId, reason = null) => {
     try {
-      const response = await api.put(`${API_URL}/orders/${orderId}/cancel`, {});
+      const response = await api.put(`${API_URL}/orders/${orderId}/cancel`, { reason });
+      
+      // Send notification to patron about successful cancellation
+      try {
+        const { notificationService } = await import('./notificationService');
+        const { authService } = await import('./authservice');
+        
+        // Get current user info
+        const user = await authService.getProfile();
+        if (user && user.id) {
+          const notificationData = {
+            type: 'order_cancelled',
+            userId: user.id,
+            orderId: orderId,
+            userEmail: user.email,
+            userPhone: user.phone,
+            userName: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : (user.firstName || 'Customer'),
+            isGuest: false,
+            orderDetails: {
+              orderNumber: orderId,
+              status: 'cancelled',
+              orderDate: new Date().toLocaleDateString(),
+              orderTime: new Date().toLocaleTimeString(),
+              cancellationReason: reason
+            },
+            timestamp: new Date().toISOString()
+          };
+
+          // Send platform notification
+          await notificationService.sendPlatformNotification(notificationData);
+          
+          // Send email notification if user has email
+          if (user.email) {
+            try {
+              const preferences = await notificationService.getNotificationPreferences(user.id);
+              if (preferences?.email?.orderUpdates) {
+                await notificationService.sendOrderUpdateEmail(notificationData);
+              }
+            } catch (preferencesError) {
+              console.warn('⚠️ Could not get notification preferences for cancellation, using defaults:', preferencesError);
+              // Default to sending email if preferences can't be retrieved
+              await notificationService.sendOrderUpdateEmail(notificationData);
+            }
+          }
+          
+          console.log('✅ Order cancellation notification sent to patron');
+        }
+      } catch (notificationError) {
+        console.error('❌ Error sending cancellation notification to patron:', notificationError);
+        // Don't fail the cancellation if notification fails
+      }
+      
       return response.data;
     } catch (error) {
       console.error('Error cancelling order:', error);

@@ -181,7 +181,33 @@ export default function DashboardFixed() {
               // Count patrons from all paid orders (not cancelled/declined)
               !['cancelled', 'declined'].includes(order.status)
             );
-            const buyerIds = paidOrders.map(order => order.buyer?._id || order.buyerId).filter(id => id);
+            
+            // Check first order structure to debug
+            if (paidOrders.length > 0) {
+              console.log('📊 Dashboard: Sample order structure:', {
+                firstOrder: paidOrders[0],
+                hasBuyer: !!paidOrders[0].buyer,
+                hasBuyerId: !!paidOrders[0].buyerId,
+                hasUser: !!paidOrders[0].user,
+                hasUserId: !!paidOrders[0].userId,
+                hasPatron: !!paidOrders[0].patron,
+                hasPatronId: !!paidOrders[0].patronId
+              });
+            }
+            
+            // Try multiple possible field names for buyer ID
+            const buyerIds = paidOrders
+              .map(order => 
+                order.buyer?._id || 
+                order.buyerId || 
+                order.buyer || 
+                order.user?._id || 
+                order.userId ||
+                order.patron?._id ||
+                order.patronId
+              )
+              .filter(id => id); // Remove null/undefined
+            
             const uniquePatrons = new Set(buyerIds);
             
             console.log('📊 Dashboard: Patron count details:', {

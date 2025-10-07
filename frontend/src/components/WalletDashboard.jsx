@@ -314,7 +314,7 @@ const WalletDashboard = () => {
           
           <div className="space-y-3">
             {recentTransactions.map((transaction) => (
-              <div key={transaction._id} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg">
+              <div key={transaction.id || transaction._id} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <div className="text-lg">
                     {walletService.getTransactionTypeIcon(transaction.type)}
@@ -330,7 +330,7 @@ const WalletDashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className={`font-semibold ${walletService.getTransactionTypeColor(transaction.type)}`}>
-                    {['revenue', 'top_up', 'refund', 'adjustment'].includes(transaction.type) ? '+' : '-'}
+                    {['revenue', 'order_revenue', 'top_up', 'wallet_topup', 'refund', 'adjustment'].includes(transaction.type) ? '+' : '-'}
                     {formatCurrency(Math.abs(transaction.amount))}
                   </p>
                   <p className="text-xs text-stone-400">

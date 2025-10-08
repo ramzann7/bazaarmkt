@@ -300,7 +300,7 @@ router.post('/create', async (req, res) => {
     const productsCollection = db.collection('products');
     const artisansCollection = db.collection('artisans');
     const walletsCollection = db.collection('wallets');
-    const promotionalFeaturesCollection = db.collection('promotional_features');
+    const promotionalFeaturesCollection = db.collection('promotionalfeatures');
 
     // Get artisan profile
     const artisan = await artisansCollection.findOne({

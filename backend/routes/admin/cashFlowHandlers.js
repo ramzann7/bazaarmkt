@@ -1,7 +1,7 @@
 /**
  * Admin Service - Cash Flow Endpoint
  * Track platform revenues from all sources
- * Uses existing collections: orders, artisanspotlight, promotional_features
+ * Uses existing collections: orders, artisanspotlight, promotionalfeatures
  */
 
 const { ObjectId } = require('mongodb');
@@ -64,8 +64,8 @@ const getPlatformCashFlow = async (req, res) => {
         }
       ]).toArray(),
       
-      // Promotional features - USE EXISTING COLLECTION: promotional_features
-      db.collection('promotional_features').aggregate([
+      // Promotional features - USE EXISTING COLLECTION: promotionalfeatures
+      db.collection('promotionalfeatures').aggregate([
         {
           $match: {
             status: 'active',

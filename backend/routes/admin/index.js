@@ -1636,7 +1636,7 @@ const getPromotionalStats = async (req, res) => {
     const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     
     // Get promotional features
-    const promotionalCollection = db.collection('promotional_features');
+    const promotionalCollection = db.collection('promotionalfeatures');
     const features = await promotionalCollection.find({
       createdAt: { $gte: startDate }
     }).toArray();
@@ -1703,7 +1703,7 @@ const getActivePromotions = async (req, res) => {
     const now = new Date();
     
     // Get active promotional features with artisan info
-    const promotionalCollection = db.collection('promotional_features');
+    const promotionalCollection = db.collection('promotionalfeatures');
     const activeFeatures = await promotionalCollection.aggregate([
       {
         $match: {

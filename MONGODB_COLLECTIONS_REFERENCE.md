@@ -17,7 +17,7 @@ Based on the current database schema, here are all the collections in use:
 
 ### Promotional & Marketing
 - `artisanspotlight` - Artisan spotlight subscriptions (NO underscore!)
-- `promotional_features` - Promotional features and boosts
+- `promotionalfeatures` - Promotional features and boosts
 - `promotional_campaigns` - Marketing campaigns
 - `promotional_pricing` - Special pricing rules
 
@@ -43,7 +43,7 @@ Based on the current database schema, here are all the collections in use:
 
 ### Correct Names (Use These)
 - ✅ `artisanspotlight` (no underscore)
-- ✅ `promotional_features` (with underscore)
+- ✅ `promotionalfeatures` (no underscore)
 - ✅ `revenues` (plural)
 - ✅ `orders` (plural)
 
@@ -51,6 +51,7 @@ Based on the current database schema, here are all the collections in use:
 - ❌ `artisan_spotlight` (with underscore) - WRONG
 - ❌ `platform_revenues` - DOES NOT EXIST, use `revenues` instead
 - ❌ `revenue` (singular) - Use `revenues` (plural)
+- ❌ `promotional_features` (with underscore) - WRONG, use `promotionalfeatures`
 
 ---
 
@@ -70,7 +71,7 @@ db.collection('artisanspotlight').aggregate([...])
 // Gets: payment.amount from paid spotlights
 
 // 3. Promotional Features
-db.collection('promotional_features').aggregate([...])
+db.collection('promotionalfeatures').aggregate([...])
 // Gets: payment.amount from active promotions
 ```
 
@@ -145,7 +146,7 @@ The platform fee collection implementation uses **only existing collections**:
 
 - ✅ `orders` - For order commissions
 - ✅ `artisanspotlight` - For spotlight revenue
-- ✅ `promotional_features` - For promotional revenue
+- ✅ `promotionalfeatures` - For promotional revenue
 - ✅ `revenues` - For revenue records (already exists)
 - ✅ `platformsettings` - For platform bank info (already exists)
 
@@ -167,7 +168,7 @@ show collections
 db.orders.findOne()
 db.revenues.findOne()
 db.artisanspotlight.findOne()
-db.promotional_features.findOne()
+db.promotionalfeatures.findOne()
 ```
 
 ---

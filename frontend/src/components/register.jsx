@@ -314,12 +314,12 @@ export default function Register() {
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <Logo showText={false} className="w-20 h-20" />
           </div>
-                      <h2 className="text-4xl font-bold text-gray-900 mb-2">Join Bazaar</h2>
+          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join BazaarMkt</h2>
           <p className="text-gray-600 text-lg">Create your account and start your journey</p>
         </div>
 
         {/* Register Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-stone-200 p-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Role Selection */}
             <div className="form-group">
@@ -330,8 +330,8 @@ export default function Register() {
                   onClick={() => setFormData({ ...formData, role: 'patron' })}
                   className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                     formData.role === 'patron'
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                      ? 'border-[#D77A61] bg-[#D77A61] bg-opacity-10 text-[#D77A61]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-[#D77A61] hover:text-[#D77A61]'
                   }`}
                 >
                   <UserIcon className="w-8 h-8 mx-auto mb-2" />
@@ -343,8 +343,8 @@ export default function Register() {
                   onClick={() => setFormData({ ...formData, role: 'artisan' })}
                   className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                     formData.role === 'artisan'
-                      ? 'border-amber-500 bg-amber-50 text-amber-700'
-                      : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+                      ? 'border-[#3C6E47] bg-[#3C6E47] bg-opacity-10 text-[#3C6E47]'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-[#3C6E47] hover:text-[#3C6E47]'
                   }`}
                 >
                   <Logo showText={false} className="w-12 h-12 mx-auto mb-2" />
@@ -442,8 +442,8 @@ export default function Register() {
             </div>
 
             {/* Address Section */}
-            <div className="border-t border-stone-200 pt-6">
-              <h3 className="text-lg font-semibold text-stone-800 mb-4 flex items-center">
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4 flex items-center">
                 <span className="mr-2">📍</span>
                 Address (Required)
               </h3>
@@ -573,7 +573,7 @@ export default function Register() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> Bazaar is currently available in Canada. 
+                  <strong>Note:</strong> BazaarMkt is currently available in Canada. 
                   Please provide a complete and accurate Canadian address to register.
                 </p>
               </div>
@@ -668,7 +668,7 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-600 transition-colors duration-300"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-gray-600 transition-colors duration-300"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -702,7 +702,7 @@ export default function Register() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-600 transition-colors duration-300"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-gray-600 transition-colors duration-300"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
@@ -718,17 +718,28 @@ export default function Register() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full btn-primary btn-large disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`w-full btn-large disabled:opacity-50 disabled:cursor-not-allowed ${
+                formData.role === 'artisan' 
+                  ? 'bg-[#3C6E47] text-white hover:bg-[#2D5A3A] focus:ring-[#3C6E47]' 
+                  : 'bg-[#D77A61] text-white hover:bg-[#C66A51] focus:ring-[#D77A61]'
+              }`}
             >
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Creating Account...
+                </div>
+              ) : (
+                "Create Account"
+              )}
             </button>
           </form>
 
           {/* Business Benefits */}
           {formData.role === 'artisan' && (
-            <div className="mt-6 p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-xl border border-amber-200">
-              <h4 className="font-semibold text-stone-800 mb-2">Why sell on Bazaar?</h4>
-              <ul className="text-sm text-stone-600 space-y-1">
+            <div className="mt-6 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+              <h4 className="font-semibold text-gray-800 mb-2">Why sell on BazaarMkt?</h4>
+              <ul className="text-sm text-gray-600 space-y-1">
                 <li>• Reach new local customers</li>
                 <li>• Flexible delivery options</li>
                 <li>• Simple onboarding & payments</li>
@@ -741,13 +752,23 @@ export default function Register() {
 
         {/* Footer */}
         <div className="text-center">
-          <p className="text-stone-600">
+          <p className="text-gray-600">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-amber-600 hover:text-amber-700 transition-colors duration-300"
+              className="font-semibold text-[#D77A61] hover:text-[#3C6E47] transition-colors duration-300"
             >
               Sign in here
+            </Link>
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            By creating an account, you agree to our{" "}
+            <Link to="/terms" className="text-[#D77A61] hover:text-[#3C6E47] font-medium">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" className="text-[#D77A61] hover:text-[#3C6E47] font-medium">
+              Privacy Policy
             </Link>
           </p>
         </div>

@@ -15,18 +15,28 @@ import { getProfile } from '../services/authservice';
 import toast from 'react-hot-toast';
 import OrderTimeline from './OrderTimeline';
 import { geocodingService } from '../services/geocodingService';
+import PriorityOrderQueue from './PriorityOrderQueue';
+
+// Helper function to check if user is artisan (compatible with both role and userType)
+const isArtisan = (userRole) => {
+  return userRole === 'artisan';
+};
 
 export default function Orders() {
   const location = useLocation();
-  const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]); // Cache all orders
+  const [orders, setOrders] = useState([]); // Filtered orders for display
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('needs_action'); // Default to most important orders
+  const [filter, setFilter] = useState('active'); // Default to active orders (priority queue shows all active orders with pending prioritized)
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] = useState(null);
+  const [ordersLoaded, setOrdersLoaded] = useState(false); // Track if orders have been loaded
+  const [updatingOrderId, setUpdatingOrderId] = useState(null); // Track which order is being updated
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render when data changes
 
   useEffect(() => {
     loadUserAndOrders();
@@ -34,6 +44,13 @@ export default function Orders() {
     const interval = setInterval(loadUserAndOrders, 120000);
     return () => clearInterval(interval);
   }, []);
+
+  // Apply filter when filter or userRole changes (no API call needed)
+  useEffect(() => {
+    if (ordersLoaded && userRole) {
+      applyFilter();
+    }
+  }, [filter, ordersLoaded, userRole]);
 
   // Handle order confirmation from checkout
   useEffect(() => {
@@ -59,27 +76,37 @@ export default function Orders() {
     }
   }, [location.state, orders]);
 
-  const loadUserAndOrders = async () => {
+  const loadUserAndOrders = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
+      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)');
       const userProfile = await getProfile();
-      setUserRole(userProfile.role);
+      const actualUserRole = userProfile.role || userProfile.userType; // Check both role and userType for compatibility
+      setUserRole(actualUserRole);
       
-      // Set default filter based on user role
-      if (userProfile.role === 'artisan') {
-        setFilter('needs_action'); // Show orders that need action first
-      } else {
-        setFilter('active'); // Show active orders first for patrons
+      // Only load orders from API if not already loaded or force refresh
+      if (!ordersLoaded || forceRefresh) {
+        console.log('📋 Loading all orders from API...');
+        let ordersData;
+        if (actualUserRole === 'artisan') {
+          ordersData = await orderService.getArtisanOrders(true); // Always load all orders
+        } else {
+          ordersData = await orderService.getPatronOrders(true); // Always load all orders
+        }
+        
+        console.log('📦 All orders loaded from API:', {
+          count: ordersData.length,
+          statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
+        });
+        
+        setAllOrders(ordersData);
+        setOrdersLoaded(true);
+        setRefreshKey(prev => prev + 1); // Increment to force re-render
       }
       
-      // Load orders based on user role
-      let ordersData;
-      if (userProfile.role === 'artisan') {
-        ordersData = await orderService.getArtisanOrders();
-      } else {
-        ordersData = await orderService.getPatronOrders();
-      }
-      setOrders(ordersData);
+      // Apply current filter to cached orders
+      applyFilter();
+      
     } catch (error) {
       console.error('Error loading orders:', error);
       toast.error('Failed to load orders');
@@ -88,9 +115,169 @@ export default function Orders() {
     }
   };
 
+  const applyFilter = () => {
+    if (!ordersLoaded || !userRole) {
+      console.log('🔍 Skipping filter - ordersLoaded:', ordersLoaded, 'userRole:', userRole);
+      return;
+    }
+    
+    console.log('🔍 Applying filter:', filter, 'userRole:', userRole, 'to', allOrders.length, 'orders');
+    
+    let filteredOrders = [...allOrders];
+    
+    // Apply status-based filtering (check both role and userType for compatibility)
+    const actualUserRole = userRole || 'patron'; // Default to patron if not set
+    if (actualUserRole === 'artisan') {
+      switch (filter) {
+        case 'needs_action':
+          filteredOrders = allOrders.filter(order => 
+            ['pending'].includes(order.status)
+          );
+          break;
+        case 'in_progress':
+          filteredOrders = allOrders.filter(order => 
+            ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
+          );
+          break;
+        case 'active':
+          // Show all active orders (not cancelled, completed, or declined) - priority sorting will handle prioritization
+          filteredOrders = allOrders.filter(order => 
+            !['cancelled', 'completed', 'declined'].includes(order.status)
+          );
+          break;
+        case 'all':
+          // Show all orders (no additional filtering)
+          break;
+        default:
+          // Default: Show all active orders (not cancelled, completed, or declined) - priority sorting will handle prioritization
+          filteredOrders = allOrders.filter(order => 
+            !['cancelled', 'completed', 'declined'].includes(order.status)
+          );
+      }
+    } else {
+      // Patron filtering
+      switch (filter) {
+        case 'active':
+          filteredOrders = allOrders.filter(order => 
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+          );
+          break;
+        case 'delivered':
+          filteredOrders = allOrders.filter(order => 
+            ['delivered', 'picked_up', 'completed'].includes(order.status)
+          );
+          break;
+        case 'all':
+          // Show all orders (no additional filtering)
+          break;
+        default:
+          // Default to active orders for patrons
+          filteredOrders = allOrders.filter(order => 
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+          );
+      }
+    }
+    
+    console.log('📦 Filtered orders result:', {
+      filter: filter,
+      userRole: userRole,
+      totalOrders: allOrders.length,
+      filteredCount: filteredOrders.length,
+      statuses: filteredOrders.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
+    });
+    
+    setOrders(filteredOrders);
+  };
+
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+  };
+
+
+
+  const handleQuickAction = async (orderId, action) => {
+    try {
+      setUpdatingOrderId(orderId); // Set the order as being updated
+      // Handle patron-specific actions
+      if (action === 'Confirm Receipt') {
+        const order = orders.find(o => o._id === orderId);
+        if (!confirm(`Confirm that you ${order?.deliveryMethod === 'pickup' ? 'picked up' : 'received'} your order?`)) {
+          return;
+        }
+        const result = await orderService.confirmOrderReceipt(orderId);
+        toast.success(`✅ Order confirmed successfully!`);
+        await loadUserAndOrders(true); // Force refresh to see completed status
+        setUpdatingOrderId(null); // Clear updating state
+        return;
+      }
+      
+      if (action === 'Cancel Order') {
+        const reason = prompt('Please provide a reason for cancelling this order (optional):');
+        await orderService.cancelOrder(orderId, reason);
+        toast.success('Order cancelled successfully');
+        await loadUserAndOrders(true); // Force refresh after status update
+        return;
+      }
+      
+      // Handle artisan-specific actions
+      const statusMap = {
+        'Confirm': 'confirmed',
+        'Start Preparing': 'preparing',
+        'Mark Ready for Pickup': 'ready_for_pickup',
+        'Mark Ready for Delivery': 'ready_for_delivery',
+        'Mark Out for Delivery': 'out_for_delivery',
+        'Mark Picked Up': 'picked_up',
+        'Mark Delivered': 'delivered',
+        'Decline': 'declined'
+      };
+      
+      let newStatus = statusMap[action];
+      
+      // Handle the generic 'Mark Ready' action - determine status based on delivery method
+      if (action === 'Mark Ready') {
+        const order = orders.find(o => o._id === orderId);
+        newStatus = order?.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'ready_for_delivery';
+      }
+      
+      console.log('🔍 Frontend status mapping:', {
+        action: action,
+        newStatus: newStatus,
+        statusMap: statusMap
+      });
+      
+      // Check if we have a valid status
+      if (!newStatus) {
+        console.error('❌ No status mapping found for action:', action);
+        toast.error(`Unknown action: ${action}`);
+        return;
+      }
+      
+      // Handle decline action with reason prompt
+      if (action === 'Decline') {
+        const reason = prompt('Please provide a reason for declining this order:');
+        if (!reason) {
+          toast.error('Decline reason is required');
+          return;
+        }
+        await orderService.declineOrder(orderId, reason);
+        // Note: Toast notification handled by orderNotificationService
+      } else {
+        // Update status for other actions
+        await orderService.updateOrderStatus(orderId, { status: newStatus });
+        // Note: Toast notification handled by orderNotificationService
+      }
+      
+      // Refresh immediately - backend has already processed the update
+      console.log('🔄 Immediately refreshing orders after quick action...');
+      await loadUserAndOrders(true); // Force refresh after status update
+      setUpdatingOrderId(null); // Clear updating state
+    } catch (error) {
+      console.error('❌ Error processing quick action:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update order';
+      toast.error(errorMessage);
+      setUpdatingOrderId(null); // Clear updating state on error
+    }
   };
 
   const formatDate = (dateString) => {
@@ -120,6 +307,9 @@ export default function Orders() {
       'ready_for_delivery': 'bg-green-100 text-green-800',
       'out_for_delivery': 'bg-purple-100 text-purple-800',
       'delivered': 'bg-emerald-100 text-emerald-800',
+      
+      // Final statuses
+      'completed': 'bg-emerald-100 text-emerald-800',
       
       // Legacy statuses (for backward compatibility)
       'ready': 'bg-green-100 text-green-800',
@@ -156,11 +346,14 @@ export default function Orders() {
       'out_for_delivery': 'Out for Delivery',
       'delivered': 'Delivered',
       
+      // Final statuses
+      'completed': 'Completed',
+      
       // Legacy statuses (for backward compatibility)
       'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
       'delivering': 'Out for Delivery'
     };
-    return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    return statusTexts[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown');
   };
 
   // Calculate order priority for artisans
@@ -175,15 +368,17 @@ export default function Orders() {
       'pending': 100,      // Highest priority - needs immediate response
       'confirmed': 90,     // High priority - confirmed but not started
       'preparing': 80,     // Medium-high - in progress
-      'ready': 70,         // Medium - ready for next step
-      'ready_for_pickup': 60,    // Medium - ready for pickup
-      'ready_for_delivery': 60,  // Medium - ready for delivery
-      'out_for_delivery': 50,    // Lower - out for delivery
-      'delivering': 50,    // Lower - delivering
+      'ready_for_pickup': 70,    // Medium - ready for pickup
+      'ready_for_delivery': 70,  // Medium - ready for delivery
+      'out_for_delivery': 60,    // Lower - out for delivery
       'delivered': 10,     // Low - completed
       'picked_up': 10,     // Low - completed
+      'completed': 5,      // Very low - fully completed
       'cancelled': 0,      // Lowest - cancelled
-      'declined': 0        // Lowest - declined
+      'declined': 0,       // Lowest - declined
+      // Legacy statuses
+      'ready': 70,         // Medium - ready for next step
+      'delivering': 60     // Lower - delivering
     };
     
     priority += statusPriority[order.status] || 0;
@@ -222,6 +417,10 @@ export default function Orders() {
       priority += 20; // Pending orders older than 2 hours are urgent
     }
     
+    if ((order.status === 'ready_for_pickup' || order.status === 'ready_for_delivery') && ageInHours > 1) {
+      priority += 25; // Ready orders older than 1 hour are very urgent (customer waiting)
+    }
+    
     return priority;
   };
 
@@ -230,19 +429,15 @@ export default function Orders() {
     
     if (filter === 'all') {
       filteredOrders = orders;
-    } else if (userRole === 'artisan') {
+    } else if (isArtisan(userRole)) {
       switch (filter) {
         case 'needs_action':
-          filteredOrders = orders.filter(order => ['pending', 'confirmed'].includes(order.status));
+          // Show only pending orders that need artisan action (confirm/decline)
+          filteredOrders = orders.filter(order => order.status === 'pending');
           break;
         case 'in_progress':
-          filteredOrders = orders.filter(order => [
-            'preparing', 
-            'ready', 
-            'ready_for_pickup', 
-            'ready_for_delivery',
-            'out_for_delivery'
-          ].includes(order.status));
+          // Show all orders that are NOT completed (priority queue)
+          filteredOrders = orders.filter(order => !['cancelled', 'declined', 'delivered', 'picked_up', 'completed'].includes(order.status));
           break;
         case 'delivered':
         case 'completed':
@@ -268,10 +463,8 @@ export default function Orders() {
             'pending', 
             'confirmed', 
             'preparing', 
-            'ready', 
             'ready_for_pickup',
             'ready_for_delivery',
-            'delivering',
             'out_for_delivery'
           ].includes(order.status));
           break;
@@ -286,38 +479,45 @@ export default function Orders() {
       }
     }
     
-    // Sort by priority (highest first) for artisans
-    if (userRole === 'artisan') {
-      return filteredOrders.sort((a, b) => {
+    // Define active vs completed/cancelled statuses
+    const activeStatuses = ['pending', 'confirmed', 'processing', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'picked_up', 'delivered'];
+    const inactiveStatuses = ['completed', 'cancelled', 'declined'];
+    
+    // Sort function that prioritizes active orders, then by date
+    return filteredOrders.sort((a, b) => {
+      const aIsActive = activeStatuses.includes(a.status);
+      const bIsActive = activeStatuses.includes(b.status);
+      
+      // If one is active and the other is not, active comes first
+      if (aIsActive && !bIsActive) return -1;
+      if (!aIsActive && bIsActive) return 1;
+      
+      // Both are active or both are inactive
+      if (isArtisan(userRole)) {
+        // For artisans: within same category (active/inactive), sort by priority
         const priorityA = calculateOrderPriority(a);
         const priorityB = calculateOrderPriority(b);
         
-        // If priorities are equal, sort by creation date (oldest first)
+        // If priorities are equal, sort by creation date (newest first)
         if (priorityA === priorityB) {
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return new Date(b.createdAt) - new Date(a.createdAt);
         }
         
         return priorityB - priorityA;
-      });
-    }
-    
-    // For patrons, sort by creation date (newest first)
-    return filteredOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+      
+      // For patrons: within same category (active/inactive), sort by creation date (newest first)
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
   };
 
   const getOrderStats = () => {
     const total = orders.length;
     
-    if (userRole === 'artisan') {
+    if (isArtisan(userRole)) {
       // For artisans: focus on orders that need action
-      const needsAction = orders.filter(o => ['pending', 'confirmed'].includes(o.status)).length;
-      const inProgress = orders.filter(o => [
-        'preparing', 
-        'ready', 
-        'ready_for_pickup', 
-        'ready_for_delivery',
-        'out_for_delivery'
-      ].includes(o.status)).length;
+      const needsAction = orders.filter(o => o.status === 'pending').length;
+      const inProgress = orders.filter(o => !['cancelled', 'declined', 'delivered', 'picked_up'].includes(o.status)).length;
       const completed = orders.filter(o => ['delivered', 'picked_up'].includes(o.status)).length;
       const declined = orders.filter(o => ['declined', 'cancelled'].includes(o.status)).length;
       
@@ -343,6 +543,7 @@ export default function Orders() {
 
   const stats = getOrderStats();
   const filteredOrders = getFilteredOrders();
+  
 
   if (isLoading) {
     return (
@@ -387,6 +588,9 @@ export default function Orders() {
     // Confirmed orders older than 6 hours are urgent
     if (order.status === 'confirmed' && ageInHours > 6) return true;
     
+    // Ready orders older than 1 hour are urgent (customer waiting for pickup/delivery)
+    if ((order.status === 'ready_for_pickup' || order.status === 'ready_for_delivery') && ageInHours > 1) return true;
+    
     // Any order older than 24 hours is urgent
     if (ageInHours > 24) return true;
     
@@ -402,10 +606,10 @@ export default function Orders() {
             <ShoppingBagIcon className="w-8 h-8 text-orange-600" />
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            {userRole === 'artisan' ? 'Order Management' : 'My Orders'}
+            {isArtisan(userRole) ? 'Order Management' : 'My Orders'}
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            {userRole === 'artisan' 
+            {isArtisan(userRole) 
               ? 'Manage your customer orders and track order fulfillment' 
               : 'Track your order history and delivery status'
             }
@@ -414,7 +618,7 @@ export default function Orders() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          {userRole === 'artisan' ? (
+          {isArtisan(userRole) ? (
             <>
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
@@ -471,15 +675,22 @@ export default function Orders() {
           )}
         </div>
 
-
+        {/* Priority Queue - For Both Artisans and Patrons */}
+        <PriorityOrderQueue
+          orders={orders}
+          onOrderClick={handleOrderClick}
+          onQuickAction={handleQuickAction}
+          userRole={userRole}
+        />
 
         {/* Enhanced Filters and View Toggle */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex flex-wrap gap-2">
-              {userRole === 'artisan' ? (
+              {isArtisan(userRole) ? (
                 // Simplified artisan filters
                 [
+                  { key: 'active', label: 'Active Orders', icon: '⚡' },
                   { key: 'needs_action', label: 'Needs Action', icon: '🚨' },
                   { key: 'in_progress', label: 'In Progress', icon: '👨‍🍳' },
                   { key: 'all', label: 'All Orders', icon: '📦' }
@@ -577,8 +788,8 @@ export default function Orders() {
             </h3>
             <p className="text-gray-600 mb-4">
               {filter === 'all' 
-                ? (userRole === 'artisan' ? 'No customer orders yet.' : 'Start shopping to see your orders here.')
-                : userRole === 'artisan' 
+                ? (isArtisan(userRole) ? 'No customer orders yet.' : 'Start shopping to see your orders here.')
+                : isArtisan(userRole) 
                   ? 'Great! All orders are being handled properly.'
                   : 'Try selecting a different filter or start shopping.'
               }
@@ -592,14 +803,14 @@ export default function Orders() {
           </div>
         ) : (
           <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
-            {filteredOrders.map((order) => {
+            {filteredOrders.map((order, index) => {
               // Get priority information for artisans
-              const priorityInfo = userRole === 'artisan' ? getPriorityInfo(order) : null;
-              const orderIsUrgent = userRole === 'artisan' ? isUrgent(order) : false;
+              const priorityInfo = isArtisan(userRole) ? getPriorityInfo(order) : null;
+              const orderIsUrgent = isArtisan(userRole) ? isUrgent(order) : false;
               
               return (
                 <div
-                  key={order._id}
+                  key={`${order._id}-${order.status}-${refreshKey}`}
                   className={`bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
                     orderIsUrgent 
                       ? 'border-red-300 bg-red-50 shadow-red-100' 
@@ -616,9 +827,9 @@ export default function Orders() {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="text-lg font-bold text-gray-900">
-                        Order #{order._id.slice(-8).toUpperCase()}
+                        Order #{order._id ? order._id.slice(-8).toUpperCase() : 'Unknown'}
                       </h3>
-                      {userRole === 'artisan' && priorityInfo && (
+                      {isArtisan(userRole) && priorityInfo && (
                         <div className="flex items-center gap-1">
                           <span className={`px-2 py-1 text-xs font-bold ${priorityInfo.color} text-white rounded-full ${
                             priorityInfo.level === 'urgent' ? 'animate-pulse' : ''
@@ -640,7 +851,7 @@ export default function Orders() {
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold text-orange-600">
-                      ${order.totalAmount.toFixed(2)}
+                      ${(order.totalAmount || 0).toFixed(2)}
                     </p>
                     <div className="flex gap-2 mt-2">
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status, order.deliveryMethod)}`}>
@@ -663,15 +874,15 @@ export default function Orders() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="font-medium">
-                      {userRole === 'artisan' ? '👤 Customer:' : '🏪 Artisan:'}
+                      {isArtisan(userRole) ? '👤 Customer:' : '🏪 Artisan:'}
                     </span> 
                     <span>
-                      {userRole === 'artisan' 
+                      {isArtisan(userRole) 
                         ? (order.patron 
                             ? `${order.patron?.firstName} ${order.patron?.lastName}`
                             : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`
                           )
-                        : `${order.artisan?.artisanName || order.artisan?.firstName} ${order.artisan?.lastName}`
+                        : (order.artisan?.artisanName || `${order.artisan?.firstName || ''} ${order.artisan?.lastName || ''}`.trim() || 'Unknown Artisan')
                       }
                     </span>
                   </div>
@@ -706,16 +917,22 @@ export default function Orders() {
                     </span>
                   </div>
                   
-                  {order.deliveryAddress && (
+                  {/* Pickup Address (for pickup orders) */}
+                  {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="font-medium">
-                        {order.deliveryMethod === 'pickup' ? '📍 Pickup:' : '📍 Delivery:'}
-                      </span> 
+                      <span className="font-medium">📍 Pickup Location:</span> 
                       <span>
-                        {order.deliveryMethod === 'pickup' 
-                          ? `${order.deliveryAddress.city} (Pickup)`
-                          : `${order.deliveryAddress.street}, ${order.deliveryAddress.city}`
-                        }
+                        {order.artisan.pickupAddress.street}, {order.artisan.pickupAddress.city}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Delivery Address (for delivery orders) */}
+                  {order.deliveryMethod !== 'pickup' && order.deliveryAddress && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="font-medium">📍 Delivery To:</span> 
+                      <span>
+                        {order.deliveryAddress.street}, {order.deliveryAddress.city}
                       </span>
                     </div>
                   )}
@@ -724,7 +941,7 @@ export default function Orders() {
                   {order.deliveryMethod !== 'pickup' && order.deliveryDistance && (
                     <div className="flex items-center gap-2 text-sm text-blue-600">
                       <span className="font-medium">📏 Distance:</span> 
-                      <span>{order.deliveryDistance.toFixed(1)} km</span>
+                      <span>{(order.deliveryDistance || 0).toFixed(1)} km</span>
                     </div>
                   )}
                   
@@ -749,6 +966,22 @@ export default function Orders() {
                   )}
                 </div>
 
+                {/* Patron Confirmation Needed Badge */}
+                {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
+                  <div className="mt-4 p-3 bg-primary-50 border-2 border-amber-400 rounded-lg animate-pulse">
+                    <div className="flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-amber-900">Confirmation Needed</p>
+                        <p className="text-xs text-primary-dark">
+                          {order.deliveryMethod === 'pickup' ? 'Confirm pickup' : 'Confirm delivery received'}
+                        </p>
+                      </div>
+                      <CheckCircleIcon className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Indicator */}
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <div className="flex items-center justify-between">
@@ -760,7 +993,7 @@ export default function Orders() {
                 {order.status === 'preparing' && order.preparationStage && (
                   <div className="mt-4 p-3 bg-orange-50 rounded-lg">
                     <p className="text-sm font-medium text-orange-800">
-                      Preparation Stage: {order.preparationStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      Preparation Stage: {order.preparationStage ? order.preparationStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}
                     </p>
                   </div>
                 )}
@@ -843,14 +1076,14 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h5 className="font-medium text-gray-900">
-                        Order #{order._id.slice(-8).toUpperCase()}
+                        Order #{order._id ? order._id.slice(-8).toUpperCase() : 'Unknown'}
                       </h5>
                       <p className="text-sm text-gray-600">
                         {order.artisan?.firstName} {order.artisan?.lastName}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-gray-900">${order.totalAmount.toFixed(2)}</p>
+                      <p className="font-bold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</p>
                       <p className="text-xs text-gray-500">{order.items.length} items</p>
                     </div>
                   </div>
@@ -912,21 +1145,13 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
   // Calculate delivery info when modal opens and order is ready for delivery
   useEffect(() => {
-    console.log('🔍 OrderDetailsModal useEffect triggered:', {
-      hasOrder: !!order,
-      orderId: order?._id,
-      orderStatus: order?.status,
-      deliveryMethod: order?.deliveryMethod,
-      hasDeliveryAddress: !!order?.deliveryAddress,
-      deliveryAddress: order?.deliveryAddress,
-      shouldCalculate: order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering') && order.deliveryMethod !== 'pickup'
-    });
-    
-    if (order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready') && order.deliveryMethod !== 'pickup') {
-      console.log('🚀 Triggering delivery info calculation for status:', order.status);
-      calculateDeliveryInfo();
+    if (order && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') && order.deliveryMethod !== 'pickup') {
+      // Only calculate if we don't already have the distance
+      if (!deliveryDistance && !isCalculatingDistance) {
+        calculateDeliveryInfo();
+      }
     }
-  }, [order]);
+  }, [order?.status, order?.deliveryMethod, order?.deliveryAddress, deliveryDistance, isCalculatingDistance]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-CA', {
@@ -955,6 +1180,9 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'ready_for_delivery': 'bg-green-100 text-green-800',
       'out_for_delivery': 'bg-purple-100 text-purple-800',
       'delivered': 'bg-emerald-100 text-emerald-800',
+      
+      // Final statuses
+      'completed': 'bg-emerald-100 text-emerald-800',
       
       // Legacy statuses (for backward compatibility)
       'ready': 'bg-green-100 text-green-800',
@@ -991,64 +1219,89 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       'out_for_delivery': 'Out for Delivery',
       'delivered': 'Delivered',
       
+      // Final statuses
+      'completed': 'Completed',
+      
       // Legacy statuses (for backward compatibility)
       'ready': deliveryMethod === 'pickup' ? 'Ready for Pickup' : 'Ready for Delivery',
       'delivering': 'Out for Delivery'
     };
-    return statusTexts[status] || status.charAt(0).toUpperCase() + status.slice(1);
+    return statusTexts[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown');
   };
 
-  // Estimate delivery time based on distance and delivery method
+  // Estimate delivery time for PERSONAL DELIVERY ONLY (based on car driving speed)
+  // Professional delivery times come from the API (Uber Direct)
   const estimateDeliveryTime = (distance, deliveryMethod) => {
-    if (!distance || distance <= 0) return null;
-    
-    let baseTimeMinutes = 0;
-    let speedKmh = 0;
-    
-    if (deliveryMethod === 'personalDelivery') {
-      // Personal delivery - car travel
-      speedKmh = 30; // Average city driving speed for personal delivery
-      baseTimeMinutes = 10; // Base preparation time
-    } else if (deliveryMethod === 'delivery') {
-      // Professional delivery - driving
-      speedKmh = 30; // Average city driving speed
-      baseTimeMinutes = 15; // Base preparation time
-    } else {
+    // Only calculate for personal delivery - professional delivery uses API times
+    if (deliveryMethod !== 'personalDelivery') {
       return null;
     }
     
-    const travelTimeMinutes = (distance / speedKmh) * 60;
-    const totalTimeMinutes = baseTimeMinutes + travelTimeMinutes;
+    if (!distance || distance <= 0) return null;
     
+    // Realistic car driving speeds based on distance (for personal delivery)
+    let speedKmh = 0;
+    const prepTimeMinutes = 10; // Preparation time
+    
+    // Select speed based on distance (city/suburban/highway)
+    if (distance <= 5) {
+      speedKmh = 30; // City driving (traffic, lights, stops)
+    } else if (distance <= 15) {
+      speedKmh = 40; // Suburban driving (moderate traffic)
+    } else {
+      speedKmh = 60; // Highway driving (longer distances)
+    }
+    
+    // Calculate travel time
+    const travelTimeMinutes = (distance / speedKmh) * 60;
+    
+    // Add 15% buffer for real-world conditions (traffic, parking, finding address)
+    const bufferMinutes = travelTimeMinutes * 0.15;
+    
+    // Total time
+    const totalTimeMinutes = prepTimeMinutes + travelTimeMinutes + bufferMinutes;
+    
+    // Format time for simple display
+    const formatTime = (minutes) => {
+      if (minutes < 60) {
+        return `${Math.round(minutes)} minutes`;
+      } else {
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      }
+    };
+    
+    // Return simple format for user display
     return {
-      travelTime: Math.round(travelTimeMinutes),
       totalTime: Math.round(totalTimeMinutes),
-      formattedTime: totalTimeMinutes < 60 
-        ? `${Math.round(totalTimeMinutes)} minutes`
-        : `${Math.floor(totalTimeMinutes / 60)}h ${Math.round(totalTimeMinutes % 60)}m`
+      formattedTime: formatTime(totalTimeMinutes)
     };
   };
 
   // Calculate delivery distance and time
   const calculateDeliveryInfo = async () => {
-    console.log('🚀 calculateDeliveryInfo called for order:', {
-      orderId: order._id,
-      hasDeliveryAddress: !!order.deliveryAddress,
-      deliveryMethod: order.deliveryMethod,
-      isPickup: order.deliveryMethod === 'pickup'
-    });
-    
     if (!order.deliveryAddress || order.deliveryMethod === 'pickup') {
-      console.log('❌ Skipping delivery info calculation - no delivery address or pickup order');
       return;
+    }
+    
+    // Check if we already have this calculation cached
+    const cacheKey = `delivery_info_${order._id}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const { distance, timeEstimate } = JSON.parse(cached);
+        setDeliveryDistance(distance);
+        setEstimatedDeliveryTime(timeEstimate);
+        setIsCalculatingDistance(false);
+        return;
+      } catch (error) {
+        console.warn('Failed to parse cached delivery info:', error);
+      }
     }
     
     setIsCalculatingDistance(true);
     try {
-      // Debug: Log the full artisan data to see what's available
-      console.log('🔍 Full artisan data:', order.artisan);
-      console.log('🔍 Artisan address:', order.artisan?.address);
-      console.log('🔍 Artisan pickupAddress:', order.artisan?.pickupAddress);
       
       // Get artisan coordinates - try address first, then pickupAddress as fallback
       let artisanAddress = '';
@@ -1081,7 +1334,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           
           // Get delivery address coordinates
           const deliveryAddress = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country}`;
-          console.log('📍 Calculating distance to delivery address:', deliveryAddress);
           const deliveryCoords = await geocodingService.geocodeAddress(deliveryAddress);
           
           if (!deliveryCoords) {
@@ -1116,7 +1368,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         
         // Get delivery address coordinates
         const deliveryAddress = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country}`;
-        console.log('📍 Calculating distance to delivery address:', deliveryAddress);
         const deliveryCoords = await geocodingService.geocodeAddress(deliveryAddress);
         
         if (!deliveryCoords) {
@@ -1138,7 +1389,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         return;
       }
       
-      console.log('📍 Calculating distance from artisan address:', artisanAddress);
       const artisanCoords = await geocodingService.geocodeAddress(artisanAddress);
       
       if (!artisanCoords) {
@@ -1147,8 +1397,16 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
         return;
       }
       
-      // Get delivery address coordinates
-      const deliveryAddress = `${order.deliveryAddress.street}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.country}`;
+      // Get delivery address coordinates - ensure consistent formatting
+      const addressParts = [
+        order.deliveryAddress.street,
+        order.deliveryAddress.city,
+        order.deliveryAddress.state || order.deliveryAddress.province,
+        order.deliveryAddress.postalCode || order.deliveryAddress.zipCode,
+        order.deliveryAddress.country
+      ].filter(part => part && part !== 'undefined'); // Remove undefined/null parts
+      
+      const deliveryAddress = addressParts.join(', ');
       console.log('📍 Calculating distance to delivery address:', deliveryAddress);
       const deliveryCoords = await geocodingService.geocodeAddress(deliveryAddress);
       
@@ -1168,6 +1426,13 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       console.log('⏱️ Estimated delivery time:', timeEstimate);
       setEstimatedDeliveryTime(timeEstimate);
       
+      // Cache the result
+      const cacheKey = `delivery_info_${order._id}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        distance,
+        timeEstimate
+      }));
+      
     } catch (error) {
       console.error('Error calculating delivery info:', error);
     } finally {
@@ -1180,15 +1445,23 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
       return;
     }
 
+    const reason = prompt('Please provide a reason for cancelling this order (optional):');
+    
     setIsLoading(true);
     try {
-      await orderService.cancelOrder(order._id);
-      toast.success('Order cancelled successfully');
-      onRefresh();
+      // Close modal immediately for better UX
       onClose();
+      
+      await orderService.cancelOrder(order._id, reason);
+      toast.success('Order cancelled successfully');
+      
+      console.log('🔄 Refreshing orders after cancellation...');
+      await onRefresh(true); // Force refresh after cancellation
+      
     } catch (error) {
       console.error('Error cancelling order:', error);
       toast.error('Failed to cancel order');
+      await onRefresh(true); // Refresh to show correct state
     } finally {
       setIsLoading(false);
     }
@@ -1196,16 +1469,62 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
   const handleUpdateStatus = async (newStatus) => {
     setIsLoading(true);
+    
     try {
+      console.log('🔍 handleUpdateStatus called:', {
+        orderId: order._id,
+        newStatus: newStatus,
+        order: order
+      });
       
-      await orderService.updateOrderStatus(order._id, { status: newStatus });
-      toast.success(`Order status updated to ${getStatusDisplayText(newStatus, order.deliveryMethod)}`);
-      onRefresh();
+      // OPTIMISTIC UPDATE: Update UI immediately before backend call
+      console.log('⚡ Optimistic update: Setting status to', newStatus);
+      
+      // Close modal immediately for better UX
       onClose();
+      
+      // Update the backend
+      const response = await orderService.updateOrderStatus(order._id, { status: newStatus });
+      // Note: Toast notification is handled by orderNotificationService.triggerOrderStatusUpdateNotification
+      
+      console.log('🔄 Backend update successful, refreshing orders...');
+      // Refresh to get latest data from backend
+      await onRefresh(true);
+      
     } catch (error) {
       console.error('❌ Error updating order status:', error);
+      
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order status';
       toast.error(errorMessage);
+      
+      // Refresh to revert any optimistic updates
+      await onRefresh(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    if (!confirm(`Confirm that you ${order.deliveryMethod === 'pickup' ? 'picked up' : 'received'} your order?`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Close modal immediately for better UX
+      onClose();
+      
+      const result = await orderService.confirmOrderReceipt(order._id);
+      toast.success(`✅ Order confirmed successfully!`);
+      
+      console.log('🔄 Refreshing orders after receipt confirmation...');
+      await onRefresh(true); // Force refresh after receipt confirmation
+      
+    } catch (error) {
+      console.error('❌ Error confirming order receipt:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to confirm order';
+      toast.error(errorMessage);
+      await onRefresh(true); // Refresh to show correct state
     } finally {
       setIsLoading(false);
     }
@@ -1220,18 +1539,26 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
 
     setIsDeclining(true);
     try {
-      const result = await orderService.declineOrder(order._id, declineReason.trim());
-      console.log('✅ Decline Order Success:', result);
-      toast.success('Order declined successfully');
       setShowDeclineModal(false);
       setDeclineReason('');
-      onRefresh();
+      
+      // Close main modal immediately for better UX
       onClose();
+      
+      const result = await orderService.declineOrder(order._id, declineReason.trim());
+      console.log('✅ Decline Order Success:', result);
+      // Note: Toast notification handled by orderNotificationService
+      
+      console.log('🔄 Refreshing orders after decline...');
+      // Refresh to get latest data from backend
+      await onRefresh(true); // Force refresh after decline
+      
     } catch (error) {
       console.error('❌ Error declining order:', error);
       console.error('❌ Error response:', error.response?.data);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to decline order';
       toast.error(errorMessage);
+      await onRefresh(true); // Refresh to show correct state
     } finally {
       setIsDeclining(false);
     }
@@ -1280,13 +1607,29 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </div>
                 <div className="text-center">
                   <span className={`px-4 py-2 text-sm font-bold rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
-                    {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                    {order.paymentStatus ? order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) : 'Unknown'}
                   </span>
                   <p className="text-xs text-gray-500 mt-1">Payment</p>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Decline/Cancellation Reason (if applicable) */}
+          {(order.status === 'declined' || order.status === 'cancelled') && order.lastStatusUpdate?.reason && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-medium text-red-900 mb-2 flex items-center gap-2">
+                <ExclamationTriangleIcon className="w-5 h-5" />
+                Reason for {order.status === 'declined' ? 'Decline' : 'Cancellation'}
+              </h4>
+              <p className="text-sm text-red-800 italic">"{order.lastStatusUpdate.reason}"</p>
+              {order.lastStatusUpdate?.updatedAt && (
+                <p className="text-xs text-red-600 mt-2">
+                  Updated on {formatDate(order.lastStatusUpdate.updatedAt)}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Order Timeline */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -1301,10 +1644,10 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           {/* Artisan/Customer Information */}
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h4 className="font-medium text-gray-900 mb-2">
-              {userRole === 'artisan' ? 'Customer Information' : 'Artisan Information'}
+              {isArtisan(userRole) ? 'Customer Information' : 'Artisan Information'}
             </h4>
             <div className="space-y-1">
-              {userRole === 'artisan' ? (
+              {isArtisan(userRole) ? (
                 <>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Name:</span> 
@@ -1328,7 +1671,15 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 <>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Name:</span> 
-                    {order.artisan?.artisanName || `${order.artisan?.firstName} ${order.artisan?.lastName}`}
+                    {order.artisan?.artisanName || `${order.artisan?.firstName} ${order.artisan?.lastName}` || 'Unknown Artisan'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Email:</span> 
+                    {order.artisan?.email || 'No email provided'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">Phone:</span> 
+                    {order.artisan?.phone || 'No phone provided'}
                   </p>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Business Type:</span> 
@@ -1349,32 +1700,131 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           <div className="bg-white border border-gray-200 rounded-lg p-4">
             <h4 className="font-medium text-gray-900 mb-4">Order Items</h4>
             <div className="space-y-3">
-              {order.items.map((item, index) => (
+              {order.items.map((item, index) => {
+                // Debug logging for problematic orders
+                if (!item.product?.name && !item.name && !item.productName) {
+                  console.warn('🔍 Order item missing product name:', {
+                    orderId: order._id,
+                    itemIndex: index,
+                    item: item,
+                    availableFields: Object.keys(item)
+                  });
+                }
+                return (
                 <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{item.product?.name}</p>
+                    <p className="font-medium text-gray-900">{item.product?.name || item.name || item.productName || 'Unknown Product'}</p>
                     <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                    <p className="text-sm text-gray-600">Unit Price: ${item.unitPrice.toFixed(2)}</p>
+                    <p className="text-sm text-gray-600">Unit Price: ${(item.unitPrice || item.productPrice || 0).toFixed(2)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-gray-900">${item.totalPrice.toFixed(2)}</p>
+                    <p className="font-medium text-gray-900">${(item.totalPrice || item.itemTotal || ((item.unitPrice || item.productPrice || 0) * (item.quantity || 0))).toFixed(2)}</p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-semibold text-gray-900">Total</span>
-                <span className="text-lg font-semibold text-gray-900">${order.totalAmount.toFixed(2)}</span>
+              <div className="space-y-2">
+                {/* Delivery Fee */}
+                {(order.deliveryFee !== undefined && order.deliveryFee !== null && order.deliveryFee > 0) && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Delivery Fee
+                      {order.deliveryMethod === 'personalDelivery' && ' (Personal Delivery)'}
+                      {order.deliveryMethod === 'professionalDelivery' && ' (Professional Delivery)'}
+                    </span>
+                    <span className="text-sm font-medium text-gray-800">
+                      ${order.deliveryFee.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {/* Total */}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="text-lg font-semibold text-gray-900">Total</span>
+                  <span className="text-lg font-semibold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Delivery Information */}
-          {order.deliveryAddress && (
+          {/* Pickup Location Information (for pickup orders) */}
+          {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <h4 className="font-medium text-emerald-900 mb-2 flex items-center gap-2">
+                <MapPinIcon className="w-5 h-5" />
+                Pickup Location
+              </h4>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-emerald-800">{order.artisan.artisanName || 'Artisan Location'}</p>
+                <p className="text-sm text-emerald-700">{order.artisan.pickupAddress.street}</p>
+                <p className="text-sm text-emerald-700">
+                  {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
+                </p>
+                
+                {/* Pickup Time Windows */}
+                {order.pickupTimeWindows && Object.keys(order.pickupTimeWindows).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-200">
+                    <h5 className="text-sm font-semibold text-emerald-800 mb-2 flex items-center gap-2">
+                      <ClockIcon className="w-4 h-4" />
+                      Scheduled Pickup Time
+                    </h5>
+                    {Object.entries(order.pickupTimeWindows).map(([artisanId, timeWindow]) => (
+                      <div key={artisanId} className="text-sm text-emerald-700">
+                        {timeWindow.date && (
+                          <p>
+                            <span className="font-medium">Date:</span> {new Date(timeWindow.date).toLocaleDateString()}
+                          </p>
+                        )}
+                        {timeWindow.timeSlot && (
+                          <p>
+                            <span className="font-medium">Time:</span> {
+                              typeof timeWindow.timeSlot === 'string' 
+                                ? timeWindow.timeSlot 
+                                : timeWindow.timeSlot.label || `${timeWindow.timeSlot.start} - ${timeWindow.timeSlot.end}`
+                            }
+                          </p>
+                        )}
+                        {timeWindow.fullLabel && (
+                          <p>
+                            <span className="font-medium">Scheduled:</span> {timeWindow.fullLabel}
+                          </p>
+                        )}
+                        {timeWindow.startTime && timeWindow.endTime && !timeWindow.timeSlot && (
+                          <p>
+                            <span className="font-medium">Time:</span> {timeWindow.startTime} - {timeWindow.endTime}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Pickup Instructions */}
+                {order.deliveryMethodDetails && order.deliveryMethodDetails.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-200">
+                    <h5 className="text-sm font-semibold text-emerald-800 mb-2 flex items-center gap-2">
+                      <ExclamationTriangleIcon className="w-4 h-4" />
+                      Pickup Instructions
+                    </h5>
+                    {order.deliveryMethodDetails.map((detail, index) => (
+                      detail.method === 'pickup' && detail.instructions && (
+                        <p key={index} className="text-sm text-emerald-700 bg-emerald-100 p-2 rounded-lg border border-emerald-200">
+                          {detail.instructions}
+                        </p>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Delivery Address Information (for delivery orders) */}
+          {order.deliveryMethod !== 'pickup' && order.deliveryAddress && (
             <div className="bg-white border border-gray-200 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-2">
-                {order.deliveryMethod === 'pickup' ? 'Pickup Information' : 'Delivery Address'}
+                Delivery Address
               </h4>
               <div className="space-y-1">
                 <p className="text-sm text-gray-600">{order.deliveryAddress.street}</p>
@@ -1387,33 +1837,17 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 {order.deliveryInstructions && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <h5 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <ExclamationTriangleIcon className="w-4 h-4 text-amber-600" />
+                      <ExclamationTriangleIcon className="w-4 h-4 text-primary" />
                       Delivery Instructions
                     </h5>
-                    <p className="text-sm text-gray-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                    <p className="text-sm text-gray-700 bg-primary-50 p-3 rounded-lg border border-primary-200">
                       {order.deliveryInstructions}
                     </p>
                   </div>
                 )}
                 
                 {/* Delivery Distance and Time Information */}
-                {(() => {
-                  const shouldShowDeliveryInfo = order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery' || order.status === 'delivering' || order.status === 'ready');
-                  console.log('🔍 Delivery info display check:', {
-                    orderId: order._id,
-                    deliveryMethod: order.deliveryMethod,
-                    orderStatus: order.status,
-                    shouldShowDeliveryInfo,
-                    isPickup: order.deliveryMethod === 'pickup',
-                    isReadyForDelivery: order.status === 'ready_for_delivery',
-                    isOutForDelivery: order.status === 'out_for_delivery',
-                    isDelivering: order.status === 'delivering',
-                    isReady: order.status === 'ready',
-                    hasDeliveryAddress: !!order.deliveryAddress
-                  });
-                  
-                  return shouldShowDeliveryInfo;
-                })() && (
+                {order.deliveryMethod !== 'pickup' && (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') && (
                   <div className="mt-3 pt-3 border-t border-gray-200 bg-blue-50 rounded-lg p-3">
                     <h5 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                       <TruckIcon className="w-4 h-4" />
@@ -1433,7 +1867,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                             <div className="flex items-center gap-2">
                               <MapPinIcon className="w-4 h-4 text-blue-600" />
                               <span className="text-sm font-medium text-blue-800">
-                                Distance: {deliveryDistance.toFixed(1)} km
+                                Distance: {(deliveryDistance || 0).toFixed(1)} km
                               </span>
                             </div>
                           )}
@@ -1443,7 +1877,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                             <div className="flex items-center gap-2">
                               <ClockIcon className="w-4 h-4 text-green-600" />
                               <span className="text-sm font-medium text-green-800">
-                                {userRole === 'artisan' ? 'Estimated Travel Time' : 'Estimated Delivery Time'}: {estimatedDeliveryTime.formattedTime}
+                                {isArtisan(userRole) ? 'Estimated Travel Time' : 'Estimated Delivery Time'}: {estimatedDeliveryTime.formattedTime}
                               </span>
                             </div>
                           )}
@@ -1471,7 +1905,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     <div className="flex items-center gap-2">
                       <MapPinIcon className="w-4 h-4 text-blue-500" />
                       <span className="text-sm font-medium text-blue-600">
-                        Delivery Distance: {order.deliveryDistance.toFixed(1)} km
+                        Delivery Distance: {(order.deliveryDistance || 0).toFixed(1)} km
                       </span>
                     </div>
                   </div>
@@ -1565,7 +1999,43 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
           {/* Action Buttons */}
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <h4 className="font-bold text-gray-900 mb-4">Order Actions</h4>
+            
+            {/* Patron Confirmation Alert */}
+            {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up' || order.status === 'ready_for_pickup') && !order.walletCredit?.patronConfirmedAt && (
+              <div className="mb-4 p-4 bg-primary-50 border-2 border-primary-300 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+                  <div className="flex-1">
+                    <h5 className="font-semibold text-amber-900 mb-1">Confirmation Required</h5>
+                    <p className="text-sm text-primary-800 mb-2">
+                      {order.deliveryMethod === 'pickup' 
+                        ? 'Have you picked up your order? Please confirm once received.'
+                        : 'Have you received your delivery? Please confirm once received.'}
+                    </p>
+                    <p className="text-xs text-primary-dark italic">
+                      {order.deliveryMethod === 'pickup' && order.walletCredit?.autoConfirmDeadline
+                        ? `Auto-confirms in ${Math.max(0, Math.round((new Date(order.walletCredit.autoConfirmDeadline) - new Date()) / (1000 * 60 * 60)))} hours if not confirmed`
+                        : 'Please confirm to help the artisan receive their earnings'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex flex-wrap justify-end gap-3">
+              {/* Patron: Confirm Receipt Button */}
+              {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
+                <button
+                  onClick={handleConfirmReceipt}
+                  disabled={isLoading}
+                  className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md flex items-center gap-2"
+                >
+                  <CheckCircleIcon className="w-5 h-5" />
+                  {isLoading ? '⏳ Confirming...' : `✅ Confirm ${order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'}`}
+                </button>
+              )}
+              
+              {/* Patron: Cancel Order Button */}
               {userRole === 'patron' && order.status === 'pending' && (
                 <button
                   onClick={handleCancelOrder}
@@ -1576,7 +2046,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </button>
               )}
               
-              {userRole === 'artisan' && (
+              {isArtisan(userRole) && (
                 <>
                   {order.status === 'pending' && (
                     <>
@@ -1602,46 +2072,22 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                     </>
                   )}
                   {order.status === 'confirmed' && (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus('preparing')}
-                        disabled={isLoading}
-                        title={isLoading ? 'Loading...' : 'Click to decline order'}
-                        className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                      >
-                        {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowDeclineModal(true);
-                        }}
-                        disabled={isLoading}
-                        title={isLoading ? 'Loading...' : 'Click to decline order'}
-                        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                        style={{ border: '2px solid red' }} // Visual indicator for debugging
-                      >
-                        ❌ Decline Order
-                      </button>
-                    </>
+                    <button
+                      onClick={() => handleUpdateStatus('preparing')}
+                      disabled={isLoading}
+                      title={isLoading ? 'Loading...' : 'Start preparing the order'}
+                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                    >
+                      {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
+                    </button>
                   )}
                   {order.status === 'preparing' && (
                     <button
-                      onClick={() => handleUpdateStatus('ready')}
+                      onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'ready_for_delivery')}
                       disabled={isLoading}
                       className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                     >
                       {isLoading ? '⏳ Updating...' : '🎯 Mark Ready'}
-                    </button>
-                  )}
-                  {order.status === 'ready' && (
-                    <button
-                      onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'out_for_delivery')}
-                      disabled={isLoading}
-                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                    >
-                      {isLoading ? '⏳ Updating...' : 
-                       order.deliveryMethod === 'pickup' ? '📍 Ready for Pickup' : 
-                       '🚚 Start Delivery'}
                     </button>
                   )}
                   {order.status === 'ready_for_pickup' && (
@@ -1653,16 +2099,16 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                       {isLoading ? '⏳ Updating...' : '✅ Mark Picked Up'}
                     </button>
                   )}
-                  {order.status === 'out_for_delivery' && (
+                  {order.status === 'ready_for_delivery' && (
                     <button
-                      onClick={() => handleUpdateStatus('delivered')}
+                      onClick={() => handleUpdateStatus('out_for_delivery')}
                       disabled={isLoading}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                     >
-                      {isLoading ? '⏳ Updating...' : '🎉 Mark Delivered'}
+                      {isLoading ? '⏳ Updating...' : '🚚 Start Delivery'}
                     </button>
                   )}
-                  {order.status === 'delivering' && (
+                  {order.status === 'out_for_delivery' && (
                     <button
                       onClick={() => handleUpdateStatus('delivered')}
                       disabled={isLoading}

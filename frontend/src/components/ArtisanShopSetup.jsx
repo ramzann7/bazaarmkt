@@ -124,21 +124,21 @@ export default function ArtisanShopSetup() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      <div className="min-h-screen bg-primary-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
+      <div className="min-h-screen bg-primary-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-gray-600 mb-4">Please log in to set up your shop.</p>
           <button
             onClick={() => navigate('/login')}
-            className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700"
+            className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark"
           >
             Go to Login
           </button>
@@ -150,7 +150,7 @@ export default function ArtisanShopSetup() {
   const completionPercentage = getCompletionPercentage();
 
   return (
-    <div className="min-h-screen bg-amber-50">
+    <div className="min-h-screen bg-primary-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -162,7 +162,7 @@ export default function ArtisanShopSetup() {
           {/* Progress Bar */}
           <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
             <div 
-              className="bg-amber-600 h-3 rounded-full transition-all duration-300"
+              className="bg-primary h-3 rounded-full transition-all duration-300"
               style={{ width: `${completionPercentage}%` }}
             ></div>
           </div>
@@ -175,7 +175,7 @@ export default function ArtisanShopSetup() {
             {/* Tagline */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <SparklesIcon className="w-5 h-5 mr-2 text-amber-600" />
+                <SparklesIcon className="w-5 h-5 mr-2 text-primary" />
                 Shop Tagline
               </h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -186,7 +186,7 @@ export default function ArtisanShopSetup() {
                 value={formData.tagline}
                 onChange={(e) => handleInputChange('tagline', e.target.value)}
                 placeholder="e.g., 'Handcrafted jams made from Montreal berries'"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                 maxLength={100}
               />
               <p className="text-xs text-gray-500 mt-2">
@@ -197,7 +197,7 @@ export default function ArtisanShopSetup() {
             {/* Bio */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <UserIcon className="w-5 h-5 mr-2 text-amber-600" />
+                <UserIcon className="w-5 h-5 mr-2 text-primary" />
                 Your Story
               </h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -208,7 +208,7 @@ export default function ArtisanShopSetup() {
                 onChange={(e) => handleInputChange('bio', e.target.value)}
                 placeholder="Tell your story... How did you start? What inspires you? What makes your products unique?"
                 rows={6}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-none"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-none"
                 maxLength={500}
               />
               <p className="text-xs text-gray-500 mt-2">
@@ -222,7 +222,7 @@ export default function ArtisanShopSetup() {
             {/* Banner Image */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <CameraIcon className="w-5 h-5 mr-2 text-amber-600" />
+                <CameraIcon className="w-5 h-5 mr-2 text-primary" />
                 Banner Image
               </h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -262,7 +262,7 @@ export default function ArtisanShopSetup() {
                     />
                     <label
                       htmlFor="banner-upload"
-                      className="mt-4 inline-block bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 cursor-pointer"
+                      className="mt-4 inline-block bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark cursor-pointer"
                     >
                       Choose Image
                     </label>
@@ -274,7 +274,7 @@ export default function ArtisanShopSetup() {
             {/* Profile Image */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <UserIcon className="w-5 h-5 mr-2 text-amber-600" />
+                <UserIcon className="w-5 h-5 mr-2 text-primary" />
                 Profile Photo
               </h3>
               <p className="text-sm text-gray-600 mb-4">
@@ -313,7 +313,7 @@ export default function ArtisanShopSetup() {
                     />
                     <label
                       htmlFor="profile-upload"
-                      className="mt-2 inline-block bg-amber-600 text-white px-3 py-1 rounded text-xs hover:bg-amber-700 cursor-pointer"
+                      className="mt-2 inline-block bg-primary text-white px-3 py-1 rounded text-xs hover:bg-primary-dark cursor-pointer"
                     >
                       Choose
                     </label>
@@ -336,7 +336,7 @@ export default function ArtisanShopSetup() {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center space-x-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+            className="flex items-center space-x-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
           >
             {isSaving ? (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -349,9 +349,9 @@ export default function ArtisanShopSetup() {
         </div>
 
         {/* Tips */}
-        <div className="mt-12 bg-amber-100 rounded-xl p-6">
+        <div className="mt-12 bg-primary-100 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-amber-900 mb-4">💡 Tips for a Great Shop</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-amber-800">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-primary-800">
             <div>
               <p className="font-medium mb-2">Tagline Ideas:</p>
               <ul className="space-y-1">

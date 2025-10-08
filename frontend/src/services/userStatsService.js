@@ -1,6 +1,6 @@
 // src/services/userStatsService.js
 import config from '../config/environment.js';
-import axios from 'axios';
+import api from './apiClient';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService';
 
 const API_URL = config.API_URL;
@@ -18,7 +18,7 @@ export const userStatsService = {
         return cached;
       }
       
-      const response = await axios.get(`${API_URL}/user/stats`, {
+      const response = await api.get(`${API_URL}/user/stats`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -53,7 +53,7 @@ export const userStatsService = {
         return cached.slice(0, limit);
       }
       
-      const response = await axios.get(`${API_URL}/user/orders?limit=${limit}`, {
+      const response = await api.get(`${API_URL}/user/orders?limit=${limit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -71,7 +71,7 @@ export const userStatsService = {
   getFavoriteArtisans: async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/user/favorites/artisans`, {
+      const response = await api.get(`${API_URL}/user/favorites/artisans`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -86,7 +86,7 @@ export const userStatsService = {
   getOrderHistory: async (page = 1, limit = 10) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/user/orders?page=${page}&limit=${limit}`, {
+      const response = await api.get(`${API_URL}/user/orders?page=${page}&limit=${limit}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -101,7 +101,7 @@ export const userStatsService = {
   getOrderDetails: async (orderId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/user/orders/${orderId}`, {
+      const response = await api.get(`${API_URL}/user/orders/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

@@ -1,42 +1,53 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  TrashIcon, 
-  PlusIcon, 
-  MinusIcon, 
   TruckIcon, 
   CreditCardIcon,
   MapPinIcon,
-  UserIcon,
-  ShoppingBagIcon,
   ArrowLeftIcon,
   ArrowRightIcon,
-  CheckIcon,
-  ExclamationTriangleIcon,
   ShieldCheckIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  ShoppingBagIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import { cartService } from '../services/cartService';
+import { useAuth } from '../contexts/AuthContext';
 import { deliveryService } from '../services/deliveryService';
 import { pickupTimeService } from '../services/pickupTimeService';
 import { getProfile } from '../services/authservice';
-import { paymentService } from '../services/paymentService';
+import { profileService } from '../services/profileService';
 import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
 import { notificationService } from '../services/notificationService';
 import { locationService } from '../services/locationService';
 import { geocodingService } from '../services/geocodingService';
 import { uberDirectService } from '../services/uberDirectService';
-import ProductTypeBadge from './ProductTypeBadge';
+import { orderPaymentService } from '../services/orderPaymentService';
+import DeliveryInformation from './DeliveryInformation.jsx';
+import StripeOrderPayment from './StripeOrderPayment.jsx';
+
+// Initialize Stripe with Canadian locale
+const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY, {
+      locale: 'en-CA', // Canadian English locale for postal code format
+      stripeAccount: undefined, // Use default account
+    })
+  : null;
 
 const Cart = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   // Core cart state
   const [cart, setCart] = useState([]);
   const [cartByArtisan, setCartByArtisan] = useState({});
-  const [checkoutStep, setCheckoutStep] = useState('cart');
+  const [checkoutStep, setCheckoutStep] = useState('delivery'); // Start at delivery options
+  const [currentCheckoutArtisan, setCurrentCheckoutArtisan] = useState(null);
+  const [processedArtisans, setProcessedArtisans] = useState([]);
   
   // Order confirmation state
   const [orderConfirmation, setOrderConfirmation] = useState(null);
@@ -49,6 +60,7 @@ const Cart = () => {
   const [isGuest, setIsGuest] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [existingUser, setExistingUser] = useState(null);
+  const [lastValidatedEmail, setLastValidatedEmail] = useState(null);
   
   // Delivery state
   const [deliveryOptions, setDeliveryOptions] = useState({});
@@ -80,31 +92,20 @@ const Cart = () => {
   const [deliveryOptionsLoading, setDeliveryOptionsLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [updatingItems, setUpdatingItems] = useState(new Set());
-  const [successItems, setSuccessItems] = useState(new Set());
   
   // Payment state
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
-  const [showAddPaymentForm, setShowAddPaymentForm] = useState(false);
-  const [newPaymentForm, setNewPaymentForm] = useState({
-    cardNumber: '',
-    expiryMonth: '',
-    expiryYear: '',
-    cvv: '',
-    cardholderName: '',
-    isDefault: false
-  });
-  const [paymentFormErrors, setPaymentFormErrors] = useState({});
+  const [paymentIntent, setPaymentIntent] = useState(null);
+  const [isCreatingPaymentIntent, setIsCreatingPaymentIntent] = useState(false);
   
-  // Guest payment form state
-  const [guestPaymentForm, setGuestPaymentForm] = useState({
-    paymentMethod: 'credit_card',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardholderName: ''
-  });
+
+  // Initialize checkout artisan when cart loads
+  useEffect(() => {
+    if (cartByArtisan && Object.keys(cartByArtisan).length > 0 && !currentCheckoutArtisan) {
+      const firstArtisanId = Object.keys(cartByArtisan)[0];
+      setCurrentCheckoutArtisan(firstArtisanId);
+      console.log('🔍 Initialized checkout with first artisan:', firstArtisanId);
+    }
+  }, [cartByArtisan, currentCheckoutArtisan]);
 
   // Helper function to parse JWT token
   const parseToken = (token) => {
@@ -137,51 +138,7 @@ const Cart = () => {
     }).format(price);
   };
 
-  // Helper function to get image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // Handle HTTP URLs (including Vercel Blob URLs)
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    // Handle Vercel Blob URLs that might be stored as filenames
-    if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      return imagePath;
-    }
-    
-    // For legacy uploads paths, return null to trigger fallback placeholder
-    if (imagePath.startsWith('/uploads/')) {
-      // Trigger cart migration for legacy items
-      setTimeout(() => {
-        const cart = cartService.getCart(currentUserId);
-        const hasLegacyImages = cart.some(item => 
-          item.image && item.image.startsWith('/uploads/')
-        );
-        if (hasLegacyImages) {
-          cartService.clearCart(currentUserId);
-          setCart([]);
-          setCartByArtisan({});
-          toast.success('Cart cleared due to image migration. Please re-add your items.');
-        }
-      }, 1000);
-      return null; // This will trigger the fallback placeholder
-    }
-    
-    // Handle other paths that need /uploads prefix - legacy support
-    if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    // Handle paths without leading slash - legacy support
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-  };
+  // Using centralized image utilities from imageUtils.js
 
   // Helper function to check if address is required
   const isAddressRequired = () => {
@@ -316,121 +273,10 @@ const Cart = () => {
     }
   };
 
-  // Load user's payment methods
-  const loadPaymentMethods = async () => {
-    if (!currentUserId || isGuest) {
-      return;
-    }
-    
-    try {
-      setPaymentLoading(true);
-      const methods = await paymentService.getPaymentMethods();
-      setPaymentMethods(methods);
-      
-      // Set default payment method if available
-      const defaultMethod = methods.find(method => method.isDefault);
-      if (defaultMethod) {
-        setSelectedPaymentMethod(defaultMethod);
-      }
-    } catch (error) {
-      console.error('❌ Error loading payment methods:', error);
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
 
-  // Validate payment form
-  const validatePaymentForm = () => {
-    const errors = {};
-    
-    if (!newPaymentForm.cardNumber) {
-      errors.cardNumber = 'Card number is required';
-    } else if (!paymentService.validateCreditCard(newPaymentForm.cardNumber)) {
-      errors.cardNumber = 'Invalid card number';
-    }
-    
-    if (!newPaymentForm.expiryMonth || !newPaymentForm.expiryYear) {
-      errors.expiry = 'Expiry date is required';
-    } else if (!paymentService.validateExpiryDate(newPaymentForm.expiryMonth, newPaymentForm.expiryYear)) {
-      errors.expiry = 'Invalid expiry date';
-    }
-    
-    if (!newPaymentForm.cvv) {
-      errors.cvv = 'CVV is required';
-    } else {
-      const cardBrand = paymentService.getCardBrand(newPaymentForm.cardNumber);
-      if (!paymentService.validateCVV(newPaymentForm.cvv, cardBrand)) {
-        errors.cvv = 'Invalid CVV';
-      }
-    }
-    
-    if (!newPaymentForm.cardholderName) {
-      errors.cardholderName = 'Cardholder name is required';
-    }
-    
-    setPaymentFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
 
   // Handle payment form submission
-  const handlePaymentFormSubmit = async () => {
-    if (!validatePaymentForm()) return;
-    
-    try {
-      setPaymentLoading(true);
-      
-      const paymentData = {
-        type: 'credit_card',
-        cardNumber: newPaymentForm.cardNumber,
-        expiryMonth: parseInt(newPaymentForm.expiryMonth),
-        expiryYear: parseInt(newPaymentForm.expiryYear),
-        cvv: newPaymentForm.cvv,
-        cardholderName: newPaymentForm.cardholderName,
-        isDefault: newPaymentForm.isDefault,
-        brand: paymentService.getCardBrand(newPaymentForm.cardNumber)
-      };
-      
-      await paymentService.addPaymentMethod(paymentData);
-      
-      // Reload payment methods
-      await loadPaymentMethods();
-      
-      // Reset form
-      setNewPaymentForm({
-        cardNumber: '',
-        expiryMonth: '',
-        expiryYear: '',
-        cvv: '',
-        cardholderName: '',
-        isDefault: false
-      });
-      setShowAddPaymentForm(false);
-      setPaymentFormErrors({});
-      
-      toast.success('Payment method added successfully');
-    } catch (error) {
-      console.error('Error adding payment method:', error);
-      toast.error('Failed to add payment method');
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
 
-  // Handle payment form changes
-  const handlePaymentFormChange = (field, value) => {
-    setNewPaymentForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    
-    // Clear error when user starts typing
-    if (paymentFormErrors[field]) {
-      setPaymentFormErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
-    }
-  };
 
   // Get total delivery fees across all artisans (async version for API calls)
   const getTotalDeliveryFees = async () => {
@@ -483,7 +329,6 @@ const Cart = () => {
     try {
       setCartLoading(true);
   
-      console.log('🔍 loadCart called');
       
       // Get current user info
       const token = localStorage.getItem('token');
@@ -495,7 +340,6 @@ const Cart = () => {
         userId = tokenData.userId;
         guestStatus = tokenData.isGuest;
         
-        console.log('🔍 Token found:', { userId, guestStatus });
         
         // Only set currentUserId if it's not already set to avoid race conditions
         if (!currentUserId) {
@@ -505,17 +349,13 @@ const Cart = () => {
           setIsGuest(guestStatus);
         }
       } else {
-        console.log('🔍 No token found, treating as guest');
       }
       
-      console.log('🔍 Final userId for cart loading:', userId);
       
       // Load cart data from localStorage
       const cartData = await cartService.getCart(userId);
-      console.log('🔍 Cart data loaded:', cartData);
       
       if (!cartData || cartData.length === 0) {
-        console.log('🔍 No cart data found, setting empty cart');
         setCart([]);
         setCartByArtisan({});
         return;
@@ -523,7 +363,6 @@ const Cart = () => {
       
       // Load cart by artisan (this fetches fresh artisan data)
       const cartByArtisanData = await cartService.getCartByArtisan(userId);
-      console.log('🔍 Cart by artisan loaded:', cartByArtisanData);
       
       // Set cart state
       setCart(cartData);
@@ -664,6 +503,47 @@ const Cart = () => {
     }
   };
 
+  // Load saved addresses and pre-populate delivery form
+  const loadSavedAddresses = async () => {
+    try {
+      if (!userProfile || !userProfile.addresses || userProfile.addresses.length === 0) {
+        console.log('📭 No saved addresses found for user');
+        return;
+      }
+
+      // Find the default address or use the first address
+      const defaultAddress = userProfile.addresses.find(addr => addr.isDefault) || userProfile.addresses[0];
+      
+      if (defaultAddress) {
+        console.log('🏠 Loading saved address:', defaultAddress);
+        
+        // Pre-populate delivery form with saved address
+        setDeliveryForm(prev => ({
+          ...prev,
+          firstName: userProfile.firstName || prev.firstName,
+          lastName: userProfile.lastName || prev.lastName,
+          email: userProfile.email || prev.email,
+          phone: userProfile.phone || prev.phone,
+          // Set address in the nested structure that DeliveryInformation expects
+          deliveryAddress: {
+            street: defaultAddress.street || '',
+            city: defaultAddress.city || '',
+            state: defaultAddress.state || '',
+            zipCode: defaultAddress.zipCode || defaultAddress.postalCode || '',
+            country: defaultAddress.country || 'Canada'
+          }
+        }));
+
+        // Set the selected address
+        setSelectedAddress(defaultAddress);
+        
+        toast.success('Saved address loaded', { duration: 2000 });
+      }
+    } catch (error) {
+      console.error('❌ Error loading saved addresses:', error);
+    }
+  };
+
   // Check authentication status
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
@@ -674,129 +554,18 @@ const Cart = () => {
       setIsGuest(tokenData.isGuest);
       
       if (!tokenData.isGuest) {
-        // Load profile and payment methods in parallel for better performance
-        Promise.all([
-          loadUserProfile(),
-          loadPaymentMethods()
-        ]).catch(error => {
-          console.error('❌ Error loading profile or payment methods:', error);
+        // Load profile for better performance
+        loadUserProfile().catch(error => {
+          console.error('❌ Error loading profile:', error);
         });
       }
     } else {
       // No token means guest user
       setCurrentUserId(null);
       setIsGuest(true);
-      console.log('🔍 No token found, setting user as guest');
     }
     
     await loadCart();
-    migrateLegacyCartItems();
-  };
-
-  // Migrate legacy cart items (clear cart if it contains legacy image paths)
-  const migrateLegacyCartItems = () => {
-    try {
-      const cart = cartService.getCart(currentUserId);
-      const hasLegacyImages = cart.some(item => 
-        item.image && item.image.startsWith('/uploads/')
-      );
-      
-      if (hasLegacyImages) {
-        cartService.clearCart(currentUserId);
-        setCart([]);
-        setCartByArtisan({});
-        toast.success('Cart cleared due to image migration. Please re-add your items.');
-        return true; // Indicate migration occurred
-      }
-      return false; // No migration needed
-    } catch (error) {
-      console.error('Error migrating legacy cart items:', error);
-      return false;
-    }
-  };
-
-  // Handle cart updates
-  const handleCartUpdate = async () => {
-    await loadCart();
-  };
-
-
-  // Handle quantity changes with instant UI updates
-  const handleQuantityChange = async (productId, newQuantity) => {
-    // Prevent multiple simultaneous updates for the same item
-    if (updatingItems.has(productId)) return;
-    
-    try {
-      setUpdatingItems(prev => new Set(prev).add(productId));
-      
-      // Optimistically update the UI immediately
-      const updatedCart = cart.map(item => 
-        item._id === productId 
-          ? { ...item, quantity: newQuantity }
-          : item
-      ).filter(item => item.quantity > 0);
-      
-      setCart(updatedCart);
-      
-      // Update cartByArtisan state immediately
-      const updatedCartByArtisan = {};
-      updatedCart.forEach(item => {
-        const artisanId = item.artisan?._id || item.artisanId;
-        if (!updatedCartByArtisan[artisanId]) {
-          updatedCartByArtisan[artisanId] = {
-            artisan: item.artisan,
-            items: [],
-            subtotal: 0
-          };
-        }
-        updatedCartByArtisan[artisanId].items.push(item);
-        updatedCartByArtisan[artisanId].subtotal += item.price * item.quantity;
-      });
-      setCartByArtisan(updatedCartByArtisan);
-      
-      // Show immediate feedback
-      if (newQuantity <= 0) {
-        toast.success('Item removed from cart');
-      } else {
-        toast.success('Quantity updated');
-      }
-      
-      // Update localStorage in the background
-      if (newQuantity <= 0) {
-        await cartService.removeFromCart(productId, currentUserId);
-      } else {
-        await cartService.updateQuantity(productId, newQuantity, currentUserId);
-      }
-      
-      // Dispatch cart update event for navbar
-      const totalItems = updatedCart.reduce((sum, item) => sum + item.quantity, 0);
-      window.dispatchEvent(new CustomEvent('cartUpdated', {
-        detail: { count: totalItems, userId: currentUserId }
-      }));
-      
-      // Show success state briefly
-      setSuccessItems(prev => new Set(prev).add(productId));
-      setTimeout(() => {
-        setSuccessItems(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(productId);
-          return newSet;
-        });
-      }, 1000);
-      
-    } catch (error) {
-      console.error('❌ Error updating quantity:', error);
-      toast.error('Failed to update quantity');
-      
-      // Revert on error by reloading cart
-      await handleCartUpdate();
-    } finally {
-      setUpdatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(productId);
-        return newSet;
-      });
-    }
   };
 
   // Load pickup time windows for artisans
@@ -1155,25 +924,75 @@ const Cart = () => {
     }));
     
     // Check for existing user when email changes (with debouncing)
-    if (field === 'email' && value && value.includes('@') && value.length > 5) {
-      // Clear any existing timeout
-      if (window.emailCheckTimeout) {
-        clearTimeout(window.emailCheckTimeout);
-      }
-      
-      // Set a new timeout to debounce the API call
-      window.emailCheckTimeout = setTimeout(async () => {
-      try {
-        const existingUserData = await guestService.checkExistingUser(value);
-        setExistingUser(existingUserData);
-        if (existingUserData) {
-          toast.success(`Welcome back! Found existing account for ${value}`);
+    if (field === 'email') {
+      // Helper function to validate email format
+      const isValidEmailFormat = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      };
+
+      // Only validate if email format is valid
+      if (value && isValidEmailFormat(value)) {
+        // Skip if this email was already validated
+        if (value === lastValidatedEmail) {
+          return;
         }
-      } catch (error) {
-        // User not found, clear existing user state
+
+        // Clear any existing timeout
+        if (window.emailCheckTimeout) {
+          clearTimeout(window.emailCheckTimeout);
+        }
+        
+        // Set a new timeout to debounce the API call
+        window.emailCheckTimeout = setTimeout(async () => {
+        try {
+          const result = await guestService.checkExistingUser(value);
+          setLastValidatedEmail(value);
+          
+          if (result.exists) {
+            setExistingUser(result.user);
+            
+            if (result.isPatron) {
+              // User is a registered patron - ask them to login
+              toast.error(
+                `This email is registered as a patron account. Please log in to continue with your order.`,
+                {
+                  duration: 5000,
+                  icon: '🔐',
+                  style: {
+                    background: '#fef2f2',
+                    color: '#991b1b',
+                  },
+                }
+              );
+            } else if (result.isGuest) {
+              // User is a guest - welcome them back
+              toast.success(
+                `Welcome back, ${result.user.firstName || 'guest'}! We found your previous order information.`,
+                {
+                  duration: 4000,
+                  icon: '👋',
+                  style: {
+                    background: '#f0fdf4',
+                    color: '#166534',
+                  },
+                }
+              );
+            }
+          } else {
+            // No existing user
+            setExistingUser(null);
+          }
+        } catch (error) {
+          // User not found, clear existing user state
+          setExistingUser(null);
+          console.error('Error checking user:', error);
+        }
+        }, 800); // Wait 800ms after user stops typing
+      } else if (value !== lastValidatedEmail) {
+        // Reset validation when email changes but is incomplete
         setExistingUser(null);
       }
-      }, 500); // Wait 500ms after user stops typing
     }
     
     // Validate address when address fields are completed
@@ -1258,12 +1077,6 @@ const Cart = () => {
     }
   };
 
-  const handleGuestPaymentFormChange = (field, value) => {
-    setGuestPaymentForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
 
   // Handle address selection
   const handleAddressSelect = async (address) => {
@@ -1293,29 +1106,7 @@ const Cart = () => {
 
   // Handle checkout step navigation
   const handleNextStep = async () => {
-    if (checkoutStep === 'cart') {
-      if (cart.length === 0) {
-        toast.error('Cart is empty');
-        return;
-      }
-      
-      console.log('🔍 handleNextStep - isGuest:', isGuest, 'currentUserId:', currentUserId);
-      
-      // For guest users or unauthenticated users, allow them to proceed to delivery
-      if (isGuest || !currentUserId) {
-        // Set as guest if not already set
-        if (!isGuest) {
-          setIsGuest(true);
-        }
-        console.log('🔍 Guest/unauthenticated user proceeding to delivery');
-        setCheckoutStep('delivery');
-        return;
-      }
-      
-      // For authenticated users, go to delivery step
-      console.log('🔍 Authenticated user proceeding to delivery');
-      setCheckoutStep('delivery');
-    } else if (checkoutStep === 'delivery') {
+    if (checkoutStep === 'delivery') {
       // Validate that delivery methods are selected for each artisan
       const unselectedArtisans = [];
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
@@ -1343,7 +1134,8 @@ const Cart = () => {
         return;
       }
       
-      if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
+      if (isAddressRequired() && !selectedAddress && 
+          (!deliveryForm.street && !deliveryForm.deliveryAddress?.street)) {
         toast.error('Please provide delivery address');
         return;
       }
@@ -1357,8 +1149,17 @@ const Cart = () => {
       
       // Validate delivery address for both guests and patrons
       if (isAddressRequired()) {
-        const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
-        const hasCompleteAddress = addressToValidate && addressToValidate.street && addressToValidate.city && addressToValidate.state && addressToValidate.zipCode && addressToValidate.country;
+        // For guests, check deliveryForm.deliveryAddress (nested object from DeliveryInformation)
+        // For authenticated users, use selectedAddress or deliveryForm
+        const addressToValidate = isGuest 
+          ? (deliveryForm.deliveryAddress || deliveryForm)
+          : (selectedAddress || deliveryForm);
+        
+        const hasCompleteAddress = addressToValidate && 
+          addressToValidate.street && 
+          addressToValidate.city && 
+          addressToValidate.state && 
+          addressToValidate.zipCode;
         
         if (!hasCompleteAddress) {
           toast.error('Please complete all address fields (street, city, state, postal code) to proceed with delivery.');
@@ -1423,13 +1224,16 @@ const Cart = () => {
             return;
         }
       }
-      setCheckoutStep('payment');
+      
+      // Create payment intent and go to payment step
+      await handleCheckout();
     }
   };
 
   const handlePreviousStep = () => {
     if (checkoutStep === 'delivery') {
-      setCheckoutStep('cart');
+      // Go back to shopping (close checkout)
+      navigate(-1);
     } else if (checkoutStep === 'payment') {
       setCheckoutStep('delivery');
     } else if (checkoutStep === 'confirmation') {
@@ -1437,89 +1241,34 @@ const Cart = () => {
     }
   };
 
-  // Handle checkout
-  const handleCheckout = async () => {
+  // Create payment intent
+  const createPaymentIntent = async () => {
     try {
-      // Validate delivery options
-      const hasDeliveryMethod = Object.keys(selectedDeliveryMethods).length > 0;
-      if (!hasDeliveryMethod) {
-        toast.error('Please select delivery methods');
-        return;
-      }
+      setIsCreatingPaymentIntent(true);
 
-      // Validate pickup time selection for pickup orders
-      for (const [artisanId, deliveryMethod] of Object.entries(selectedDeliveryMethods)) {
-        if (deliveryMethod === 'pickup' && !selectedPickupTimes[artisanId]) {
-          console.log('❌ Pickup time validation failed for artisan:', artisanId);
-          console.log('   Delivery method:', deliveryMethod);
-          console.log('   Selected pickup time:', selectedPickupTimes[artisanId]);
-          console.log('   Available pickup windows:', pickupTimeWindows[artisanId]);
-          toast.error('Please select a pickup time for all pickup orders');
-          return;
-        }
-      }
-
-      if (isAddressRequired() && !selectedAddress && !deliveryForm.street) {
-        toast.error('Please provide delivery address');
-        return;
-      }
-
-      // For guest users, validate payment information
-      if (isGuest) {
-        if (!guestPaymentForm.paymentMethod) {
-          toast.error('Please select a payment method');
-          return;
-        }
-        if (!guestPaymentForm.cardNumber || !guestPaymentForm.expiryDate || !guestPaymentForm.cvv || !guestPaymentForm.cardholderName) {
-          toast.error('Please complete all payment details');
-          return;
-        }
-        await handleGuestCheckout();
-        return;
-      }
-
-      // For authenticated users, validate payment method
-      if (!selectedPaymentMethod) {
-        toast.error('Please select a payment method');
-        return;
-      }
-
-      // For authenticated users, proceed with order creation
-      await handlePlaceOrder();
-    } catch (error) {
-      console.error('❌ Error during checkout:', error);
-      toast.error('Checkout failed');
-    }
-  };
-
-
-
-  // Handle order placement for both authenticated users and guests
-  const handlePlaceOrder = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Check if we need to create a guest user first
-      if (isGuest || !currentUserId) {
-        console.log('🔍 User is guest or has no ID, using guest order endpoint');
-        await handleGuestCheckout();
-        return;
-      }
-      
-      // Prepare order data for authenticated users
+      // Prepare order data
       const orderData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          quantity: item.quantity,
-          productType: item.productType || 'ready_to_ship'
-        })),
+        items: cart.map(item => {
+          // If _id is the artisan ID, we need to find the actual product ID
+          // For now, let's use the _id but this needs to be fixed in the cart service
+          let productId = item._id;
+          
+          // If the _id matches the artisan ID, we have a problem
+          if (item.artisan && (item._id === item.artisan._id || item._id === item.artisan)) {
+            // We need to find the actual product ID - this should be fixed in cart service
+            productId = item.productId || item._id; // fallback for now
+          }
+          
+          return {
+            productId: productId,
+            quantity: item.quantity,
+            productType: item.productType || 'ready_to_ship'
+          };
+        }),
         deliveryAddress: selectedAddress || deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
-        pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
-        paymentMethod: selectedPaymentMethod?.type || 'credit_card',
-        paymentMethodId: selectedPaymentMethod?._id,
-        // Include delivery method details with instructions for each artisan
+        pickupTimeWindows: selectedPickupTimes,
         deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
           artisanId,
           method,
@@ -1533,256 +1282,231 @@ const Cart = () => {
         }))
       };
 
-      console.log('🚀🚀🚀 FRONTEND AUTHENTICATED ORDER CREATION 🚀🚀🚀');
-      console.log('🔍 Creating order for authenticated user:', orderData);
-      console.log('🔍 Frontend Debug - selectedPickupTimes being sent:', selectedPickupTimes);
-      console.log('🔍 Frontend Debug - selectedPickupTimes keys:', Object.keys(selectedPickupTimes));
-      console.log('🔍 Frontend Debug - selectedPickupTimes values:', Object.values(selectedPickupTimes));
-      console.log('🔍 Frontend Debug - orderData.pickupTimeWindows:', orderData.pickupTimeWindows);
-      
-      // Create order using authenticated endpoint
-      const result = await orderService.createOrder(orderData);
-      
-      // Send order completion notification for authenticated user
-      const userInfo = {
-        id: currentUserId,
-        email: userProfile?.email,
-        phone: userProfile?.phone,
-        firstName: userProfile?.firstName,
-        lastName: userProfile?.lastName,
-        isGuest: false
-      };
-      
-      // Send notification for each order
-      for (const order of result.orders) {
-        await notificationService.sendOrderCompletionNotification(order, userInfo);
-      }
-      
-      // Clear cart
-      await cartService.clearCart(currentUserId);
-      
-      // Show success message
-      toast.success(`Order placed successfully! ${result.orders.length} order${result.orders.length > 1 ? 's' : ''} created.`);
-      
-      // Navigate to order confirmation
-      console.log('🔍 Cart - Navigating to order confirmation with data:', {
-        orders: result.orders,
-        selectedPickupTimes: selectedPickupTimes,
-        selectedDeliveryMethods: selectedDeliveryMethods,
-        isPickupOrder: Object.values(selectedDeliveryMethods).includes('pickup'),
-        firstOrderDeliveryMethod: result.orders[0]?.deliveryMethod
-      });
-      
-      navigate('/order-confirmation', { 
-        state: { 
-          orders: result.orders,
-          message: 'Order placed successfully!',
-          orderSummary: {
-            totalOrders: result.orders.length,
-            totalAmount: result.orders.reduce((sum, order) => sum + order.totalAmount, 0),
-            estimatedDeliveryTime: '2-3 business days',
-            orderNumbers: result.orders.map(order => order.orderNumber || order._id?.toString().slice(-8).toUpperCase())
-          },
-          selectedPickupTimes: selectedPickupTimes, // Include pickup time selections
-          isPickupOrder: Object.values(selectedDeliveryMethods).includes('pickup')
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Error placing order:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to place order. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle guest checkout (simplified flow)
-  const handleGuestCheckout = async () => {
-    try {
-      setIsLoading(true);
-      
-      // First, check if user already exists by email, then create or update guest profile
-      let guestToken = localStorage.getItem('token');
-      let guestUserId = null;
-      let existingUser = null;
-      
-      if (deliveryForm.email) {
-        console.log('🔍 Checking if user already exists with email:', deliveryForm.email);
-        try {
-          // Check if user exists by email
-          existingUser = await guestService.checkExistingUser(deliveryForm.email);
-          if (existingUser) {
-            console.log('🔍 Found existing user:', existingUser);
-            // Use existing user's token if available
-            if (existingUser.token) {
-              guestToken = existingUser.token;
-              guestUserId = existingUser.id;
-              // Update existing user's delivery info
-              await guestService.updateUserProfile(existingUser.id, {
-                firstName: deliveryForm.firstName || existingUser.firstName,
-                lastName: deliveryForm.lastName || existingUser.lastName,
-                phone: deliveryForm.phone || existingUser.phone
-              });
-            }
-          }
-        } catch (error) {
-          console.log('🔍 No existing user found, will create new one');
-        }
-      }
-      
-      if (!guestToken || isGuest) {
-        if (existingUser && !existingUser.token) {
-          // Existing user but no token, need to create one
-          console.log('🔍 Creating token for existing user...');
-          try {
-            const tokenResponse = await guestService.createTokenForExistingUser(existingUser.id);
-            guestToken = tokenResponse.token;
-            guestUserId = existingUser.id;
-          } catch (error) {
-            console.error('❌ Error creating token for existing user:', error);
-            toast.error('Failed to authenticate existing user. Please try again.');
-            return;
-          }
-        } else if (!existingUser) {
-          // Create new guest user profile
-          console.log('🔍 Creating new guest user profile...');
-          
-          const guestInfo = {
-            firstName: deliveryForm.firstName || 'Guest',
-            lastName: deliveryForm.lastName || 'User',
-            email: deliveryForm.email || undefined,
-            phone: deliveryForm.phone || undefined
-          };
-          
-          try {
-            const guestResponse = await guestService.createGuestProfile(guestInfo);
-            guestToken = guestResponse.token;
-            guestUserId = guestResponse.user.id;
-            
-            console.log('🔍 Guest user created successfully:', guestResponse.user);
-          } catch (guestError) {
-            console.error('❌ Error creating guest user:', guestError);
-            toast.error('Failed to create guest profile. Please try again.');
-            return;
-          }
-        }
-        
-        // Store the guest token
-        localStorage.setItem('token', guestToken);
-        
-        // Update local state
-        setCurrentUserId(guestUserId);
-        setIsGuest(true);
-      }
-      
-      // Show notification if using existing account
-      if (existingUser) {
-        toast.success(`Welcome back! Using existing account for ${existingUser.email}`);
-      }
-      
-      // Generate unique guest ID for this order
-      const guestId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      
-      // Prepare order data for guest
-      const orderData = {
-        items: cart.map(item => ({
-          productId: item._id,
-          quantity: item.quantity,
-          productType: item.productType || 'ready_to_ship'
-        })),
-        deliveryAddress: isAddressRequired() ? deliveryForm : undefined,
-        deliveryInstructions: isAddressRequired() ? (deliveryForm.instructions || '') : 'Customer will pickup at artisan location',
-        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
-        pickupTimeWindows: selectedPickupTimes, // Include pickup time selections
-        paymentMethod: guestPaymentForm.paymentMethod,
-        paymentDetails: {
-          cardNumber: guestPaymentForm.cardNumber,
-          expiryDate: guestPaymentForm.expiryDate,
-          cvv: guestPaymentForm.cvv,
-          cardholderName: guestPaymentForm.cardholderName,
-          cardType: guestPaymentForm.paymentMethod === 'credit_card' ? 'credit' : 'debit'
-        },
-        // Include delivery method details with instructions for each artisan
-        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
-          artisanId,
-          method,
-          instructions: method === 'pickup' 
-            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
-            : method === 'personalDelivery'
-            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
-            : method === 'professionalDelivery'
-            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
-            : ''
-        })),
-        guestInfo: {
+      let response;
+      if (isGuest) {
+        // Add guest info for guest payment intent
+        orderData.guestInfo = {
           firstName: deliveryForm.firstName || 'Guest',
           lastName: deliveryForm.lastName || 'User',
           email: deliveryForm.email || '',
-          phone: deliveryForm.phone || '',
-          guestId: guestId
-        }
-      };
-
-      console.log('🚀🚀🚀 FRONTEND GUEST ORDER CREATION 🚀🚀🚀');
-      console.log('🔍 Creating guest order:', orderData);
-      console.log('🔍 Frontend Debug - selectedPickupTimes being sent (guest):', selectedPickupTimes);
-      console.log('🔍 Frontend Debug - selectedPickupTimes keys (guest):', Object.keys(selectedPickupTimes));
-      console.log('🔍 Frontend Debug - selectedPickupTimes values (guest):', Object.values(selectedPickupTimes));
-      console.log('🔍 Frontend Debug - orderData.pickupTimeWindows (guest):', orderData.pickupTimeWindows);
-      
-      // Create guest order using the guest endpoint
-      const result = await orderService.createGuestOrder(orderData);
-      
-      // Send order completion notification for guest
-      const guestUserInfo = {
-        id: guestUserId,
-        email: deliveryForm.email,
-        phone: deliveryForm.phone,
-        firstName: deliveryForm.firstName,
-        lastName: deliveryForm.lastName,
-        isGuest: true
-      };
-      
-      // Send notification for each order
-      for (const order of result.orders) {
-        await notificationService.sendOrderCompletionNotification(order, guestUserInfo);
+          phone: deliveryForm.phone || ''
+        };
+        response = await orderPaymentService.createGuestPaymentIntent(orderData);
+      } else {
+        response = await orderPaymentService.createPaymentIntent(orderData);
       }
-      
-      // Clear guest cart
-      await cartService.clearCart(null);
-      
-      // Show success message
-      const isPickupOrder = !isAddressRequired();
-      const orderType = isPickupOrder ? 'pickup' : 'delivery';
-      toast.success(`Guest ${orderType} order placed successfully! ${result.totalOrders} order${result.totalOrders > 1 ? 's' : ''} created.`);
-      
-      // Navigate to order confirmation
-      console.log('🔍 Cart - Guest checkout navigating to order confirmation with data:', {
-        orders: result.orders,
-        selectedPickupTimes: selectedPickupTimes,
-        isPickupOrder: isPickupOrder
-      });
-      
-      navigate('/order-confirmation', { 
-        state: { 
-          message: `Guest ${orderType} order placed successfully!`,
-          orders: result.orders,
-          guestInfo: result.guestInfo,
-          orderSummary: result.orderSummary,
-          isPickupOrder: isPickupOrder,
-          selectedPickupTimes: selectedPickupTimes // Include pickup time selections
-        }
-      });
-      
+
+      if (response.success) {
+        setPaymentIntent(response.data);
+        setCheckoutStep('payment');
+        toast.success('Payment form ready');
+      } else {
+        throw new Error(response.message || 'Failed to create payment intent');
+      }
     } catch (error) {
-      console.error('❌ Error during guest checkout:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to place guest order. Please try again.';
-      toast.error(errorMessage);
+      console.error('Error creating payment intent:', error);
+      
+      // Handle specific error types
+      if (error.response?.data?.message) {
+        const errorMessage = error.response.data.message;
+        
+        // Check for inventory-related errors
+        if (errorMessage.includes('Insufficient inventory')) {
+          toast.error(`❌ ${errorMessage}. Please adjust your cart quantities.`);
+        } else if (errorMessage.includes('Product not found')) {
+          toast.error('❌ Some items in your cart are no longer available. Please refresh your cart.');
+        } else {
+          toast.error(`❌ ${errorMessage}`);
+        }
+      } else {
+        toast.error('Failed to initialize payment. Please try again.');
+      }
     } finally {
-      setIsLoading(false);
+      setIsCreatingPaymentIntent(false);
     }
   };
+
+  // Handle payment success
+  const handlePaymentSuccess = async (orderData) => {
+    console.log('Payment successful, order created:', orderData);
+    
+    // Set checkout step to success immediately to prevent showing error page
+    setCheckoutStep('success');
+      
+    // Send order completion notification
+    try {
+      const userInfo = {
+        id: user?.id || currentUserId || userProfile?.id,
+        email: isGuest ? deliveryForm.email : (user?.email || userProfile?.email),
+        phone: isGuest ? deliveryForm.phone : (user?.phone || userProfile?.phone),
+        isGuest: isGuest,
+        firstName: isGuest ? deliveryForm.firstName : (user?.firstName || userProfile?.firstName),
+        lastName: isGuest ? deliveryForm.lastName : (user?.lastName || userProfile?.lastName)
+      };
+      
+      console.log('📧 Notification userInfo:', userInfo);
+      console.log('📧 Order data for notification:', orderData);
+      
+      if (userInfo.email) {
+        await notificationService.sendOrderCompletionNotification(orderData, userInfo);
+      } else {
+        console.log('⚠️ Skipping notification - no email available');
+      }
+    } catch (notificationError) {
+      console.error('❌ Error sending order completion notification:', notificationError);
+      // Don't fail the order flow if notification fails
+    }
+
+    // Trigger immediate toast notification for order creation
+    try {
+      const { orderNotificationService } = await import('../services/orderNotificationService');
+      const userRole = isGuest ? 'guest' : (userProfile?.role || 'patron');
+      orderNotificationService.triggerOrderCreatedNotification(orderData, userRole);
+    } catch (toastError) {
+      console.error('❌ Error triggering toast notification:', toastError);
+      // Don't fail the order flow if toast notification fails
+    }
+      
+    // Clear cart
+    cartService.clearCart(currentUserId);
+    
+    // Navigate to order confirmation with the correct data structure
+    const orderWithDeliveryInfo = {
+      ...orderData,
+      deliveryAddress: selectedAddress || deliveryForm,
+      deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+      deliveryInstructions: deliveryForm.instructions || '',
+      pickupTimeWindows: selectedPickupTimes,
+      guestInfo: isGuest ? {
+        firstName: deliveryForm.firstName || 'Guest',
+        lastName: deliveryForm.lastName || 'User',
+        email: deliveryForm.email || '',
+        phone: deliveryForm.phone || ''
+      } : null
+    };
+
+    navigate('/order-confirmation', { 
+      state: { 
+        orders: [orderWithDeliveryInfo], // Wrap single order in array for OrderConfirmation component
+        message: 'Order placed successfully!',
+        orderSummary: {
+          total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+          itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
+          items: cart
+        },
+        guestInfo: isGuest ? {
+          firstName: deliveryForm.firstName || 'Guest',
+          lastName: deliveryForm.lastName || 'User',
+          email: deliveryForm.email || '',
+          phone: deliveryForm.phone || ''
+        } : null,
+        selectedPickupTimes: selectedPickupTimes,
+        isPickupOrder: Object.values(selectedDeliveryMethods)[0] === 'pickup'
+      } 
+    });
+    
+    // Clear payment intent after navigation to prevent reuse
+    setPaymentIntent(null);
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error) => {
+    console.error('Payment error details:', {
+      code: error.code,
+      type: error.type,
+      message: error.message,
+      fullError: error
+    });
+    
+    // Show user-friendly error message based on error type
+    if (error.code === 'payment_intent_unexpected_state') {
+      toast.error('Payment session expired. Please refresh the page and try again.');
+      // Clear payment intent and force refresh for unexpected state errors
+      setPaymentIntent(null);
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } else if (error.code === 'incomplete_cvc' || error.type === 'validation_error') {
+      // Don't clear payment intent for validation errors - just show the error
+      toast.error(error.message || 'Please check your card details and try again.');
+    } else {
+      // For other errors, show the error but don't clear payment intent immediately
+      // Let the user try again with the same payment intent
+      toast.error(error.message || 'Payment failed. Please try again.');
+      
+      // Only clear payment intent for specific critical errors
+      if (error.code === 'card_declined' || error.code === 'expired_card') {
+        // These are terminal errors, clear the payment intent
+        setPaymentIntent(null);
+      }
+    }
+  };
+
+  // Validate cart inventory before checkout
+  const validateCartInventory = async () => {
+    try {
+      // Check if we need to validate inventory for any items
+      const itemsToValidate = cart.map(item => ({
+        productId: item._id,
+        quantity: item.quantity,
+        name: item.name
+      }));
+
+      if (itemsToValidate.length === 0) {
+        return { isValid: true };
+      }
+
+      // For now, we'll let the payment intent creation handle inventory validation
+      // In the future, we could add a dedicated inventory validation endpoint
+      return { isValid: true };
+    } catch (error) {
+      console.error('❌ Error validating cart inventory:', error);
+      return { isValid: false, error: 'Failed to validate cart inventory' };
+    }
+  };
+
+  // Handle checkout - go directly to Stripe payment
+  const handleCheckout = async () => {
+    try {
+      // Validate delivery options
+      const hasDeliveryMethod = Object.keys(selectedDeliveryMethods).length > 0;
+      if (!hasDeliveryMethod) {
+        toast.error('Please select delivery methods');
+        return;
+      }
+
+      // Validate pickup time selection for pickup orders
+      for (const [artisanId, deliveryMethod] of Object.entries(selectedDeliveryMethods)) {
+        if (deliveryMethod === 'pickup' && !selectedPickupTimes[artisanId]) {
+          toast.error('Please select a pickup time for all pickup orders');
+          return;
+        }
+      }
+
+      if (isAddressRequired() && !selectedAddress && 
+      (!deliveryForm.street && !deliveryForm.deliveryAddress?.street)) {
+        toast.error('Please provide delivery address');
+        return;
+      }
+
+      // Validate cart inventory
+      const inventoryValidation = await validateCartInventory();
+      if (!inventoryValidation.isValid) {
+        toast.error(inventoryValidation.error || 'Cart validation failed');
+        return;
+      }
+      
+      // Create payment intent and go directly to Stripe payment page
+      await createPaymentIntent();
+    } catch (error) {
+      console.error('❌ Error during checkout:', error);
+      toast.error('Checkout failed');
+    }
+  };
+
+
+
+
 
   // Load data on component mount
   useEffect(() => {
@@ -1823,24 +1547,21 @@ const Cart = () => {
   // Load user profile immediately when user is authenticated
   useEffect(() => {
     if (currentUserId && !isGuest && !userProfile) {
-      // Load profile and payment methods in parallel for better performance
-      Promise.all([
-        loadUserProfile(),
-        loadPaymentMethods()
-      ]).catch(error => {
+      // Load profile for better performance
+      loadUserProfile().catch(error => {
         console.error('❌ Error loading user data:', error);
       });
     }
   }, [currentUserId, isGuest, userProfile]);
 
-  // Monitor cart total changes for animation
-  const [cartTotal, setCartTotal] = useState(0);
+  // Load saved addresses and pre-populate delivery form when user profile is loaded
   useEffect(() => {
-    const newTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    if (newTotal !== cartTotal) {
-      setCartTotal(newTotal);
+    if (userProfile && !isGuest) {
+      loadSavedAddresses();
     }
-  }, [cart, cartTotal]);
+  }, [userProfile, isGuest]);
+
+
 
   // Cleanup timeout on component unmount
   useEffect(() => {
@@ -1854,18 +1575,18 @@ const Cart = () => {
   // Render loading skeleton
   if (cartLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="animate-pulse">
-            <div className="h-12 bg-[#E6B655] rounded-2xl w-1/3 mb-8"></div>
+            <div className="h-12 bg-amber-200 rounded-2xl w-1/3 mb-8"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-48 bg-white rounded-2xl shadow-lg"></div>
+                  <div key={i} className="h-48 card"></div>
                 ))}
               </div>
               <div className="lg:col-span-1">
-                <div className="h-64 bg-white rounded-2xl shadow-lg"></div>
+                <div className="h-64 card"></div>
               </div>
             </div>
           </div>
@@ -1877,17 +1598,17 @@ const Cart = () => {
   // Render empty cart
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <div className="mx-auto w-24 h-24 bg-[#D77A61] rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
+            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-3xl flex items-center justify-center mb-6 shadow-lg animate-bounce">
               <ShoppingBagIcon className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4 animate-fade-in font-serif">Your Collection Awaits</h1>
-            <p className="text-gray-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
+            <h1 className="text-4xl font-bold text-stone-800 mb-4 animate-fade-in font-display">Your Collection Awaits</h1>
+            <p className="text-stone-600 text-lg mb-8 animate-fade-in-delay">Start exploring our local artisans and discover their unique creations</p>
             <button
               onClick={() => navigate('/')}
-              className="bg-[#D77A61] text-white text-lg px-8 py-4 rounded-full hover:bg-[#3C6E47] transition-colors hover:scale-105 transition-transform duration-200 animate-fade-in-delay-2"
+              className="btn-primary text-lg px-8 py-4 animate-fade-in-delay-2"
             >
               Discover Artisans
             </button>
@@ -1897,1622 +1618,173 @@ const Cart = () => {
     );
   }
 
-  // Render main cart view
-  if (checkoutStep === 'cart') {
-    return (
-      <div className="min-h-screen bg-[#F5F1EA] py-8 relative">
-        {/* Loading Overlay */}
-        {updatingItems.size > 0 && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
-            <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center space-y-4">
-              <div className="w-16 h-16 border-4 border-[#E6B655] border-t-[#D77A61] rounded-full animate-spin"></div>
-              <p className="text-lg font-semibold text-gray-700">Updating Cart...</p>
-              <p className="text-sm text-gray-500">Please wait while we update your selection</p>
-            </div>
-          </div>
-        )}
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-4 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#D77A61] rounded-2xl flex items-center justify-center mr-3 sm:mr-4 shadow-lg">
-              <ShoppingBagIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1 font-serif">Your Artisan Collection</h1>
-              <p className="text-sm sm:text-base text-gray-600">Review the beautiful creations you've selected</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-4">
-              {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                <div key={artisanId} className="bg-white rounded-2xl shadow-xl border border-stone-100 p-4 hover:shadow-2xl hover:border-stone-200 transition-all duration-300">
-                  {/* Artisan Header */}
-                  <div className="border-b border-stone-200 pb-3 mb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-stone-900">
-                          {artisanData.artisan?.artisanName || 'Unknown Artisan'}
-                        </h3>
-                        <p className="text-stone-600 text-xs capitalize">
-                          {artisanData.artisan?.type?.replace('_', ' ') || 'Artisan'}
-                        </p>
-                      </div>
-                      <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center">
-                        <UserIcon className="w-4 h-4 text-white" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Delivery Options Tags */}
-                  <div className="mb-3 flex flex-wrap gap-1">
-                    {deliveryOptions[artisanId]?.pickup?.available && (
-                      <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-2 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
-                        <CheckIcon className="w-2.5 h-2.5" />
-                        Pickup
-                      </span>
-                    )}
-                    {deliveryOptions[artisanId]?.personalDelivery?.available ? (
-                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full border border-blue-200 flex items-center gap-1">
-                        <TruckIcon className="w-2.5 h-2.5" />
-                        Personal: ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
-                      </span>
-                    ) : (
-                      <span className="bg-gray-100 text-gray-500 text-xs font-medium px-2 py-1 rounded-full border border-gray-200 flex items-center gap-1">
-                        <TruckIcon className="w-2.5 h-2.5" />
-                        Personal: Not Available
-                      </span>
-                    )}
-                    {deliveryOptions[artisanId]?.professionalDelivery?.available && (
-                      <span className="bg-purple-100 text-purple-800 text-xs font-medium px-2 py-1 rounded-full border border-purple-200 flex items-center gap-1">
-                        <TruckIcon className="w-2.5 h-2.5" />
-                        Professional
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Cart Items */}
-                  <div className="space-y-3">
-                    {artisanData.items.map((item) => (
-                      <div 
-                        key={item._id} 
-                        className={`flex items-center space-x-3 border-b border-stone-100 pb-3 last:border-b-0 transition-all duration-300 ease-in-out ${
-                          updatingItems.has(item._id) ? 'animate-pulse' : ''
-                        } ${
-                          successItems.has(item._id) ? 'ring-2 ring-emerald-200 bg-emerald-50' : ''
-                        }`}
-                        style={{
-                          opacity: updatingItems.has(item._id) ? 0.7 : 1,
-                          transform: updatingItems.has(item._id) ? 'scale(0.98)' : 'scale(1)'
-                        }}
-                      >
-                        {/* Product Image */}
-                        <div className="relative flex-shrink-0">
-                          <img
-                            src={getImageUrl(item.image)}
-                            alt={item.name}
-                            className="w-16 h-16 object-cover rounded-lg shadow-sm"
-                            onError={(e) => {
-                              console.log('❌ Cart - Image failed to load:', e.target.src);
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                            onLoad={(e) => {
-                              console.log('✅ Cart - Image loaded successfully:', e.target.src);
-                            }}
-                          />
-                          <div className="w-16 h-16 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center rounded-lg shadow-sm" style={{ display: 'none' }}>
-                            <ShoppingBagIcon className="w-6 h-6 text-amber-400" />
-                          </div>
-                          <div className="absolute -top-1 -right-1 bg-amber-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                            {item.quantity}
-                          </div>
-                        </div>
-
-                        {/* Product Info - Simplified */}
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-stone-900 text-base mb-1 truncate">{item.name}</h4>
-                          
-                          {/* Availability Status - Compact */}
-                          <div className="mb-2">
-                            {item.productType === 'ready_to_ship' && (
-                              <div className="flex items-center space-x-2 text-xs">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-green-700 font-medium">
-                                  Ready Now
-                                </span>
-                              </div>
-                            )}
-                            {item.productType === 'made_to_order' && (
-                              <div className="flex items-center space-x-2 text-xs">
-                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                <span className="text-blue-700 font-medium">
-                                  {item.leadTime || 1} {item.leadTimeUnit || 'days'}
-                                </span>
-                              </div>
-                            )}
-                            {item.productType === 'scheduled_order' && (
-                              <div className="flex items-center space-x-2 text-xs">
-                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                <span className="text-purple-700 font-medium">
-                                  {item.nextAvailableDate ? (
-                                    new Date(item.nextAvailableDate).toLocaleDateString()
-                                  ) : (
-                                    'Schedule TBD'
-                                  )}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Quantity Controls - Compact */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleQuantityChange(item._id, item.quantity - 1)}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
-                              item.quantity <= 1 || updatingItems.has(item._id)
-                                ? 'bg-stone-100 text-stone-400 cursor-not-allowed' 
-                                : 'bg-stone-100 hover:bg-stone-200 text-stone-700 hover:scale-110'
-                            }`}
-                            disabled={item.quantity <= 1 || updatingItems.has(item._id)}
-                          >
-                            {updatingItems.has(item._id) ? (
-                              <div className="w-3 h-3 border-2 border-stone-400 border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                              <MinusIcon className="w-3 h-3" />
-                            )}
-                          </button>
-                          <span className="w-8 text-center font-semibold text-stone-900 select-none text-sm">
-                            {updatingItems.has(item._id) ? '...' : item.quantity}
-                          </span>
-                          <button
-                            onClick={() => handleQuantityChange(item._id, item.quantity + 1)}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 ${
-                              updatingItems.has(item._id)
-                                ? 'bg-amber-100 text-amber-400 cursor-not-allowed'
-                                : 'bg-amber-100 hover:bg-amber-200 text-stone-700 hover:scale-110'
-                            }`}
-                            disabled={updatingItems.has(item._id)}
-                          >
-                            {updatingItems.has(item._id) ? (
-                              <div className="w-3 h-3 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                              <PlusIcon className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-
-                        {/* Price and Actions - Compact */}
-                        <div className="flex items-center space-x-2">
-                          <div className="text-right min-w-[60px]">
-                            <p className="font-bold text-base text-stone-900">
-                              {formatPrice(item.price * item.quantity)}
-                            </p>
-                            {successItems.has(item._id) && (
-                              <div className="flex items-center justify-end mt-1">
-                                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
-                                <span className="text-xs text-emerald-600 ml-1">✓</span>
-                              </div>
-                          )}
-                          </div>
-                          <button
-                            onClick={() => handleQuantityChange(item._id, 0)}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 ${
-                              updatingItems.has(item._id)
-                                ? 'bg-red-100 text-red-400 cursor-not-allowed'
-                                : 'bg-red-100 hover:bg-red-200 text-red-600'
-                            }`}
-                            title="Remove item"
-                            disabled={updatingItems.has(item._id)}
-                          >
-                            {updatingItems.has(item._id) ? (
-                              <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                              <TrashIcon className="w-3 h-3" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Artisan Subtotal */}
-                  <div className="mt-4 pt-3 border-t border-stone-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-base font-semibold text-stone-700">Subtotal:</span>
-                      <span className="text-lg font-bold text-stone-900 transition-all duration-300 ease-in-out">
-                        {formatPrice(artisanData.subtotal)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Order Summary */}
-            <div className="lg:col-span-1">
-                              <div className="bg-white rounded-2xl shadow-xl border border-stone-100 p-4 sticky top-8">
-                <h3 className="text-lg font-semibold text-stone-900 mb-4">Order Summary</h3>
-                
-                {/* Availability Summary */}
-                <div className="mb-4 p-3 bg-stone-50 rounded-lg border border-stone-200">
-                  <h4 className="text-xs font-semibold text-stone-700 mb-2">Order Timeline</h4>
-                  <div className="space-y-1">
-                    {cart.some(item => item.productType === 'ready_to_ship') && (
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                        <span className="text-green-700">Ready to ship</span>
-                      </div>
-                    )}
-                    {cart.some(item => item.productType === 'made_to_order') && (
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                        <span className="text-blue-700">Custom made</span>
-                      </div>
-                    )}
-                    {cart.some(item => item.productType === 'scheduled_order') && (
-                      <div className="flex items-center space-x-2 text-xs">
-                        <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
-                        <span className="text-purple-700">Scheduled</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="space-y-3 mb-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-stone-600 text-sm">Subtotal:</span>
-                    <span className="font-semibold text-stone-900 text-base transition-all duration-300 ease-in-out">
-                      {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
-                    </span>
-                  </div>
-                  <div className="border-t border-stone-200 pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-stone-600 text-sm">Total:</span>
-                      <span 
-                        className={`font-bold text-stone-900 text-lg transition-all duration-300 ease-in-out ${
-                          cartTotal !== cart.reduce((total, item) => total + (item.price * item.quantity), 0) 
-                            ? 'animate-bounce-subtle text-amber-600' 
-                            : ''
-                        }`}
-                      >
-                        {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-500 mt-1">Delivery fees calculated at checkout</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleNextStep}
-                  className="w-full btn-primary text-base py-3 hover:scale-105 transition-transform duration-200 shadow-lg"
-                >
-                  Choose Delivery Method
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
-
   // Render delivery information page
   if (checkoutStep === 'delivery') {
-    
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Delivery Information</h1>
-            <p className="text-gray-600">Choose your preferred delivery method and provide your details</p>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Delivery Options and Address */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                {/* Step 1: Delivery Options */}
-                <div className="mb-8">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-6">Choose Delivery Method</h2>
-                  
-                  {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => (
-                    <div key={artisanId} className="mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                          <UserIcon className="w-4 h-4 text-orange-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {artisanData.artisan?.artisanName || 'Unknown Artisan'}
-                          </h3>
-                          
-                          {/* Product Types */}
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {artisanData.items.some(item => item.productType === 'ready_to_ship') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Ready to Ship
-                              </span>
-                            )}
-                            {artisanData.items.some(item => item.productType === 'made_to_order') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Made to Order
-                              </span>
-                            )}
-                            {artisanData.items.some(item => item.productType === 'scheduled_order') && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                Scheduled Order
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        {deliveryOptions[artisanId]?.pickup?.available && (
-                          <>
-                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`delivery-${artisanId}`}
-                              value="pickup"
-                              checked={selectedDeliveryMethods[artisanId] === 'pickup'}
-                              onChange={() => handleDeliveryMethodChange(artisanId, 'pickup')}
-                              className="text-green-600 w-4 h-4"
-                            />
-                            <div className="flex items-center gap-3">
-                              <MapPinIcon className="w-5 h-5 text-green-600" />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                <span className="text-gray-900 font-medium">Visit the Artisan</span>
-                                  <span className="text-green-600 text-sm">(Free)</span>
-                                </div>
-                                
-                                {/* Show details only when selected */}
-                                {selectedDeliveryMethods[artisanId] === 'pickup' && (
-                                  <div className="mt-2 space-y-2">
-                                    {deliveryOptions[artisanId]?.pickup?.instructions && (
-                                      <div className="text-xs text-gray-600 bg-green-50 p-2 rounded">
-                                        📋 <strong>Pickup Instructions:</strong> {deliveryOptions[artisanId].pickup.instructions}
-                                      </div>
-                                    )}
-                                    {deliveryOptions[artisanId]?.pickup?.hours && (
-                                      <div className="text-xs text-gray-600 bg-green-50 p-2 rounded">
-                                        🕒 <strong>Pickup Hours:</strong> {deliveryOptions[artisanId].pickup.hours}
-                                      </div>
-                                    )}
-                                    {deliveryOptions[artisanId]?.pickup?.address && (
-                                      <div className="text-xs text-gray-600 bg-green-50 p-2 rounded">
-                                        📍 <strong>Pickup Location:</strong> {deliveryOptions[artisanId].pickup.address}
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-green-700 bg-green-100 p-2 rounded border border-green-200">
-                                      ✅ <strong>No additional requirements needed</strong> - You can pickup at your convenience during business hours
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                            
-                            {/* Pickup Time Selection */}
-                            {selectedDeliveryMethods[artisanId] === 'pickup' && pickupTimeWindows[artisanId] && (
-                              <div className="ml-7 mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                                <h4 className="text-sm font-medium text-green-900 mb-3 flex items-center gap-2">
-                                  <MapPinIcon className="w-4 h-4" />
-                                  Select Pickup Time
-                                </h4>
-                                
-                                {/* Availability Information */}
-                                {(() => {
-                                  // Use enhanced products if available, otherwise fallback to cart item data
-                                  const artisanProducts = enhancedProducts[artisanId] || 
-                                    artisanData.items?.map(item => item.product || item) || [];
-                                  
-                                  const availabilityInfo = pickupTimeService.getAvailabilityInfo(artisanProducts);
-                                  
-                                  return (
-                                    <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-medium text-blue-800">📅 Availability:</span>
-                                        <span className={`text-xs ${
-                                          availabilityInfo.type === 'ready' ? 'text-green-700' : 
-                                          availabilityInfo.type === 'made_to_order' ? 'text-orange-700' : 
-                                          'text-blue-700'
-                                        }`}>
-                                          {availabilityInfo.message}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-                                <div className="space-y-2">
-                                  {pickupTimeWindows[artisanId].slice(0, 6).map((timeSlot, index) => (
-                                    <label key={index} className="flex items-center space-x-3 p-2 border border-green-200 rounded-lg hover:border-green-300 hover:bg-green-100 transition-colors cursor-pointer">
-                                      <input
-                                        type="radio"
-                                        name={`pickup-time-${artisanId}`}
-                                        value={timeSlot.fullLabel}
-                                        checked={selectedPickupTimes[artisanId]?.fullLabel === timeSlot.fullLabel}
-                                        onChange={() => handlePickupTimeChange(artisanId, timeSlot)}
-                                        className="text-green-600 w-4 h-4"
-                                      />
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium text-green-900">{timeSlot.dateLabel}</span>
-                                        <span className="text-sm text-green-700">{timeSlot.timeSlot.label}</span>
-                                      </div>
-                                    </label>
-                                  ))}
-                                </div>
-                                {pickupTimeWindows[artisanId].length > 6 && (
-                                  <p className="text-xs text-green-600 mt-2">
-                                    Showing next 6 available slots. More slots available.
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-                        
-                        {deliveryOptions[artisanId]?.personalDelivery?.available ? (
-                          <label className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors cursor-pointer ${
-                            deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid
-                              ? 'border-red-200 bg-red-50 hover:border-red-300'
-                              : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50'
-                          }`}>
-                            <input
-                              type="radio"
-                              name={`delivery-${artisanId}`}
-                              value="personalDelivery"
-                              checked={selectedDeliveryMethods[artisanId] === 'personalDelivery'}
-                              onChange={() => handleDeliveryMethodChange(artisanId, 'personalDelivery')}
-                              className="text-orange-600 w-4 h-4"
-                              disabled={deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid}
-                            />
-                            <div className="flex items-center gap-3">
-                              <TruckIcon className={`w-5 h-5 ${
-                                deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid
-                                  ? 'text-red-400'
-                                  : 'text-orange-600'
-                              }`} />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className={`font-medium ${
-                                    deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid
-                                      ? 'text-red-700'
-                                      : 'text-gray-900'
-                                  }`}>Personal Delivery</span>
-                                  <span className="text-gray-600 text-sm">
-                                  ${deliveryOptions[artisanId]?.personalDelivery?.fee || 0}
-                                  {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
-                                    ` (Free over $${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})`
-                                  }
-                                </span>
-                                </div>
-                                
-                                {/* Show details only when selected */}
-                                {selectedDeliveryMethods[artisanId] === 'personalDelivery' && (
-                                  <div className="mt-2 space-y-2">
-                                    {/* Address validation status */}
-                                    {deliveryValidationResults[artisanId] ? (
-                                      deliveryValidationResults[artisanId].valid ? (
-                                        <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
-                                          ✅ <strong>Available:</strong> Your address is {deliveryValidationResults[artisanId].distance.toFixed(1)}km away (within {deliveryValidationResults[artisanId].radius}km radius)
-                                        </div>
-                                      ) : (
-                                        <div className="text-xs text-red-700 bg-red-50 p-2 rounded border border-red-200">
-                                          ❌ <strong>Not Available:</strong> Your address is {deliveryValidationResults[artisanId].distance.toFixed(1)}km away (outside {deliveryValidationResults[artisanId].radius}km radius). Please choose pickup or professional delivery.
-                                        </div>
-                                      )
-                                    ) : (
-                                      <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
-                                        📍 <strong>Complete Address Required:</strong> Please enter your complete delivery address (street, city, state, postal code) to verify availability within {deliveryOptions[artisanId]?.personalDelivery?.radius}km radius
-                                      </div>
-                                    )}
-                                    
-                                    {deliveryOptions[artisanId]?.personalDelivery?.instructions && (
-                                      <div className="text-xs text-gray-600 bg-orange-50 p-2 rounded">
-                                        📋 <strong>Delivery Instructions:</strong> {deliveryOptions[artisanId].personalDelivery.instructions}
-                                      </div>
-                                    )}
-                                    
-                                    <div className="text-xs text-orange-700 bg-orange-50 p-2 rounded border border-orange-200">
-                                      💰 <strong>Delivery Fee:</strong> 
-                                      {deliveryOptions[artisanId]?.personalDelivery?.fee > 0 ? (
-                                        <> ${deliveryOptions[artisanId]?.personalDelivery?.fee} 
-                                        {deliveryOptions[artisanId]?.personalDelivery?.freeThreshold && 
-                                          <> (Free on orders over ${deliveryOptions[artisanId]?.personalDelivery?.freeThreshold})</>
-                                        }</>
-                                      ) : (
-                                        <> Free delivery</>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                        ) : (
-                          <div className="flex items-center space-x-3 p-3 border border-red-200 rounded-lg bg-red-50 opacity-80">
-                            <input
-                              type="radio"
-                              disabled
-                              className="text-gray-400 w-4 h-4"
-                            />
-                            <div className="flex items-center gap-3">
-                              <TruckIcon className="w-5 h-5 text-red-400" />
-                              <div>
-                                <span className="text-red-600 font-medium">Personal Delivery</span>
-                                <div className="text-xs text-red-700 mt-1 font-medium">
-                                  ❌ {deliveryOptions[artisanId]?.personalDelivery?.reason || 'Not available'}
-                                </div>
-                                {deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid && (
-                                <div className="text-xs text-red-600 mt-1">
-                                    {deliveryValidationResults[artisanId].error 
-                                      ? '⚠️ Distance calculation failed - please verify your address'
-                                      : `🚚 Too far for personal delivery: ${deliveryValidationResults[artisanId].distance.toFixed(1)}km away (${deliveryValidationResults[artisanId].radius}km radius)`
-                                    }
-                                </div>
-                                )}
-                                {(deliveryOptions[artisanId]?.personalDelivery?.reason?.includes('Outside') || 
-                                  (deliveryValidationResults[artisanId] && !deliveryValidationResults[artisanId].valid)) && (
-                                  <div className="text-xs text-red-600 mt-1 italic">
-                                    💡 Try pickup or check if professional delivery is available
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {deliveryOptions[artisanId]?.professionalDelivery?.available && (
-                          <label className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer">
-                            <input
-                              type="radio"
-                              name={`delivery-${artisanId}`}
-                              value="professionalDelivery"
-                              checked={selectedDeliveryMethods[artisanId] === 'professionalDelivery'}
-                              onChange={() => handleDeliveryMethodChange(artisanId, 'professionalDelivery')}
-                              className="text-purple-600 w-4 h-4"
-                            />
-                            <div className="flex items-center gap-3">
-                              <ShieldCheckIcon className="w-5 h-5 text-purple-600" />
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                <span className="text-gray-900 font-medium">Professional Delivery</span>
-                                  <span className="text-gray-500 text-sm">(Uber Direct)</span>
-                                </div>
-                                
-                                {/* Show details only when selected */}
-                                {selectedDeliveryMethods[artisanId] === 'professionalDelivery' && (
-                                  <div className="mt-2 space-y-2">
-                                    <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
-                                      📍 <strong>Address Required:</strong> Enter your delivery address below to get an accurate quote and delivery time
-                                    </div>
-                                    
-                                    <div className="text-sm text-gray-600 bg-purple-50 p-2 rounded border border-purple-200">
-                                      {loadingUberQuotes.has(artisanId) ? (
-                                        <span className="flex items-center gap-2">
-                                          <div className="w-3 h-3 border border-purple-300 border-t-purple-600 rounded-full animate-spin"></div>
-                                          <span>Getting quote...</span>
-                                        </span>
-                                      ) : uberDirectQuotes[artisanId] ? (
-                                        <div className="flex items-center gap-2">
-                                          <span>🚛 <strong>${uberDirectQuotes[artisanId].fee}</strong></span>
-                                          {uberDirectQuotes[artisanId].estimated && (
-                                            <span className="text-xs text-orange-600">(estimated)</span>
-                                          )}
-                                          {uberDirectQuotes[artisanId].duration && (
-                                            <span className="text-xs text-gray-500">• {uberDirectQuotes[artisanId].duration} min</span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-gray-600">Quote will be calculated after address entry</span>
-                                      )}
-                                    </div>
-                                    
-                                    {(deliveryOptions[artisanId]?.professionalDelivery?.packaging || 
-                                      deliveryOptions[artisanId]?.professionalDelivery?.restrictions) && (
-                                      <div className="space-y-1">
-                                        {deliveryOptions[artisanId]?.professionalDelivery?.packaging && (
-                                          <div className="text-xs text-gray-600 bg-purple-50 p-2 rounded">
-                                            📦 <strong>Packaging:</strong> {deliveryOptions[artisanId].professionalDelivery.packaging}
-                                          </div>
-                                        )}
-                                        {deliveryOptions[artisanId]?.professionalDelivery?.restrictions && (
-                                          <div className="text-xs text-gray-600 bg-purple-50 p-2 rounded">
-                                            ⚠️ <strong>Restrictions:</strong> {deliveryOptions[artisanId].professionalDelivery.restrictions}
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                    
-                                    <div className="text-xs text-purple-700 bg-purple-100 p-2 rounded border border-purple-200">
-                                      🚛 <strong>Professional Service:</strong> Reliable delivery with tracking and insurance coverage
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                        )}
-                      </div>
-                      
-                      {/* Show selection status */}
-                      {!selectedDeliveryMethods[artisanId] && (
-                        <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600" />
-                            <span className="text-sm text-yellow-800 font-medium">
-                              Please select a delivery method above
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Address Requirement Notice */}
-                <div className="mb-6">
-                  {isAddressRequired() ? (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
-                      <ExclamationTriangleIcon className="w-5 h-5 text-blue-600" />
-                      <p className="text-blue-800 text-sm font-medium">
-                        Address required for selected delivery methods
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
-                      <CheckIcon className="w-5 h-5 text-green-600" />
-                      <p className="text-green-800 text-sm font-medium">
-                        No address required for pickup orders
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Guest Information Form (for guest users) - Always show for guests */}
-                {isGuest && (
-                  <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Your Information</h2>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                        <input
-                          type="text"
-                          value={deliveryForm.firstName}
-                          onChange={(e) => handleDeliveryFormChange('firstName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="First name"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
-                        <input
-                          type="text"
-                          value={deliveryForm.lastName}
-                          onChange={(e) => handleDeliveryFormChange('lastName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="Last name"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
-                        <input
-                          type="email"
-                          value={deliveryForm.email}
-                          onChange={(e) => handleDeliveryFormChange('email', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="Enter your email address"
-                          required
-                        />
-                        {/* Show existing account notification */}
-                        {existingUser && (
-                          <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-center gap-2 text-blue-800">
-                              <CheckCircleIcon className="w-4 h-4" />
-                              <span className="text-sm font-medium">
-                                Welcome back! Using existing account for {existingUser.email}
-                              </span>
-                            </div>
-                            <p className="text-xs text-blue-600 mt-1">
-                              Your information will be updated with this order.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                        <input
-                          type="tel"
-                          value={deliveryForm.phone}
-                          onChange={(e) => handleDeliveryFormChange('phone', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="Enter your phone number (optional)"
-                        />
-                      </div>
-                    </div>
-                      
-                    {/* Pickup Information Notice */}
-                    {!isAddressRequired() && (
-                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <MapPinIcon className="w-5 h-5 text-green-600" />
-                          <div>
-                            <p className="text-green-800 text-sm font-medium">Pickup Order</p>
-                            <p className="text-green-700 text-sm">
-                              You'll visit the artisan to collect your order. We'll use your email to identify you and send order updates.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 3: Delivery Address (only when required) */}
-                {isAddressRequired() && (
-                  <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Delivery Address</h2>
-                    
-                    {/* User Addresses - Only for authenticated users */}
-                    {!isGuest && userProfile?.addresses && userProfile.addresses.length > 0 ? (
-                      <div className="mb-6">
-                        <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                          <MapPinIcon className="w-5 h-5 text-blue-600" />
-                          Your Saved Addresses
-                        </h3>
-                        <div className="space-y-3">
-                          {userProfile.addresses.map((address, index) => (
-                            <label key={index} className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
-                              <input
-                                type="radio"
-                                name="saved-address"
-                                checked={selectedAddress === address}
-                                onChange={() => handleAddressSelect(address)}
-                                className="text-blue-600 w-4 h-4"
-                              />
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-900 text-sm">
-                                  {address.street}, {address.city}, {address.state} {address.zipCode}
-                                </p>
-                                <p className="text-xs text-gray-600">{address.country}</p>
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ) : !isGuest && profileLoading ? (
-                      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                          <div>
-                            <h3 className="font-medium text-blue-800 text-sm">Loading Addresses</h3>
-                            <p className="text-blue-700 text-sm">Please wait while we load your saved addresses...</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : !isGuest && (
-                      <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <MapPinIcon className="w-5 h-5 text-orange-600" />
-                          <div>
-                            <h3 className="font-medium text-orange-800 text-sm">No Saved Addresses</h3>
-                            <p className="text-orange-700 text-sm">No addresses saved yet. Add one below.</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-
-
-
-
-                    {/* Manual Address Form - Only show when address is required */}
-                    {isAddressRequired() && (
-                      <div className="border-t border-gray-200 pt-6">
-                        <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                          <PlusIcon className="w-5 h-5 text-green-600" />
-                          {isGuest ? 'Delivery Address' : 'Add New Address'}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Street Address *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.street}
-                              onChange={(e) => handleDeliveryFormChange('street', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="123 Main St"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.city}
-                              onChange={(e) => handleDeliveryFormChange('city', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="Montreal"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">State/Province *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.state}
-                              onChange={(e) => handleDeliveryFormChange('state', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="State/Province"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">ZIP/Postal Code *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.zipCode}
-                              onChange={(e) => handleDeliveryFormChange('zipCode', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="H2K 3K2"
-                              required
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
-                            <input
-                              type="text"
-                              value={deliveryForm.country}
-                              onChange={(e) => handleDeliveryFormChange('country', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="Canada"
-                            />
-                          </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Instructions</label>
-                            <textarea
-                              value={deliveryForm.instructions}
-                              onChange={(e) => handleDeliveryFormChange('instructions', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                              placeholder="Any special delivery instructions..."
-                              rows="3"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Pickup Instructions for Guest Users */}
-                    {isGuest && !isAddressRequired() && (
-                      <div className="border-t border-gray-200 pt-6">
-                        <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                          <MapPinIcon className="w-5 h-5 text-green-600" />
-                          Pickup Instructions
-                        </h3>
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <div className="space-y-4">
-                            <div className="flex items-start gap-3">
-                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
-                                <span className="text-green-600 text-xs font-bold">1</span>
-                              </div>
-                              <div>
-                                <p className="text-green-800 text-sm font-medium">Complete your order</p>
-                                <p className="text-green-700 text-sm">Provide your name, email, and phone number above</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
-                                <span className="text-green-600 text-xs font-bold">2</span>
-                              </div>
-                              <div>
-                                <p className="text-green-800 text-sm font-medium">Visit the artisan</p>
-                                <p className="text-green-700 text-sm">Go to the artisan's location to collect your order</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mt-0.5">
-                                <span className="text-green-600 text-xs font-bold">3</span>
-                              </div>
-                              <div>
-                                <p className="text-green-800 text-sm font-medium">Show your email</p>
-                                <p className="text-green-700 text-sm">Present your email confirmation to the artisan</p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Navigation Buttons */}
-                <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={handlePreviousStep}
-                    className="flex items-center px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                    Back to Cart
-                  </button>
-                  {isGuest ? (
-                    <button
-                      onClick={handleNextStep}
-                      className="flex items-center px-6 py-3 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={
-                        !deliveryForm.firstName || 
-                        !deliveryForm.lastName || 
-                        !deliveryForm.email ||
-                        (isAddressRequired() && !deliveryForm.street) || 
-                        isLoading
-                      }
-                    >
-                      Continue to Payment
-                      <ArrowRightIcon className="w-5 h-5 ml-2" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleNextStep}
-                      className="flex items-center px-6 py-3 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={isAddressRequired() && !selectedAddress && !deliveryForm.street}
-                    >
-                      Continue to Payment
-                      <ArrowRightIcon className="w-5 h-5 ml-2" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Right Column - Cost Summary and Order Summary */}
-            <div className="lg:col-span-1">
-              <div className="space-y-6">
-                {/* Delivery Cost Summary */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-3">
-                    <TruckIcon className="w-5 h-5 text-orange-600" />
-                    Delivery Summary
-                  </h3>
-                  <div className="space-y-3">
-                    {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
-                      const selectedMethod = selectedDeliveryMethods[artisanId];
-                      // For display purposes, use synchronous calculation or cached values
-                      const deliveryFee = selectedMethod === 'personalDelivery' ? 
-                        (artisanData.subtotal >= (deliveryOptions[artisanId]?.personalDelivery?.freeThreshold || 0) ? 0 : 
-                         deliveryOptions[artisanId]?.personalDelivery?.fee || 0) : 
-                        selectedMethod === 'professionalDelivery' ? 
-                          (uberDirectQuotes[artisanId]?.fee || 15) : 0;
-                      
-                      return (
-                        <div key={artisanId} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                          <span className="font-medium text-gray-700">{artisanData.artisan?.artisanName || 'Unknown Artisan'}:</span>
-                          <span className={`font-semibold ${
-                            selectedMethod === 'pickup' ? 'text-green-600' : 
-                            selectedMethod === 'personalDelivery' ? 
-                              (deliveryFee > 0 ? 'text-orange-600' : 'text-green-600') :
-                            selectedMethod === 'professionalDelivery' ? 'text-purple-600' : 'text-gray-500'
-                          }`}>
-                            {selectedMethod === 'pickup' ? 'Free Pickup' : 
-                             selectedMethod === 'personalDelivery' ? 
-                               (deliveryFee > 0 ? `$${deliveryFee}` : 'Free Delivery') :
-                             selectedMethod === 'professionalDelivery' ? `$${uberDirectQuotes[artisanId]?.fee || 15}` : 'Not Selected'
-                            }
-                          </span>
-                        </div>
-                      );
-                    })}
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-gray-800">Total Delivery:</span>
-                        <span className="font-bold text-lg text-gray-900">{formatPrice(
-                          Object.entries(cartByArtisan).reduce((total, [artisanId, artisanData]) => {
-                            const selectedMethod = selectedDeliveryMethods[artisanId];
-                            if (selectedMethod === 'personalDelivery') {
-                              const fee = deliveryOptions[artisanId]?.personalDelivery?.fee || 0;
-                              const freeThreshold = deliveryOptions[artisanId]?.personalDelivery?.freeThreshold || 0;
-                              return total + (artisanData.subtotal < freeThreshold ? fee : 0);
-                            } else if (selectedMethod === 'professionalDelivery') {
-                              return total + (uberDirectQuotes[artisanId]?.fee || 15);
-                            }
-                            return total;
-                          }, 0)
-                        )}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Order Summary */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-3">
-                    <ShoppingBagIcon className="w-5 h-5 text-green-600" />
-                    Order Summary
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Subtotal:</span>
-                      <span className="font-semibold text-gray-900">
-                        {formatPrice(cart.reduce((total, item) => total + (item.price * item.quantity), 0))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-600">Delivery Fees:</span>
-                      <span className="font-semibold text-gray-900">{formatPrice(getTotalDeliveryFeesSync())}</span>
-                    </div>
-                    <div className="border-t border-gray-200 pt-4">
-                      <div className="flex justify-between items-center">
-                        <span className="font-semibold text-gray-800 text-lg">Total:</span>
-                        <span className="font-bold text-xl text-gray-900">{formatPrice(getTotalAmountSync())}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DeliveryInformation
+        cartByArtisan={currentCheckoutArtisan ? { [currentCheckoutArtisan]: cartByArtisan[currentCheckoutArtisan] } : {}}
+        deliveryOptions={deliveryOptions}
+        selectedDeliveryMethods={selectedDeliveryMethods}
+        onDeliveryMethodChange={handleDeliveryMethodChange}
+        deliveryForm={deliveryForm}
+        onDeliveryFormChange={handleDeliveryFormChange}
+        onContinue={handleNextStep}
+        onBack={handlePreviousStep}
+        isGuest={isGuest}
+        user={user}
+        userLocation={userLocation}
+        deliveryValidationResults={deliveryValidationResults}
+        pickupTimeWindows={pickupTimeWindows}
+        selectedPickupTimes={selectedPickupTimes}
+        onPickupTimeChange={handlePickupTimeChange}
+        enhancedProducts={enhancedProducts}
+      />
     );
   }
 
-  // Render payment page (placeholder)
+  // Render payment page
   if (checkoutStep === 'payment') {
+    // Show loading while creating payment intent
+    if (isCreatingPaymentIntent) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="min-h-screen bg-background py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center justify-center min-h-[400px]">
+              <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mb-4"></div>
+              <h2 className="text-xl font-semibold text-stone-800 mb-2">Preparing Payment</h2>
+              <p className="text-stone-600">Setting up secure payment processing...</p>
+          </div>
+                      </div>
+                    </div>
+      );
+    }
+
+    // Show Stripe payment form
+    if (paymentIntent && stripePromise) {
+                      return (
+        <div className="min-h-screen bg-background py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+                          <button
+            onClick={() => setCheckoutStep('delivery')}
+              className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
+                          >
+            <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium">Back to Delivery</span>
+                          </button>
+
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-stone-800 font-display mb-3">Complete Your Payment</h1>
+              <p className="text-xl text-stone-600">Secure payment processing with Stripe</p>
+                          </div>
+                          
+            {/* Stripe Payment Component */}
+            <Elements stripe={stripePromise} options={{ locale: 'en-CA' }}>
+              <StripeOrderPayment
+                clientSecret={paymentIntent.clientSecret}
+                amount={paymentIntent.amount}
+                currency={paymentIntent.currency}
+                onPaymentSuccess={handlePaymentSuccess}
+                onPaymentError={handlePaymentError}
+                orderData={{
+                  items: cart.map(item => {
+                    // Use the same logic as above for consistency
+                    let productId = item._id;
+                    if (item.artisan && (item._id === item.artisan._id || item._id === item.artisan)) {
+                      productId = item.productId || item._id; // fallback for now
+                    }
+                    return {
+                      productId: productId,
+                      quantity: item.quantity,
+                      productType: item.productType || 'ready_to_ship'
+                    };
+                  }),
+                  deliveryAddress: selectedAddress || deliveryForm,
+                  deliveryInstructions: deliveryForm.instructions || '',
+                  deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+                  pickupTimeWindows: selectedPickupTimes,
+                  deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
+                    artisanId,
+                    method,
+                    instructions: method === 'pickup' 
+                      ? deliveryOptions[artisanId]?.pickup?.instructions || ''
+                      : method === 'personalDelivery'
+                      ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
+                      : method === 'professionalDelivery'
+                      ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
+                      : ''
+                  })),
+                  guestInfo: isGuest ? {
+                    firstName: deliveryForm.firstName || 'Guest',
+                    lastName: deliveryForm.lastName || 'User',
+                    email: deliveryForm.email || '',
+                    phone: deliveryForm.phone || ''
+                  } : null
+                }}
+                isGuest={isGuest}
+                savedPaymentMethods={userProfile?.paymentMethods || []}
+              />
+            </Elements>
+                            </div>
+                            </div>
+      );
+    }
+
+    // Fallback if Stripe is not available
+    return (
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Back Button */}
+                            <button
+            onClick={() => setCheckoutStep('delivery')}
+            className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
+                            >
+            <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium">Back to Delivery</span>
+                            </button>
+
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Payment Information</h1>
-            <p className="text-gray-600">Complete your order with secure payment</p>
-          </div>
-          
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            {isGuest ? (
-              // Guest Payment Method Selection
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Select Payment Method</h2>
-                
-                {/* Payment Method Options for Guests */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors cursor-pointer">
-                    <input
-                      type="radio"
-                      name="guest-payment-method"
-                      value="credit_card"
-                      checked={guestPaymentForm.paymentMethod === 'credit_card'}
-                      onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-green-600 w-4 h-4"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <CreditCardIcon className="w-5 h-5 text-green-600" />
-                        <span className="font-medium text-gray-900">Credit Card</span>
-                      </div>
-                      <p className="text-gray-600 text-sm">Secure payment with major credit cards</p>
-                    </div>
-                  </label>
-                  
-                  <label className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer">
-                    <input
-                      type="radio"
-                      name="guest-payment-method"
-                      value="debit_card"
-                      checked={guestPaymentForm.paymentMethod === 'debit_card'}
-                      onChange={(e) => handleGuestPaymentFormChange('paymentMethod', e.target.value)}
-                      className="text-blue-600 w-4 h-4"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <CreditCardIcon className="w-5 h-5 text-blue-600" />
-                        <span className="font-medium text-gray-900">Debit Card</span>
-                      </div>
-                      <p className="text-gray-600 text-sm">Direct payment from your bank account</p>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Payment Details Form for Guests */}
-                {guestPaymentForm.paymentMethod && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                    <h4 className="font-medium text-gray-900 mb-4">Payment Details</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Card Number *</label>
-                        <input
-                          type="text"
-                          value={guestPaymentForm.cardNumber}
-                          onChange={(e) => handleGuestPaymentFormChange('cardNumber', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="1234 5678 9012 3456"
-                          maxLength="19"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
-                        <input
-                          type="text"
-                          value={guestPaymentForm.expiryDate}
-                          onChange={(e) => handleGuestPaymentFormChange('expiryDate', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="MM/YY"
-                          maxLength="5"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">CVV *</label>
-                        <input
-                          type="text"
-                          value={guestPaymentForm.cvv}
-                          onChange={(e) => handleGuestPaymentFormChange('cvv', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="123"
-                          maxLength="4"
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Cardholder Name *</label>
-                        <input
-                          type="text"
-                          value={guestPaymentForm.cardholderName}
-                          onChange={(e) => handleGuestPaymentFormChange('cardholderName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                          placeholder="Name on card"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : !isGuest && profileLoading ? (
-              // Loading Payment Methods
-              <div className="text-center py-8">
-                <div className="w-16 h-16 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Loading Payment Methods</h3>
-                <p className="text-gray-600">Please wait while we load your saved payment methods...</p>
-              </div>
-            ) : !isGuest && paymentMethods.length > 0 ? (
-              // Authenticated User Payment Methods
-              <div className="space-y-6">
-                <h2 className="text-xl font-medium text-gray-900 mb-4">Select Payment Method</h2>
-                
-                {/* Saved Payment Methods */}
-                <div className="space-y-3">
-                  {paymentMethods.map((method) => (
-                    <label key={method._id} className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                      <input
-                        type="radio"
-                        name="payment-method"
-                        checked={selectedPaymentMethod?._id === method._id}
-                        onChange={() => setSelectedPaymentMethod(method)}
-                        className="text-orange-600 w-5 h-5"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CreditCardIcon className="w-5 h-5 text-gray-500" />
-                          <span className="text-gray-600">
-                            {method.brand?.toUpperCase()} •••• {method.last4}
-                          </span>
-                          {method.isDefault && (
-                            <span className="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium">
-                              Default
-                            </span>
-                          )}
+            <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment System</h1>
+            <p className="text-stone-600">Secure payment processing</p>
+                          </div>
+                          
+          <div className="card p-6">
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCardIcon className="w-8 h-8 text-red-600" />
+                            </div>
+              <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Payment System Configuration Error</h2>
+              <p className="text-stone-600 mb-4">
+                Stripe payment processing is not properly configured.
+              </p>
+              <div className="text-sm text-stone-500 space-y-2">
+                <p><strong>Debug Information:</strong></p>
+                <p>• Payment Intent: {paymentIntent ? '✅ Available' : '❌ Missing'}</p>
+                <p>• Stripe Promise: {stripePromise ? '✅ Available' : '❌ Missing'}</p>
+                <p>• Stripe Key: {import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ? '✅ Set' : '❌ Missing'}</p>
+                          </div>
+              <p className="text-sm text-stone-500 mt-4">
+                Please contact support or try again later.
+              </p>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          Expires {method.expiryMonth}/{method.expiryYear}
-                        </p>
                       </div>
-                    </label>
-                  ))}
-                </div>
-                
-                {/* Add New Payment Method Button */}
-                <button
-                  onClick={() => setShowAddPaymentForm(true)}
-                  className="btn-outline w-full"
-                >
-                  Add New Payment Method
-                </button>
-              </div>
-            ) : (
-              // No Payment Methods (for authenticated users)
-              <div className="text-center py-8">
-                <CreditCardIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Payment Methods</h3>
-                <p className="text-gray-600 mb-4">
-                  {profileLoading ? 'Loading payment methods...' :
-                   userProfile?.paymentMethods?.length === 0 ? 'No payment methods saved yet. Add one below.' :
-                   'No payment methods available.'}
-                </p>
-
-                <button
-                  onClick={() => setShowAddPaymentForm(true)}
-                  className="btn-primary"
-                >
-                  Add Payment Method
-                </button>
-              </div>
-            )}
-            
-            {/* Add Payment Method Form */}
-            {showAddPaymentForm && (
-              <div className="mt-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Payment Method</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
-                    <input
-                      type="text"
-                      value={newPaymentForm.cardNumber}
-                      onChange={(e) => handlePaymentFormChange('cardNumber', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="1234 5678 9012 3456"
-                      maxLength="19"
-                    />
-                    {paymentFormErrors.cardNumber && (
-                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cardNumber}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Cardholder Name</label>
-                    <input
-                      type="text"
-                      value={newPaymentForm.cardholderName}
-                      onChange={(e) => handlePaymentFormChange('cardholderName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="John Doe"
-                    />
-                    {paymentFormErrors.cardholderName && (
-                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cardholderName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={newPaymentForm.expiryMonth}
-                        onChange={(e) => handlePaymentFormChange('expiryMonth', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        placeholder="MM"
-                        maxLength="2"
-                      />
-                      <input
-                        type="text"
-                        value={newPaymentForm.expiryYear}
-                        onChange={(e) => handlePaymentFormChange('expiryYear', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        placeholder="YY"
-                        maxLength="2"
-                      />
-                    </div>
-                    {paymentFormErrors.expiry && (
-                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.expiry}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">CVV</label>
-                    <input
-                      type="text"
-                      value={newPaymentForm.cvv}
-                      onChange={(e) => handlePaymentFormChange('cvv', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="123"
-                      maxLength="4"
-                    />
-                    {paymentFormErrors.cvv && (
-                      <p className="text-red-600 text-sm mt-1">{paymentFormErrors.cvv}</p>
-                    )}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={newPaymentForm.isDefault}
-                        onChange={(e) => handlePaymentFormChange('isDefault', e.target.checked)}
-                        className="text-amber-600 w-4 h-4"
-                      />
-                      <span className="text-sm text-stone-700">Set as default payment method</span>
-                    </label>
-                  </div>
-                </div>
-                
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() => setShowAddPaymentForm(false)}
-                    className="btn-secondary"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePaymentFormSubmit}
-                    disabled={paymentLoading}
-                    className="btn-primary"
-                  >
-                    {paymentLoading ? 'Adding...' : 'Add Payment Method'}
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex justify-between">
-              <button
-                onClick={handlePreviousStep}
-                className="btn-secondary"
-              >
-                <ArrowLeftIcon className="w-5 h-5 mr-2" />
-                Back to Delivery
-              </button>
-              <button
-                onClick={handleCheckout}
-                disabled={isLoading}
-                className="btn-accent"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                    Processing Order...
-                  </>
-                ) : (
-                  <>
-                    Complete Order
-                    <CheckIcon className="w-5 h-5 ml-2" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     );
   }
-
-  // Render order confirmation page
-  if (checkoutStep === 'confirmation' && orderConfirmation) {
+  
+  // Render success state (brief transition before navigation)
+  if (checkoutStep === 'success') {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center mb-8">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mr-6">
-              <CheckIcon className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">🎉 Order Confirmed!</h1>
-              <p className="text-lg text-gray-600">Your order has been successfully placed with our artisans</p>
-            </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircleIcon className="w-12 h-12 text-green-600" />
           </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8">
-            {/* Order Summary */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-medium text-gray-900 mb-6 flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">📋</span>
-                </div>
-                Order Summary
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-600 font-medium">Total Orders</p>
-                  <p className="text-2xl font-bold text-blue-900">{orderConfirmation.orderSummary?.totalOrders || orderConfirmation.orders?.length}</p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <p className="text-sm text-green-600 font-medium">Total Amount</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    ${orderConfirmation.orderSummary?.totalAmount || 
-                      orderConfirmation.orders?.reduce((sum, order) => sum + (order.totalAmount || 0), 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                  <p className="text-sm text-orange-600 font-medium">Estimated Delivery</p>
-                  <p className="text-2xl font-bold text-orange-900">
-                    {orderConfirmation.orderSummary?.estimatedDeliveryTime || '2-3 business days'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Order Numbers */}
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <p className="text-sm text-gray-600 font-medium mb-2">Order Numbers:</p>
-                <div className="flex flex-wrap gap-2">
-                  {orderConfirmation.orderSummary?.orderNumbers?.map((orderNum, index) => (
-                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-mono text-sm font-bold">
-                      {orderNum}
-                    </span>
-                  )) || 
-                  orderConfirmation.orders?.map((order, index) => (
-                    <span key={index} className="bg-white px-3 py-1 rounded-lg border border-gray-200 font-mono text-sm font-bold">
-                      {order.orderNumber || order.orderId?.toString().slice(-8).toUpperCase()}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Individual Orders */}
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-stone-900 mb-4">Order Details</h3>
-              <div className="space-y-6">
-                {orderConfirmation.orders?.map((order, index) => (
-                  <div key={index} className="border border-stone-200 rounded-xl p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h4 className="font-bold text-stone-900 text-lg">
-                          {order.artisan?.name || 'Artisan'}
-                        </h4>
-                        <p className="text-stone-600">
-                          {order.artisan?.type || 'Local Artisan'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-emerald-600">
-                          ${order.totalAmount?.toFixed(2)}
-                        </p>
-                        <p className="text-sm text-stone-500">Order Total</p>
-                      </div>
-                    </div>
-
-                    {/* Order Items */}
-                    <div className="mb-4">
-                      <h5 className="font-semibold text-stone-900 mb-3">Items:</h5>
-                      <div className="space-y-2">
-                        {order.items?.map((item, itemIndex) => (
-                          <div key={itemIndex} className="flex justify-between items-center py-2 border-b border-stone-100">
-                            <div>
-                              <p className="font-medium text-stone-900">{item.name}</p>
-                              <p className="text-sm text-stone-600">
-                                Qty: {item.quantity} × ${item.unitPrice?.toFixed(2)}
-                              </p>
-                            </div>
-                            <p className="font-semibold text-stone-900">
-                              ${item.totalPrice?.toFixed(2)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Delivery Address */}
-                    <div className="bg-stone-50 p-4 rounded-lg">
-                      <h5 className="font-semibold text-stone-900 mb-2">Delivery Address:</h5>
-                      <p className="text-stone-700">
-                        {order.deliveryAddress?.street}, {order.deliveryAddress?.city}, {order.deliveryAddress?.state} {order.deliveryAddress?.zipCode}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Guest Information */}
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-stone-900 mb-4">Your Information</h3>
-              <div className="bg-stone-50 p-4 rounded-xl border border-stone-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Name</p>
-                    <p className="font-semibold text-stone-900">
-                      {orderConfirmation.guestInfo?.firstName} {orderConfirmation.guestInfo?.lastName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Email</p>
-                    <p className="font-semibold text-stone-900">{orderConfirmation.guestInfo?.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Phone</p>
-                    <p className="font-semibold text-stone-900">{orderConfirmation.guestInfo?.phone || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Guest ID</p>
-                    <p className="font-mono text-sm font-semibold text-stone-900">{orderConfirmation.guestInfo?.guestId}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Follow-up Information */}
-            {orderConfirmation.followUpInfo && (
-              <div className="mb-8">
-                <h3 className="text-xl font-bold text-stone-900 mb-4">What's Next?</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
-                    <h4 className="font-bold text-blue-900 mb-3">📧 Check Your Email</h4>
-                    <p className="text-blue-800 text-sm">
-                      We've sent a confirmation email to {orderConfirmation.guestInfo?.email} with all the details.
-                    </p>
-                  </div>
-                  <div className="bg-green-50 p-6 rounded-xl border border-green-200">
-                    <h4 className="font-bold text-green-900 mb-3">📱 Track Your Order</h4>
-                    <p className="text-green-800 text-sm">
-                      Use the order numbers above to track your order status with our artisans.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Account Creation Encouragement */}
-            {orderConfirmation.accountCreation && (
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6 mb-8">
-                <div className="text-center">
-                  <h3 className="text-2xl font-bold text-amber-900 mb-3">
-                    🌟 Ready to unlock the full bazaar experience?
-                  </h3>
-                  <p className="text-amber-800 mb-4">
-                    Create your free account and start earning rewards, tracking orders in real-time, and getting exclusive artisan offers!
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <button
-                      onClick={() => navigate('/register')}
-                      className="btn-primary px-8 py-3"
-                    >
-                      Create Free Account
-                    </button>
-                    <button
-                      onClick={() => navigate('/login')}
-                      className="btn-outline px-8 py-3"
-                    >
-                      Sign In to Existing Account
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Contact Information */}
-            {orderConfirmation.followUpInfo?.contactInfo && (
-              <div className="bg-stone-50 p-6 rounded-xl border border-stone-200">
-                <h3 className="text-xl font-bold text-stone-900 mb-4">Need Help?</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Email Support</p>
-                    <p className="font-semibold text-stone-900">{orderConfirmation.followUpInfo.contactInfo.supportEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Phone Support</p>
-                    <p className="font-semibold text-stone-900">{orderConfirmation.followUpInfo.contactInfo.supportPhone}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-stone-600 font-medium">Help Center</p>
-                    <a 
-                      href={orderConfirmation.followUpInfo.contactInfo.helpCenter} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="font-semibold text-blue-600 hover:text-blue-800 underline"
-                    >
-                      Visit Help Center
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6 border-t border-stone-200">
-              <button
-                onClick={() => navigate('/')}
-                className="btn-primary px-8 py-3"
-              >
-                Continue Shopping
-              </button>
-              <button
-                onClick={() => setCheckoutStep('payment')}
-                className="btn-outline px-8 py-3"
-              >
-                Back to Payment
-              </button>
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment Successful!</h2>
+          <p className="text-stone-600 mb-4">Redirecting to order confirmation...</p>
+          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );

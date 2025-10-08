@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   MapPinIcon, 
@@ -36,6 +37,7 @@ import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
 import SocialShare from './SocialShare';
 import SocialMetaTags from './SocialMetaTags';
+import AuthPopup from './AuthPopup';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
@@ -61,6 +63,8 @@ export default function ArtisanShop() {
     comment: ''
   });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showAuthPopup, setShowAuthPopup] = useState(false);
+  const [authAction, setAuthAction] = useState('');
 
   useEffect(() => {
     loadArtisanShop();
@@ -153,6 +157,7 @@ export default function ArtisanShop() {
       // Load reviews
       try {
         const reviewsData = await reviewService.getArtisanReviews(id);
+        console.log('🔍 Reviews data received:', reviewsData);
         
         // Handle different review data structures
         let reviewsArray = [];
@@ -160,6 +165,8 @@ export default function ArtisanShop() {
           reviewsArray = reviewsData;
         } else if (reviewsData && Array.isArray(reviewsData.reviews)) {
           reviewsArray = reviewsData.reviews;
+        } else if (reviewsData && reviewsData.data && Array.isArray(reviewsData.data.reviews)) {
+          reviewsArray = reviewsData.data.reviews;
         } else if (reviewsData && Array.isArray(reviewsData.data)) {
           reviewsArray = reviewsData.data;
         } else if (reviewsData && typeof reviewsData === 'object') {
@@ -169,6 +176,7 @@ export default function ArtisanShop() {
           );
         }
         
+        console.log('🔍 Processed reviews array:', reviewsArray);
         setReviews(reviewsArray);
       } catch (reviewError) {
         console.error('Error loading reviews:', reviewError);
@@ -262,7 +270,8 @@ export default function ArtisanShop() {
       toast.success(`${quantity} ${quantity === 1 ? 'item' : 'items'} added to cart`);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add to cart');
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
     }
   };
 
@@ -270,7 +279,8 @@ export default function ArtisanShop() {
     e.preventDefault();
     
     if (!user) {
-      toast.error('Please log in to leave a review');
+      setAuthAction('leave a review');
+      setShowAuthPopup(true);
       return;
     }
 
@@ -294,6 +304,8 @@ export default function ArtisanShop() {
         reviewsArray = reviewsData;
       } else if (reviewsData && Array.isArray(reviewsData.reviews)) {
         reviewsArray = reviewsData.reviews;
+      } else if (reviewsData && reviewsData.data && Array.isArray(reviewsData.data.reviews)) {
+        reviewsArray = reviewsData.data.reviews;
       } else if (reviewsData && Array.isArray(reviewsData.data)) {
         reviewsArray = reviewsData.data;
       }
@@ -316,30 +328,6 @@ export default function ArtisanShop() {
     }
   };
 
-  const getImageUrl = (image) => {
-    if (!image) return null;
-    if (typeof image === 'string') {
-      // Handle base64 data URLs
-      if (image.startsWith('data:')) return image;
-      
-      // Handle HTTP URLs
-      if (image.startsWith('http')) return image;
-      
-      // Check if the image path already contains /uploads/products/
-      if (image.startsWith('/uploads/products/')) {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${image}`;
-      }
-      
-      // Check if the image path starts with uploads/products/ (without leading slash)
-      if (image.startsWith('uploads/products/')) {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${image}`;
-      }
-      
-      // Default case: add /uploads/products/ prefix
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/uploads/products/${image}`;
-    }
-    return null;
-  };
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-CA', {
@@ -365,11 +353,11 @@ export default function ArtisanShop() {
     const hasHalfStar = rating % 1 !== 0;
 
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-amber-400" />);
+      stars.push(<StarIconSolid key={i} className="w-4 h-4 text-primary-400" />);
     }
 
     if (hasHalfStar) {
-      stars.push(<StarIcon key={fullStars} className="w-4 h-4 text-amber-400" />);
+      stars.push(<StarIcon key={fullStars} className="w-4 h-4 text-primary-400" />);
     }
 
     const emptyStars = 5 - Math.ceil(rating);
@@ -396,10 +384,10 @@ export default function ArtisanShop() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading artisan shop...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
+          <p className="text-muted">Loading artisan shop...</p>
         </div>
       </div>
     );
@@ -407,13 +395,13 @@ export default function ArtisanShop() {
 
   if (!artisan) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4 font-serif">Artisan Not Found</h1>
-          <p className="text-gray-600 mb-4">The artisan you're looking for doesn't exist.</p>
+          <h1 className="text-2xl font-bold text-text mb-4 font-display">Artisan Not Found</h1>
+          <p className="text-muted mb-4">The artisan you're looking for doesn't exist.</p>
           <button
             onClick={() => navigate('/')}
-            className="bg-[#D77A61] text-white px-6 py-2 rounded-lg hover:bg-[#3C6E47] transition-colors"
+            className="btn-primary"
           >
             Go Home
           </button>
@@ -423,7 +411,7 @@ export default function ArtisanShop() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1EA]">
+    <div className="min-h-screen bg-background">
       {/* Social Media Meta Tags */}
       {artisan && (
         <SocialMetaTags
@@ -436,62 +424,21 @@ export default function ArtisanShop() {
         />
       )}
 
-      {/* Sticky Header with Cart and Follow */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-[#E6B655] shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate(-1)}
-                className="text-gray-600 hover:text-[#D77A61] transition-colors"
-              >
-                <ArrowRightIcon className="w-5 h-5 rotate-180" />
-              </button>
-              <h1 className="text-lg font-semibold text-gray-900 truncate font-serif">
-                {artisan.artisanName}
-              </h1>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={toggleFavorite}
-                disabled={isLoadingFavorite}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors ${
-                  isFavorited 
-                    ? 'bg-[#F5F1EA] border-[#D77A61] text-[#D77A61] hover:bg-[#D77A61] hover:text-white' 
-                    : 'bg-white border-[#E6B655] text-gray-700 hover:bg-[#F5F1EA]'
-                }`}
-              >
-                {isFavorited ? (
-                  <HeartIconSolid className="w-4 h-4" />
-                ) : (
-                  <HeartIcon className="w-4 h-4" />
-                )}
-                <span className="hidden sm:inline">{isFavorited ? 'Following' : 'Follow'}</span>
-              </button>
-              
-              <button
-                onClick={() => navigate('/cart')}
-                className="flex items-center space-x-2 px-3 py-2 bg-[#D77A61] text-white rounded-lg hover:bg-[#3C6E47] transition-colors"
-              >
-                <ShoppingCartIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Cart ({cartCount})</span>
-                <span className="sm:hidden">{cartCount}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Compressed Hero Section */}
-      <div className="relative bg-gradient-to-r from-[#F5F1EA] to-[#E6B655]">
-        <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-r from-accent/5 to-accent/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col lg:flex-row items-start space-y-6 lg:space-y-0 lg:space-x-8">
             {/* Business Info - Left Side */}
             <div className="w-full lg:w-1/3">
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
-                  <h1 className="text-3xl font-bold text-gray-900 font-serif">
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="text-muted hover:text-accent transition-colors"
+                  >
+                    <ArrowRightIcon className="w-5 h-5 rotate-180" />
+                  </button>
+                  <h1 className="text-3xl font-bold text-text font-display">
                     {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
                   </h1>
                   {artisan.isVerified && (
@@ -503,7 +450,7 @@ export default function ArtisanShop() {
                 </div>
                 
                 {(artisan.tagline || artisan.bio || artisan.description) && (
-                  <p className="text-lg text-gray-600 leading-relaxed">
+                  <p className="text-lg text-muted leading-relaxed">
                     {artisan.tagline || artisan.bio || artisan.description}
                   </p>
                 )}
@@ -511,13 +458,13 @@ export default function ArtisanShop() {
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center space-x-1">
                     {renderStars(parseFloat(getAverageRating()))}
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted">
                       {getAverageRating()} ({reviews.length} reviews)
                     </span>
                   </div>
                   
                   {(artisan.location || artisan.city || artisan.address) && (
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center text-sm text-muted">
                       <MapPinIcon className="w-4 h-4 mr-1" />
                       <span>{formatLocation(artisan.location || artisan.city || artisan.address)}</span>
                     </div>
@@ -525,12 +472,22 @@ export default function ArtisanShop() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex items-center justify-start gap-3">
                   <button
-                    onClick={() => document.getElementById('products-section').scrollIntoView({ behavior: 'smooth' })}
-                    className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+                    onClick={toggleFavorite}
+                    disabled={isLoadingFavorite}
+                    className={`btn-small flex items-center gap-2 ${
+                      isFavorited 
+                        ? 'btn-primary' 
+                        : 'btn-secondary'
+                    }`}
                   >
-                    Shop Now
+                    {isFavorited ? (
+                      <HeartIconSolid className="w-4 h-4" />
+                    ) : (
+                      <HeartIcon className="w-4 h-4" />
+                    )}
+                    {isFavorited ? 'Following' : 'Follow'}
                   </button>
                   
                   <SocialShare
@@ -538,7 +495,7 @@ export default function ArtisanShop() {
                     shareUrl={window.location.href}
                     shareTitle={`Check out ${artisan?.artisanName || artisan?.businessName || 'this amazing artisan shop'}!`}
                     shareDescription={`Discover unique handmade products from ${artisan?.artisanName || artisan?.businessName || 'this talented artisan'}. ${artisan?.tagline || artisan?.bio || 'Support local artisans and find one-of-a-kind items!'}`}
-                    className="flex-1 sm:flex-none"
+                    className="btn-small btn-secondary flex items-center gap-2"
                   />
                 </div>
               </div>
@@ -546,20 +503,17 @@ export default function ArtisanShop() {
 
             {/* Business Image Banner - Right Side */}
             <div className="w-full lg:w-2/3">
-              <div className="h-64 md:h-80 bg-gradient-to-r from-orange-400 to-amber-500 rounded-2xl relative overflow-hidden">
+              <div className="h-64 md:h-80 bg-gradient-to-r from-accent/20 to-accent/10 rounded-2xl relative overflow-hidden">
                 {artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? (
                   <img 
-                    src={getImageUrl(artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner)} 
+                    src={getImageUrl(artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner, { width: 800, height: 300, quality: 85 })} 
                     alt={`${artisan.artisanName} business`}
                     className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
+                    onError={(e) => handleImageError(e, 'artisan-banner')}
                   />
                 ) : null}
-                <div className={`w-full h-full bg-gradient-to-br from-orange-300 to-amber-400 flex items-center justify-center ${artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
-                  <CameraIcon className="w-16 h-16 text-white opacity-50" />
+                <div className={`w-full h-full bg-gradient-to-br from-accent/30 to-accent/20 flex items-center justify-center ${artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
+                  <CameraIcon className="w-16 h-16 text-accent opacity-50" />
                 </div>
                 
                 {/* Overlay */}
@@ -572,27 +526,27 @@ export default function ArtisanShop() {
 
       {/* About the Maker - Collapsible */}
       {artisan.bio && (
-        <section className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 py-6">
+        <section className="bg-card border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <button
               onClick={() => setShowAbout(!showAbout)}
               className="w-full flex items-center justify-between text-left"
             >
-              <h2 className="text-xl font-bold text-gray-900">About the Maker</h2>
+              <h2 className="text-xl font-bold text-text">About the Maker</h2>
               {showAbout ? (
-                <ChevronUpIcon className="w-5 h-5 text-gray-500" />
+                <ChevronUpIcon className="w-5 h-5 text-muted" />
               ) : (
-                <ChevronDownIcon className="w-5 h-5 text-gray-500" />
+                <ChevronDownIcon className="w-5 h-5 text-muted" />
               )}
             </button>
             
             {showAbout && (
               <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-muted leading-relaxed">
                   {artisan.bio}
                 </p>
                 {(artisan.location || artisan.city || artisan.address) && (
-                  <div className="flex items-center mt-3 text-orange-600">
+                  <div className="flex items-center mt-3 text-accent">
                     <MapPinIcon className="w-4 h-4 mr-2" />
                     <span className="font-medium">{formatLocation(artisan.location || artisan.city || artisan.address)}</span>
                   </div>
@@ -605,53 +559,41 @@ export default function ArtisanShop() {
 
       {/* Product Catalog Section */}
       <section id="products-section" className="py-8">
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Product Grid Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Products ({filteredProducts.length})
-            </h2>
-          </div>
-
-          {/* Horizontal Filter Bar */}
-          <div className="mb-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-                  <FunnelIcon className="w-4 h-4 mr-2" />
-                  Filter by Category
-                </h3>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <span>{showFilters ? 'Hide' : 'Show'} Filters</span>
-                  {showFilters ? (
-                    <ChevronUpIcon className="w-4 h-4" />
-                  ) : (
-                    <ChevronDownIcon className="w-4 h-4" />
-                  )}
-                </button>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Filter Bar */}
+          <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
+            <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
+              {/* Category Filters - Horizontal Scroll */}
+              <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide flex-1 min-w-0">
+                {categories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-2.5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
+                      selectedCategory === category
+                        ? 'bg-accent text-white border-transparent'
+                        : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
+                    }`}
+                  >
+                    {category === 'all' ? 'All Products' : category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </button>
+                ))}
               </div>
-              
-              <div className={`${showFilters ? 'block' : 'hidden'} transition-all duration-200`}>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map(category => (
-                    <button
-                      key={category}
-                      onClick={() => setSelectedCategory(category)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        selectedCategory === category
-                          ? 'bg-orange-100 text-orange-700 border border-orange-200'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-                      }`}
-                    >
-                      {category === 'all' ? 'All Products' : category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </button>
-                  ))}
-                </div>
+
+              {/* Results Count */}
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                <span className="text-sm font-semibold text-gray-600">
+                  {filteredProducts.length} products
+                </span>
               </div>
             </div>
+          </div>
+
+          {/* Product Grid Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-text">
+              Products ({filteredProducts.length})
+            </h2>
           </div>
 
           {/* Product Grid */}
@@ -667,6 +609,7 @@ export default function ArtisanShop() {
                       showDistance={false}
                       showImagePreview={true}
                       showRating={false}
+                      showVisitShop={false}
                     />
                   ))}
                 </div>
@@ -675,8 +618,8 @@ export default function ArtisanShop() {
                   <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
                     <TagIcon className="w-8 h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
-                  <p className="text-gray-500">
+                  <h3 className="text-lg font-medium text-text mb-2">No Products Found</h3>
+                  <p className="text-muted">
                     {selectedCategory === 'all' 
                       ? 'This artisan hasn\'t added any products yet.'
                       : `No products found in the ${selectedCategory} category.`
@@ -689,14 +632,14 @@ export default function ArtisanShop() {
       </section>
 
       {/* Customer Reviews Section */}
-      <section className="bg-white py-8 border-t border-gray-200">
-        <div className="max-w-4xl mx-auto px-4">
+      <section className="bg-card py-8 border-t border-gray-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Customer Reviews</h2>
+            <h2 className="text-2xl font-bold text-text">Customer Reviews</h2>
             <div className="flex items-center space-x-2">
               <div className="flex items-center space-x-1">
                 {renderStars(parseFloat(getAverageRating()))}
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-muted">
                   {getAverageRating()} ({reviews.length} reviews)
                 </span>
               </div>
@@ -836,6 +779,13 @@ export default function ArtisanShop() {
           className="shadow-lg hover:shadow-xl transform hover:scale-105"
         />
       </div>
+
+      {/* Authentication Popup */}
+      <AuthPopup
+        isOpen={showAuthPopup}
+        onClose={() => setShowAuthPopup(false)}
+        action={authAction}
+      />
 
     </div>
   );

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   BuildingStorefrontIcon, 
   HeartIcon,
@@ -16,39 +18,13 @@ const ProductCard = ({
   showDistance = false, 
   showImagePreview = true,
   showRating = true,
+  showVisitShop = true, // Control visibility of Visit Shop link
   onProductClick,
   className = ''
 }) => {
   const [showCartPopup, setShowCartPopup] = useState(false);
   
 
-  // Helper function to get image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 images
-    if (imagePath.startsWith('data:image/')) {
-      return imagePath;
-    }
-    
-    // Handle HTTP URLs (including Vercel Blob URLs)
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    // Handle Vercel Blob URLs that might be stored as filenames
-    if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      return imagePath;
-    }
-    
-    // Handle relative paths (legacy support)
-    if (imagePath.startsWith('/uploads/')) {
-      return `${config.API_URL}${imagePath}`;
-    }
-    
-    // Handle paths without leading slash (legacy support)
-    return `${config.API_URL}/${imagePath}`;
-  };
 
   // Format price
   const formatPrice = (price) => {
@@ -66,20 +42,20 @@ const ProductCard = ({
 
     for (let i = 0; i < fullStars; i++) {
       stars.push(
-        <StarIconSolid key={i} className="w-3 h-3 text-yellow-400" />
+        <StarIconSolid key={i} className="w-3 h-3 text-primary" />
       );
     }
 
     if (hasHalfStar) {
       stars.push(
-        <StarIcon key={fullStars} className="w-3 h-3 text-yellow-400" />
+        <StarIcon key={fullStars} className="w-3 h-3 text-primary" />
       );
     }
 
     const remainingStars = 5 - Math.ceil(rating);
     for (let i = 0; i < remainingStars; i++) {
       stars.push(
-        <StarIcon key={fullStars + (hasHalfStar ? 1 : 0) + i} className="w-3 h-3 text-gray-300" />
+        <StarIcon key={fullStars + (hasHalfStar ? 1 : 0) + i} className="w-3 h-3 text-secondary/20" />
       );
     }
 
@@ -114,21 +90,18 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`group relative rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${className}`}
+        className={`card product-card group relative bg-surface ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${className}`}
         onClick={handleProductClick}
         title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : "Select this artisan product"}
       >
         {/* Product Image */}
         <div className="relative w-full h-56 overflow-hidden">
           <img
-            src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
+            src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image, { width: 300, height: 224, quality: 80 })}
             alt={product.name}
             className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
             loading="lazy"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
+            onError={(e) => handleImageError(e, 'product')}
           />
           {/* Out of stock overlay */}
           {outOfStockStatus.isOutOfStock && (
@@ -141,38 +114,34 @@ const ProductCard = ({
           <div className={`w-full h-full flex items-center justify-center bg-gray-100 ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
             <BuildingStorefrontIcon className="w-12 h-12 text-gray-400" />
           </div>
-          
-          {/* Status badges */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1">
-            {product.isFeatured && !outOfStockStatus.isOutOfStock && (
-              <span className="px-2 py-1 rounded-md text-xs font-medium bg-amber-500 text-white">
-                Featured
-              </span>
-            )}
-            {product.isOrganic && (
-              <span className="px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-700">
-                Organic
-              </span>
-            )}
-            {product.isGlutenFree && (
-              <span className="px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700">
-                Gluten-Free
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Product details */}
         <div className="p-3 sm:p-4">
           {/* Product name */}
-          <h3 className={`font-semibold text-gray-900 line-clamp-2 text-sm sm:text-base leading-snug mb-1 ${outOfStockStatus.isOutOfStock ? 'text-gray-500' : 'group-hover:text-amber-600 transition-colors'}`}>
+          <h3 className={`font-semibold text-secondary line-clamp-2 text-sm sm:text-base leading-snug mb-1 ${outOfStockStatus.isOutOfStock ? 'text-secondary/50' : 'group-hover:text-primary transition-colors'}`}>
             {product.name}
           </h3>
           
-          {/* Artisan name */}
-          <p className="text-xs sm:text-sm text-gray-500 line-clamp-1 mb-2">
-            by {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
-          </p>
+          {/* Artisan name with Visit Shop link */}
+          {product.artisan && (product.artisan.artisanName || product.artisan.businessName) ? (
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <p className="text-xs sm:text-sm text-secondary/60 line-clamp-1 flex-1">
+                by {product.artisan.artisanName || product.artisan.businessName}
+              </p>
+              {showVisitShop && product.artisan._id && (
+                <Link
+                  to={`/artisan/${product.artisan._id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs font-medium text-primary hover:text-primary-dark hover:underline whitespace-nowrap flex-shrink-0"
+                >
+                  Visit Shop →
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="h-4 w-24 bg-gray-200 animate-pulse rounded mb-2"></div>
+          )}
           
           {/* Rating */}
           {showRating && (
@@ -186,7 +155,7 @@ const ProductCard = ({
           
           {/* Price and Add to Cart */}
           <div className="flex items-center justify-between">
-            <span className={`font-bold text-base sm:text-lg ${outOfStockStatus.isOutOfStock ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+            <span className={`font-bold text-base sm:text-lg ${outOfStockStatus.isOutOfStock ? 'text-secondary/40 line-through' : 'text-primary'}`}>
               {outOfStockStatus.isOutOfStock ? 'Sold Out' : formatPrice(product.price)}
             </span>
             {!outOfStockStatus.isOutOfStock && (
@@ -195,7 +164,7 @@ const ProductCard = ({
                   e.stopPropagation();
                   setShowCartPopup(true);
                 }}
-                className="px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-700 transition-colors"
+                className="btn-primary px-4 py-2 text-sm"
               >
                 Add to Cart
               </button>
@@ -226,7 +195,7 @@ const ProductCard = ({
               <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden mb-4">
                 {(product.images && product.images.length > 0) || product.image ? (
                   <img
-                    src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image)}
+                    src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image, { width: 300, height: 224, quality: 80 })}
                     alt={product.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -236,7 +205,7 @@ const ProductCard = ({
                   />
                 ) : null}
                 <div className={`w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>
-                  <BuildingStorefrontIcon className="w-12 h-12 text-amber-400" />
+                  <BuildingStorefrontIcon className="w-12 h-12 text-primary-400" />
                 </div>
               </div>
             </div>

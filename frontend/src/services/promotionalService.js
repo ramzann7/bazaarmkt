@@ -57,7 +57,17 @@ class PromotionalService {
 
       const data = await response.json();
       console.log('✅ Featured products fetched successfully:', data.data?.length || 0, 'products');
-      return data.data || [];
+      
+      // Validate that artisan data is populated
+      const validProducts = data.data?.filter(p => {
+        if (!p.artisan || typeof p.artisan === 'string') {
+          console.warn('⚠️ Product missing artisan data:', p.name);
+          return false;
+        }
+        return true;
+      }) || [];
+      
+      return validProducts;
     } catch (error) {
       console.error('❌ Error fetching featured products:', error);
       return [];

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   MagnifyingGlassIcon, 
@@ -29,6 +30,8 @@ import ProductTypeBadge from './ProductTypeBadge';
 import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
 import InventoryModel from '../models/InventoryModel';
+import LocationPrompt from './LocationPrompt';
+import { locationService } from '../services/locationService';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
@@ -36,7 +39,9 @@ export default function SearchResults() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [artisans, setArtisans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingArtisans, setIsLoadingArtisans] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -51,6 +56,9 @@ export default function SearchResults() {
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
+  // Location prompt state
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+
   // Helper function to filter out out-of-stock products
   const filterInStockProducts = (products) => {
     return products.filter(product => {
@@ -64,6 +72,9 @@ export default function SearchResults() {
   const categoryParam = searchParams.get('category') || '';
   const subcategoryParam = searchParams.get('subcategory') || '';
   const autoSearch = searchParams.get('autoSearch') === 'true';
+  const nearbySearch = searchParams.get('nearby') === 'true';
+  const urlLat = searchParams.get('lat');
+  const urlLng = searchParams.get('lng');
 
   const categories = [
     { id: 'Bakery', name: 'Bakery', icon: '🥖' },
@@ -100,93 +111,75 @@ export default function SearchResults() {
     { id: 'Other', name: 'Other', icon: '📦' }
   ];
 
-  useEffect(() => {
-    getCurrentLocation();
-    loadCurrentUser();
+  // Helper functions - must be defined BEFORE useEffects that use them
+  const calculateDistance = useCallback((product) => {
+    if (!userLocation || !product.location) return null;
+    
+    try {
+      const productLat = product.location.coordinates?.[1] || product.location.lat;
+      const productLng = product.location.coordinates?.[0] || product.location.lng;
+      
+      if (!productLat || !productLng) return null;
+      
+      const R = 6371; // Earth's radius in km
+      const dLat = (productLat - userLocation.lat) * Math.PI / 180;
+      const dLng = (productLng - userLocation.lng) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(productLat * Math.PI / 180) * 
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c;
+      
+      return distance;
+    } catch (error) {
+      console.error('Error calculating distance:', error);
+      return null;
+    }
+  }, [userLocation]);
+
+  const formatDistance = useCallback((distance) => {
+    if (!distance) return '';
+    if (distance < 1) return `${Math.round(distance * 1000)}m`;
+    if (distance < 10) return `${distance.toFixed(1)}km`;
+    return `${Math.round(distance)}km`;
   }, []);
 
-  useEffect(() => {
-    if (query || categoryParam || subcategoryParam) {
-      // Track the search when component loads
-      if (query) {
-        searchTrackingService.trackSearch(query, categoryParam || subcategoryParam);
-      }
-      performSearch();
-    } else {
-      // If no query or category, show empty state
-      setProducts([]);
-      setFilteredProducts([]);
-      setIsLoading(false);
-    }
-  }, [query, categoryParam, subcategoryParam, userLocation]);
-
-  useEffect(() => {
-    applyFiltersAndSort();
-  }, [products, sortBy, priceRange, selectedCategories]);
-
-  const loadCurrentUser = async () => {
-    try {
-      const token = authToken.getToken();
-      if (token) {
-        const profile = await getProfile();
-        setCurrentUserId(profile._id);
-      } else {
-        // For guest users, set currentUserId to null
-        setCurrentUserId(null);
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-      setCurrentUserId(null);
-    }
-  };
-
-  const getCurrentLocation = async () => {
-    try {
-      // First, try to get user coordinates from profile
-      try {
-        const userCoords = await geocodingService.getUserCoordinates();
-        if (userCoords) {
-          setUserLocation({
-            lat: userCoords.latitude,
-            lng: userCoords.longitude
-          });
-          return;
-        }
-      } catch (error) {
-        // User coordinates not available from profile
-      }
-
-      // Fallback to browser geolocation
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            });
-          },
-          (error) => {
-            // Set default location (can be updated later)
-            setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-          },
-          { timeout: 10000, enableHighAccuracy: true }
-        );
-      } else {
-        setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-      }
-    } catch (error) {
-      setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-    }
-  };
-
-  const performSearch = async () => {
+  const performSearch = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'autoSearch:', autoSearch);
+      console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'nearbySearch:', nearbySearch);
       
       let searchResults;
       
-      if (subcategoryParam && categoryParam) {
+      // Priority 1: Nearby search (location-based)
+      if (nearbySearch && userLocation) {
+        try {
+          console.log('📍 Using enhanced nearby search with location:', userLocation);
+          
+          // Use enhanced search service for location-based search
+          const enhancedResults = await enhancedSearchService.searchProducts(
+            '', // Empty query to get all products
+            { latitude: userLocation.lat, longitude: userLocation.lng },
+            {
+              maxDistance: 50, // 50km radius
+              includeDistance: true,
+              enhancedRanking: true,
+              includeQualityScore: true,
+              includeProximity: true
+            }
+          );
+          
+          searchResults = enhancedResults.products || [];
+          console.log('✨ Enhanced nearby search results:', searchResults.length, 'products');
+        } catch (error) {
+          console.log('⚠️ Enhanced nearby search failed, falling back to regular search:', error);
+          // Fallback to regular product service
+          searchResults = await getAllProducts();
+        }
+      }
+      // Priority 2: Subcategory search
+      else if (subcategoryParam && categoryParam) {
         // Enhanced subcategory search with complex prioritization
         try {
           console.log('🎯 Using enhanced subcategory search');
@@ -205,7 +198,9 @@ export default function SearchResults() {
           console.log('⚠️ Enhanced subcategory search failed, falling back to regular search:', error);
           searchResults = await getAllProducts({ category: categoryParam, subcategory: subcategoryParam });
         }
-      } else if (query) {
+      } 
+      // Priority 3: Query search
+      else if (query) {
         // Search by query - try promotional service first, then fallback to regular service
         try {
           const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
@@ -228,7 +223,9 @@ export default function SearchResults() {
           console.log('⚠️ Promotional search failed, falling back to regular search');
           searchResults = await getAllProducts({ search: query });
         }
-      } else if (categoryParam) {
+      } 
+      // Priority 4: Category search
+      else if (categoryParam) {
         // Search by category - try promotional service first, then fallback to regular service
         try {
           const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
@@ -295,39 +292,175 @@ export default function SearchResults() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [query, categoryParam, subcategoryParam, nearbySearch, autoSearch, userLocation, calculateDistance, formatDistance]);
 
-  const calculateDistance = (product) => {
-    if (!userLocation || !product.location) return null;
-    
+  useEffect(() => {
+    getCurrentLocation();
+    loadCurrentUser();
+    // Clear product cache on mount to ensure fresh inventory data
+    clearProductCache();
+    console.log('🧹 SearchResults: Cleared product cache on mount');
+  }, []);
+
+  useEffect(() => {
+    if (query || categoryParam || subcategoryParam || nearbySearch) {
+      // Track the search when component loads
+      if (query) {
+        searchTrackingService.trackSearch(query, categoryParam || subcategoryParam);
+      }
+      performSearch();
+    } else {
+      // If no query or category, show empty state
+      setProducts([]);
+      setFilteredProducts([]);
+      setIsLoading(false);
+    }
+  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation]);
+
+  // Refresh search results when page becomes visible (handles tab switching)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && (query || categoryParam || subcategoryParam)) {
+        console.log('🔄 SearchResults page became visible, refreshing data...');
+        clearProductCache();
+        performSearch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [query, categoryParam, subcategoryParam, performSearch]);
+
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [products, sortBy, priceRange, selectedCategories]);
+
+  const loadCurrentUser = async () => {
     try {
-      const productLat = product.location.coordinates?.[1] || product.location.lat;
-      const productLng = product.location.coordinates?.[0] || product.location.lng;
-      
-      if (!productLat || !productLng) return null;
-      
-      const R = 6371; // Earth's radius in km
-      const dLat = (productLat - userLocation.lat) * Math.PI / 180;
-      const dLng = (productLng - userLocation.lng) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(productLat * Math.PI / 180) * 
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c;
-      
-      return distance;
+      const token = authToken.getToken();
+      if (token) {
+        const profile = await getProfile();
+        setCurrentUserId(profile._id);
+      } else {
+        // For guest users, set currentUserId to null
+        setCurrentUserId(null);
+      }
     } catch (error) {
-      console.error('Error calculating distance:', error);
-      return null;
+      console.error('Error loading current user:', error);
+      setCurrentUserId(null);
     }
   };
 
-  const formatDistance = (distance) => {
-    if (!distance) return '';
-    if (distance < 1) return `${Math.round(distance * 1000)}m`;
-    if (distance < 10) return `${distance.toFixed(1)}km`;
-    return `${Math.round(distance)}km`;
+  const getCurrentLocation = async () => {
+    try {
+      console.log('🌍 Getting current location for search...');
+      
+      // 1. Check if we have location from URL parameters (highest priority)
+      if (urlLat && urlLng) {
+        const lat = parseFloat(urlLat);
+        const lng = parseFloat(urlLng);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          console.log('✅ Using URL location parameters:', { lat, lng });
+          const locationData = { lat, lng };
+          setUserLocation(locationData);
+          
+          // Save to locationService for future use
+          locationService.updateLocationFromGPS(lat, lng);
+          return;
+        }
+      }
+      
+      // 2. Check locationService cache (most reliable)
+      const cachedLocation = locationService.getUserLocation();
+      if (cachedLocation && cachedLocation.lat && cachedLocation.lng) {
+        console.log('✅ Using cached location from locationService:', cachedLocation);
+        setUserLocation({
+          lat: cachedLocation.lat,
+          lng: cachedLocation.lng
+        });
+        return;
+      }
+      
+      // 3. Try to get user coordinates from profile
+      try {
+        const userCoords = await geocodingService.getUserCoordinates();
+        if (userCoords && userCoords.latitude && userCoords.longitude) {
+          console.log('✅ Using user profile coordinates:', userCoords);
+          const locationData = {
+            lat: userCoords.latitude,
+            lng: userCoords.longitude
+          };
+          setUserLocation(locationData);
+          
+          // Cache it for future use
+          locationService.saveUserLocation({
+            lat: userCoords.latitude,
+            lng: userCoords.longitude,
+            address: 'Profile location',
+            confidence: 100
+          });
+          return;
+        }
+      } catch (error) {
+        console.log('⚠️ User profile coordinates not available:', error);
+      }
+
+      // 4. Try browser geolocation (with timeout to avoid hanging)
+      if (navigator.geolocation && !nearbySearch) {
+        try {
+          const position = await Promise.race([
+            new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 300000 // 5 minutes
+              });
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Geolocation timeout')), 6000)
+            )
+          ]);
+          
+          if (position && position.coords) {
+            console.log('✅ Using browser geolocation:', position.coords);
+            const locationData = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            setUserLocation(locationData);
+            
+            // Cache it for future use
+            locationService.updateLocationFromGPS(
+              position.coords.latitude,
+              position.coords.longitude
+            );
+            return;
+          }
+        } catch (error) {
+          console.log('⚠️ Browser geolocation failed or timed out:', error.message);
+        }
+      }
+      
+      // 5. If nearbySearch is true and we still don't have a location, show prompt
+      if (nearbySearch && !userLocation) {
+        console.log('📍 No location available for nearby search, showing location prompt');
+        setShowLocationPrompt(true);
+        return;
+      }
+      
+      // 6. Fall back to default location (Toronto)
+      console.log('📍 Using default location (Toronto)');
+      setUserLocation({ lat: 43.6532, lng: -79.3832 });
+      
+    } catch (error) {
+      console.error('❌ Error getting location:', error);
+      // Set default location on error
+      setUserLocation({ lat: 43.6532, lng: -79.3832 });
+    }
   };
 
   const applyFiltersAndSort = () => {
@@ -381,31 +514,32 @@ export default function SearchResults() {
     setQuantity(1);
   };
 
-  const getImageUrl = (image) => {
-    if (!image) return '';
+  // LocationPrompt handlers
+  const handleLocationSet = (locationData) => {
+    console.log('✅ Location set from prompt:', locationData);
+    setUserLocation({
+      lat: locationData.lat,
+      lng: locationData.lng
+    });
+    setShowLocationPrompt(false);
     
-    // Handle base64 data URLs
-    if (image.startsWith('data:')) return image;
-    
-    if (image.startsWith('http')) return image;
-    
-    let finalUrl;
-    
-    // Check if the image path already contains /uploads/products/
-    if (image.startsWith('/uploads/products/')) {
-      finalUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${image}`;
+    // Trigger search with new location
+    if (nearbySearch) {
+      performSearch();
     }
-    // Check if the image path starts with uploads/products/ (without leading slash)
-    else if (image.startsWith('uploads/products/')) {
-      finalUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${image}`;
-    }
-    // Default case: add /uploads/products/ prefix
-    else {
-      finalUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/uploads/products/${image}`;
-    }
-    
-    return finalUrl;
   };
+
+  const handleLocationDismiss = () => {
+    console.log('⚠️ Location prompt dismissed');
+    setShowLocationPrompt(false);
+    
+    // If this was a nearby search, redirect to regular search or home
+    if (nearbySearch) {
+      toast.error('Location is required for nearby search');
+      navigate('/');
+    }
+  };
+
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
@@ -420,10 +554,10 @@ export default function SearchResults() {
     const hasHalfStar = rating % 1 !== 0;
 
     for (let i = 0; i < fullStars; i++) {
-      stars.push(<StarIcon key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />);
+      stars.push(<StarIcon key={i} className="w-4 h-4 fill-primary-400 text-primary-400" />);
     }
     if (hasHalfStar) {
-      stars.push(<StarIcon key="half" className="w-4 h-4 fill-amber-400 text-amber-400" />);
+      stars.push(<StarIcon key="half" className="w-4 h-4 fill-primary-400 text-primary-400" />);
     }
     const emptyStars = 5 - Math.ceil(rating);
     for (let i = 0; i < emptyStars; i++) {
@@ -444,86 +578,55 @@ export default function SearchResults() {
   }
 
   return (
-    <div className="min-h-screen bg-amber-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-amber-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              {subcategoryParam && categoryParam ? (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    {subcategoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Products
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
-                    {autoSearch && <span className="text-amber-600 font-medium"> • Auto-selected for you</span>}
-                  </p>
-                </>
-              ) : query ? (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    Search Results for "{query}"
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} found from your neighbors
-                  </p>
-                </>
-              ) : categoryParam ? (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    {categoryParam.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} Products
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} {autoSearch ? 'handpicked' : 'local'} product{filteredProducts.length !== 1 ? 's' : ''} found
-                    {autoSearch && <span className="text-amber-600 font-medium"> • Auto-selected for you</span>}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-bold text-slate-800">
-                    All Products
-                  </h1>
-                  <p className="text-slate-600 mt-1">
-                    {filteredProducts.length} local product{filteredProducts.length !== 1 ? 's' : ''} available
-                  </p>
-                </>
-              )}
-            </div>
-            
-            {/* Sort and Filter Controls */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-4 py-2 border border-amber-200 rounded-lg hover:bg-amber-50"
-              >
-                <FunnelIcon className="w-5 h-5" />
-                <span>Filters</span>
-              </button>
-              
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Subtle Filter Bar */}
+        <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
+          <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold transition-all ${
+                showFilters 
+                  ? 'bg-accent text-white border-transparent' 
+                  : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
+              }`}
+            >
+              <FunnelIcon className="w-4 h-4" />
+              Filters
+            </button>
+
+            {/* Sort Dropdown */}
+            <div className="flex items-center bg-white px-2.5 py-2 rounded-full border border-gray-100">
+              <span className="text-sm font-semibold text-gray-600">Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-amber-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="border-none bg-transparent text-sm font-semibold text-gray-900 focus:outline-none cursor-pointer ml-1.5"
               >
-                <option value="distance">Sort by Distance</option>
+                <option value="distance">Distance</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
                 <option value="newest">Newest First</option>
               </select>
             </div>
+
+            {/* Results Count */}
+            <div className="flex items-center gap-2.5 flex-shrink-0 ml-auto">
+              <span className="text-sm text-muted">
+                {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <div className="bg-white border-b border-amber-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Filters Panel */}
+        {showFilters && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100/30 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Categories */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Categories</h3>
+                <h3 className="text-sm font-semibold text-text mb-3">Categories</h3>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {categories.map((category) => (
                     <label key={category.id} className="flex items-center">
@@ -537,9 +640,9 @@ export default function SearchResults() {
                             setSelectedCategories(selectedCategories.filter(c => c !== category.id));
                           }
                         }}
-                        className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        className="rounded border-gray-300 text-accent focus:ring-accent"
                       />
-                      <span className="ml-2 text-sm text-gray-700">{category.icon} {category.name}</span>
+                      <span className="ml-2 text-sm text-muted">{category.icon} {category.name}</span>
                     </label>
                   ))}
                 </div>
@@ -547,19 +650,19 @@ export default function SearchResults() {
 
               {/* Price Range */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Price Range</h3>
+                <h3 className="text-sm font-semibold text-text mb-3">Price Range</h3>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">$0</span>
+                    <span className="text-sm text-muted">$0</span>
                     <input
                       type="range"
                       min="0"
                       max="1000"
                       value={priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                      className="flex-1"
+                      className="flex-1 accent-accent"
                     />
-                    <span className="text-sm text-gray-500">${priceRange[1]}</span>
+                    <span className="text-sm text-muted">${priceRange[1]}</span>
                   </div>
                 </div>
               </div>
@@ -571,18 +674,16 @@ export default function SearchResults() {
                     setSelectedCategories([]);
                     setPriceRange([0, 1000]);
                   }}
-                  className="px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                  className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm font-semibold"
                 >
                   Clear Filters
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Results */}
         {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
             {filteredProducts.map((product) => (
@@ -604,6 +705,46 @@ export default function SearchResults() {
             <p className="text-gray-500">
               {query ? `No products found for "${query}"` : 'Try adjusting your search criteria'}
             </p>
+          </div>
+        )}
+
+        {/* Artisans Section - Only show if we have search results and artisans */}
+        {query && (artisans.length > 0 || isLoadingArtisans) && (
+          <div className="mt-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-slate-800">
+                Matching Artisans
+              </h2>
+              {artisans.length > 0 && (
+                <p className="text-slate-600">
+                  {artisans.length} artisan{artisans.length !== 1 ? 's' : ''} found
+                </p>
+              )}
+            </div>
+
+            {isLoadingArtisans ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 rounded-lg h-48 mb-3"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : artisans.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                {artisans.map((artisan) => (
+                  <ArtisanCard 
+                    key={artisan._id} 
+                    artisan={artisan}
+                    showDistance={true}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -628,7 +769,7 @@ export default function SearchResults() {
               <div className="w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
                 {selectedProduct.image ? (
                   <img
-                    src={getImageUrl(selectedProduct.image)}
+                    src={getImageUrl(selectedProduct.image, { width: 600, height: 400, quality: 85 })}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -638,7 +779,7 @@ export default function SearchResults() {
                   />
                 ) : null}
                 <div className={`w-full h-48 bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${selectedProduct.image ? 'hidden' : 'flex'}`}>
-                  <BuildingStorefrontIcon className="w-16 h-16 text-amber-400" />
+                  <BuildingStorefrontIcon className="w-16 h-16 text-primary-400" />
                 </div>
               </div>
             </div>
@@ -660,6 +801,14 @@ export default function SearchResults() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Location Prompt Modal */}
+      {showLocationPrompt && (
+        <LocationPrompt
+          onLocationSet={handleLocationSet}
+          onDismiss={handleLocationDismiss}
+        />
       )}
     </div>
   );

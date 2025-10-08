@@ -1,7 +1,7 @@
 // src/services/authService.js
 import axios from 'axios';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from './cacheService.js';
-
+import { getUserIdFromToken } from '../utils/tokenUtils';
 import config from '../config/environment.js';
 
 // Create axios instance with base configuration
@@ -43,13 +43,44 @@ api.interceptors.response.use(
   }
 );
 
+// Comprehensive cache clearing utility
+export const clearAllUserCaches = () => {
+  console.log('🧹 Clearing all user caches...');
+  
+  // Clear cache service
+  cacheService.clear();
+  
+  // Clear all localStorage entries that might be user-specific
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(CACHE_KEYS.USER_PROFILE) || 
+        key.startsWith('cart_') || 
+        key.startsWith('cart_count_') ||
+        key.includes('profile_') ||
+        key.includes('user_') ||
+        key.includes('profile') ||
+        key.includes('user') ||
+        key.includes('cart')) {
+      console.log('🗑️ Clearing cache key:', key);
+      localStorage.removeItem(key);
+    }
+  });
+  
+  console.log('✅ All user caches cleared');
+};
+
 // Token management
 export const authToken = {
   getToken: () => localStorage.getItem('token'),
   setToken: (token) => {
+    console.log('🔑 Setting new token, clearing all user caches...');
+    
+    // Use comprehensive cache clearing
+    clearAllUserCaches();
+    
+    // Set the new token
     localStorage.setItem('token', token);
-    // Clear user profile cache when token changes
-    cacheService.delete(CACHE_KEYS.USER_PROFILE);
+    
+    console.log('✅ Token set and caches cleared');
   },
   removeToken: () => {
     localStorage.removeItem('token');
@@ -59,25 +90,71 @@ export const authToken = {
 };
 
 // Optimized getProfile with caching - Performance focused
-export const getProfile = async () => {
+export const getProfile = async (forceRefresh = false) => {
   const token = authToken.getToken();
-  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token?.slice(-10)}`;
   
-  return cacheService.getOrSet(
-    cacheKey,
-    async () => {
-      const response = await api.get('/auth/profile');
-      // The auth/profile endpoint returns { success: true, data: { user: userObject } }
-      return response.data.data?.user || response.data.user;
-    },
-    CACHE_TTL.USER_PROFILE
-  );
+  if (!token) {
+    console.warn('⚠️ getProfile: No token available');
+    return null;
+  }
+  
+  const userId = getUserIdFromToken(token);
+  const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
+  
+  // Clear cache if force refresh is requested
+  if (forceRefresh) {
+    console.log('🔄 getProfile: Force refresh requested, clearing cache:', cacheKey);
+    cacheService.delete(cacheKey);
+  }
+  
+  try {
+    return await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        console.log('📡 getProfile: Fetching profile from API...');
+        const response = await api.get('/auth/profile');
+        console.log('📦 getProfile: API response:', {
+          hasData: !!response.data,
+          hasDataUser: !!response.data?.data?.user,
+          hasUser: !!response.data?.user,
+          success: response.data?.success
+        });
+        
+        // The auth/profile endpoint returns { success: true, data: { user: userObject } }
+        const profile = response.data.data?.user || response.data.user;
+        
+        if (!profile) {
+          console.error('❌ getProfile: API returned no profile data!', response.data);
+          return null;
+        }
+        
+        console.log('✅ getProfile: Profile fetched successfully:', profile._id);
+        return profile;
+      },
+      CACHE_TTL.USER_PROFILE
+    );
+  } catch (error) {
+    console.error('❌ getProfile: Error fetching profile:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // Clear cache on error to allow retry
+    cacheService.delete(cacheKey);
+    
+    // Don't throw - return null to allow graceful handling
+    return null;
+  }
 };
 
 // Preload profile data
 export const preloadProfile = () => {
-  if (authToken.getToken()) {
-    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+  const token = authToken.getToken();
+  if (token) {
+    const userId = getUserIdFromToken(token);
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
     cacheService.preload(cacheKey, async () => {
       const response = await api.get('/auth/profile');
       return response.data.data?.user || response.data.user;
@@ -111,7 +188,8 @@ export const loginUser = async (credentials) => {
     authToken.setToken(token);
     
     // Cache the profile immediately
-    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+    const userId = getUserIdFromToken(token);
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
     cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
     
     // Dispatch auth change event
@@ -163,7 +241,8 @@ export const registerUser = async (userData) => {
     authToken.setToken(token);
     
     // Cache the profile immediately
-    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${token.slice(-10)}`;
+    const userId = getUserIdFromToken(token);
+    const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
     cacheService.set(cacheKey, user, CACHE_TTL.USER_PROFILE);
     
     // Mark user as new (they haven't completed onboarding yet)
@@ -186,8 +265,8 @@ export const registerUser = async (userData) => {
 export const logoutUser = () => {
   authToken.removeToken();
   
-  // Clear all cached data
-  cacheService.clear();
+  // Use comprehensive cache clearing
+  clearAllUserCaches();
   
   // Clear localStorage backup
   localStorage.removeItem('user_profile_backup');
@@ -242,7 +321,9 @@ export const queueProfileUpdate = (updates) => {
         const response = await api.put('/auth/profile', mergedUpdates);
         
         // Update cache
-        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${authToken.getToken()?.slice(-10)}`;
+        const token = authToken.getToken();
+        const userId = getUserIdFromToken(token);
+        const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
         cacheService.set(cacheKey, response.data, CACHE_TTL.USER_PROFILE);
         
         profileUpdateQueue = [];

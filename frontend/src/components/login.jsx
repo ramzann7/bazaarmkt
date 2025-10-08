@@ -58,7 +58,7 @@ export default function Login() {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-stone-200 p-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div className="form-group">
@@ -97,7 +97,7 @@ export default function Login() {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-stone-600 transition-colors duration-300"
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-stone-400 hover:text-gray-600 transition-colors duration-300"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -123,7 +123,7 @@ export default function Login() {
           <div className="my-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-stone-200"></div>
+                <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-stone-500">Or continue with</span>
@@ -133,7 +133,7 @@ export default function Login() {
 
           {/* Business CTA */}
           <div className="text-center">
-            <p className="text-stone-600 mb-4">Ready to grow your business?</p>
+            <p className="text-gray-600 mb-4">Ready to grow your business?</p>
             <Link
               to="/register?type=business"
               className="btn-outline w-full"
@@ -145,11 +145,11 @@ export default function Login() {
 
         {/* Footer */}
         <div className="text-center">
-          <p className="text-stone-600">
+          <p className="text-gray-600">
             Don't have an account?{" "}
             <Link
               to="/register"
-              className="font-semibold text-amber-600 hover:text-amber-700 transition-colors duration-300"
+              className="font-semibold text-primary hover:text-primary-dark transition-colors duration-300"
             >
               Create one now
             </Link>

@@ -1,0 +1,222 @@
+/**
+ * Admin Service - Cash Flow Endpoint
+ * Track platform revenues from all sources
+ * Uses existing collections: orders, artisanspotlight, promotionalfeatures
+ */
+
+const { ObjectId } = require('mongodb');
+
+/**
+ * Get platform cash flow data
+ */
+const getPlatformCashFlow = async (req, res) => {
+  try {
+    const { timeRange = '30' } = req.query;
+    const db = req.db || req.app.locals.db;
+    
+    if (!db) {
+      console.error('❌ Database connection not available');
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection not available'
+      });
+    }
+    
+    console.log('📊 === CASH FLOW REQUEST START ===');
+    console.log('Time Range:', timeRange, 'days');
+    
+    // Get platform settings to retrieve the platform fee percentage
+    const platformSettings = await db.collection('platformsettings').findOne({});
+    const platformFeePercentage = (platformSettings?.platformFeePercentage || 10) / 100; // Convert to decimal
+    
+    console.log('📊 Platform fee percentage:', (platformFeePercentage * 100) + '%');
+    console.log('📊 Platform settings found:', !!platformSettings);
+    
+    // Calculate date range
+    const startDate = timeRange === 'all' 
+      ? new Date(0) 
+      : new Date(Date.now() - parseInt(timeRange) * 24 * 60 * 60 * 1000);
+    
+    console.log('📊 Loading platform cash flow for time range:', timeRange, 'days');
+    console.log('📊 Start date:', startDate.toISOString());
+    
+    // Get platform revenues from multiple EXISTING sources
+    const [
+      orderCommissions,
+      spotlightSubscriptions,
+      promotionalFeatures,
+      recentOrders
+    ] = await Promise.all([
+      // Order commissions from all captured orders
+      db.collection('orders').aggregate([
+        {
+          $match: {
+            paymentStatus: 'captured',
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalOrders: { $sum: 1 },
+            totalGMV: { $sum: '$totalAmount' },
+            // Calculate commission: use platformFee if exists, otherwise calculate from totalAmount
+            totalCommissions: { 
+              $sum: { 
+                $ifNull: [
+                  '$platformFee', 
+                  { $multiply: ['$totalAmount', platformFeePercentage] }
+                ]
+              }
+            }
+          }
+        }
+      ]).toArray(),
+      
+      // Spotlight subscriptions - USE EXISTING COLLECTION: artisanspotlight (no underscore)
+      db.collection('artisanspotlight').aggregate([
+        {
+          $match: {
+            'payment.status': 'paid',
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalSubscriptions: { $sum: 1 },
+            totalRevenue: { $sum: '$payment.amount' }
+          }
+        }
+      ]).toArray(),
+      
+      // Promotional features - USE EXISTING COLLECTION: promotionalfeatures
+      db.collection('promotionalfeatures').aggregate([
+        {
+          $match: {
+            status: 'active',
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalPromotions: { $sum: 1 },
+            totalRevenue: { $sum: '$payment.amount' }
+          }
+        }
+      ]).toArray(),
+      
+      // Get recent orders for transaction display
+      db.collection('orders').find({
+        paymentStatus: 'captured',
+        createdAt: { $gte: startDate }
+      }).sort({ createdAt: -1 }).limit(100).toArray()
+    ]);
+    
+    console.log('📊 Order commissions result:', orderCommissions);
+    console.log('📊 Spotlight subscriptions result:', spotlightSubscriptions);
+    console.log('📊 Promotional features result:', promotionalFeatures);
+    console.log('📊 Recent orders count:', recentOrders.length);
+    
+    // Calculate summary
+    const orderData = orderCommissions[0] || { totalOrders: 0, totalGMV: 0, totalCommissions: 0 };
+    const spotlightData = spotlightSubscriptions[0] || { totalSubscriptions: 0, totalRevenue: 0 };
+    const promotionalData = promotionalFeatures[0] || { totalPromotions: 0, totalRevenue: 0 };
+    
+    console.log('📊 Processed order data:', orderData);
+    console.log('📊 Processed spotlight data:', spotlightData);
+    console.log('📊 Processed promotional data:', promotionalData);
+    
+    const summary = {
+      totalRevenue: orderData.totalCommissions + spotlightData.totalRevenue + promotionalData.totalRevenue,
+      orderCommissions: orderData.totalCommissions,
+      promotionalRevenue: promotionalData.totalRevenue,
+      spotlightRevenue: spotlightData.totalRevenue,
+      totalOrders: orderData.totalOrders,
+      totalGMV: orderData.totalGMV,
+      platformFeePercentage: platformFeePercentage * 100, // Send as percentage (e.g., 10 for 10%)
+      // Estimate Stripe fees (2.9% + $0.30 per transaction)
+      estimatedStripeFees: orderData.totalGMV * 0.029 + (orderData.totalOrders * 0.30),
+      netRevenue: 0 // Will calculate after Stripe fees
+    };
+    
+    summary.netRevenue = summary.totalRevenue - summary.estimatedStripeFees;
+    
+    // Format transactions for display
+    const transactions = [];
+    
+    // Add order commission transactions
+    for (const order of recentOrders.slice(0, 20)) {
+      transactions.push({
+        _id: order._id,
+        type: 'order_commission',
+        amount: order.platformFee || (order.totalAmount * platformFeePercentage),
+        description: `${(platformFeePercentage * 100).toFixed(0)}% commission from order #${order._id.toString().slice(-8)}`,
+        orderId: order._id,
+        artisanId: order.artisan,
+        totalAmount: order.totalAmount,
+        artisanAmount: order.artisanAmount,
+        createdAt: order.paymentCapturedAt || order.createdAt,
+        metadata: {
+          orderNumber: order._id.toString().slice(-8),
+          paymentIntentId: order.paymentIntentId,
+          stripeTransferId: order.stripeTransferId
+        }
+      });
+    }
+    
+    // Add spotlight subscriptions - USE EXISTING COLLECTION: artisanspotlight (no underscore)
+    const recentSpotlight = await db.collection('artisanspotlight').find({
+      'payment.status': 'paid',
+      createdAt: { $gte: startDate }
+    }).sort({ createdAt: -1 }).limit(10).toArray();
+    
+    for (const spotlight of recentSpotlight) {
+      transactions.push({
+        _id: spotlight._id,
+        type: 'spotlight_subscription',
+        amount: spotlight.payment.amount,
+        description: `Artisan Spotlight subscription - ${spotlight.duration} days`,
+        artisanId: spotlight.artisanId,
+        createdAt: spotlight.createdAt,
+        metadata: {
+          duration: spotlight.duration,
+          subscriptionType: spotlight.type
+        }
+      });
+    }
+    
+    // Sort all transactions by date
+    transactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    console.log('✅ Platform cash flow loaded:', {
+      totalRevenue: summary.totalRevenue,
+      transactionCount: transactions.length,
+      summary: summary
+    });
+    console.log('📊 === CASH FLOW REQUEST END ===');
+    
+    res.json({
+      success: true,
+      data: {
+        summary,
+        transactions: transactions.slice(0, 50) // Limit to 50 most recent
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting platform cash flow:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to load cash flow data: ' + error.message
+    });
+  }
+};
+
+module.exports = {
+  getPlatformCashFlow
+};
+
+
+

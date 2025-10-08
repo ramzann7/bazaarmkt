@@ -10,6 +10,17 @@ class LocationService {
   // Get cached user location
   getUserLocation() {
     try {
+      // Try memory cache first for immediate access
+      if (typeof window !== 'undefined' && window.__cachedUserLocation) {
+        const cached = window.__cachedUserLocation;
+        // Check if still valid (not older than 30 days)
+        const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        if (cached.timestamp && cached.timestamp > thirtyDaysAgo) {
+          console.log('📍 Using memory-cached location');
+          return cached;
+        }
+      }
+
       const locationData = localStorage.getItem(this.locationKey);
       if (locationData) {
         const location = JSON.parse(locationData);
@@ -17,16 +28,22 @@ class LocationService {
         // Check if location is still valid (not older than 30 days)
         const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
         if (location.timestamp && location.timestamp > thirtyDaysAgo) {
+          // Cache in memory for next access
+          if (typeof window !== 'undefined') {
+            window.__cachedUserLocation = location;
+          }
+          console.log('📍 Using localStorage-cached location');
           return location;
         } else {
           // Location is too old, remove it
+          console.log('⚠️ Cached location is too old, clearing...');
           this.clearUserLocation();
           return null;
         }
       }
       return null;
     } catch (error) {
-      console.error('Error getting user location:', error);
+      console.error('❌ Error getting user location:', error);
       return null;
     }
   }
@@ -34,22 +51,44 @@ class LocationService {
   // Save user location
   saveUserLocation(locationData) {
     try {
+      // Validate location data
+      if (!locationData || !locationData.lat || !locationData.lng) {
+        console.error('❌ Invalid location data provided:', locationData);
+        return false;
+      }
+
+      // Validate coordinates are valid numbers
+      const lat = parseFloat(locationData.lat);
+      const lng = parseFloat(locationData.lng);
+      
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        console.error('❌ Invalid coordinates:', { lat, lng });
+        return false;
+      }
+
       const dataToSave = {
         ...locationData,
+        lat,
+        lng,
         timestamp: Date.now()
       };
       
+      console.log('💾 Saving location to cache:', dataToSave);
       localStorage.setItem(this.locationKey, JSON.stringify(dataToSave));
       
-      // Also cache the geocoding result for future use
-      if (locationData.lat && locationData.lng) {
-        const cacheKey = `user_location_${locationData.lat}_${locationData.lng}`;
-        localStorage.setItem(cacheKey, JSON.stringify(dataToSave));
+      // Also cache the geocoding result for future use with coordinates as key
+      const cacheKey = `user_location_${lat.toFixed(4)}_${lng.toFixed(4)}`;
+      localStorage.setItem(cacheKey, JSON.stringify(dataToSave));
+      
+      // Cache in memory for immediate access
+      if (typeof window !== 'undefined') {
+        window.__cachedUserLocation = dataToSave;
       }
       
+      console.log('✅ Location saved successfully to cache');
       return true;
     } catch (error) {
-      console.error('Error saving user location:', error);
+      console.error('❌ Error saving user location:', error);
       return false;
     }
   }
@@ -58,11 +97,29 @@ class LocationService {
   clearUserLocation() {
     try {
       localStorage.removeItem(this.locationKey);
+      // Also clear memory cache
+      if (typeof window !== 'undefined') {
+        delete window.__cachedUserLocation;
+      }
       return true;
     } catch (error) {
       console.error('Error clearing user location:', error);
       return false;
     }
+  }
+
+  // Save location from simple coordinates object (used by Find Near Me button)
+  saveLocation(locationData) {
+    // Normalize the data format
+    const normalizedData = {
+      lat: locationData.latitude || locationData.lat,
+      lng: locationData.longitude || locationData.lng,
+      address: locationData.address || 'Current location',
+      confidence: locationData.confidence || 90,
+      formattedAddress: locationData.address || 'Current location'
+    };
+    
+    return this.saveUserLocation(normalizedData);
   }
 
   // Check if location prompt has been shown

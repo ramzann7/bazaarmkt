@@ -59,9 +59,12 @@ export default function AdminPromotionalDashboard() {
       }
 
       const profile = await getProfile();
-      console.log('🔍 Profile loaded:', { email: profile?.email, role: profile?.role });
+      console.log('🔍 Profile loaded:', { email: profile?.email, role: profile?.role, userType: profile?.userType });
       
-      if (profile.role !== 'admin') {
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         console.log('🔍 User is not admin, redirecting');
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
@@ -120,7 +123,7 @@ export default function AdminPromotionalDashboard() {
             benefits: ['Sponsored placement in search results', 'Enhanced visibility in product category']
           },
           {
-            featureType: 'artisan_spotlight',
+            featureType: 'artisanspotlight',
             name: 'Artisan Spotlight',
             description: 'Feature your artisan profile prominently on the platform',
             basePrice: 25,
@@ -172,7 +175,7 @@ export default function AdminPromotionalDashboard() {
           benefits: ['Sponsored placement in search results', 'Enhanced visibility in product category']
         },
         {
-          featureType: 'artisan_spotlight',
+          featureType: 'artisanspotlight',
           name: 'Artisan Spotlight',
           description: 'Feature your artisan profile prominently on the platform',
           basePrice: 25,
@@ -234,7 +237,7 @@ export default function AdminPromotionalDashboard() {
     const labels = {
       'featured_product': 'Featured Product',
       'sponsored_product': 'Sponsored Product',
-      'artisan_spotlight': 'Artisan Spotlight',
+      'artisanspotlight': 'Artisan Spotlight',
       'category_promotion': 'Category Promotion',
       'search_boost': 'Search Boost',
       'homepage_featured': 'Homepage Featured'
@@ -541,7 +544,7 @@ function PricingModal({ pricing, onSave, onClose, isSaving }) {
                 <option value="">Select feature type</option>
                 <option value="featured_product">Featured Product</option>
                 <option value="sponsored_product">Sponsored Product</option>
-                <option value="artisan_spotlight">Artisan Spotlight</option>
+                <option value="artisanspotlight">Artisan Spotlight</option>
                 <option value="category_promotion">Category Promotion</option>
                 <option value="search_boost">Search Boost</option>
                 <option value="homepage_featured">Homepage Featured</option>

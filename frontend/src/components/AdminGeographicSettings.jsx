@@ -11,16 +11,21 @@ import {
   PlayIcon,
   DocumentTextIcon
 } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { authToken, getProfile } from '../services/authservice';
 import toast from 'react-hot-toast';
 import geographicSettingsService from '../services/geographicSettingsService';
 
 const AdminGeographicSettings = () => {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [activeTab, setActiveTab] = useState('restrictions');
   const [testResults, setTestResults] = useState(null);
+  const navigate = useNavigate();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -60,8 +65,42 @@ const AdminGeographicSettings = () => {
   });
 
   useEffect(() => {
-    loadSettings();
+    checkAdminAccess();
   }, []);
+
+  useEffect(() => {
+    if (currentUser && authChecked) {
+      loadSettings();
+    }
+  }, [currentUser, authChecked]);
+
+  const checkAdminAccess = async () => {
+    try {
+      const token = authToken.getToken();
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      const profile = await getProfile();
+      
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
+        toast.error('Access denied. Admin privileges required.');
+        navigate('/');
+        return;
+      }
+
+      setCurrentUser(profile);
+      setAuthChecked(true);
+    } catch (error) {
+      console.error('Error checking admin access:', error);
+      toast.error('Authentication error');
+      navigate('/login');
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -205,6 +244,17 @@ const AdminGeographicSettings = () => {
       ]);
     }
   };
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

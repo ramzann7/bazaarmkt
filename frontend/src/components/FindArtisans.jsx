@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -100,6 +101,7 @@ export default function FindArtisans() {
   // Load all artisans when component mounts with optimized caching
   useEffect(() => {
     const startTime = performance.now();
+    let isMounted = true; // Prevent state updates if component unmounts
     
     // Load spotlight artisans first (they don't depend on cache)
     loadSpotlightArtisans();
@@ -108,7 +110,7 @@ export default function FindArtisans() {
     const cacheKey = `${CACHE_KEYS.ARTISAN_DETAILS}_all`;
     const cachedArtisans = cacheService.getFast(cacheKey);
     
-    if (cachedArtisans) {
+    if (cachedArtisans && isMounted) {
       console.log('✅ Using cached artisans for instant loading');
       setArtisans(cachedArtisans);
       setFilteredArtisans(cachedArtisans);
@@ -116,22 +118,32 @@ export default function FindArtisans() {
       
       // Load fresh data in background
       loadAllArtisans().finally(() => {
-        const endTime = performance.now();
-        console.log(`Background refresh completed in ${(endTime - startTime).toFixed(2)}ms`);
+        if (isMounted) {
+          const endTime = performance.now();
+          console.log(`Background refresh completed in ${(endTime - startTime).toFixed(2)}ms`);
+        }
       });
-    } else {
+    } else if (isMounted) {
       // No cache, load normally
       loadAllArtisans().finally(() => {
-        const endTime = performance.now();
-        console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
+        if (isMounted) {
+          const endTime = performance.now();
+          console.log(`Artisans loaded in ${(endTime - startTime).toFixed(2)}ms`);
+        }
       });
     }
+    
+    return () => {
+      isMounted = false; // Cleanup
+    };
   }, []);
 
-  // Load favorite artisans for authenticated patrons
+  // Load favorite artisans for authenticated patrons (defer to not block initial render)
   useEffect(() => {
     if (isAuthenticated && user && user.role === 'patron') {
-      loadFavoriteArtisans();
+      setTimeout(() => {
+        loadFavoriteArtisans();
+      }, 500); // Load favorites after page is rendered
     }
   }, [isAuthenticated, user]);
 
@@ -151,24 +163,30 @@ export default function FindArtisans() {
       );
       setArtisans(data);
       setFilteredArtisans(data);
+      setIsLoading(false); // Set loading false immediately after artisans loaded
       
-      // Load promotional data for all artisans in one bulk call
+      // Load promotional data in background (non-blocking)
       if (data.length > 0) {
-        try {
-          const artisanIds = data.map(artisan => artisan._id);
-          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
-          setArtisanPromotions(promotionalData);
-        } catch (error) {
-          console.error('Error loading bulk promotional features:', error);
-          setArtisanPromotions({});
-        }
+        setTimeout(() => {
+          loadPromotionalDataInBackground(data);
+        }, 100); // Defer to next tick
       }
     } catch (error) {
       console.error('Error loading artisans:', error);
       setError('Failed to load artisans');
       toast.error('Failed to load artisans');
-    } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const loadPromotionalDataInBackground = async (artisansData) => {
+    try {
+      const artisanIds = artisansData.map(artisan => artisan._id);
+      const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
+      setArtisanPromotions(promotionalData);
+    } catch (error) {
+      console.error('Error loading bulk promotional features:', error);
+      setArtisanPromotions({});
     }
   };
 
@@ -216,24 +234,19 @@ export default function FindArtisans() {
       setError(null);
       const response = await artisanService.searchArtisans(searchTerm);
       setFilteredArtisans(response || []);
+      setIsLoading(false); // Set loading false immediately
       
-      // Load promotional data for search results
+      // Load promotional data in background (non-blocking)
       if (response && response.length > 0) {
-        try {
-          const artisanIds = response.map(artisan => artisan._id);
-          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
-          setArtisanPromotions(promotionalData);
-        } catch (error) {
-          console.error('Error loading bulk promotional features for search:', error);
-          setArtisanPromotions({});
-        }
+        setTimeout(() => {
+          loadPromotionalDataInBackground(response);
+        }, 100);
       }
     } catch (error) {
       console.error('Error searching artisans:', error);
       setError('Failed to search artisans');
       toast.error('Failed to search artisans');
       setFilteredArtisans([]);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -314,17 +327,13 @@ export default function FindArtisans() {
       console.log('Response received:', response);
       setArtisans(response || []);
       setFilteredArtisans(response || []);
+      setIsLoading(false); // Set loading false immediately
       
-      // Load promotional data for artisans by type
+      // Load promotional data in background (non-blocking)
       if (response && response.length > 0) {
-        try {
-          const artisanIds = response.map(artisan => artisan._id);
-          const promotionalData = await promotionalService.getBulkArtisanPromotionalFeatures(artisanIds);
-          setArtisanPromotions(promotionalData);
-        } catch (error) {
-          console.error('Error loading bulk promotional features for type:', error);
-          setArtisanPromotions({});
-        }
+        setTimeout(() => {
+          loadPromotionalDataInBackground(response);
+        }, 100); // Defer to next tick
       }
     } catch (error) {
       console.error('Error loading artisans by type:', error);
@@ -332,7 +341,6 @@ export default function FindArtisans() {
       toast.error('Failed to load artisans');
       setArtisans([]);
       setFilteredArtisans([]);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -383,34 +391,6 @@ export default function FindArtisans() {
     }
   }, [isAuthenticated]);
 
-  // Enhanced image URL handling
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle different photo data structures
-    if (typeof imagePath === 'object' && imagePath.url) {
-      return imagePath.url;
-    }
-    
-    // Handle string format
-    if (typeof imagePath === 'string') {
-      // Handle base64 data URLs
-      if (imagePath.startsWith('data:image/')) {
-        return imagePath;
-      }
-      // Handle HTTP URLs
-      if (imagePath.startsWith('http')) {
-        return imagePath;
-      }
-      // Handle relative paths
-      if (imagePath.startsWith('/')) {
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-      }
-              return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-    }
-    
-    return null;
-  };
 
   // Enhanced artisan images handling
   const getArtisanImages = (artisan) => {
@@ -709,7 +689,7 @@ export default function FindArtisans() {
               <h3 className={`text-lg font-semibold transition-colors duration-300 ${
                 isOpen === false 
                   ? 'text-gray-600 group-hover:text-gray-800' 
-                  : 'text-gray-900 group-hover:text-amber-600'
+                  : 'text-gray-900 group-hover:text-primary'
               }`}>
                 {artisan.artisanName || 'Unnamed Artisan'}
               </h3>
@@ -721,9 +701,9 @@ export default function FindArtisans() {
               )}
             </div>
             <div className="flex items-center space-x-1">
-              <StarIconSolid className="w-4 h-4 text-amber-500" />
+              <StarIconSolid className="w-4 h-4 text-primary-500" />
               <span className={`text-sm font-medium ${
-                ratingDisplay.isNew ? 'text-amber-600' : 'text-gray-900'
+                ratingDisplay.isNew ? 'text-primary' : 'text-gray-900'
               }`}>
                 {ratingDisplay.text}
               </span>
@@ -735,7 +715,7 @@ export default function FindArtisans() {
 
           {/* Artisan Type */}
           <p className={`text-sm font-medium mb-2 capitalize ${
-            isOpen === false ? 'text-gray-500' : 'text-amber-600'
+            isOpen === false ? 'text-gray-500' : 'text-primary'
           }`}>
             {artisan.type?.replace('_', ' ') || 'Local Artisan'}
           </p>
@@ -769,7 +749,7 @@ export default function FindArtisans() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1">
               <span className={`text-sm font-medium ${
-                isOpen === false ? 'text-gray-500' : 'text-amber-600'
+                isOpen === false ? 'text-gray-500' : 'text-primary'
               }`}>
                 {isOpen ? 'Open Now' : 'Currently Closed'}
               </span>
@@ -783,7 +763,7 @@ export default function FindArtisans() {
                   className={`p-2 transition-colors duration-300 ${
                     isOpen === false 
                       ? 'text-gray-300 cursor-not-allowed' 
-                      : 'text-gray-400 hover:text-amber-600'
+                      : 'text-gray-400 hover:text-primary'
                   }`}
                   title="Call artisan"
                   onClick={(e) => {
@@ -800,7 +780,7 @@ export default function FindArtisans() {
                   className={`p-2 transition-colors duration-300 ${
                     isOpen === false 
                       ? 'text-gray-300 cursor-not-allowed' 
-                      : 'text-gray-400 hover:text-amber-600'
+                      : 'text-gray-400 hover:text-primary'
                   }`}
                   title="Email artisan"
                   onClick={(e) => {
@@ -969,7 +949,7 @@ export default function FindArtisans() {
                       {/* Artisan Info */}
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-primary transition-colors">
                             {artisan.artisanName || artisan.businessName}
                           </h3>
                           {artisan.isVerified && (
@@ -1049,7 +1029,7 @@ export default function FindArtisans() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     <option value="name">Name (A-Z)</option>
                     <option value="rating">Highest Rated</option>
@@ -1088,7 +1068,7 @@ export default function FindArtisans() {
                 </p>
                 <button
                   onClick={loadAllArtisans}
-                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   Retry
                 </button>
@@ -1106,7 +1086,7 @@ export default function FindArtisans() {
                 </p>
                 <button
                   onClick={clearFilters}
-                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition-colors"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary-dark transition-colors"
                 >
                   View All Categories
                 </button>

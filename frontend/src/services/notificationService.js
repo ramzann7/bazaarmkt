@@ -36,6 +36,12 @@ export const notificationService = {
   sendOrderCompletionNotification: async (orderData, userInfo) => {
     try {
       console.log('📧 Sending order completion notification:', { orderData, userInfo });
+      console.log('📧 User info details:', {
+        id: userInfo.id,
+        email: userInfo.email,
+        isGuest: userInfo.isGuest,
+        hasEmail: !!userInfo.email
+      });
       
       const notificationData = {
         type: 'order_completion',
@@ -43,12 +49,20 @@ export const notificationService = {
         orderId: orderData._id || orderData.id,
         userEmail: userInfo.email,
         userPhone: userInfo.phone,
+        userName: userInfo.firstName && userInfo.lastName ? `${userInfo.firstName} ${userInfo.lastName}` : (userInfo.firstName || 'Customer'),
         isGuest: userInfo.isGuest || false,
         orderDetails: {
           orderNumber: orderData.orderNumber || orderData._id,
           totalAmount: orderData.totalAmount || orderData.total,
+          subtotal: orderData.subtotal,
+          deliveryFee: orderData.deliveryFee,
           items: orderData.items || [],
           deliveryAddress: orderData.deliveryAddress,
+          deliveryMethod: orderData.deliveryMethod,
+          deliveryInstructions: orderData.deliveryInstructions,
+          pickupTimeWindows: orderData.pickupTimeWindows,
+          selectedPickupTimes: orderData.selectedPickupTimes,
+          artisan: orderData.artisan,
           estimatedDelivery: orderData.estimatedDelivery || '2-3 business days',
           orderStatus: 'confirmed',
           orderDate: new Date().toLocaleDateString(),
@@ -63,18 +77,36 @@ export const notificationService = {
       }
 
       // For patrons, send platform notification and email if enabled
-      if (!userInfo.isGuest) {
+      if (!userInfo.isGuest && userInfo.id) {
         await notificationService.sendPlatformNotification(notificationData);
         // Check if user has email notifications enabled
-        const preferences = await notificationService.getNotificationPreferences(userInfo.id);
-        if (preferences.email?.orderUpdates && userInfo.email) {
-          await notificationService.sendOrderCompletionEmail(notificationData);
+        if (userInfo.email) {
+          try {
+            const preferences = await notificationService.getNotificationPreferences(userInfo.id);
+            if (preferences?.email?.orderUpdates) {
+              await notificationService.sendOrderCompletionEmail(notificationData);
+            }
+          } catch (preferencesError) {
+            console.warn('⚠️ Could not get notification preferences, using defaults:', preferencesError);
+            // Default to sending email if preferences can't be retrieved
+            await notificationService.sendOrderCompletionEmail(notificationData);
+          }
         }
       }
 
-      // Send to backend notification service for logging
-      const response = await axios.post(`${API_URL}/notifications/send`, notificationData);
-      return response.data;
+      // Send to backend notification service for logging (skip for guest users without userId)
+      if (!userInfo.isGuest || userInfo.id) {
+        try {
+          const response = await axios.post(`${API_URL}/notifications/send`, notificationData);
+          return response.data;
+        } catch (error) {
+          console.warn('⚠️ Backend notification failed, but email notification may have succeeded:', error.message);
+          return { success: true, message: 'Email notification sent, platform notification skipped' };
+        }
+      } else {
+        console.log('⏭️ Skipping platform notification for guest user without userId');
+        return { success: true, message: 'Email notification sent, platform notification skipped for guest' };
+      }
       
     } catch (error) {
       console.error('Error sending order completion notification:', error);
@@ -113,9 +145,17 @@ export const notificationService = {
       // For patrons, send platform notification and email if enabled
       if (!userInfo.isGuest) {
         await notificationService.sendPlatformNotification(notificationData);
-        const preferences = await notificationService.getNotificationPreferences(userInfo.id);
-        if (preferences.email?.orderUpdates && userInfo.email) {
-          await notificationService.sendOrderUpdateEmail(notificationData);
+        try {
+          const preferences = await notificationService.getNotificationPreferences(userInfo.id);
+          if (preferences?.email?.orderUpdates && userInfo.email) {
+            await notificationService.sendOrderUpdateEmail(notificationData);
+          }
+        } catch (preferencesError) {
+          console.warn('⚠️ Could not get notification preferences for order update, using defaults:', preferencesError);
+          // Default to sending email if preferences can't be retrieved
+          if (userInfo.email) {
+            await notificationService.sendOrderUpdateEmail(notificationData);
+          }
         }
       }
 
@@ -157,10 +197,16 @@ export const notificationService = {
           _id: notificationData.orderId,
           orderNumber: notificationData.orderDetails.orderNumber,
           totalAmount: notificationData.orderDetails.totalAmount,
+          subtotal: notificationData.orderDetails.subtotal,
+          deliveryFee: notificationData.orderDetails.deliveryFee,
           items: notificationData.orderDetails.items,
           deliveryAddress: notificationData.orderDetails.deliveryAddress,
-          createdAt: new Date().toISOString(),
-          deliveryMethod: notificationData.isGuest ? 'pickup' : 'delivery'
+          deliveryMethod: notificationData.orderDetails.deliveryMethod,
+          deliveryInstructions: notificationData.orderDetails.deliveryInstructions,
+          pickupTimeWindows: notificationData.orderDetails.pickupTimeWindows,
+          selectedPickupTimes: notificationData.orderDetails.selectedPickupTimes,
+          artisan: notificationData.orderDetails.artisan,
+          createdAt: new Date().toISOString()
         };
         
         // Send email via Brevo
@@ -181,8 +227,15 @@ export const notificationService = {
           userName: notificationData.userName || 'Customer',
           orderNumber: notificationData.orderDetails.orderNumber,
           totalAmount: notificationData.orderDetails.totalAmount,
+          subtotal: notificationData.orderDetails.subtotal,
+          deliveryFee: notificationData.orderDetails.deliveryFee,
           items: notificationData.orderDetails.items,
           deliveryAddress: notificationData.orderDetails.deliveryAddress,
+          deliveryMethod: notificationData.orderDetails.deliveryMethod,
+          deliveryInstructions: notificationData.orderDetails.deliveryInstructions,
+          pickupTimeWindows: notificationData.orderDetails.pickupTimeWindows,
+          selectedPickupTimes: notificationData.orderDetails.selectedPickupTimes,
+          artisan: notificationData.orderDetails.artisan,
           estimatedDelivery: notificationData.orderDetails.estimatedDelivery,
           orderDate: notificationData.orderDetails.orderDate,
           orderTime: notificationData.orderDetails.orderTime,
@@ -277,6 +330,13 @@ export const notificationService = {
   // Send platform notification (for patrons)
   sendPlatformNotification: async (notificationData) => {
     try {
+      console.log('📱 Sending platform notification:', {
+        userId: notificationData.userId,
+        type: notificationData.type,
+        orderId: notificationData.orderId,
+        hasToken: !!localStorage.getItem('token')
+      });
+      
       const token = localStorage.getItem('token');
       const platformData = {
         userId: notificationData.userId,
@@ -292,10 +352,12 @@ export const notificationService = {
         isRead: false
       };
 
-      const response = await axios.post(`${API_URL}/notifications/platform`, platformData, {
+      console.log('📱 Platform notification data:', platformData);
+      
+      const response = await axios.post(`${API_URL}/notifications/send`, platformData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log('✅ Platform notification sent successfully');
+      console.log('✅ Platform notification sent successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error sending platform notification:', error);
@@ -307,7 +369,7 @@ export const notificationService = {
   getNotificationPreferences: async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/notifications/preferences/${userId}`, {
+      const response = await axios.get(`${API_URL}/notifications/preferences`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data.preferences;

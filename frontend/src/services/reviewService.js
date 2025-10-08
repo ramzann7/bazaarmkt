@@ -1,9 +1,11 @@
-import axios from 'axios';
+import api from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import config from '../config/environment.js';
+
+const API_BASE_URL = config.API_URL;
 
 // Create axios instance with default config
-const reviewApi = axios.create({
+const reviewApi = api.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',

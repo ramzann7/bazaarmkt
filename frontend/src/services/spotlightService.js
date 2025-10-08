@@ -1,10 +1,11 @@
-import axios from 'axios';
+import api from './apiClient';
+import config from '../config/environment.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = config.API_URL;
 
 class SpotlightService {
   constructor() {
-    this.api = axios.create({
+    this.api = api.create({
       baseURL: API_BASE_URL,
       headers: {
         'Content-Type': 'application/json',
@@ -82,7 +83,7 @@ class SpotlightService {
   // Get all active spotlights (public endpoint)
   async getActiveSpotlights() {
     try {
-      const response = await this.api.get('/spotlight/active');
+      const response = await this.api.get('/spotlight/active-public');
       return response.data;
     } catch (error) {
       console.error('Error getting active spotlights:', error);

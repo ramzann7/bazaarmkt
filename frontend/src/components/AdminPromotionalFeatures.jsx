@@ -76,7 +76,7 @@ export default function AdminPromotionalFeatures() {
   const getFeatureIcon = (featureType) => {
     switch (featureType) {
       case 'featured_product':
-        return <StarIcon className="w-6 h-6 text-amber-500" />;
+        return <StarIcon className="w-6 h-6 text-primary-500" />;
       case 'sponsored_product':
         return <SparklesIcon className="w-6 h-6 text-purple-500" />;
       default:
@@ -87,7 +87,7 @@ export default function AdminPromotionalFeatures() {
   const getFeatureColor = (featureType) => {
     switch (featureType) {
       case 'featured_product':
-        return 'border-amber-200 bg-amber-50';
+        return 'border-primary-200 bg-primary-50';
       case 'sponsored_product':
         return 'border-purple-200 bg-purple-50';
       default:
@@ -135,7 +135,7 @@ export default function AdminPromotionalFeatures() {
         </p>
         <div className="mt-4 flex items-center space-x-4 text-sm text-gray-500">
           <div className="flex items-center space-x-2">
-            <StarIcon className="w-4 h-4 text-amber-500" />
+            <StarIcon className="w-4 h-4 text-primary-500" />
             <span>Featured Product: $25</span>
           </div>
           <div className="flex items-center space-x-2">

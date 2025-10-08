@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import { 
   UserIcon, 
   ShoppingBagIcon, 
@@ -30,7 +31,7 @@ import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user, isAuthenticated, isLoading: isAuthLoading, isProviderReady } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [artisanStats, setArtisanStats] = useState({
     totalOrders: 0,
@@ -52,49 +53,46 @@ export default function Dashboard() {
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(true);
   const [isLoadingWallet, setIsLoadingWallet] = useState(true);
 
-  // Optimized user profile loading
-  const { execute: loadUser, isLoading: isUserLoading } = useAsyncOperation(
-    async () => {
-      try {
-        const userData = await getProfile();
-        setUser(userData);
-        
-        // Check if user is artisan, if not redirect to home
-        if (userData.role !== 'artisan' && userData.role !== 'producer' && userData.role !== 'food_maker') {
-          toast.error("Dashboard is only available for artisans");
-          navigate("/");
-          return null;
-        }
-        
-        return userData;
-      } catch (err) {
-        toast.error("Session expired. Please login again.");
-        logoutUser();
+  // Check user role and authentication status
+  useEffect(() => {
+    if (!isAuthLoading && isProviderReady) {
+      if (!isAuthenticated || !user) {
+        toast.error("Please login to access the dashboard");
         navigate("/login");
-        throw err;
+        return;
       }
-    },
-    []
-  );
+      
+      // Check if user is artisan, if not redirect to home
+      const userRole = user.role || user.userType; // Check both role and userType for compatibility
+      if (userRole !== 'artisan' && userRole !== 'producer' && userRole !== 'food_maker') {
+        toast.error("Dashboard is only available for artisans");
+        navigate("/");
+        return;
+      }
+      
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, user, isAuthLoading, isProviderReady, navigate]);
 
   // Optimized artisan stats loading
   const { execute: loadArtisanStats, isLoading: isStatsLoading } = useAsyncOperation(
     async () => {
       try {
-        const orders = await orderService.getArtisanOrders();
+        const orders = await orderService.getArtisanOrders(true); // Get all orders for revenue calculations
         
         // Ensure orders is an array
         const ordersArray = Array.isArray(orders) ? orders : [];
         
         // Calculate comprehensive artisan statistics
-        // Only count completed/delivered orders for revenue calculations
-        const completedOrders = ordersArray.filter(order => 
+        // Count orders that have been paid for (authorized or captured) for revenue calculations
+        const paidOrders = ordersArray.filter(order => 
+          order.paymentStatus === 'authorized' || order.paymentStatus === 'captured' || 
           order.status === 'delivered' || order.status === 'completed' || order.status === 'picked_up'
         );
         
         const stats = {
           totalOrders: ordersArray.length,
-          totalRevenue: completedOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
+          totalRevenue: paidOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0),
           totalProducts: 0, // Will be updated when we have product service
           averageRating: ordersArray.length > 0 ? 
             ordersArray.reduce((sum, order) => sum + (order.rating || 0), 0) / ordersArray.length : 0,
@@ -103,7 +101,7 @@ export default function Dashboard() {
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
           }).length,
-          revenueThisMonth: completedOrders.filter(order => {
+          revenueThisMonth: paidOrders.filter(order => {
             const orderDate = new Date(order.createdAt);
             const now = new Date();
             return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
@@ -133,7 +131,7 @@ export default function Dashboard() {
   const { execute: loadRecentOrders, isLoading: isOrdersLoading } = useAsyncOperation(
     async () => {
       try {
-        const orders = await orderService.getArtisanOrders();
+        const orders = await orderService.getArtisanOrders(true); // Get all orders for revenue calculations
         // Ensure orders is an array and sort by creation date and take the 5 most recent
         const ordersArray = Array.isArray(orders) ? orders : [];
         const recent = ordersArray
@@ -187,21 +185,22 @@ export default function Dashboard() {
     []
   );
 
-  // Load all data on component mount
+  // Load all data when user is available
   useOptimizedEffect(() => {
     const loadAllData = async () => {
+      if (!user || !isAuthenticated) {
+        return; // Wait for user to be available
+      }
+      
       setIsLoading(true);
       try {
-        const userData = await loadUser();
-        if (userData) {
-          // Load data in parallel but handle errors individually
-          await Promise.allSettled([
-            loadArtisanStats(),
-            loadRecentOrders(),
-            loadRevenueData(),
-            loadWalletBalance()
-          ]);
-        }
+        // Load data in parallel but handle errors individually
+        await Promise.allSettled([
+          loadArtisanStats(),
+          loadRecentOrders(),
+          loadRevenueData(),
+          loadWalletBalance()
+        ]);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
         toast.error('Failed to load some dashboard data');
@@ -211,7 +210,7 @@ export default function Dashboard() {
     };
 
     loadAllData();
-  }, [], { skipFirstRender: false });
+  }, [user, isAuthenticated], { skipFirstRender: false });
 
   // Refresh data function
   const refreshData = async () => {
@@ -261,7 +260,7 @@ export default function Dashboard() {
     });
   };
 
-  if (isLoading || isUserLoading) {
+  if (isLoading || isAuthLoading || !isProviderReady) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -330,7 +329,7 @@ export default function Dashboard() {
                 Edit Profile
               </Link>
               <Link
-                to="/products"
+                to="/my-products"
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Manage Products
@@ -538,7 +537,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
-            to="/products"
+            to="/my-products"
             className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center space-x-3">

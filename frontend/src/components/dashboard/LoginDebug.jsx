@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 export default function LoginDebug() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: 'ramzan.7@hotmail.com',
+    email: '',
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);

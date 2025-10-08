@@ -1,0 +1,74 @@
+# Production Environment Variables for bazaar
+# Copy this file to .env.production and update with your actual values
+
+# Database Configuration
+MONGODB_URI=mongodb+srv://Cluster25123:zNlr0wjo045T5BbV@cluster0.cp9qdcy.mongodb.net/bazaarmkt-prod?retryWrites=true&w=majority
+PRODUCTION_MONGODB_URI=mongodb+srv://Cluster25123:zNlr0wjo045T5BbV@cluster0.cp9qdcy.mongodb.net/bazaarmkt-prod?retryWrites=true&w=majority
+
+# Server Configuration
+NODE_ENV=production
+PORT=4000
+CORS_ORIGIN=https://bazaar.ca
+
+# JWT Configuration
+JWT_SECRET=your-super-secure-jwt-secret-key-here-minimum-32-characters
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_SECRET=your-super-secure-refresh-secret-key-here
+JWT_REFRESH_EXPIRES_IN=30d
+
+# Cron Job Configuration (for wallet auto-confirmation)
+CRON_SECRET=your-cron-secret-for-vercel-scheduled-jobs-change-this
+
+# Email Services (Brevo)
+BREVO_API_KEY=your-brevo-api-key-here
+ENABLE_EMAIL_NOTIFICATIONS=true
+
+# Payment Processing (Stripe)
+STRIPE_SECRET_KEY=sk_live_your-stripe-secret-key-here
+STRIPE_WEBHOOK_SECRET=whsec_your-stripe-webhook-secret-here
+
+# External Services
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key-here
+GEOCODING_API_KEY=your-geocoding-api-key-here
+
+# Uber Direct (for professional delivery)
+UBER_DIRECT_CLIENT_ID=your-uber-direct-client-id
+UBER_DIRECT_CLIENT_SECRET=your-uber-direct-client-secret
+UBER_DIRECT_CUSTOMER_ID=your-uber-direct-customer-id
+UBER_DIRECT_SERVER_TOKEN=your-uber-direct-server-token
+UBER_DIRECT_BASE_URL=https://api.uber.com
+
+# File Upload Configuration
+UPLOAD_PATH=./public/uploads
+MAX_FILE_SIZE=5242880
+ALLOWED_FILE_TYPES=image/jpeg,image/png,image/webp
+
+# Security Configuration
+BCRYPT_ROUNDS=12
+SESSION_SECRET=your-session-secret-here
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Monitoring and Logging
+LOG_LEVEL=info
+SENTRY_DSN=your-sentry-dsn-here
+NEW_RELIC_LICENSE_KEY=your-new-relic-license-key-here
+
+# Feature Flags
+ENABLE_EMAIL_NOTIFICATIONS=true
+ENABLE_SMS_NOTIFICATIONS=false
+ENABLE_PUSH_NOTIFICATIONS=false
+ENABLE_ANALYTICS=true
+
+# Redis (if using)
+REDIS_URL=redis://localhost:6379
+
+# PayPal (if using)
+PAYPAL_CLIENT_ID=your-paypal-client-id
+PAYPAL_CLIENT_SECRET=your-paypal-client-secret
+
+# SMTP (alternative to Brevo)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-username
+SMTP_PASS=your-smtp-password

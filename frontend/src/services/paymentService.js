@@ -1,9 +1,9 @@
 // src/services/paymentService.js
-import axios from 'axios';
+import api from './apiClient';
 import config from '../config/environment.js';
 
 // Create axios instance for payment API calls
-const paymentApi = axios.create({
+const paymentApi = api.create({
   baseURL: config.API_URL,
   timeout: 15000,
   headers: {

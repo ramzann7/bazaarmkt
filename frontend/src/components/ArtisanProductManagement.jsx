@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   MagnifyingGlassIcon, 
   EyeIcon, 
@@ -44,27 +45,6 @@ export default function ArtisanProductManagement() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // Helper function to get the correct image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    // If it's a local path, prefix with backend URL
-    if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-  };
 
   useEffect(() => {
     const initializeComponent = async () => {
@@ -103,14 +83,75 @@ export default function ArtisanProductManagement() {
       if (selectedProduct) {
         // Update existing product
         console.log('🔍 Updating existing product...');
-        const updatedProduct = await productService.updateProduct(selectedProduct._id, productData);
+        
+        // Separate inventory data from product data
+        const inventoryFields = ['stock', 'totalCapacity', 'remainingCapacity', 'availableQuantity'];
+        const hasInventoryChanges = inventoryFields.some(field => 
+          productData[field] !== undefined && productData[field] !== selectedProduct[field]
+        );
+        
+        // Remove inventory fields from product update (they'll be updated separately)
+        const productUpdateData = { ...productData };
+        delete productUpdateData.stock;
+        delete productUpdateData.totalCapacity;
+        delete productUpdateData.remainingCapacity;
+        delete productUpdateData.availableQuantity;
+        
+        // Update product info first
+        let updatedProduct = await productService.updateProduct(selectedProduct._id, productUpdateData);
+        
+        // If inventory changed, update it using the inventory API
+        if (hasInventoryChanges) {
+          console.log('🔍 Inventory changed, updating via inventory API...');
+          
+          // Determine inventory value based on product type
+          let inventoryQuantity;
+          switch (productData.productType || selectedProduct.productType) {
+            case 'ready_to_ship':
+              inventoryQuantity = productData.stock;
+              break;
+            case 'made_to_order':
+              inventoryQuantity = productData.totalCapacity;
+              break;
+            case 'scheduled_order':
+              inventoryQuantity = productData.availableQuantity;
+              break;
+            default:
+              inventoryQuantity = productData.stock;
+          }
+          
+          if (inventoryQuantity !== undefined) {
+            // Use the inventory API endpoint
+            const response = await axios.put(
+              `${config.API_URL}/products/${selectedProduct._id}/inventory`,
+              { 
+                quantity: inventoryQuantity,
+                action: 'set'
+              },
+              {
+                headers: { 
+                  Authorization: `Bearer ${localStorage.getItem('token')}` 
+                }
+              }
+            );
+            
+            // Use the product from inventory API response
+            updatedProduct = response.data.product;
+            console.log('✅ Inventory updated via API:', updatedProduct);
+          }
+        }
+        
         setProducts(products.map(p => p._id === selectedProduct._id ? updatedProduct : p));
         toast.success('Product updated successfully!');
       } else {
         // Add new product
         console.log('🔍 Creating new product...');
         const newProduct = await productService.createProduct(productData);
+        console.log('🔍 New product received:', newProduct);
+        console.log('🔍 Current products count:', products.length);
+        console.log('🔍 Adding new product to list...');
         setProducts([...products, newProduct]);
+        console.log('🔍 Products updated, new count should be:', products.length + 1);
         toast.success('Product added successfully!');
       }
       setShowProductModal(false);
@@ -137,35 +178,29 @@ export default function ArtisanProductManagement() {
   };
 
   // Unified inventory update handler using the new inventory system
-  const handleInventoryUpdate = (updatedProduct) => {
+  const handleInventoryUpdate = useCallback((updatedProduct) => {
+    if (!updatedProduct || !updatedProduct._id) {
+      console.error('Invalid updatedProduct in handleInventoryUpdate:', updatedProduct);
+      return;
+    }
+    
+    console.log('🔄 Inventory update received:', updatedProduct);
+    
     // Create a new object reference to ensure React detects the change
     const updatedProducts = products.map(p => 
       p._id === updatedProduct._id ? { ...updatedProduct } : { ...p }
     );
     setProducts(updatedProducts);
     
-    // If we're currently editing this product, update the form data to stay in sync
+    // If we're currently editing this product, update the selectedProduct
     if (selectedProduct && selectedProduct._id === updatedProduct._id) {
-      // Update the selectedProduct with the latest data
+      console.log('🔄 Updating selected product');
       setSelectedProduct(updatedProduct);
-      
-      // Update the form data to match the updated product
-      setFormData(prev => ({
-        ...prev,
-        stock: updatedProduct.productType === 'made_to_order' ? (updatedProduct.totalCapacity || 0) :
-               updatedProduct.productType === 'scheduled_order' ? (updatedProduct.availableQuantity || 0) :
-               (updatedProduct.stock || 0),
-        // Update capacity period if it exists
-        capacityPeriod: updatedProduct.capacityPeriod || prev.capacityPeriod,
-        // Update other inventory fields
-        totalCapacity: updatedProduct.totalCapacity || prev.totalCapacity,
-        remainingCapacity: updatedProduct.remainingCapacity || prev.remainingCapacity,
-        availableQuantity: updatedProduct.availableQuantity || prev.availableQuantity
-      }));
     }
     
     // The useEffect will automatically update filteredProducts when products change
-  };
+    // Form data will be updated via useEffect when selectedProduct changes
+  }, [products, selectedProduct]);
 
   // Function to check and restore inventory using the new InventoryModel
   const checkAndRestoreInventory = async () => {
@@ -194,7 +229,11 @@ export default function ArtisanProductManagement() {
       }
 
       const profile = await getProfile();
-      if (!['artisan', 'producer', 'food_maker'].includes(profile.role)) {
+      // Check both role and userType for artisan access
+      const isArtisan = profile.role === 'artisan' || profile.userType === 'artisan' || 
+                       ['artisan', 'producer', 'food_maker'].includes(profile.role);
+      
+      if (!isArtisan) {
         toast.error('Access denied. Artisan privileges required.');
         navigate('/');
         return;
@@ -256,6 +295,7 @@ export default function ArtisanProductManagement() {
     if (selectedStatus !== 'all') {
       filtered = filtered.filter(product => product.status === selectedStatus);
     }
+
 
     // Apply sorting
     filtered.sort((a, b) => {
@@ -357,26 +397,19 @@ export default function ArtisanProductManagement() {
   };
 
   const getPromotionStatus = (product) => {
-    if (!product.promotionalFeatures || product.promotionalFeatures.length === 0) {
+    // Check if product has promotional features based on the fields set by the backend
+    const isFeatured = product.isFeatured && product.featuredUntil && new Date(product.featuredUntil) > new Date();
+    const isSponsored = product.isSponsored && product.sponsoredUntil && new Date(product.sponsoredUntil) > new Date();
+
+    if (!isFeatured && !isSponsored) {
       return { status: 'none', text: 'No Promotions', color: 'text-gray-500' };
     }
 
-    const activeFeatures = product.promotionalFeatures.filter(feature => 
-      feature.status === 'active' || feature.status === 'pending'
-    );
-
-    if (activeFeatures.length === 0) {
-      return { status: 'none', text: 'No Active Promotions', color: 'text-gray-500' };
-    }
-
-    const featuredCount = activeFeatures.filter(f => f.featureType === 'featured_product').length;
-    const sponsoredCount = activeFeatures.filter(f => f.featureType === 'sponsored_product').length;
-
-    if (featuredCount > 0 && sponsoredCount > 0) {
+    if (isFeatured && isSponsored) {
       return { status: 'both', text: 'Featured + Sponsored', color: 'text-purple-600' };
-    } else if (featuredCount > 0) {
-      return { status: 'featured', text: 'Featured Product', color: 'text-amber-600' };
-    } else if (sponsoredCount > 0) {
+    } else if (isFeatured) {
+      return { status: 'featured', text: 'Featured Product', color: 'text-primary' };
+    } else if (isSponsored) {
       return { status: 'sponsored', text: 'Sponsored Product', color: 'text-purple-600' };
     }
 
@@ -392,24 +425,24 @@ export default function ArtisanProductManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F1EA]">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+        <div className="card p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-[#D77A61] rounded-full mb-6 shadow-lg">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
                 <CubeIcon className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-3 font-serif">My Product Management</h2>
-              <p className="text-gray-600 text-lg">
+              <h2 className="text-4xl font-bold text-stone-800 mb-3 font-display">My Product Management</h2>
+              <p className="text-stone-600 text-lg">
                 Manage your products and promotional features
               </p>
             </div>
             <div className="flex items-center space-x-3">
               <button
                 onClick={loadProducts}
-                className="bg-[#E6B655] text-white px-4 py-2 rounded-lg hover:bg-[#D4A545] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+                className="btn-secondary flex items-center space-x-2"
                 title="Refresh Products"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,7 +452,7 @@ export default function ArtisanProductManagement() {
               </button>
               <button
                 onClick={handleAddProduct}
-                className="bg-[#D77A61] text-white px-6 py-3 rounded-lg hover:bg-[#C06A51] transition-colors duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="btn-primary flex items-center space-x-2"
               >
                 <PlusIcon className="w-5 h-5" />
                 <span>Add Product</span>
@@ -428,117 +461,75 @@ export default function ArtisanProductManagement() {
           </div>
           
           {/* Promotional Features Info */}
-          <div className="bg-gradient-to-r from-amber-50 to-purple-50 rounded-xl p-6 border border-amber-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Promotional Features</h3>
+          <div className="bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl p-6 border border-amber-200">
+            <h3 className="text-lg font-semibold text-stone-800 mb-4 text-center">Promotional Features</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-amber-200">
                 <StarIcon className="w-6 h-6 text-amber-500" />
                 <div>
                   <span className="font-semibold text-amber-700">Featured Product</span>
-                  <p className="text-sm text-gray-600">$5/day - Homepage visibility with distance-based ranking</p>
+                  <p className="text-sm text-stone-600">$5/day - Homepage visibility with distance-based ranking</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-purple-200">
-                <SparklesIcon className="w-6 h-6 text-purple-500" />
+              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-emerald-200">
+                <SparklesIcon className="w-6 h-6 text-emerald-500" />
                 <div>
-                  <span className="font-semibold text-purple-700">Sponsored Product</span>
-                  <p className="text-sm text-gray-600">$10/day - Enhanced search visibility</p>
+                  <span className="font-semibold text-emerald-700">Sponsored Product</span>
+                  <p className="text-sm text-stone-600">$10/day - Enhanced search visibility</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Search & Filter Products</h3>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Search Products</label>
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+        {/* Search and Filters - Subtle Design */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            {/* Search Input - Subtle like navbar */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <div className="flex shadow-sm">
+                  <div className="flex items-center px-3 py-2 bg-stone-50 text-stone-600 border border-r-0 border-stone-300 rounded-l-lg">
+                    <MagnifyingGlassIcon className="h-4 w-4" />
+                  </div>
                   <input
                     type="text"
-                    placeholder="Search by name, description, or category..."
+                    placeholder="Search products..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200"
+                    className="flex-1 px-3 py-2 text-sm border border-stone-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 placeholder-stone-400 bg-white"
                   />
                 </div>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="bakery">Bakery</option>
-                    <option value="dairy">Dairy</option>
-                    <option value="produce">Produce</option>
-                    <option value="meat">Meat</option>
-                    <option value="beverages">Beverages</option>
-                    <option value="snacks">Snacks</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="out_of_stock">Out of Stock</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="createdAt">Date Created</option>
-                    <option value="name">Name</option>
-                    <option value="price">Price</option>
-                    <option value="stock">Stock</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61] transition-colors duration-200 min-w-[140px]"
-                  >
-                    <option value="desc">Newest First</option>
-                    <option value="asc">Oldest First</option>
-                  </select>
-                </div>
-              </div>
+            </div>
+            
+            {/* Category Filter - Subtle dropdown */}
+            <div className="flex gap-2">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
+              >
+                <option value="all">All Categories</option>
+                <option value="bakery">Bakery</option>
+                <option value="dairy">Dairy</option>
+                <option value="produce">Produce</option>
+                <option value="meat">Meat</option>
+                <option value="beverages">Beverages</option>
+                <option value="snacks">Snacks</option>
+              </select>
             </div>
           </div>
         </div>
 
         {/* Products List */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-8">
+        <div className="card p-8 mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900">
+              <h3 className="text-2xl font-bold text-stone-800 font-display">
                 My Products
               </h3>
-              <p className="text-gray-600 mt-1">
+              <p className="text-stone-600 mt-1">
                 {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
               </p>
             </div>
@@ -571,21 +562,22 @@ export default function ArtisanProductManagement() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredProducts.map((product) => (
-                <div key={product._id} className="bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
+              {filteredProducts.map((product) => {
+                // Use InventoryModel to check actual inventory status
+                const inventoryModel = new InventoryModel(product);
+                const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+                
+                return (
+                <div key={product._id} className="bg-stone-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
-                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-gray-200 shadow-sm">
+                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-stone-200 shadow-sm">
                         {product.image ? (
                           <img
-                            src={getImageUrl(product.image)}
+                              src={getImageUrl(product.image, { width: 64, height: 64, quality: 80 })}
                             alt={product.name}
                             className="w-full h-full object-cover rounded-lg"
-                            onError={(e) => {
-                              console.error('Image failed to load:', getImageUrl(product.image));
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
+                            onError={(e) => handleImageError(e, 'product')}
                           />
                         ) : null}
                         <div className={`w-full h-full flex items-center justify-center ${product.image ? 'hidden' : 'flex'}`}>
@@ -598,39 +590,50 @@ export default function ArtisanProductManagement() {
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-3 mb-3">
-                          <h4 className="text-lg font-semibold text-gray-900 truncate">{product.name}</h4>
+                          <h4 className="text-lg font-semibold text-stone-800 truncate font-display">{product.name}</h4>
+                          
+                          {/* Status Badge - Shows manual status OR auto-detected out of stock */}
                           <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            outOfStockStatus.isOutOfStock ? 'bg-red-100 text-red-800' :
                             product.status === 'active' ? 'bg-green-100 text-green-800' : 
                             product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
                             product.status === 'out_of_stock' ? 'bg-red-100 text-red-800' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {product.status === 'active' ? 'Active' : 
+                            {outOfStockStatus.isOutOfStock ? 'Out of Stock' :
+                             product.status === 'active' ? 'Active' : 
                              product.status === 'inactive' ? 'Inactive' :
                              product.status === 'out_of_stock' ? 'Out of Stock' :
                              'Draft'}
                           </span>
+                          
+                          {/* Out of Stock Reason Tag (if inventory-based) */}
+                          {outOfStockStatus.isOutOfStock && product.status === 'active' && (
+                            <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full" title={outOfStockStatus.reason}>
+                              {outOfStockStatus.message}
+                            </span>
+                          )}
                           <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPromotionStatus(product).color} bg-opacity-10`}>
                             {getPromotionStatus(product).text}
                           </span>
                         </div>
                         
-                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+                        <p className="text-sm text-stone-600 mb-3 line-clamp-2">{product.description}</p>
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <span className="font-medium text-gray-700">Category:</span>
-                            <p className="capitalize text-gray-600">{product.category}</p>
+                            <span className="font-medium text-stone-700">Category:</span>
+                            <p className="capitalize text-stone-600">{product.category}</p>
                             {product.subcategory && (
-                              <p className="text-xs text-gray-500 capitalize">({product.subcategory})</p>
+                              <p className="text-xs text-stone-500 capitalize">({product.subcategory})</p>
                             )}
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">Price:</span>
-                            <p className="text-gray-600">${product.price} / {product.unit || 'piece'}</p>
+                            <span className="font-medium text-stone-700">Price:</span>
+                            <p className="text-stone-600">${product.price} / {product.unit || 'piece'}</p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-stone-700">
                               {product.productType === 'ready_to_ship' ? 'Stock:' :
                                product.productType === 'made_to_order' ? 'Capacity:' :
                                'Quantity:'}
@@ -638,31 +641,31 @@ export default function ArtisanProductManagement() {
                             <InventoryDisplay product={product} />
                           </div>
                           <div>
-                            <span className="font-medium text-gray-700">Created:</span>
-                            <p className="text-gray-600">{new Date(product.createdAt).toLocaleDateString()}</p>
+                            <span className="font-medium text-stone-700">Created:</span>
+                            <p className="text-stone-600">{new Date(product.createdAt).toLocaleDateString()}</p>
                           </div>
                         </div>
                         
                         {/* Additional Product Details */}
-                        {(product.weight || product.dimensions || product.allergens) && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
+                        {(product.weight || product.dimensions || (product.allergens && product.allergens.length > 0)) && (
+                          <div className="mt-4 pt-4 border-t border-stone-200">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                               {product.weight && (
-                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                  <span className="font-medium text-gray-700">Weight:</span>
-                                  <p className="text-gray-600">{product.weight}</p>
+                                <div className="bg-white px-3 py-2 rounded-lg border border-stone-200">
+                                  <span className="font-medium text-stone-700">Weight:</span>
+                                  <p className="text-stone-600">{product.weight}</p>
                                 </div>
                               )}
                               {product.dimensions && (
-                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                  <span className="font-medium text-gray-700">Dimensions:</span>
-                                  <p className="text-gray-600">{product.dimensions}</p>
+                                <div className="bg-white px-3 py-2 rounded-lg border border-stone-200">
+                                  <span className="font-medium text-stone-700">Dimensions:</span>
+                                  <p className="text-stone-600">{product.dimensions}</p>
                                 </div>
                               )}
-                              {product.allergens && (
-                                <div className="bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                  <span className="font-medium text-gray-700">Allergens:</span>
-                                  <p className="text-gray-600">{product.allergens}</p>
+                              {product.allergens && product.allergens.length > 0 && (
+                                <div className="bg-white px-3 py-2 rounded-lg border border-stone-200">
+                                  <span className="font-medium text-stone-700">Allergens:</span>
+                                  <p className="text-stone-600">{Array.isArray(product.allergens) ? product.allergens.join(', ') : product.allergens}</p>
                                 </div>
                               )}
                             </div>
@@ -678,7 +681,7 @@ export default function ArtisanProductManagement() {
                             setSelectedProduct(product);
                             setShowProductModal(true);
                           }}
-                          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
                           title="View Details"
                         >
                           <EyeIcon className="w-5 h-5" />
@@ -689,7 +692,7 @@ export default function ArtisanProductManagement() {
                             setSelectedProduct(product);
                             setShowPromotionModal(true);
                           }}
-                          className="p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                          className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                           title="Promote Product"
                         >
                           <SparklesIcon className="w-5 h-5" />
@@ -697,7 +700,7 @@ export default function ArtisanProductManagement() {
                         
                         <button
                           onClick={() => handleEditProduct(product)}
-                          className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                          className="p-2 text-stone-600 hover:text-stone-700 hover:bg-stone-50 rounded-lg transition-colors"
                           title="Edit Product"
                         >
                           <PencilIcon className="w-5 h-5" />
@@ -720,7 +723,8 @@ export default function ArtisanProductManagement() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -758,13 +762,10 @@ export default function ArtisanProductManagement() {
                 <div className="flex items-center space-x-4">
                   {selectedProduct.image && (
                     <img
-                      src={getImageUrl(selectedProduct.image)}
+                      src={getImageUrl(selectedProduct.image, { width: 64, height: 64, quality: 80 })}
                       alt={selectedProduct.name}
                       className="w-16 h-16 object-cover rounded-lg"
-                      onError={(e) => {
-                        console.error('Image failed to load in promotion modal:', getImageUrl(selectedProduct.image));
-                        e.target.style.display = 'none';
-                      }}
+                      onError={(e) => handleImageError(e, 'product-modal')}
                     />
                   )}
                   <div>
@@ -784,20 +785,20 @@ export default function ArtisanProductManagement() {
                   <div
                     className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
                       promotionData.featureType === 'featured_product'
-                        ? 'border-amber-400 bg-amber-50'
-                        : 'border-gray-200 hover:border-amber-200'
+                        ? 'border-amber-400 bg-primary-50'
+                        : 'border-gray-200 hover:border-primary-200'
                     }`}
                     onClick={() => setPromotionData({...promotionData, featureType: 'featured_product'})}
                   >
                     <div className="flex items-center space-x-3 mb-3">
-                      <StarIcon className="w-6 h-6 text-amber-500" />
+                      <StarIcon className="w-6 h-6 text-primary-500" />
                       <h4 className="font-semibold text-gray-900">Featured Product</h4>
                     </div>
                     <p className="text-sm text-gray-600 mb-3">
                       Showcase your product on the homepage with distance-based ranking
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-amber-600">
+                      <span className="text-2xl font-bold text-primary">
                         ${promotionalPricing?.featured_product?.pricePerDay ? 
                           (promotionalPricing.featured_product.pricePerDay * 7) : 25}
                       </span>
@@ -976,52 +977,81 @@ export default function ArtisanProductManagement() {
 
 // Product Form Component
 const ProductForm = ({ product, onSave, onCancel }) => {
+  // Determine correct inventory value based on product type
+  const getInventoryValue = (prod) => {
+    if (!prod) return 0;
+    switch (prod.productType) {
+      case 'ready_to_ship':
+        return prod.stock || 0;
+      case 'made_to_order':
+        return prod.totalCapacity || 0;
+      case 'scheduled_order':
+        return prod.availableQuantity || 0;
+      default:
+        return prod.stock || 0;
+    }
+  };
+  
   const [formData, setFormData] = useState({
-    name: product?.name || '',
-    description: product?.description || '',
-    price: product?.price || '',
-    unit: product?.unit || 'piece',
-    productType: product?.productType || 'ready_to_ship',
-    category: product?.category || 'food_beverages',
-    subcategory: product?.subcategory || 'baked_goods',
-    stock: product?.productType === 'made_to_order' ? (product?.totalCapacity || 0) :
-           product?.productType === 'scheduled_order' ? (product?.availableQuantity || 0) :
-           (product?.stock || 0),
-    weight: product?.weight || '',
-    dimensions: product?.dimensions || '',
-    allergens: product?.allergens || '',
-    ingredients: product?.ingredients || '',
-    image: product?.image || null,
-    status: product?.status || 'active',
-    isOrganic: product?.isOrganic || false,
-    isGlutenFree: product?.isGlutenFree || false,
-    isVegan: product?.isVegan || false,
-    isDairyFree: product?.isDairyFree || false,
-    isNutFree: product?.isNutFree || false,
-    isKosher: product?.isKosher || false,
-    isHalal: product?.isHalal || false,
-    preparationTime: product?.preparationTime || '',
+    name: '',
+    description: '',
+    price: '',
+    unit: 'piece',
+    productType: 'ready_to_ship',
+    category: 'food_beverages',
+    subcategory: 'baked_goods',
+    stock: 0,
+    weight: '',
+    dimensions: '',
+    allergens: '',
+    ingredients: '',
+    image: null,
+    status: 'active',
+    isOrganic: false,
+    isGlutenFree: false,
+    isVegan: false,
+    isDairyFree: false,
+    isNutFree: false,
+    isKosher: false,
+    isHalal: false,
+    preparationTime: '',
     // Made to Order specific fields
-    leadTime: product?.leadTime || 1,
-    leadTimeUnit: product?.leadTimeUnit || 'days',
-    maxOrderQuantity: product?.maxOrderQuantity || 10,
-    capacityPeriod: product?.capacityPeriod || '',
+    leadTime: 1,
+    leadTimeUnit: 'days',
+    maxOrderQuantity: 10,
+    capacityPeriod: '',
     // Scheduled specific fields
-    scheduleType: product?.scheduleType || 'daily',
-    scheduleDetails: product?.scheduleDetails || { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
-    nextAvailableDate: product?.nextAvailableDate || '',
-    nextAvailableTime: product?.nextAvailableTime || '09:00',
-    availableQuantity: product?.availableQuantity || 1
+    scheduleType: 'daily',
+    scheduleDetails: { frequency: 'every_day', customSchedule: [], orderCutoffHours: 24 },
+    nextAvailableDate: '',
+    nextAvailableTime: '09:00',
+    availableQuantity: 1
   });
 
   // Image upload state
   const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(product?.image || null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   // Update form data when product changes
   useEffect(() => {
     if (product) {
+      // Determine correct inventory value based on product type
+      let inventoryValue = 0;
+      switch (product.productType) {
+        case 'ready_to_ship':
+          inventoryValue = product.stock || 0;
+          break;
+        case 'made_to_order':
+          inventoryValue = product.totalCapacity || 0;
+          break;
+        case 'scheduled_order':
+          inventoryValue = product.availableQuantity || 0;
+          break;
+        default:
+          inventoryValue = product.stock || 0;
+      }
+      
       setFormData(prev => ({
         ...prev,
         name: product.name || '',
@@ -1031,9 +1061,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         productType: product.productType || 'ready_to_ship',
         category: product.category || 'food_beverages',
         subcategory: product.subcategory || 'baked_goods',
-        stock: product.productType === 'made_to_order' ? (product.totalCapacity || 0) :
-               product.productType === 'scheduled_order' ? (product.availableQuantity || 0) :
-               (product.stock || 0),
+        stock: inventoryValue,
         weight: product.weight || '',
         dimensions: product.dimensions || '',
         allergens: product.allergens || '',
@@ -1068,6 +1096,22 @@ const ProductForm = ({ product, onSave, onCancel }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    console.log('🔍 Form submission - formData:', formData);
+    console.log('🔍 Form submission - required fields check:', {
+      name: !!formData.name,
+      description: !!formData.description,
+      price: !!formData.price,
+      category: !!formData.category,
+      subcategory: !!formData.subcategory,
+      values: {
+        name: formData.name,
+        description: formData.description,
+        price: formData.price,
+        category: formData.category,
+        subcategory: formData.subcategory
+      }
+    });
     
     // Filter formData to only include fields that the backend expects
     const filteredData = {
@@ -2139,16 +2183,16 @@ const ProductForm = ({ product, onSave, onCancel }) => {
           ))}
         </div>
         
-        <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+        <div className="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-200">
           <div className="flex items-start space-x-3">
-            <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
               <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
             </div>
               <div>
               <p className="text-sm font-medium text-amber-900">Important Note</p>
-              <p className="text-xs text-amber-700 mt-1">
+              <p className="text-xs text-primary-dark mt-1">
                 Only select certifications that you can verify. Customers rely on this information for their dietary needs and safety.
               </p>
               </div>

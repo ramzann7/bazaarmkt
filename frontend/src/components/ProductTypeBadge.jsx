@@ -130,7 +130,7 @@ const ProductTypeBadge = ({ product, showDetails = true, variant = 'default' }) 
             {config.icon} {config.label}
           </span>
           {readinessInfo.urgency && (
-            <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full">
+            <span className="text-xs px-2 py-1 bg-primary-100 text-primary-800 rounded-full">
               ⚠️ {readinessInfo.urgency}
             </span>
           )}
@@ -177,7 +177,7 @@ const ProductTypeBadge = ({ product, showDetails = true, variant = 'default' }) 
           </div>
           <div>{readinessInfo.timeFrame}</div>
           {readinessInfo.urgency && (
-            <div className="text-amber-600 font-medium">
+            <div className="text-primary font-medium">
               ⚠️ {readinessInfo.urgency}
             </div>
           )}

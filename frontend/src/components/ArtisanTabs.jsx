@@ -311,7 +311,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       </div>
       
       {/* Artisan Name - Critical Element */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-amber-200">
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-primary-200">
         <div className="max-w-2xl">
           <label className="block text-lg font-bold text-gray-900 mb-2">
             🎨 Your Artisan Name *
@@ -455,11 +455,11 @@ export function OverviewTab({ profile, onSave, isSaving }) {
             
             {/* Image warning if no image */}
             {!overview.businessImagePreview && (
-              <div className="flex items-center p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <svg className="w-5 h-5 text-amber-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="flex items-center p-4 bg-primary-50 border border-primary-200 rounded-lg">
+                <svg className="w-5 h-5 text-primary mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
-                <div className="text-sm text-amber-800">
+                <div className="text-sm text-primary-800">
                   <strong>Image Recommended:</strong> Adding a business image helps customers recognize your brand and builds trust.
                 </div>
               </div>
@@ -2001,10 +2001,15 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
     (profile?.addresses && profile.addresses.length > 0);
   const isPaymentComplete = profile?.paymentMethods && profile.paymentMethods.length > 0;
   
-  const completionSteps = [
+  // For patrons, only require personal info and delivery address
+  // Payment methods are optional and can be added during checkout
+  const completionSteps = isArtisan ? [
     { id: 'personal', name: 'Personal Information', completed: isPersonalComplete },
-    { id: 'address', name: isArtisan ? 'Business Operations' : 'Delivery Address', completed: isAddressComplete },
+    { id: 'address', name: 'Business Operations', completed: isAddressComplete },
     { id: 'payment', name: 'Payment Methods', completed: isPaymentComplete }
+  ] : [
+    { id: 'personal', name: 'Personal Information', completed: isPersonalComplete },
+    { id: 'address', name: 'Delivery Address', completed: isAddressComplete }
   ];
   
   return (
@@ -2020,7 +2025,7 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
       </div>
       
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h4 className="font-medium text-blue-900 mb-2">Welcome to Bazaar!</h4>
+        <h4 className="font-medium text-blue-900 mb-2">Welcome to BazaarMkt!</h4>
         <p className="text-blue-700 mb-4">
           {isArtisan 
             ? "Complete your profile setup to start selling your products. Please fill in the following sections:"

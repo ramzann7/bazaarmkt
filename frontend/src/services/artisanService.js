@@ -1,8 +1,13 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import config from '../config/environment.js';
+
+const API_BASE_URL = config.API_URL;
 
 // Simple in-memory cache
 const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Request deduplication - prevent duplicate in-flight requests
+const pendingRequests = new Map();
 
 // Cache helper functions
 const getCacheKey = (endpoint, params = {}) => {
@@ -63,7 +68,14 @@ export const artisanService = {
       const cached = getFromCache(cacheKey);
       
       if (cached) {
+        console.log('✅ Returning cached artisans');
         return cached;
+      }
+      
+      // Check if there's already a pending request for this data
+      if (pendingRequests.has(cacheKey)) {
+        console.log('⏳ Request already in flight, waiting for it...');
+        return await pendingRequests.get(cacheKey);
       }
       
       const queryParams = new URLSearchParams();
@@ -75,26 +87,39 @@ export const artisanService = {
       if (filters.includeProducts) queryParams.append('includeProducts', 'true');
 
       const url = `${API_BASE_URL}/artisans?${queryParams}`;
-      console.log('Fetching artisans from:', url);
+      console.log('🚀 Fetching artisans from:', url);
       console.log('Filters applied:', filters);
       
-      const response = await fetch(url);
+      // Create the request promise and store it
+      const requestPromise = fetch(url)
+        .then(async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Response not ok:', response.status, errorText);
+            throw new Error(`Failed to fetch artisans: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((result) => {
+          console.log('Artisans API response:', result);
+          
+          // Handle both direct array and wrapped response formats
+          const data = result.data || result;
+          console.log('✅ Artisans fetched successfully:', data.length, 'artisans');
+          
+          setCache(cacheKey, data);
+          pendingRequests.delete(cacheKey); // Clean up pending request
+          return data;
+        })
+        .catch((error) => {
+          pendingRequests.delete(cacheKey); // Clean up pending request on error
+          throw error;
+        });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response not ok:', response.status, errorText);
-        throw new Error(`Failed to fetch artisans: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('Artisans API response:', result);
+      // Store the pending request
+      pendingRequests.set(cacheKey, requestPromise);
       
-      // Handle both direct array and wrapped response formats
-      const data = result.data || result;
-      console.log('Artisans fetched successfully:', data.length, 'artisans');
-      
-      setCache(cacheKey, data);
-      return data;
+      return await requestPromise;
     } catch (error) {
       console.error('Error fetching artisans:', error);
       throw error;

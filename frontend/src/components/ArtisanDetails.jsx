@@ -358,11 +358,8 @@ export default function BusinessDetails() {
       updateCartCount().catch(console.error);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      if (error.message.includes('Artisans cannot add products to cart')) {
-        toast.error('Artisans cannot add products to cart. You are a seller, not a buyer.');
-      } else {
-        toast.error('Failed to add item to cart. Please try again.');
-      }
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
     }
   };
 
@@ -592,16 +589,16 @@ export default function BusinessDetails() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Combined Header with Business Info, Status, and About */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-40">
+      <div className="bg-white shadow-sm border-b border-stone-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Main Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/find-artisans')}
-                className="flex items-center space-x-1 text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center space-x-1 text-stone-600 hover:text-stone-800 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -617,14 +614,14 @@ export default function BusinessDetails() {
                   />
                 )}
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">{business.artisanName}</h1>
-                  <div className="flex items-center space-x-3 text-sm text-gray-600">
+                  <h1 className="text-xl font-bold text-stone-800 font-display">{business.artisanName}</h1>
+                  <div className="flex items-center space-x-3 text-sm text-stone-600">
                     <div className="flex items-center">
-                      <StarIconSolid className="h-4 w-4 text-yellow-400 mr-1" />
+                      <StarIconSolid className="h-4 w-4 text-amber-400 mr-1" />
                       <span className="font-medium">{business.rating?.average || 0}</span>
                       <span className="ml-1">({business.rating?.count || 0} reviews)</span>
                     </div>
-                    <span className="text-gray-300">•</span>
+                    <span className="text-stone-300">•</span>
                     <span className="font-medium">{formatBusinessType(business.type)}</span>
                   </div>
                 </div>
@@ -1155,7 +1152,7 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
         <div className="relative h-32 bg-gray-100 group">
           {product.image ? (
             <img
-              src={getImageUrl(product.image)}
+              src={getImageUrl(product.image, { width: 400, height: 300, quality: 80 })}
               alt={product.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={(e) => {
@@ -1173,7 +1170,7 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
           {product.image && (
             <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300 ease-in-out">
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-amber-600 rounded-full p-2 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
+                <div className="bg-primary rounded-full p-2 shadow-lg transform scale-75 group-hover:scale-100 transition-transform duration-300 ease-in-out">
                   <HeartIcon className="w-4 h-4 text-white" />
                 </div>
               </div>
@@ -1264,7 +1261,7 @@ function ProductCard({ product, onAddToCart, getImageUrl }) {
             <div className="relative h-48 bg-gray-100 rounded-lg mb-4">
               {product.image ? (
                 <img
-                  src={getImageUrl(product.image)}
+                  src={getImageUrl(product.image, { width: 400, height: 300, quality: 80 })}
                   alt={product.name}
                   className="w-full h-full object-cover rounded-lg"
                 />

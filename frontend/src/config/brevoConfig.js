@@ -4,9 +4,9 @@ export const BREVO_CONFIG = {
   EMAIL_SETTINGS: {
     sender: {
       name: 'bazaar',
-      email: 'noreply@bazaarmkt.ca'
+      email: 'bazaar@bazaarmkt.ca'
     },
-    replyTo: 'support@bazaarmkt.ca',
+    replyTo: 'bazaar@bazaarmkt.ca',
     defaultSubject: 'bazaar Notification'
   },
   CONTACT_ATTRIBUTES: {

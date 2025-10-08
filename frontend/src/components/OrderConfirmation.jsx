@@ -20,11 +20,13 @@ import {
 import { orderService } from '../services/orderService';
 import { guestService } from '../services/guestService';
 import { geocodingService } from '../services/geocodingService';
+import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function OrderConfirmation() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [orderData, setOrderData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
@@ -281,10 +283,10 @@ export default function OrderConfirmation() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#F5F1EA] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#D77A61] mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading order confirmation...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-stone-600 text-lg">Loading order confirmation...</p>
         </div>
       </div>
     );
@@ -300,12 +302,12 @@ export default function OrderConfirmation() {
   if (!Array.isArray(orders) || orders.length === 0) {
     console.error('Invalid orders data:', orders);
     return (
-      <div className="min-h-screen bg-[#F5F1EA]">
+      <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-[#D77A61] mb-4 font-serif">Order Data Error</h1>
-            <p className="text-gray-600 mb-6">Unable to display order confirmation. Please contact support.</p>
-            <Link to="/" className="bg-[#D77A61] text-white px-6 py-3 rounded-full hover:bg-[#3C6E47] transition-colors">Return to Home</Link>
+            <h1 className="text-2xl font-bold text-amber-600 mb-4 font-display">Order Data Error</h1>
+            <p className="text-stone-600 mb-6">Unable to display order confirmation. Please contact support.</p>
+            <Link to="/" className="btn-primary px-6 py-3">Return to Home</Link>
           </div>
         </div>
       </div>
@@ -352,36 +354,36 @@ export default function OrderConfirmation() {
         }
       `}</style>
       
-      <div className="min-h-screen bg-[#F5F1EA] print:bg-white print:min-h-0">
+      <div className="min-h-screen bg-background print:bg-white print:min-h-0">
         {/* Print Header - Only visible when printing */}
         <div className="hidden print:block print:border-b print:border-gray-300 print:pb-4 print:mb-4">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Confirmation</h1>
-            <p className="text-sm text-gray-600">Order Date: {new Date().toLocaleDateString()}</p>
+            <h1 className="text-2xl font-bold text-stone-800 mb-2 font-display">Order Confirmation</h1>
+            <p className="text-sm text-stone-600">Order Date: {new Date().toLocaleDateString()}</p>
           </div>
         </div>
       
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:max-w-none print:px-0 print:py-0">
         {/* Success Header */}
         <div className="text-center mb-8 print:mb-4 print:border-b print:border-gray-300 print:pb-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#3C6E47] rounded-full mb-6 shadow-lg print:hidden">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg print:hidden">
             <CheckCircleIcon className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3 font-serif print:text-2xl print:mb-2">
+          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display print:text-2xl print:mb-2">
             Order Confirmed! 🎉
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto print:text-base print:max-w-none">
+          <p className="text-xl text-stone-600 max-w-2xl mx-auto print:text-base print:max-w-none">
             Thank you for your order! We've received your request and our artisans are getting started.
           </p>
         </div>
 
         {/* Order Summary Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-[#E6B655] p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4">
+        <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4">
           <div className="flex items-center justify-between mb-6 print:mb-4">
-            <h2 className="text-2xl font-bold text-gray-900 font-serif print:text-xl">Order Summary</h2>
+            <h2 className="text-2xl font-bold text-stone-800 font-display print:text-xl">Order Summary</h2>
             <div className="text-right">
-              <p className="text-sm text-gray-600 print:text-xs">Total Orders</p>
-              <p className="text-3xl font-bold text-[#3C6E47] print:text-2xl">{totalOrders}</p>
+              <p className="text-sm text-stone-600 print:text-xs">Total Orders</p>
+              <p className="text-3xl font-bold text-amber-600 print:text-2xl">{totalOrders}</p>
             </div>
           </div>
 
@@ -396,29 +398,31 @@ export default function OrderConfirmation() {
               
               
               return (
-                <div key={orderId} className="bg-gray-50 rounded-xl p-6 border border-gray-200 print:bg-white print:rounded-none print:border print:border-gray-300 print:p-4 print:break-inside-avoid">
+                <div key={orderId} className="bg-stone-50 rounded-xl p-6 border border-stone-200 print:bg-white print:rounded-none print:border print:border-gray-300 print:p-4 print:break-inside-avoid">
                   {/* Simplified Order Header */}
-                  <div className="bg-white rounded-lg p-4 mb-4 border border-orange-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
+                  <div className="card p-4 mb-4 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-r from-orange-400 to-red-500 rounded-full flex items-center justify-center print:hidden">
+                        <div className="w-12 h-12 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full flex items-center justify-center print:hidden">
                           <span className="text-white text-lg font-bold">A</span>
                         </div>
                         <div>
-                          <h4 className="font-bold text-gray-900 text-lg print:text-base">
+                          <h4 className="font-bold text-stone-800 text-lg print:text-base font-display">
                             {order.artisan?.artisanName || order.artisan?.firstName || 'Artisan'}
                           </h4>
                           <div className="flex items-center gap-2 mt-1">
                             {order.artisan?.type && (
-                              <span className="px-3 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full print:bg-gray-200 print:text-gray-800 print:rounded-none">
+                              <span className="px-3 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded-full print:bg-gray-200 print:text-gray-800 print:rounded-none">
                                 {order.artisan.type.charAt(0).toUpperCase() + order.artisan.type.slice(1)} Artisan
                               </span>
                             )}
                             {order.artisan?.rating && (
                               <div className="flex items-center gap-1">
                                 <span className="text-yellow-500 print:text-gray-600">⭐</span>
-                                <span className="text-xs text-gray-600">
-                                  {order.artisan.rating.average || order.artisan.rating}/5
+                                <span className="text-xs text-stone-600">
+                                  {typeof order.artisan.rating === 'object' 
+                                    ? (order.artisan.rating.average || 0).toFixed(1)
+                                    : (order.artisan.rating || 0).toFixed(1)}/5
                                 </span>
                               </div>
                             )}
@@ -426,40 +430,25 @@ export default function OrderConfirmation() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-gray-900 print:text-xl">
+                        <p className="text-2xl font-bold text-stone-800 print:text-xl">
                           ${(order.totalAmount || order.total || 0).toFixed(2)}
                         </p>
-                        <p className="text-sm text-gray-500 print:text-xs">
+                        <p className="text-sm text-stone-500 print:text-xs">
                           {Array.isArray(order.items) ? order.items.length : 0} item{(Array.isArray(order.items) ? order.items.length : 0) > 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Pickup Location for Pickup Orders */}
-                  {order.deliveryMethod === 'pickup' && order.artisan?.pickupAddress && (
-                    <div className="bg-emerald-50 rounded-lg p-4 mb-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3 print:mb-3">
-                      <div className="flex items-start gap-3">
-                        <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
-                        <div>
-                          <p className="text-sm font-medium text-emerald-800 mb-1">Pickup Location</p>
-                          <p className="text-sm text-emerald-700">
-                            {order.artisan.pickupAddress.street}<br />
-                            {order.artisan.pickupAddress.city}, {order.artisan.pickupAddress.state} {order.artisan.pickupAddress.zipCode}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   <div className="flex items-start justify-between mb-4 print:mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-4 print:mb-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center print:hidden">
-                          <span className="text-blue-600 font-semibold text-sm">{index + 1}</span>
+                        <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center print:hidden">
+                          <span className="text-amber-600 font-semibold text-sm">{index + 1}</span>
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 print:text-sm">
+                          <h3 className="font-semibold text-stone-800 print:text-sm font-display">
                             Order #{orderNumber}
                           </h3>
                         </div>
@@ -468,13 +457,13 @@ export default function OrderConfirmation() {
                     {/* Items */}
                     <div className="ml-11 space-y-3 print:ml-0 print:space-y-2">
                       {Array.isArray(order.items) ? order.items.map((item, itemIndex) => (
-                        <div key={itemIndex} className="bg-white rounded-lg p-3 border border-gray-100 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-2 print:break-inside-avoid">
+                        <div key={itemIndex} className="card p-3 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-2 print:break-inside-avoid">
                           <div className="flex gap-3 mb-2 print:gap-2 print:mb-1">
                             {/* Product Image */}
                             {(item.product?.image || item.image) && (
-                              <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 print:hidden">
+                              <div className="w-16 h-16 bg-stone-100 rounded-lg overflow-hidden flex-shrink-0 print:hidden">
                                 <img 
-                                  src={getImageUrl(item.product?.image || item.image)} 
+                                  src={getImageUrl(item.product?.image || item.image, { width: 64, height: 64, quality: 80 })} 
                                   alt={item.product?.name || item.name || 'Product'}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
@@ -482,7 +471,7 @@ export default function OrderConfirmation() {
                                     e.target.nextSibling.style.display = 'flex';
                                   }}
                                 />
-                                <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs" style={{display: 'none'}}>
+                                <div className="w-full h-full bg-stone-200 flex items-center justify-center text-stone-400 text-xs" style={{display: 'none'}}>
                                   No Image
                                 </div>
                               </div>
@@ -491,20 +480,20 @@ export default function OrderConfirmation() {
                             <div className="flex-1">
                               <div className="flex justify-between items-start">
                                 <div className="flex-1">
-                                  <h4 className="font-semibold text-gray-900 text-sm print:text-xs">
-                                    {item.product?.name || item.name || 'Product'}
+                                  <h4 className="font-semibold text-stone-800 text-sm print:text-xs">
+                                    {item.productName || item.product?.name || item.name || 'Product'}
                                   </h4>
-                                  {item.product?.description && (
-                                    <p className="text-xs text-gray-600 mt-1 line-clamp-2 print:text-xs">
-                                      {item.product.description}
+                                  {(item.product?.description || item.description) && (
+                                    <p className="text-xs text-stone-600 mt-1 line-clamp-2 print:text-xs">
+                                      {item.product?.description || item.description}
                                     </p>
                                   )}
                                 </div>
                                 <div className="text-right ml-4 print:ml-2">
-                                  <p className="font-bold text-gray-900 print:text-sm">
+                                  <p className="font-bold text-stone-800 print:text-sm">
                                     ${((item.unitPrice || item.price || 0) * (item.quantity || 1)).toFixed(2)}
                                   </p>
-                                  <p className="text-xs text-gray-500 print:text-xs">
+                                  <p className="text-xs text-stone-500 print:text-xs">
                                     {item.quantity}x ${(item.unitPrice || item.price || 0).toFixed(2)} each
                                   </p>
                                 </div>
@@ -512,25 +501,76 @@ export default function OrderConfirmation() {
                             </div>
                           </div>
                           
-                          {/* Product Type Badge */}
+                          {/* Product Type Badge and Timing Information */}
                           {item.product?.productType && (
-                            <div className="flex items-center gap-2 mt-2 print:mt-1">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full print:rounded-none print:px-1 print:py-0.5 ${
-                                item.product.productType === 'ready_to_ship' 
-                                  ? 'bg-green-100 text-green-800 print:bg-gray-200 print:text-gray-800'
-                                  : item.product.productType === 'made_to_order'
-                                  ? 'bg-blue-100 text-blue-800 print:bg-gray-200 print:text-gray-800'
-                                  : 'bg-purple-100 text-purple-800 print:bg-gray-200 print:text-gray-800'
-                              }`}>
-                                {item.product.productType === 'ready_to_ship' ? 'Ready to Ship' :
-                                 item.product.productType === 'made_to_order' ? 'Made to Order' :
-                                 'Scheduled Order'}
-                          </span>
+                            <div className="space-y-2 mt-2 print:mt-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full print:rounded-none print:px-1 print:py-0.5 ${
+                                  item.product.productType === 'ready_to_ship' 
+                                    ? 'bg-emerald-100 text-emerald-800 print:bg-gray-200 print:text-gray-800'
+                                    : item.product.productType === 'made_to_order'
+                                    ? 'bg-amber-100 text-amber-800 print:bg-gray-200 print:text-gray-800'
+                                    : 'bg-purple-100 text-purple-800 print:bg-gray-200 print:text-gray-800'
+                                }`}>
+                                  {item.product.productType === 'ready_to_ship' ? 'Ready to Ship' :
+                                   item.product.productType === 'made_to_order' ? 'Made to Order' :
+                                   'Scheduled Order'}
+                                </span>
+                              </div>
+                              
+                              {/* Product-Specific Timing Information */}
+                              {item.product.productType === 'ready_to_ship' && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 bg-emerald-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                                      <span className="text-white text-xs">✓</span>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold text-emerald-800 mb-1">Ready to Ship</h5>
+                                      <p className="text-xs text-emerald-700">
+                                        This item is ready and will be shipped immediately.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {item.product.productType === 'made_to_order' && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 bg-amber-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                                      <span className="text-white text-xs">⚒</span>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold text-amber-800 mb-1">Made to Order</h5>
+                                      <p className="text-xs text-amber-700">
+                                        This item is being custom-made for you. Production typically takes 3-7 business days. You'll receive updates on progress.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {item.product.productType === 'scheduled_order' && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-2">
+                                  <div className="flex items-start gap-2">
+                                    <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                                      <span className="text-white text-xs">📅</span>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-semibold text-purple-800 mb-1">Scheduled Order</h5>
+                                      <p className="text-xs text-purple-700">
+                                        This item is scheduled for production. You'll be notified of the exact timeline and when it's ready.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
                       )) : (
-                        <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">No items found</div>
+                        <div className="text-sm text-stone-500 bg-stone-50 rounded-lg p-3">No items found</div>
                       )}
                     </div>
                   </div>
@@ -538,100 +578,149 @@ export default function OrderConfirmation() {
 
                 {/* Order Details */}
                 <div className="ml-11 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm print:ml-0 print:grid-cols-2 print:gap-2 print:text-xs">
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2 text-stone-600">
                     <ClockIcon className="w-4 h-4 print:hidden" />
                     <span>Placed on {formatDate(order.createdAt || new Date())}</span>
                   </div>
                   {/* Only show delivery address for delivery orders */}
                   {order.deliveryMethod === 'delivery' && (
-                  <div className="flex items-center gap-2 text-gray-600">
+                  <div className="flex items-center gap-2 text-stone-600">
                       <MapPinIcon className="w-4 h-4 print:hidden" />
                     <span>{order.deliveryAddress?.city || 'Unknown'}, {order.deliveryAddress?.state || 'Unknown'}</span>
                   </div>
                   )}
                   
-                  {/* Pickup Time Information */}
-                  {order.deliveryMethod === 'pickup' && (() => {
-                    // Try to get pickup time from order data first, then from navigation state
-                    const pickupTimeWindow = order.pickupTimeWindow || 
-                      (orderData.selectedPickupTimes && orderData.selectedPickupTimes[order.artisan?._id]);
-                    
-                    
-                    if (pickupTimeWindow) {
-                      const pickupTime = formatPickupTime(pickupTimeWindow);
-                      return pickupTime ? (
-                        <>
-                          <div className="flex items-center gap-2 text-emerald-600">
-                            <CalendarIcon className="w-4 h-4 print:hidden" />
-                            <span className="font-medium print:text-xs">Pickup Date: {pickupTime.date}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-emerald-600">
-                            <ClockIcon className="w-4 h-4 print:hidden" />
-                            <span className="font-medium print:text-xs">Pickup Time: {pickupTime.time}</span>
-                          </div>
-                        </>
-                      ) : null;
-                    }
-                    return null;
-                  })()}
                 </div>
               </div>
             )})}
           </div>
 
-          {/* Total Amount */}
-          <div className="border-t border-gray-200 pt-6 mt-6 print:pt-4 print:mt-4 print:border-gray-300">
-            <div className="flex justify-between items-center">
-              <span className="text-xl font-semibold text-gray-900 print:text-lg">Total Amount</span>
-              <span className="text-3xl font-bold text-green-600 print:text-2xl print:text-gray-900">${(totalAmount || 0).toFixed(2)}</span>
+          {/* Order Breakdown */}
+          <div className="border-t border-stone-200 pt-6 mt-6 print:pt-4 print:mt-4 print:border-gray-300">
+            <div className="space-y-3 print:space-y-2">
+              {/* Subtotal */}
+              <div className="flex justify-between items-center">
+                <span className="text-lg text-stone-700 print:text-base">Subtotal</span>
+                <span className="text-lg font-semibold text-stone-800 print:text-base">
+                  ${orders.reduce((sum, order) => sum + (order.subtotal || order.totalAmount || 0), 0).toFixed(2)}
+                </span>
+              </div>
+              
+              {/* Delivery Fee */}
+              {orders.some(order => order.deliveryFee && order.deliveryFee > 0) && (
+                <div className="flex justify-between items-center">
+                  <span className="text-lg text-stone-700 print:text-base">
+                    Delivery Fee
+                    {orders[0]?.deliveryMethod === 'personalDelivery' && ' (Personal Delivery)'}
+                    {orders[0]?.deliveryMethod === 'professionalDelivery' && ' (Professional Delivery)'}
+                  </span>
+                  <span className="text-lg font-semibold text-stone-800 print:text-base">
+                    ${orders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              
+              {/* Total Amount */}
+              <div className="flex justify-between items-center pt-3 border-t border-stone-200 print:border-gray-300">
+                <span className="text-xl font-semibold text-stone-800 print:text-lg font-display">Total Amount</span>
+                <span className="text-3xl font-bold text-amber-600 print:text-2xl print:text-gray-900">${(totalAmount || 0).toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Delivery Information Card - Always show for delivery orders */}
         {(orders[0]?.deliveryMethod === 'personalDelivery' || orders[0]?.deliveryMethod === 'delivery') && (
-          <div className="bg-white rounded-2xl shadow-xl border border-blue-200 p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
+          <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
             <div className="flex items-center gap-3 mb-6 print:mb-4">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center print:hidden">
-                <TruckIcon className="w-6 h-6 text-blue-600" />
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center print:hidden">
+                <TruckIcon className="w-6 h-6 text-amber-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 print:text-lg">Delivery Information</h2>
+              <h2 className="text-2xl font-bold text-stone-800 print:text-lg font-display">Delivery Information</h2>
             </div>
 
             <div className="space-y-4 print:space-y-2">
               {/* Delivery Type Badge */}
               <div className="flex items-center gap-2 mb-4">
-                <div className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                  {orders[0]?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 'Standard Delivery'}
+                <div className="px-3 py-1 bg-amber-100 text-amber-800 text-sm font-medium rounded-full">
+                  {orders[0]?.deliveryMethod === 'personalDelivery' ? 'Personal Delivery' : 
+                   orders[0]?.deliveryMethod === 'professionalDelivery' ? 'Professional Delivery' : 
+                   'Standard Delivery'}
                 </div>
                 {orders[0]?.deliveryMethod === 'personalDelivery' && (
-                  <div className="px-3 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full">
+                  <div className="px-3 py-1 bg-emerald-100 text-emerald-800 text-sm font-medium rounded-full">
                     Artisan Delivers
+                  </div>
+                )}
+                {orders[0]?.deliveryMethod === 'professionalDelivery' && (
+                  <div className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                    Professional Courier
                   </div>
                 )}
               </div>
 
+              {/* Delivery Timing Information */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 print:bg-gray-50 print:border-gray-300 print:rounded-none print:p-3">
+                <div className="flex items-start gap-3">
+                  <ClockIcon className="w-5 h-5 text-amber-600 mt-0.5 print:hidden" />
+                  <div>
+                    <h4 className="font-medium text-amber-800 print:text-gray-800 mb-2">Delivery Information</h4>
+                    {orders[0]?.deliveryMethod === 'personalDelivery' && (() => {
+                      const artisan = orders[0]?.artisan;
+                      const hasDeliveryInfo = artisan?.deliveryInstructions || artisan?.deliveryTimeSlots?.length > 0;
+                      
+                      return (
+                        <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                          <p>• <strong>Personal Delivery:</strong> Delivered directly by the artisan</p>
+                          {artisan?.deliveryInstructions && (
+                            <p>• <strong>Instructions:</strong> {artisan.deliveryInstructions}</p>
+                          )}
+                          {artisan?.deliveryTimeSlots?.length > 0 && (
+                            <p>• <strong>Available Times:</strong> {artisan.deliveryTimeSlots.join(', ')}</p>
+                          )}
+                          {!hasDeliveryInfo && (
+                            <p>• <strong>Contact:</strong> You'll receive a call/text before delivery</p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {orders[0]?.deliveryMethod === 'professionalDelivery' && (
+                      <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                        <p>• <strong>Professional Delivery:</strong> Delivered by certified courier</p>
+                        <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
+                      </div>
+                    )}
+                    {orders[0]?.deliveryMethod === 'delivery' && (
+                      <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
+                        <p>• <strong>Standard Delivery:</strong> Delivered via standard shipping</p>
+                        <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-start gap-3">
-                <MapPinIcon className="w-5 h-5 text-gray-400 mt-1 print:hidden" />
+                <MapPinIcon className="w-5 h-5 text-stone-400 mt-1 print:hidden" />
                 <div>
-                  <p className="text-sm text-gray-600 print:text-xs">Delivery Address</p>
-                  <p className="font-medium text-gray-900 print:text-sm">
+                  <p className="text-sm text-stone-600 print:text-xs">Delivery Address</p>
+                  <p className="font-medium text-stone-800 print:text-sm">
                     {orders[0]?.deliveryAddress?.street || 'Address not available'}<br />
                     {orders[0]?.deliveryAddress?.city || 'City'}, {orders[0]?.deliveryAddress?.state || 'State'} {orders[0]?.deliveryAddress?.zipCode || ''}
                   </p>
                   {/* Delivery Distance */}
                   {deliveryDistance !== null && (
                     <div className="mt-2 flex items-center gap-2">
-                      <TruckIcon className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm text-blue-600 font-medium">
+                      <TruckIcon className="w-4 h-4 text-amber-500" />
+                      <span className="text-sm text-amber-600 font-medium">
                         Delivery distance: {deliveryDistance.toFixed(1)} km
                       </span>
                     </div>
                   )}
                   {isCalculatingDistance && (
                     <div className="mt-2 flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                      <span className="text-sm text-gray-500">Calculating distance...</span>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-500"></div>
+                      <span className="text-sm text-stone-500">Calculating distance...</span>
                     </div>
                   )}
                 </div>
@@ -640,13 +729,13 @@ export default function OrderConfirmation() {
               {/* Estimated Delivery Time */}
               {orders[0]?.estimatedDeliveryTime && (
                 <div className="flex items-start gap-3">
-                  <ClockIcon className="w-5 h-5 text-gray-400 mt-1 print:hidden" />
+                  <ClockIcon className="w-5 h-5 text-stone-400 mt-1 print:hidden" />
                   <div>
-                    <p className="text-sm text-gray-600 print:text-xs">Estimated Delivery Time</p>
-                    <p className="font-medium text-gray-900 print:text-sm">
+                    <p className="text-sm text-stone-600 print:text-xs">Estimated Delivery Time</p>
+                    <p className="font-medium text-stone-800 print:text-sm">
                       {formatDate(orders[0].estimatedDeliveryTime)}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-stone-500 mt-1">
                       Set by {orders[0].artisan?.artisanName || orders[0].artisan?.businessName}
                     </p>
                   </div>
@@ -658,20 +747,20 @@ export default function OrderConfirmation() {
                 <div className="flex items-start gap-3">
                   <div className="w-5 h-5 flex items-center justify-center mt-1 print:hidden">
                     {orders[0].status === 'delivered' ? (
-                      <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                      <CheckCircleIcon className="w-5 h-5 text-emerald-500" />
                     ) : orders[0].status === 'out_for_delivery' ? (
-                      <TruckIcon className="w-5 h-5 text-blue-500" />
+                      <TruckIcon className="w-5 h-5 text-amber-500" />
                     ) : (
-                      <ClockIcon className="w-5 h-5 text-gray-400" />
+                      <ClockIcon className="w-5 h-5 text-stone-400" />
                     )}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-600 print:text-xs">Delivery Status</p>
-                    <p className="font-medium text-gray-900 print:text-sm capitalize">
+                    <p className="text-sm text-stone-600 print:text-xs">Delivery Status</p>
+                    <p className="font-medium text-stone-800 print:text-sm capitalize">
                       {orders[0].status.replace(/_/g, ' ')}
                     </p>
                     {orders[0].actualDeliveryTime && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-stone-500 mt-1">
                         Delivered on {formatDate(orders[0].actualDeliveryTime)}
                       </p>
                     )}
@@ -681,10 +770,10 @@ export default function OrderConfirmation() {
 
               {orders[0]?.deliveryInstructions && (
                 <div className="flex items-start gap-3">
-                  <ShoppingBagIcon className="w-5 h-5 text-gray-400 mt-1" />
+                  <ShoppingBagIcon className="w-5 h-5 text-stone-400 mt-1" />
                   <div>
-                    <p className="text-sm text-gray-600">Delivery Instructions</p>
-                    <p className="font-medium text-gray-900">
+                    <p className="text-sm text-stone-600">Delivery Instructions</p>
+                    <p className="font-medium text-stone-800">
                       {orders[0]?.deliveryInstructions || 'No special instructions'}
                     </p>
                   </div>
@@ -697,21 +786,21 @@ export default function OrderConfirmation() {
 
         {/* Guest Information Card */}
         {guestInfo && guestInfo.firstName && guestInfo.lastName && (
-          <div className="bg-white rounded-2xl shadow-xl border border-blue-200 p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
+          <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
             <div className="flex items-center gap-3 mb-6 print:mb-4">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center print:hidden">
-                <UserIcon className="w-6 h-6 text-blue-600" />
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center print:hidden">
+                <UserIcon className="w-6 h-6 text-amber-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 print:text-lg">Guest Information</h2>
+              <h2 className="text-2xl font-bold text-stone-800 print:text-lg font-display">Guest Information</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
               <div className="space-y-4 print:space-y-2">
                 <div className="flex items-center gap-3">
-                  <UserIcon className="w-5 h-5 text-gray-400 print:hidden" />
+                  <UserIcon className="w-5 h-5 text-stone-400 print:hidden" />
                   <div>
-                    <p className="text-sm text-gray-600 print:text-xs">Name</p>
-                    <p className="font-medium text-gray-900 print:text-sm">
+                    <p className="text-sm text-stone-600 print:text-xs">Name</p>
+                    <p className="font-medium text-stone-800 print:text-sm">
                       {guestInfo.firstName} {guestInfo.lastName}
                     </p>
                   </div>
@@ -719,20 +808,20 @@ export default function OrderConfirmation() {
                 
                 {guestInfo.email && (
                   <div className="flex items-center gap-3">
-                    <EnvelopeIcon className="w-5 h-5 text-gray-400 print:hidden" />
+                    <EnvelopeIcon className="w-5 h-5 text-stone-400 print:hidden" />
                     <div>
-                      <p className="text-sm text-gray-600 print:text-xs">Email</p>
-                      <p className="font-medium text-gray-900 print:text-sm">{guestInfo.email}</p>
+                      <p className="text-sm text-stone-600 print:text-xs">Email</p>
+                      <p className="font-medium text-stone-800 print:text-sm">{guestInfo.email}</p>
                     </div>
                   </div>
                 )}
 
                 {guestInfo.phone && (
                   <div className="flex items-center gap-3">
-                    <PhoneIcon className="w-5 h-5 text-gray-400 print:hidden" />
+                    <PhoneIcon className="w-5 h-5 text-stone-400 print:hidden" />
                     <div>
-                      <p className="text-sm text-gray-600 print:text-xs">Phone</p>
-                      <p className="font-medium text-gray-900 print:text-sm">{guestInfo.phone}</p>
+                      <p className="text-sm text-stone-600 print:text-xs">Phone</p>
+                      <p className="font-medium text-stone-800 print:text-sm">{guestInfo.phone}</p>
                     </div>
                   </div>
                 )}
@@ -742,91 +831,155 @@ export default function OrderConfirmation() {
         )}
 
         {/* Pickup Information Card - Always show for pickup orders */}
-        {isPickupOrder && (
-          <div className="bg-white rounded-2xl shadow-xl border border-emerald-200 p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
-            <div className="flex items-center gap-3 mb-6 print:mb-4">
-              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center print:hidden">
-                <MapPinIcon className="w-6 h-6 text-emerald-600" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 print:text-lg">Pickup Information</h2>
-            </div>
+        {isPickupOrder && (() => {
+          // Find pickup order and get pickup data
+          const pickupOrder = orders.find(order => order.deliveryMethod === 'pickup');
+          if (!pickupOrder) return null;
 
-            <div className="space-y-4 print:space-y-2">
-              {/* Pickup Time Information */}
-              {(() => {
-                // Find pickup order and get pickup time from order data or navigation state
-                const pickupOrder = orders.find(order => order.deliveryMethod === 'pickup');
-                if (pickupOrder) {
-                  const pickupTimeWindow = pickupOrder.pickupTimeWindow || 
-                    (orderData.selectedPickupTimes && orderData.selectedPickupTimes[pickupOrder.artisan?._id]);
-                  
-                  if (pickupTimeWindow) {
-                    const pickupTime = formatPickupTime(pickupTimeWindow);
-                    return pickupTime ? (
-                <div className="flex items-start gap-3">
-                        <CalendarIcon className="w-5 h-5 text-emerald-400 mt-1" />
-                  <div>
-                          <p className="text-sm text-gray-600">Scheduled Pickup Time</p>
-                          <p className="font-medium text-gray-900 text-emerald-700">
-                            {pickupTime.full}
+          const pickupTimeWindow = pickupOrder.pickupTimeWindow || 
+            (orderData.selectedPickupTimes && orderData.selectedPickupTimes[pickupOrder.artisan?._id]);
+          const pickupTime = pickupTimeWindow ? formatPickupTime(pickupTimeWindow) : null;
+
+          return (
+            <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
+              <div className="flex items-center gap-3 mb-6 print:mb-4">
+                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center print:hidden">
+                  <MapPinIcon className="w-6 h-6 text-amber-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-stone-800 print:text-lg font-display">Pickup Information</h2>
+              </div>
+
+              <div className="space-y-6 print:space-y-4">
+                {/* Pickup Location */}
+                {pickupOrder.artisan?.pickupAddress && (
+                  <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <MapPinIcon className="w-5 h-5 text-emerald-600 mt-1 print:hidden" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-emerald-800 mb-2">📍 Pickup Location</h4>
+                        
+                        {/* Pickup Location Description */}
+                        {pickupOrder.artisan?.pickupLocation && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-emerald-800 mb-1">Location Details</p>
+                            <p className="text-sm text-emerald-700">
+                              {pickupOrder.artisan.pickupLocation}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Pickup Address */}
+                        <div className="mb-3">
+                          <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Address</p>
+                          <p className="font-medium text-emerald-900 print:text-sm">
+                            {pickupOrder.artisan?.artisanName || pickupOrder.artisan?.businessName || 'Artisan Location'}
                           </p>
-                          <p className="text-xs text-emerald-600 mt-1">
-                            Please arrive within this time window
-                    </p>
+                          <p className="text-sm text-emerald-700 mt-1">
+                            {pickupOrder.artisan.pickupAddress.street}<br />
+                            {pickupOrder.artisan.pickupAddress.city}, {pickupOrder.artisan.pickupAddress.state} {pickupOrder.artisan.pickupAddress.zipCode}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pickup Time Information */}
+                {pickupTime && (
+                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <CalendarIcon className="w-5 h-5 text-amber-600 mt-1 print:hidden" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-amber-800 mb-2">📅 Scheduled Pickup Time</h4>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-amber-700">
+                            <CalendarIcon className="w-4 h-4 print:hidden" />
+                            <span className="font-medium">Date: {pickupTime.date}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-amber-700">
+                            <ClockIcon className="w-4 h-4 print:hidden" />
+                            <span className="font-medium">Time: {pickupTime.time}</span>
+                          </div>
+                          <p className="text-xs text-amber-600 mt-2">
+                            Please arrive within this time window for pickup
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+                {/* Pickup Instructions */}
+                {pickupOrder.artisan?.pickupInstructions && (
+                  <div className="bg-orange-50 rounded-lg p-4 border border-orange-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                    <div className="flex items-start gap-3">
+                      <BellIcon className="w-5 h-5 text-orange-600 mt-1 print:hidden" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-orange-800 mb-2">📋 Important Pickup Instructions</h4>
+                        <p className="text-sm text-orange-700 leading-relaxed">
+                          {pickupOrder.artisan.pickupInstructions}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* General Pickup Information */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 print:bg-gray-50 print:rounded-none print:border print:border-gray-300 print:p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 print:hidden">
+                      <span className="text-white text-xs">ℹ</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-gray-800 mb-2">ℹ️ Important Information</h4>
+                      <div className="space-y-2 text-sm text-gray-700">
+                        <p>• <strong>Contact:</strong> You'll receive a notification when your order is ready for pickup</p>
+                        <p>• <strong>Identification:</strong> Please bring a valid ID and order confirmation</p>
+                        <p>• <strong>Payment:</strong> Order is already paid - no additional payment required</p>
+                        <p>• <strong>Questions:</strong> Contact the artisan directly if you have any pickup questions</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                    ) : null;
-                  }
-                }
-                return null;
-              })()}
-
-                  <div className="flex items-start gap-3">
-                    <MapPinIcon className="w-5 h-5 text-emerald-400 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-600">Pickup Instructions</p>
-                      <p className="font-medium text-gray-900 text-emerald-700">
-                        Visit the artisan location to collect your order. Bring your email confirmation.
-                      </p>
-                    </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* What's Next Timeline Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gradient-to-r from-blue-200 to-purple-200 p-8 mb-8 print:hidden">
+        <div className="card p-8 mb-8 print:hidden">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center">
               <SparklesIcon className="w-7 h-7 text-white" />
             </div>
             <div>
-            <h2 className="text-2xl font-bold text-gray-900">What Happens Next?</h2>
-              <p className="text-gray-600">Your order journey timeline</p>
+            <h2 className="text-2xl font-bold text-stone-800 font-display">What Happens Next?</h2>
+              <p className="text-stone-600">Your order journey timeline</p>
             </div>
           </div>
 
           {/* Timeline */}
           <div className="relative">
             {/* Timeline Line */}
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-green-400 via-blue-400 via-purple-400 to-orange-400"></div>
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-400 via-amber-400 via-purple-400 to-amber-400"></div>
             
             {/* Timeline Items */}
             <div className="space-y-8">
               {/* Step 1: Order Confirmation */}
               <div className="relative flex items-start gap-6">
-                <div className="relative z-10 w-12 h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                <div className="relative z-10 w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
                   <CheckCircleIcon className="w-7 h-7 text-white" />
                 </div>
-                <div className="flex-1 bg-green-50 rounded-xl p-6 border border-green-200">
+                <div className="flex-1 bg-emerald-50 rounded-xl p-6 border border-emerald-200">
                   <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-lg font-bold text-green-800">Order Confirmed</h3>
-                    <span className="px-3 py-1 bg-green-200 text-green-800 text-xs font-semibold rounded-full">Completed</span>
+                    <h3 className="text-lg font-bold text-emerald-800">Order Confirmed</h3>
+                    <span className="px-3 py-1 bg-emerald-200 text-emerald-800 text-xs font-semibold rounded-full">Completed</span>
                   </div>
-                  <p className="text-green-700 mb-3">
+                  <p className="text-emerald-700 mb-3">
                     Your order has been successfully placed and confirmed. You'll receive email confirmations for each order with tracking information.
                   </p>
-                  <div className="flex items-center gap-2 text-green-600 text-sm">
+                  <div className="flex items-center gap-2 text-emerald-600 text-sm">
                     <BellIcon className="w-4 h-4" />
                     <span>Email confirmations sent</span>
                   </div>
@@ -835,18 +988,18 @@ export default function OrderConfirmation() {
 
               {/* Step 2: Artisan Preparation */}
               <div className="relative flex items-start gap-6">
-                <div className="relative z-10 w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                <div className="relative z-10 w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center shadow-lg">
                   <ClockIcon className="w-7 h-7 text-white" />
                 </div>
-                <div className="flex-1 bg-blue-50 rounded-xl p-6 border border-blue-200">
+                <div className="flex-1 bg-amber-50 rounded-xl p-6 border border-amber-200">
                   <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-lg font-bold text-blue-800">Artisan Preparation</h3>
-                    <span className="px-3 py-1 bg-blue-200 text-blue-800 text-xs font-semibold rounded-full">In Progress</span>
+                    <h3 className="text-lg font-bold text-amber-800">Artisan Preparation</h3>
+                    <span className="px-3 py-1 bg-amber-200 text-amber-800 text-xs font-semibold rounded-full">In Progress</span>
                   </div>
-                  <p className="text-blue-700 mb-3">
+                  <p className="text-amber-700 mb-3">
                     Our skilled artisans are now preparing your orders with care and attention to detail. You'll receive real-time updates on the preparation status.
                   </p>
-                  <div className="flex items-center gap-2 text-blue-600 text-sm">
+                  <div className="flex items-center gap-2 text-amber-600 text-sm">
                     <SparklesIcon className="w-4 h-4" />
                     <span>Handcrafted with love</span>
                 </div>
@@ -889,21 +1042,21 @@ export default function OrderConfirmation() {
 
               {/* Step 4: Enjoy Your Order */}
               <div className="relative flex items-start gap-6">
-                <div className="relative z-10 w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                <div className="relative z-10 w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center shadow-lg">
                   <SparklesIcon className="w-7 h-7 text-white" />
                 </div>
-                <div className="flex-1 bg-orange-50 rounded-xl p-6 border border-orange-200">
+                <div className="flex-1 bg-amber-50 rounded-xl p-6 border border-amber-200">
                   <div className="flex items-center gap-3 mb-3">
-                    <h3 className="text-lg font-bold text-orange-800">Enjoy Your Order</h3>
-                    <span className="px-3 py-1 bg-orange-200 text-orange-800 text-xs font-semibold rounded-full">Final Step</span>
+                    <h3 className="text-lg font-bold text-amber-800">Enjoy Your Order</h3>
+                    <span className="px-3 py-1 bg-amber-200 text-amber-800 text-xs font-semibold rounded-full">Final Step</span>
                   </div>
-                  <p className="text-orange-700 mb-3">
+                  <p className="text-amber-700 mb-3">
                     {isPickupOrder 
                       ? 'Visit the artisan location to collect your order and enjoy your fresh, locally crafted products!'
                       : 'Pick up your order or receive delivery and enjoy your fresh, locally crafted products!'
                     }
                   </p>
-                  <div className="flex items-center gap-2 text-orange-600 text-sm">
+                  <div className="flex items-center gap-2 text-amber-600 text-sm">
                     <SparklesIcon className="w-4 h-4" />
                     <span>Fresh & delicious awaits!</span>
                   </div>
@@ -913,27 +1066,28 @@ export default function OrderConfirmation() {
           </div>
         </div>
 
-        {/* Create Account Section */}
-        <div className="bg-white rounded-2xl shadow-xl border border-purple-200 p-8 mb-8 print:hidden">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Want to Track Your Orders?
-            </h2>
-            <p className="text-gray-600">
-              Create a free account to track your orders, save your preferences, and get exclusive offers.
-            </p>
-          </div>
+        {/* Create Account Section - Only show for guest users */}
+        {!isAuthenticated && guestInfo && (
+          <div className="card p-8 mb-8 print:hidden">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-stone-800 mb-2 font-display">
+                Want to Track Your Orders?
+              </h2>
+              <p className="text-stone-600">
+                Create a free account to track your orders, save your preferences, and get exclusive offers.
+              </p>
+            </div>
 
           {!showCreateAccount ? (
             <div className="text-center">
               <button
                 onClick={() => setShowCreateAccount(true)}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Create Free Account
                 <ArrowRightIcon className="w-5 h-5" />
               </button>
-              <p className="text-sm text-gray-500 mt-3">
+              <p className="text-sm text-stone-500 mt-3">
                 No credit card required • Takes less than 2 minutes
               </p>
             </div>
@@ -941,7 +1095,7 @@ export default function OrderConfirmation() {
             <form onSubmit={handleCreateAccount} className="max-w-md mx-auto space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     First Name
                   </label>
                   <input
@@ -949,12 +1103,12 @@ export default function OrderConfirmation() {
                     name="firstName"
                     value={createAccountForm.firstName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-stone-700 mb-1">
                     Last Name
                   </label>
                   <input
@@ -962,14 +1116,14 @@ export default function OrderConfirmation() {
                     name="lastName"
                     value={createAccountForm.lastName}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-stone-700 mb-1">
                   Email
                 </label>
                 <input
@@ -977,13 +1131,13 @@ export default function OrderConfirmation() {
                   name="email"
                   value={createAccountForm.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-stone-700 mb-1">
                   Password
                 </label>
                 <input
@@ -991,14 +1145,14 @@ export default function OrderConfirmation() {
                   name="password"
                   value={createAccountForm.password}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200"
                   required
                   minLength={6}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-stone-700 mb-1">
                   Confirm Password
                 </label>
                 <input
@@ -1006,7 +1160,7 @@ export default function OrderConfirmation() {
                   name="confirmPassword"
                   value={createAccountForm.confirmPassword}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200"
                   required
                   minLength={6}
                 />
@@ -1015,14 +1169,14 @@ export default function OrderConfirmation() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold"
+                  className="flex-1 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-semibold"
                 >
                   Create Account
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowCreateAccount(false)}
-                  className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-semibold"
+                  className="px-6 py-3 bg-stone-500 text-white rounded-lg hover:bg-stone-600 transition-colors font-semibold"
                 >
                   Cancel
                 </button>
@@ -1030,12 +1184,13 @@ export default function OrderConfirmation() {
             </form>
           )}
         </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center print:hidden">
           <Link
             to="/"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             <HomeIcon className="w-5 h-5" />
             Continue Shopping
@@ -1043,7 +1198,7 @@ export default function OrderConfirmation() {
           
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-stone-600 text-white rounded-xl hover:bg-stone-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             <CreditCardIcon className="w-5 h-5" />
             Print Receipt
@@ -1051,10 +1206,10 @@ export default function OrderConfirmation() {
         </div>
 
         {/* Footer Note */}
-        <div className="text-center mt-8 text-sm text-gray-500 print:mt-4 print:text-xs print:border-t print:border-gray-300 print:pt-4">
+        <div className="text-center mt-8 text-sm text-stone-500 print:mt-4 print:text-xs print:border-t print:border-gray-300 print:pt-4">
           <p>
             Questions about your order? Contact us at{' '}
-            <a href="mailto:support@foodfinder.com" className="text-green-600 hover:text-green-700 underline print:text-gray-900">
+            <a href="mailto:support@foodfinder.com" className="text-amber-600 hover:text-amber-700 underline print:text-gray-900">
               support@foodfinder.com
             </a>
           </p>

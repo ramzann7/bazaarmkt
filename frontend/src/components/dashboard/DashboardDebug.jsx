@@ -32,7 +32,8 @@ export default function DashboardDebug() {
 
         // Step 2: Check user role
         addLog('Step 2: Checking user role...');
-        if (userData.role !== 'artisan' && userData.role !== 'producer' && userData.role !== 'food_maker') {
+        const userRole = userData.role || userData.userType; // Check both role and userType for compatibility
+        if (userRole !== 'artisan' && userRole !== 'producer' && userRole !== 'food_maker') {
           addLog('❌ User is not an artisan, should redirect to home');
           return;
         }
@@ -41,7 +42,7 @@ export default function DashboardDebug() {
         // Step 3: Load orders
         addLog('Step 3: Loading orders...');
         try {
-          const ordersData = await orderService.getArtisanOrders();
+          const ordersData = await orderService.getArtisanOrders(true); // Get all orders for debugging
           addLog('✅ Orders loaded', { count: ordersData.length, data: ordersData });
           setOrders(ordersData);
         } catch (error) {

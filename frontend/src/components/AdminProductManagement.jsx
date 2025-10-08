@@ -48,7 +48,11 @@ export default function AdminProductManagement() {
       }
 
       const profile = await getProfile();
-      if (profile.role !== 'admin') {
+      
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
         return;
@@ -387,7 +391,7 @@ export default function AdminProductManagement() {
                         <div className="flex-shrink-0 h-12 w-12">
                           {product.image ? (
                             <img
-                              src={getImageUrl(product.image)}
+                              src={getImageUrl(product.image, { width: 48, height: 48, quality: 80 })}
                               alt={product.name}
                               className="h-12 w-12 rounded-lg object-cover"
                               onError={(e) => {

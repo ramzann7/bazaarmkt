@@ -34,8 +34,16 @@ export default function SmartRedirect() {
 
       // Get user profile to check role and onboarding status
       const profile = await getProfile();
+      
+      // Check if profile is valid
+      if (!profile || !profile._id) {
+        console.error('SmartRedirect: Invalid profile received:', profile);
+        setRedirectPath('/login');
+        return;
+      }
+      
       const userId = profile._id;
-      const userRole = profile.role;
+      const userRole = profile.role || profile.userType; // Check both role and userType for compatibility
       
       // Check if user is new (first time after registration)
       const isNewUser = onboardingService.isNewUser(userId);
@@ -68,10 +76,10 @@ export default function SmartRedirect() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
-          <p className="text-stone-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );

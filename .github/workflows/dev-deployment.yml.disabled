@@ -1,0 +1,107 @@
+name: Development Deployment
+
+on:
+  push:
+    branches: [ develop, feature/*, dev/* ]  # Deploy dev branches to staging
+  pull_request:
+    branches: [ develop ]
+
+env:
+  NODE_VERSION: '18'
+  MONGODB_VERSION: '6.0'
+
+jobs:
+  # Development Tests
+  dev-tests:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Run backend tests
+      working-directory: ./backend
+      run: npm test
+      env:
+        MONGODB_URI: mongodb://localhost:27017/bazaarmkt-test
+        JWT_SECRET: test-secret-key
+        NODE_ENV: test
+
+  # Deploy to Development Environment
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: dev-tests
+    if: github.ref != 'refs/heads/main'  # Never deploy to production from dev branches
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: |
+          backend/package-lock.json
+          frontend/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd backend && npm ci
+        cd ../frontend && npm ci
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: npm run build
+
+    - name: Deploy to Development Environment
+      run: |
+        echo "Deploying to DEVELOPMENT environment..."
+        echo "Branch: ${{ github.ref_name }}"
+        echo "This is a DEVELOPMENT deployment, NOT production!"
+        
+        # Deploy frontend to Vercel (preview deployment)
+        echo "Deploying frontend to Vercel (preview)..."
+        npm install -g vercel
+        vercel --token ${{ secrets.VERCEL_TOKEN }} --yes --cwd frontend
+        
+        # Deploy backend to Railway (development environment)
+        echo "Deploying backend to Railway (development)..."
+        npm install -g @railway/cli
+        railway login --token ${{ secrets.RAILWAY_DEV_TOKEN }}
+        railway up --service backend-dev
+
+    - name: Notify development deployment
+      run: |
+        echo "Development deployment completed!"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "This is a DEVELOPMENT environment, NOT production!"
+        
+        # Send notification to Slack (optional)
+        if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"🧪 bazaarMKT DEV deployed!\nBranch: ${{ github.ref_name }}\nEnvironment: DEVELOPMENT (NOT production)"}' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+        fi

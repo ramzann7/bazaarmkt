@@ -173,7 +173,7 @@ const SocialShare = ({
             {/* Shop Preview */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-amber-100 rounded-xl flex items-center justify-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-primary-100 rounded-xl flex items-center justify-center">
                   <span className="text-2xl">🏪</span>
                 </div>
                 <div className="flex-1">

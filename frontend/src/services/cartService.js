@@ -173,9 +173,10 @@ export const cartService = {
           
           // Check if user is an artisan
           if (userProfile && ['artisan', 'producer', 'food_maker'].includes(userProfile.role)) {
-            // Get user's artisan profile
+            // Get user's artisan profile from main profile endpoint
             const { profileService } = await import('./profileService');
-            const artisanProfile = await profileService.getArtisanProfile();
+            const profileResponse = await profileService.getProfile();
+            const artisanProfile = profileResponse.data?.user?.artisan;
             
             // Check if the product's artisan matches the current user's artisan profile
             if (artisanProfile && product.artisan && 
@@ -202,6 +203,25 @@ export const cartService = {
       const cart = cartService.getCart(userId);
       console.log('📦 Current cart before adding:', cart);
 
+      // Check if adding this product would create multiple artisans
+      if (cart.length > 0) {
+        const currentArtisanIds = new Set(cart.map(item => {
+          if (typeof item.artisan === 'string') {
+            return item.artisan;
+          } else if (item.artisan && item.artisan._id) {
+            return item.artisan._id;
+          }
+          return null;
+        }).filter(id => id !== null));
+
+        const newProductArtisanId = typeof product.artisan === 'string' 
+          ? product.artisan 
+          : product.artisan?._id;
+
+        if (newProductArtisanId && !currentArtisanIds.has(newProductArtisanId)) {
+          throw new Error('Only one artisan per order is currently supported. Please complete your current order or remove items from other artisans before adding new items.');
+        }
+      }
       
       const existingItem = cart.find(cartItem => cartItem._id === product._id);
       
@@ -214,28 +234,24 @@ export const cartService = {
           ...product,
           quantity: quantity,
           addedAt: new Date().toISOString(),
-          // Preserve original artisan data completely, including _id field
-          artisan: product.artisan ? {
-            ...product.artisan,  // Keep all original artisan fields including _id
-                    artisanName: product.artisan.artisanName || 'Unknown Artisan',
-        type: product.artisan.type || 'other',
-        deliveryOptions: product.artisan.deliveryOptions || {
-              pickup: true,
-              delivery: false,
-              deliveryRadius: 0,
-              deliveryFee: 0
-            }
-          } : {
-            // Fallback if no artisan data
-            artisanName: 'Unknown Artisan',
-            type: 'other',
-            deliveryOptions: {
-              pickup: true,
-              delivery: false,
-              deliveryRadius: 0,
-              deliveryFee: 0
-            }
-          }
+          // Extract artisan name at top level for easier access
+          artisanName: typeof product.artisan === 'object' && product.artisan 
+            ? (product.artisan.artisanName || product.artisan.businessName || 'Unknown Artisan')
+            : product.artisanName || 'Unknown Artisan',
+          // Handle both string ID and object artisan data
+          artisan: typeof product.artisan === 'string' 
+            ? product.artisan  // Keep as string ID
+            : product.artisan ? {
+                ...product.artisan,  // Keep all original artisan fields including _id
+                artisanName: product.artisan.artisanName || product.artisan.businessName || 'Unknown Artisan',
+                type: product.artisan.type || 'other',
+                deliveryOptions: product.artisan.deliveryOptions || {
+                  pickup: true,
+                  delivery: false,
+                  deliveryRadius: 0,
+                  deliveryFee: 0
+                }
+              } : 'unknown'
         };
         
         cart.push(enhancedProduct);
@@ -507,7 +523,10 @@ export const cartService = {
       const artisanGroups = {};
       cart.forEach(item => {
         // Use only artisan ID since we've migrated away from seller concept
-        const artisanId = item.artisan?._id || item.artisanId || 'unknown';
+        // Handle both string ID (item.artisan) and object ID (item.artisan._id)
+        const artisanId = typeof item.artisan === 'string' 
+          ? item.artisan 
+          : item.artisan?._id || item.artisanId || 'unknown';
         
 
         
@@ -832,7 +851,7 @@ export const cartService = {
       }
       
       // Use the correct backend API URL
-      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiBaseUrl = 'http://localhost:4000/api';
       
       // Fetch full product details with cache-busting to ensure fresh inventory data
       const response = await fetch(`${apiBaseUrl}/products/${productId}?t=${Date.now()}`, {
@@ -867,6 +886,27 @@ export const cartService = {
           return {
             isAvailable: false,
             message: `Only ${availableStock} items available in stock`
+          };
+        }
+      } else if (product.productType === 'made_to_order') {
+        const remainingCapacity = product.remainingCapacity || product.totalCapacity || 0;
+        if (remainingCapacity <= 0) {
+          return {
+            isAvailable: false,
+            message: 'No capacity available for this custom order'
+          };
+        }
+        if (remainingCapacity < requestedQuantity) {
+          return {
+            isAvailable: false,
+            message: `Only ${remainingCapacity} capacity remaining for this order`
+          };
+        }
+        // Also check maxOrderQuantity limit
+        if (product.maxOrderQuantity && requestedQuantity > product.maxOrderQuantity) {
+          return {
+            isAvailable: false,
+            message: `Maximum ${product.maxOrderQuantity} items per order`
           };
         }
       } else if (product.productType === 'scheduled_order') {
@@ -912,7 +952,7 @@ export const cartService = {
       }
       
       // Use the correct backend API URL
-      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiBaseUrl = 'http://localhost:4000/api';
       
       // Fetch full product details with cache-busting to ensure fresh inventory data
       const response = await fetch(`${apiBaseUrl}/products/${productId}?t=${Date.now()}`, {
@@ -950,7 +990,7 @@ export const cartService = {
       }
       
       // Use the correct backend API URL
-      const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+      const apiBaseUrl = 'http://localhost:4000/api';
       
       // The artisanId parameter is the artisan document ID from the cart item
       // Use the standard artisan endpoint
@@ -959,12 +999,14 @@ export const cartService = {
       });
       
       if (response.ok) {
-        const artisanData = await response.json();
+        const responseData = await response.json();
+        const artisanData = responseData.data || responseData; // Handle both wrapped and unwrapped responses
         console.log('🔍 Fetched artisan data from backend:', {
           artisanId,
           artisanName: artisanData.artisanName,
           address: artisanData.address,
           coordinates: artisanData.coordinates,
+          deliveryOptions: artisanData.deliveryOptions,
           fullData: artisanData
         });
         return artisanData;

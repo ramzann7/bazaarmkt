@@ -34,7 +34,11 @@ export default function AdminDashboard() {
       }
 
       const profile = await getProfile();
-      if (profile.role !== 'admin') {
+      
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
         return;
@@ -100,7 +104,7 @@ export default function AdminDashboard() {
       title: 'Promotional Dashboard',
       description: 'Manage spotlight subscriptions and promotional revenue',
       icon: SparklesIcon,
-      color: 'bg-amber-500',
+      color: 'bg-primary-500',
       path: '/admin/promotional'
     },
     {
@@ -118,22 +122,6 @@ export default function AdminDashboard() {
       icon: GlobeAltIcon,
       color: 'bg-indigo-500',
       path: '/admin/geographic-settings'
-    },
-    {
-      id: 'geographic-test',
-      title: 'Geographic Testing',
-      description: 'Test geographic restrictions and address validation',
-      icon: ShieldCheckIcon,
-      color: 'bg-teal-500',
-      path: '/admin/geographic-test'
-    },
-    {
-      id: 'settings',
-      title: 'Admin Settings',
-      description: 'Configure platform settings and admin preferences',
-      icon: CogIcon,
-      color: 'bg-gray-500',
-      path: '/admin/settings'
     }
   ];
 
@@ -228,9 +216,9 @@ export default function AdminDashboard() {
                 <ChartBarIcon className="w-6 h-6 text-orange-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Featured Products</p>
+                <p className="text-sm font-medium text-gray-600">Active Orders</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {stats ? stats.featuredProducts : 'Loading...'}
+                  {stats ? stats.activeOrders : 'Loading...'}
                 </p>
               </div>
             </div>
@@ -268,13 +256,56 @@ export default function AdminDashboard() {
 
         {/* Recent Activity */}
         <div className="mt-12">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Recent Activity</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Recent Admin Activity</h2>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="text-center text-gray-500 py-8">
-              <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No recent activity to display</p>
-              <p className="text-sm">Activity tracking will be available soon</p>
-            </div>
+            {stats?.recentActivity && stats.recentActivity.length > 0 ? (
+              <div className="space-y-4">
+                {stats.recentActivity.map((activity, index) => (
+                  <div key={index} className="flex items-start p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                      activity.action === 'create' ? 'bg-green-100' :
+                      activity.action === 'update' ? 'bg-blue-100' :
+                      activity.action === 'delete' ? 'bg-red-100' :
+                      'bg-gray-100'
+                    }`}>
+                      {activity.action === 'create' && <span className="text-green-600 font-bold">+</span>}
+                      {activity.action === 'update' && <span className="text-blue-600 font-bold">✎</span>}
+                      {activity.action === 'delete' && <span className="text-red-600 font-bold">×</span>}
+                      {!['create', 'update', 'delete'].includes(activity.action) && <span className="text-gray-600 font-bold">•</span>}
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-gray-900">
+                          {activity.adminName || 'Admin'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(activity.timestamp).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-700 mt-1">
+                        {activity.description}
+                      </p>
+                      {activity.details && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {activity.details}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 py-8">
+                <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No recent activity to display</p>
+                <p className="text-sm">Admin actions will appear here</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   ShoppingCartIcon, 
   PlusIcon, 
@@ -7,6 +8,7 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
+import InventoryModel from '../models/InventoryModel';
 import { cartService } from '../services/cartService';
 import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
@@ -93,8 +95,11 @@ const AddToCart = ({
         return product.stock || 0;
       
       case 'made_to_order':
-        // For made to order, use maxOrderQuantity (per order limit) or default to 10
-        return product.maxOrderQuantity || 10;
+        // For made to order, check BOTH capacity AND per-order limit
+        const capacity = product.remainingCapacity || product.totalCapacity || 0;
+        const orderLimit = product.maxOrderQuantity || 10;
+        // Return the smaller of the two (whichever is more restrictive)
+        return Math.min(capacity, orderLimit);
       
       case 'scheduled_order':
         // For scheduled orders, use availableQuantity (production capacity for that date)
@@ -108,28 +113,51 @@ const AddToCart = ({
   
   const maxQuantity = getMaxQuantity();
   
-  // Check if product is out of stock
+  // Check if product is out of stock using InventoryModel for consistency
   const isOutOfStock = () => {
-    if (product.productType === 'ready_to_ship') {
-      return (maxQuantity || 0) <= 0;
-    }
-    return false;
+    const inventoryModel = new InventoryModel(product);
+    return inventoryModel.isOutOfStock();
   };
   
   const canAddToCart = !isOutOfStock() && quantity > 0 && quantity <= maxQuantity;
 
-  // Show out of stock message for ready_to_ship products
+  // Show stock/availability message for all product types
   const getStockMessage = () => {
-    if (product.productType === 'ready_to_ship') {
-      if (maxQuantity <= 0) {
-        return 'Out of Stock';
-      } else if (maxQuantity <= 5) {
-        return `Only ${maxQuantity} left in stock`;
-      } else {
-        return `${maxQuantity} in stock`;
-      }
+    const inventoryModel = new InventoryModel(product);
+    const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+    
+    if (outOfStockStatus.isOutOfStock) {
+      return outOfStockStatus.message;
     }
-    return null;
+    
+    switch (product.productType) {
+      case 'ready_to_ship':
+        if (maxQuantity <= 5) {
+          return `Only ${maxQuantity} left in stock`;
+        } else {
+          return `${maxQuantity} in stock`;
+        }
+      
+      case 'made_to_order':
+        const remainingCapacity = product.remainingCapacity || 0;
+        const totalCapacity = product.totalCapacity || 0;
+        if (remainingCapacity <= 1) {
+          return `Only ${remainingCapacity} slot available`;
+        } else {
+          return `${remainingCapacity}/${totalCapacity} slots available`;
+        }
+      
+      case 'scheduled_order':
+        const availableQuantity = product.availableQuantity || 0;
+        if (availableQuantity <= 5) {
+          return `Only ${availableQuantity} available`;
+        } else {
+          return `${availableQuantity} available`;
+        }
+      
+      default:
+        return null;
+    }
   };
 
   const handleQuantityChange = (newQuantity) => {
@@ -154,7 +182,8 @@ const AddToCart = ({
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
+      // Only show the specific error message, no generic fallback
+      toast.error(error.message);
       
       if (onError) {
         onError(error);
@@ -181,13 +210,13 @@ const AddToCart = ({
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex items-center justify-center px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
-        <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
-          {getStockMessage() || `Max ${maxQuantity} per order`}
+        <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
+{getStockMessage() || `Max ${maxQuantity} per order`}
         </div>
       </div>
     );
@@ -202,29 +231,29 @@ const AddToCart = ({
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= 1}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-2 py-1 text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <MinusIcon className="w-4 h-4" />
             </button>
-            <span className="px-3 py-1 text-gray-900 font-medium min-w-[2rem] text-center text-sm">
+            <span className="px-3 py-1 text-stone-800 font-medium min-w-[2rem] text-center text-sm">
               {quantity}
             </span>
             <button
               onClick={() => handleQuantityChange(quantity + 1)}
               disabled={quantity >= maxQuantity}
-              className="px-2 py-1 text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="px-2 py-1 text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <PlusIcon className="w-4 h-4" />
             </button>
           </div>
         )}
-        <div className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+        <div className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
           {getStockMessage() || `Max ${maxQuantity}`}
         </div>
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
@@ -240,14 +269,14 @@ const AddToCart = ({
 
       {/* Stock Warning for Low Stock Items */}
       {product.productType === 'ready_to_ship' && maxQuantity > 0 && maxQuantity <= 5 && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <div className="flex items-center space-x-2">
             <span className="text-lg">⚠️</span>
             <div>
-              <span className="text-sm font-medium text-orange-800">
+              <span className="text-sm font-medium text-amber-800">
                 Low Stock Warning
               </span>
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-amber-600">
                 Only {maxQuantity} {maxQuantity === 1 ? 'item' : 'items'} left in stock. Order soon!
               </p>
             </div>
@@ -255,22 +284,32 @@ const AddToCart = ({
         </div>
       )}
 
-      {/* Distance Information */}
+      {/* Distance Information with Visit Shop */}
       {product?.artisan && (product.distance !== undefined || product.formattedDistance) && (
-        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-          <div className="flex items-center space-x-2">
-            <span className="text-lg">📍</span>
-            <div>
-              <span className="text-sm font-medium text-blue-800">
-                {product.artisan.artisanName}
-              </span>
-              <p className="text-xs text-blue-600">
-                {product.formattedDistance || 
-                 (product.distance !== undefined && product.distance !== null 
-                   ? `${product.distance.toFixed(1)} km away` 
-                   : 'Distance not available')}
-              </p>
+        <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">📍</span>
+              <div>
+                <span className="text-sm font-medium text-emerald-800">
+                  {product.artisan.artisanName}
+                </span>
+                <p className="text-xs text-emerald-600">
+                  {product.formattedDistance || 
+                   (product.distance !== undefined && product.distance !== null 
+                     ? `${product.distance.toFixed(1)} km away` 
+                     : 'Distance not available')}
+                </p>
+              </div>
             </div>
+            {product.artisan._id && (
+              <Link
+                to={`/artisan/${product.artisan._id}`}
+                className="text-xs font-medium text-amber-600 hover:text-amber-700 hover:underline whitespace-nowrap"
+              >
+                Visit Shop →
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -278,72 +317,60 @@ const AddToCart = ({
       {/* Simplified Quantity Selector */}
       {showQuantity && (
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-stone-700">
             Quantity
           </label>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= 1}
-              className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <MinusIcon className="w-4 h-4" />
             </button>
-            <span className="w-12 text-center text-lg font-medium text-gray-900">
+            <span className="w-12 text-center text-lg font-medium text-stone-800">
               {quantity}
             </span>
             <button
               onClick={() => handleQuantityChange(quantity + 1)}
               disabled={quantity >= maxQuantity}
-              className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="w-8 h-8 flex items-center justify-center border border-stone-300 rounded-lg text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50"
             >
               <PlusIcon className="w-4 h-4" />
             </button>
           </div>
-          <p className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-gray-500'}`}>
+          <p className={`text-xs ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
             {getStockMessage() || `Max ${maxQuantity} per order`}
           </p>
         </div>
       )}
 
       {/* Total Price */}
-      <div className="bg-gray-50 rounded-lg p-3">
+      <div className="bg-stone-50 rounded-lg p-3">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-600">Total:</span>
+          <span className="text-sm text-stone-600">Total:</span>
           <span className="text-lg font-bold text-amber-600">
             ${(product.price * quantity).toFixed(2)}
           </span>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex space-x-3">
-        <button
-          onClick={handleFavorite}
-          className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          {isFavorite ? (
-            <HeartIconSolid className="w-4 h-4 mr-2 text-red-500" />
-          ) : (
-            <HeartIcon className="w-4 h-4 mr-2" />
-          )}
-          {isFavorite ? 'Saved' : 'Save'}
-        </button>
-        
+      {/* Action Button */}
+      <div>
         <button
           onClick={handleAddToCart}
           disabled={!canAddToCart}
-          className="flex-1 flex items-center justify-center px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className="w-full flex items-center justify-center px-6 py-4 bg-amber-600 text-white text-lg font-bold rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors shadow-lg"
         >
-          <ShoppingCartIcon className="w-4 h-4 mr-2" />
+          <ShoppingCartIcon className="w-6 h-6 mr-2" />
           {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
         </button>
       </div>
 
       {/* Success Message */}
       {showSuccess && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-          <span className="text-green-800 text-sm font-medium">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
+          <span className="text-emerald-800 text-sm font-medium">
             ✓ Added to cart successfully!
           </span>
         </div>

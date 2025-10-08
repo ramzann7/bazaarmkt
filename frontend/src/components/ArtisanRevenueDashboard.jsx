@@ -2,36 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { 
   CurrencyDollarIcon, 
   ChartBarIcon, 
-  ArrowTrendingUpIcon, 
-  EyeIcon,
+  ArrowTrendingUpIcon,
   ShoppingCartIcon,
-  StarIcon,
-  CalendarIcon,
-  InformationCircleIcon,
-  PlusIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon
+  TruckIcon,
+  ReceiptPercentIcon,
+  BanknotesIcon,
+  CubeIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import { revenueService } from '../services/revenueService';
-import { promotionalService } from '../services/promotionalService';
-import * as adminService from '../services/adminService';
 import toast from 'react-hot-toast';
 
 export default function ArtisanRevenueDashboard() {
   const [revenueData, setRevenueData] = useState(null);
-  const [promotionalFeatures, setPromotionalFeatures] = useState([]);
-  const [userFeatures, setUserFeatures] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [isLoading, setIsLoading] = useState(true);
-  const [showTransparency, setShowTransparency] = useState(false);
-  const [platformFeePercentage, setPlatformFeePercentage] = useState(10);
 
   useEffect(() => {
     loadRevenueData();
-    loadPromotionalFeatures();
-    loadUserFeatures();
-    loadPlatformFeePercentage();
   }, [selectedPeriod]);
 
   const loadRevenueData = async () => {
@@ -47,78 +35,53 @@ export default function ArtisanRevenueDashboard() {
     }
   };
 
-  const loadPromotionalFeatures = async () => {
-    try {
-      const features = await revenueService.getAvailablePromotionalFeatures();
-      setPromotionalFeatures(features);
-    } catch (error) {
-      console.error('Error loading promotional features:', error);
-      toast.error('Failed to load promotional features');
-    }
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount || 0);
   };
 
-  const loadUserFeatures = async () => {
-    try {
-      const features = await promotionalService.getCurrentUserPromotionalFeatures();
-      setUserFeatures(features);
-    } catch (error) {
-      console.error('Error loading user features:', error);
-      toast.error('Failed to load your promotional features');
-    }
-  };
-
-  const loadPlatformFeePercentage = async () => {
-    try {
-      const feePercentage = await adminService.getPlatformFeePercentage();
-      setPlatformFeePercentage(feePercentage);
-    } catch (error) {
-      console.error('Error loading platform fee percentage:', error);
-      // Keep default value of 10%
-    }
-  };
-
-  const handlePurchaseFeature = async (feature) => {
-    try {
-      await revenueService.purchasePromotionalFeature(feature);
-      toast.success('Promotional feature purchase request submitted!');
-      loadUserFeatures();
-    } catch (error) {
-      console.error('Error purchasing feature:', error);
-      toast.error('Failed to purchase promotional feature');
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'approved':
-      case 'active':
-        return 'text-green-600 bg-green-100';
-      case 'pending_approval':
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'rejected':
-      case 'cancelled':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
+  const formatNumber = (num) => {
+    return new Intl.NumberFormat('en-US').format(num || 0);
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
+          <p className="text-stone-600">Loading revenue data...</p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Revenue</h1>
-        <p className="text-gray-600 mt-2">Track your earnings and promotional features</p>
+  if (!revenueData || !revenueData.revenue) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-12">
+            <p className="text-stone-500">No revenue data available for this period.</p>
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  const { revenue, topProducts = [], trends = [], deliveryBreakdown = {}, averageOrderValue = 0, platformFeePercentage = 10 } = revenueData;
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
+            <ChartBarIcon className="w-10 h-10 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">Revenue Management</h1>
+          <p className="text-lg text-stone-600 max-w-2xl mx-auto">Track your earnings and sales performance</p>
+        </div>
 
       {/* Period Selector */}
       <div className="mb-6">
@@ -129,8 +92,8 @@ export default function ArtisanRevenueDashboard() {
               onClick={() => setSelectedPeriod(period)}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 selectedPeriod === period
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
               }`}
             >
               {period.charAt(0).toUpperCase() + period.slice(1)}
@@ -139,222 +102,377 @@ export default function ArtisanRevenueDashboard() {
         </div>
       </div>
 
-      {/* Revenue Summary Cards */}
-      {revenueData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
+      {/* Revenue Summary Cards - Row 1 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Total Revenue */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Total Revenue</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatCurrency(revenue.totalGrossAmount)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">Products + Delivery</p>
+            </div>
+            <div className="p-3 bg-amber-100 rounded-lg">
+              <CurrencyDollarIcon className="h-8 w-8 text-amber-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Product Revenue */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Product Revenue</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatCurrency(revenue.productRevenue)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">Before commission</p>
+            </div>
+            <div className="p-3 bg-emerald-100 rounded-lg">
+              <ShoppingCartIcon className="h-8 w-8 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Delivery Revenue */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Delivery Revenue</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatCurrency(revenue.deliveryRevenue)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">100% yours</p>
+            </div>
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <TruckIcon className="h-8 w-8 text-blue-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Platform Commission */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Platform Commission</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatCurrency(revenue.totalCommission)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">{platformFeePercentage}% on products</p>
+            </div>
+            <div className="p-3 bg-red-100 rounded-lg">
+              <ReceiptPercentIcon className="h-8 w-8 text-red-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Summary Cards - Row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Net Earnings */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Net Earnings</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatCurrency(revenue.totalEarnings)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">After commission</p>
+            </div>
+            <div className="p-3 bg-emerald-100 rounded-lg">
+              <BanknotesIcon className="h-8 w-8 text-emerald-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Orders Count */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Total Orders</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatNumber(revenue.orderCount)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">This {selectedPeriod}</p>
+            </div>
+            <div className="p-3 bg-amber-100 rounded-lg">
+              <ChartBarIcon className="h-8 w-8 text-amber-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Products Sold */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Products Sold</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatNumber(revenue.totalProductsSold)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">
+                Avg {revenue.averageItemsPerOrder?.toFixed(1) || 0} per order
+              </p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <CubeIcon className="h-8 w-8 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* Average Order Value */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-stone-600">Avg Order Value</p>
+              <p className="text-2xl font-bold text-stone-800 mt-1">
+                {formatCurrency(averageOrderValue)}
+              </p>
+              <p className="text-xs text-stone-500 mt-1">Per order</p>
+            </div>
+            <div className="p-3 bg-green-100 rounded-lg">
+              <CalendarIcon className="h-8 w-8 text-green-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Top Selling Products */}
+        <div className="card p-6">
+          <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center font-display">
+            <ChartBarIcon className="h-6 w-6 text-amber-600 mr-2" />
+            Top Selling Products
+          </h2>
+          
+          {topProducts && topProducts.length > 0 ? (
+            <div className="space-y-3">
+              {topProducts.slice(0, 5).map((product) => (
+                <div key={product.productId} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg hover:bg-stone-100 transition-colors">
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <span className="text-amber-600 font-bold">{product.rank}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-800 truncate">
+                        {product.productName}
+                      </p>
+                      <p className="text-xs text-stone-500">
+                        {formatNumber(product.quantitySold)} sold • {formatNumber(product.orderCount)} orders
+                      </p>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-semibold text-emerald-600">
+                      {formatCurrency(product.revenue)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-stone-500">
+              <p>No product sales in this period</p>
+            </div>
+          )}
+        </div>
+
+        {/* Commission & Fees Breakdown */}
+        <div className="card p-6">
+          <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center font-display">
+            <ReceiptPercentIcon className="h-6 w-6 text-purple-600 mr-2" />
+            Commission & Earnings
+          </h2>
+          
+          <div className="space-y-4">
+            {/* Visual breakdown */}
+            <div className="space-y-3">
+              {/* Your Earnings */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-emerald-700">Your Earnings</span>
+                  <span className="text-lg font-bold text-emerald-900">
+                    {100 - platformFeePercentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-emerald-200 rounded-full h-3">
+                  <div 
+                    className="bg-emerald-500 h-3 rounded-full" 
+                    style={{ width: `${100 - platformFeePercentage}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-emerald-600 mt-2">
+                  {formatCurrency(revenue.productEarnings)} from products
+                </p>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Gross Sales</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${revenueData.revenue.totalGrossAmount?.toFixed(2) || '0.00'}
+
+              {/* Platform Commission */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-red-700">Platform Commission</span>
+                  <span className="text-lg font-bold text-red-900">
+                    {platformFeePercentage}%
+                  </span>
+                </div>
+                <div className="w-full bg-red-200 rounded-full h-3">
+                  <div 
+                    className="bg-red-500 h-3 rounded-full" 
+                    style={{ width: `${platformFeePercentage}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-red-600 mt-2">
+                  {formatCurrency(revenue.totalCommission)} on products
+                </p>
+              </div>
+
+              {/* Delivery Revenue */}
+              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-cyan-700">Delivery Fees</span>
+                  <span className="text-lg font-bold text-cyan-900">100%</span>
+                </div>
+                <div className="w-full bg-cyan-200 rounded-full h-3">
+                  <div className="bg-cyan-500 h-3 rounded-full" style={{ width: '100%' }}></div>
+                </div>
+                <p className="text-xs text-cyan-600 mt-2">
+                  {formatCurrency(revenue.deliveryRevenue)} (no commission)
                 </p>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <ArrowTrendingUpIcon className="h-6 w-6 text-blue-600" />
+            {/* Summary */}
+            <div className="border-t border-gray-200 pt-4 mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-stone-600">Total Revenue</span>
+                <span className="text-sm font-semibold text-stone-800">
+                  {formatCurrency(revenue.totalGrossAmount)}
+                </span>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Your Earnings</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${revenueData.revenue.totalEarnings?.toFixed(2) || '0.00'}
-                </p>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-stone-600">Platform Commission</span>
+                <span className="text-sm font-semibold text-red-600">
+                  -{formatCurrency(revenue.totalCommission)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-stone-200">
+                <span className="text-base font-semibold text-stone-800">Your Total Earnings</span>
+                <span className="text-lg font-bold text-emerald-600">
+                  {formatCurrency(revenue.totalEarnings)}
+                </span>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <ChartBarIcon className="h-6 w-6 text-orange-600" />
+      {/* Delivery Breakdown */}
+      {revenue.deliveryRevenue > 0 && (
+        <div className="card p-6 mb-8">
+          <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center font-display">
+            <TruckIcon className="h-6 w-6 text-blue-600 mr-2" />
+            Delivery Revenue Breakdown
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Pickup Orders */}
+            <div className="bg-stone-50 rounded-lg p-4 border border-stone-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-stone-700">Pickup Orders</span>
+                <span className="text-2xl font-bold text-stone-800">
+                  {formatNumber(revenue.pickupOrders)}
+                </span>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Platform Commission</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${revenueData.revenue.totalCommission?.toFixed(2) || '0.00'}
-                </p>
-              </div>
+              <p className="text-xs text-stone-500">No delivery fee</p>
+              <p className="text-lg font-semibold text-stone-600 mt-2">$0.00</p>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <ShoppingCartIcon className="h-6 w-6 text-purple-600" />
+            {/* Personal Delivery */}
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-700">Personal Delivery</span>
+                <span className="text-2xl font-bold text-blue-900">
+                  {formatNumber(revenue.personalDeliveryOrders)}
+                </span>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Orders</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {revenueData.revenue.orderCount || 0}
-                </p>
+              <p className="text-xs text-blue-600">100% to you</p>
+              <p className="text-lg font-semibold text-blue-600 mt-2">
+                {formatCurrency(deliveryBreakdown.personal?.revenue || revenue.deliveryRevenue)}
+              </p>
+            </div>
+
+            {/* Professional Delivery */}
+            <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-emerald-700">Professional Delivery</span>
+                <span className="text-2xl font-bold text-emerald-900">
+                  {formatNumber(revenue.professionalDeliveryOrders)}
+                </span>
               </div>
+              <p className="text-xs text-emerald-600">Handled by service</p>
+              <p className="text-lg font-semibold text-emerald-600 mt-2">$0.00</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Transparency Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Revenue Transparency</h2>
-          <button
-            onClick={() => setShowTransparency(!showTransparency)}
-            className="flex items-center text-orange-600 hover:text-orange-700"
-          >
-            <InformationCircleIcon className="h-5 w-5 mr-2" />
-            {showTransparency ? 'Hide Details' : 'Show Details'}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{100 - platformFeePercentage}%</div>
-            <p className="text-sm text-gray-600">You Keep</p>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-orange-600">{platformFeePercentage}%</div>
-            <p className="text-sm text-gray-600">Platform Commission</p>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">100%</div>
-            <p className="text-sm text-gray-600">Transparent</p>
-          </div>
-        </div>
-
-        {showTransparency && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900 mb-2">How it works:</h3>
-            <ul className="text-sm text-gray-600 space-y-1">
-              <li>• For every $100 sale, you receive ${100 - platformFeePercentage} directly</li>
-              <li>• ${platformFeePercentage} goes to platform maintenance and development</li>
-              <li>• No hidden fees or surprise charges</li>
-              <li>• Weekly payouts with $25 minimum</li>
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* Artisan-Specific Promotional Features */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Available Artisan Features */}
+      {/* Revenue Trends */}
+      {trends && trends.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Artisan Profile Features</h2>
-          <p className="text-gray-600 mb-4">Enhance your artisan profile and business visibility</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+            <ArrowTrendingUpIcon className="h-6 w-6 text-green-600 mr-2" />
+            Revenue Trends
+          </h2>
           
-          <div className="space-y-4">
-            {promotionalFeatures.filter(feature => 
-              feature.type !== 'product_featured' && feature.type !== 'product_sponsored'
-            ).map((feature) => (
-              <div key={feature.type} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-gray-900">{feature.name}</h3>
-                  <span className="text-lg font-bold text-orange-600">${feature.price}</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-3">{feature.description}</p>
-                <div className="flex items-center text-sm text-gray-500 mb-3">
-                  <CalendarIcon className="h-4 w-4 mr-1" />
-                  {feature.duration}
-                </div>
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-gray-700 mb-1">Benefits:</p>
-                  <ul className="text-xs text-gray-600 space-y-1">
-                    {feature.benefits.map((benefit, index) => (
-                      <li key={index} className="flex items-center">
-                        <CheckCircleIcon className="h-3 w-3 text-green-500 mr-2" />
-                        {benefit}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <button
-                  onClick={() => handlePurchaseFeature(feature)}
-                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
-                >
-                  Purchase Feature
-                </button>
-              </div>
-            ))}
-          </div>
-          
-          {promotionalFeatures.filter(feature => 
-            feature.type === 'product_featured' || feature.type === 'product_sponsored'
-          ).length > 0 && (
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2">Product Promotions</h3>
-              <p className="text-sm text-blue-700 mb-3">
-                To promote individual products, visit your <strong>My Products</strong> page and click the "Boost" button on any product.
-              </p>
-              <button
-                onClick={() => window.location.href = '/products'}
-                className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-              >
-                Go to My Products →
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* User's Active Artisan Features */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Artisan Profile Features</h2>
-          
-          {userFeatures.length === 0 ? (
-            <div className="text-center py-8">
-              <StarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No artisan profile features purchased yet</p>
-              <p className="text-sm text-gray-500 mt-1">Purchase features to enhance your artisan profile</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {userFeatures.map((feature) => (
-                <div key={feature._id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-gray-900">{feature.featureType.replace(/_/g, ' ')}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(feature.status)}`}>
-                      {feature.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-2">${feature.price}</p>
-                  <div className="flex items-center text-xs text-gray-500 space-x-4">
-                    <span className="flex items-center">
-                      <CalendarIcon className="h-3 w-3 mr-1" />
-                      {new Date(feature.startDate).toLocaleDateString()}
-                    </span>
-                    <span className="flex items-center">
-                      <ClockIcon className="h-3 w-3 mr-1" />
-                      {new Date(feature.endDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {feature.status === 'rejected' && feature.rejectionReason && (
-                    <p className="text-xs text-red-600 mt-2">
-                      Reason: {feature.rejectionReason}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <h3 className="font-semibold text-amber-900 mb-2">Product Promotions</h3>
-            <p className="text-sm text-amber-700 mb-3">
-              View and manage your product-specific promotions on the My Products page.
-            </p>
-            <button
-              onClick={() => window.location.href = '/products'}
-              className="text-amber-600 hover:text-amber-800 font-medium text-sm"
-            >
-              Manage Product Promotions →
-            </button>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Period
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Orders
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product Revenue
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Delivery Revenue
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total Revenue
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {trends.map((trend, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {trend.date}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
+                      {formatNumber(trend.orders)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-purple-600 font-medium">
+                      {formatCurrency(trend.productRevenue)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-cyan-600 font-medium">
+                      {formatCurrency(trend.deliveryRevenue)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-accent font-semibold">
+                      {formatCurrency(trend.totalRevenue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
+      )}
       </div>
     </div>
   );

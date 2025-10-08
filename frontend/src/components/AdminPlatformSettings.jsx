@@ -77,7 +77,10 @@ export default function AdminPlatformSettings() {
 
       const profile = await getProfile();
       
-      if (profile.role !== 'admin') {
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
         return;

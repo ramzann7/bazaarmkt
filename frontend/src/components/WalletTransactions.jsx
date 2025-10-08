@@ -38,12 +38,11 @@ const WalletTransactions = () => {
 
       if (response.success) {
         setTransactions(response.data.transactions || []);
-        // Since backend doesn't provide pagination, we'll create a simple one
-        const totalTransactions = response.data.transactions?.length || 0;
-        setPagination({
+        // Use pagination data from backend
+        setPagination(response.data.pagination || {
           current: filters.page,
-          pages: Math.max(1, Math.ceil(totalTransactions / 20)),
-          total: totalTransactions
+          pages: 1,
+          total: response.data.transactions?.length || 0
         });
       }
     } catch (error) {
@@ -98,19 +97,19 @@ const WalletTransactions = () => {
   };
 
   const formatAmount = (amount, type) => {
-    const isCredit = ['revenue', 'top_up', 'refund', 'adjustment'].includes(type);
+    const isCredit = ['revenue', 'order_revenue', 'top_up', 'wallet_topup', 'refund', 'adjustment'].includes(type);
     const sign = isCredit ? '+' : '-';
     return `${sign}${walletService.formatCurrency(Math.abs(amount))}`;
   };
 
   if (loading && transactions.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="card p-6">
         <div className="animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="h-6 bg-stone-200 rounded w-1/4 mb-6"></div>
           <div className="space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              <div key={i} className="h-16 bg-stone-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -119,29 +118,29 @@ const WalletTransactions = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
+    <div className="card">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-stone-200">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Transaction History</h2>
+          <h2 className="text-xl font-semibold text-stone-800 font-display">Transaction History</h2>
           <div className="flex items-center space-x-2">
-            <FunnelIcon className="w-5 h-5 text-gray-400" />
-            <span className="text-sm text-gray-500">Filters</span>
+            <FunnelIcon className="w-5 h-5 text-stone-400" />
+            <span className="text-sm text-stone-500">Filters</span>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="p-6 border-b border-gray-200 bg-gray-50">
+      <div className="p-6 border-b border-stone-200 bg-stone-50">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-stone-700 mb-1">
               Transaction Type
             </label>
             <select
               value={filters.type}
               onChange={(e) => handleFilterChange('type', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-transparent"
+              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
             >
               <option value="">All Types</option>
               <option value="revenue">Revenue</option>
@@ -155,13 +154,13 @@ const WalletTransactions = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-stone-700 mb-1">
               Status
             </label>
             <select
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-transparent"
+              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
             >
               <option value="">All Statuses</option>
               <option value="completed">Completed</option>
@@ -174,7 +173,7 @@ const WalletTransactions = () => {
           <div className="flex items-end">
             <button
               onClick={() => setFilters({ type: '', status: '', page: 1 })}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full px-4 py-2 text-sm font-medium text-stone-700 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
             >
               Clear Filters
             </button>
@@ -183,12 +182,12 @@ const WalletTransactions = () => {
       </div>
 
       {/* Transactions List */}
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-stone-200">
         {transactions.length === 0 ? (
           <div className="p-12 text-center">
-            <MagnifyingGlassIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Transactions Found</h3>
-            <p className="text-gray-500">
+            <MagnifyingGlassIcon className="w-12 h-12 text-stone-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-stone-800 mb-2 font-display">No Transactions Found</h3>
+            <p className="text-stone-500">
               {filters.type || filters.status 
                 ? 'Try adjusting your filters to see more transactions.'
                 : 'Your transaction history will appear here once you start using your wallet.'
@@ -197,20 +196,20 @@ const WalletTransactions = () => {
           </div>
         ) : (
           transactions.map((transaction) => (
-            <div key={transaction._id} className="p-6 hover:bg-gray-50 transition-colors">
+            <div key={transaction._id} className="p-6 hover:bg-stone-50 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <div className="text-2xl">
                     {getTransactionIcon(transaction.type)}
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900">
+                    <h4 className="font-medium text-stone-800">
                       {getTransactionDisplayName(transaction.type)}
                     </h4>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-stone-500">
                       {transaction.description}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-stone-400">
                       {formatDate(transaction.createdAt)}
                     </p>
                   </div>
@@ -220,14 +219,14 @@ const WalletTransactions = () => {
                   <p className={`font-semibold ${getTransactionColor(transaction.type)}`}>
                     {formatAmount(transaction.amount, transaction.type)}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-stone-500">
                     Balance: {walletService.formatCurrency(transaction.balanceAfter)}
                   </p>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    transaction.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    transaction.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    transaction.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :
+                    transaction.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                     transaction.status === 'failed' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
+                    'bg-stone-100 text-stone-800'
                   }`}>
                     {transaction.status}
                   </span>
@@ -235,7 +234,7 @@ const WalletTransactions = () => {
               </div>
 
               {transaction.reference && (
-                <div className="mt-2 text-xs text-gray-400">
+                <div className="mt-2 text-xs text-stone-400">
                   Reference: {transaction.reference}
                 </div>
               )}
@@ -246,9 +245,9 @@ const WalletTransactions = () => {
 
       {/* Pagination */}
       {pagination && pagination.pages > 1 && (
-        <div className="p-6 border-t border-gray-200">
+        <div className="p-6 border-t border-stone-200">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-stone-500">
               Showing page {pagination?.current || 1} of {pagination?.pages || 1} 
               ({pagination?.total || 0} total transactions)
             </div>
@@ -257,19 +256,19 @@ const WalletTransactions = () => {
               <button
                 onClick={() => handlePageChange((pagination?.current || 1) - 1)}
                 disabled={(pagination?.current || 1) === 1}
-                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 text-stone-400 hover:text-stone-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeftIcon className="w-5 h-5" />
               </button>
               
-              <span className="px-3 py-1 text-sm font-medium text-gray-700">
+              <span className="px-3 py-1 text-sm font-medium text-stone-700">
                 {pagination?.current || 1}
               </span>
               
               <button
                 onClick={() => handlePageChange((pagination?.current || 1) + 1)}
                 disabled={(pagination?.current || 1) === (pagination?.pages || 1)}
-                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 text-stone-400 hover:text-stone-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRightIcon className="w-5 h-5" />
               </button>

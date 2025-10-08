@@ -9,7 +9,10 @@ import "./styles/mobile-improvements.css";
 import { performanceService } from "./services/performanceService";
 import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
-import './utils/authDebug'; // Import auth debug utilities
+// Remove debug utilities in production
+if (import.meta.env.MODE === 'development') {
+  import('./utils/authDebug');
+}
 import { preloadProfileFast } from "./services/profileService";
 import { preloadService } from "./services/preloadService";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
@@ -52,14 +55,29 @@ const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 
-const DashboardTest = lazy(() => import("./components/dashboard/DashboardTest.jsx"));
-const UserRoleCheck = lazy(() => import("./components/dashboard/UserRoleCheck.jsx"));
-const DashboardDebug = lazy(() => import("./components/dashboard/DashboardDebug.jsx"));
-const DashboardSimple = lazy(() => import("./components/dashboard/DashboardSimple.jsx"));
-const DashboardMinimal = lazy(() => import("./components/dashboard/DashboardMinimal.jsx"));
-const DashboardTestSimple = lazy(() => import("./components/dashboard/DashboardTestSimple.jsx"));
+// Debug routes - only loaded in development
+const DashboardTest = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/DashboardTest.jsx"))
+  : null;
+const UserRoleCheck = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/UserRoleCheck.jsx"))
+  : null;
+const DashboardDebug = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/DashboardDebug.jsx"))
+  : null;
+const DashboardSimple = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/DashboardSimple.jsx"))
+  : null;
+const DashboardMinimal = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/DashboardMinimal.jsx"))
+  : null;
+const DashboardTestSimple = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/DashboardTestSimple.jsx"))
+  : null;
 const DashboardFixed = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
-const LoginDebug = lazy(() => import("./components/dashboard/LoginDebug.jsx"));
+const LoginDebug = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/LoginDebug.jsx"))
+  : null;
 const ArtisanDetails = lazy(() => import("./components/ArtisanDetails.jsx"));
 const ArtisanShop = lazy(() => import("./components/ArtisanShop.jsx"));
 const FindArtisans = lazy(() => import("./components/FindArtisans.jsx"));
@@ -172,14 +190,20 @@ function AppRoutes() {
         <Route path="/search" element={<SearchResults />} />
         <Route path="/test-reference" element={<TestReferenceData />} />
 
-        <Route path="/dashboard-test" element={<DashboardTest />} />
-        <Route path="/user-role-check" element={<UserRoleCheck />} />
-        <Route path="/dashboard-debug" element={<DashboardDebug />} />
-        <Route path="/dashboard-simple" element={<DashboardSimple />} />
-        <Route path="/dashboard-minimal" element={<DashboardMinimal />} />
-        <Route path="/dashboard-test-simple" element={<DashboardTestSimple />} />
+        {/* Debug routes - only available in development */}
+        {import.meta.env.MODE === 'development' && (
+          <>
+            <Route path="/dashboard-test" element={<DashboardTest />} />
+            <Route path="/user-role-check" element={<UserRoleCheck />} />
+            <Route path="/dashboard-debug" element={<DashboardDebug />} />
+            <Route path="/dashboard-simple" element={<DashboardSimple />} />
+            <Route path="/dashboard-minimal" element={<DashboardMinimal />} />
+            <Route path="/dashboard-test-simple" element={<DashboardTestSimple />} />
+            <Route path="/login-debug" element={<LoginDebug />} />
+          </>
+        )}
+        
         <Route path="/dashboard-fixed" element={<DashboardFixed />} />
-        <Route path="/login-debug" element={<LoginDebug />} />
         <Route path="/artisan/:id" element={<ArtisanShop />} />
         <Route path="/shop/:id" element={<ArtisanShop />} />
         <Route path="/find-artisans" element={<Artisans />} />

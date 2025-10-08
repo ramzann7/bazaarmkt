@@ -6,10 +6,47 @@
 
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createAuthService } = require('../../services');
+
+// Rate limiters for different auth operations
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  message: {
+    success: false,
+    message: 'Too many login attempts from this IP. Please try again in 15 minutes.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip successful requests
+  skipSuccessfulRequests: true
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 registrations per hour per IP
+  message: {
+    success: false,
+    message: 'Too many accounts created from this IP. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 password reset attempts per hour
+  message: {
+    success: false,
+    message: 'Too many password reset attempts. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 // User registration
 const register = async (req, res) => {
@@ -596,8 +633,9 @@ const checkEmailGet = async (req, res) => {
 // ============================================================================
 
 // Main auth routes
-router.post('/register', register);
-router.post('/login', login);
+// Routes - with rate limiting
+router.post('/register', registerLimiter, register);
+router.post('/login', loginLimiter, login);
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
 

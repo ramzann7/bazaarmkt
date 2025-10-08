@@ -134,11 +134,16 @@ const sendErrorProd = (err, res) => {
     });
   } else {
     // Programming or other unknown error: don't leak error details
-    logger.error('ERROR 💥', err);
+    logger.error('ERROR 💥', {
+      message: err.message,
+      stack: err.stack,
+      name: err.name
+    });
     
+    // Send generic error message in production
     res.status(500).json({
       success: false,
-      message: 'Something went wrong!'
+      message: 'An unexpected error occurred. Please try again later.'
     });
   }
 };

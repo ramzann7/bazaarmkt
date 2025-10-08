@@ -6,6 +6,26 @@
 const { MongoClient } = require('mongodb');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
+// Cron authentication middleware
+const verifyCronAuth = (req) => {
+  if (process.env.NODE_ENV === 'production') {
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (!cronSecret) {
+      console.error('⚠️  CRON_SECRET not configured');
+      return false;
+    }
+    
+    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+      console.warn('🚫 Unauthorized cron job attempt');
+      return false;
+    }
+  }
+  
+  return true;
+};
+
 // Database connection
 const connectDB = async () => {
   try {
@@ -220,12 +240,11 @@ const autoCapturePayments = async () => {
 // Vercel serverless function handler
 module.exports = async (req, res) => {
   try {
-    // Verify this is a cron job request (optional security check)
-    const cronSecret = req.headers['x-cron-secret'];
-    if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+    // Verify cron authentication
+    if (!verifyCronAuth(req)) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized cron request'
+        message: 'Unauthorized'
       });
     }
     

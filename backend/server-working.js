@@ -1,6 +1,6 @@
 require('dotenv').config({ path: './.env' });
 const express = require('express');
-
+const helmet = require('helmet');
 const cors = require('cors');
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
@@ -31,6 +31,58 @@ const setCache = (key, data) => {
 const app = express();
 app.set('trust proxy', 1);
 
+// Security Headers - Helmet middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://js.stripe.com', 'https://maps.googleapis.com'],
+      imgSrc: ["'self'", 'data:', 'https:', 'blob:', 'https://*.vercel-storage.com'],
+      connectSrc: [
+        "'self'", 
+        'https://api.stripe.com', 
+        'https://api.brevo.com',
+        'https://maps.googleapis.com',
+        'https://geocoding-api.open-cage.com',
+        'https://*.vercel-storage.com'
+      ],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      frameSrc: ["'self'", 'https://js.stripe.com', 'https://hooks.stripe.com'],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: {
+    action: 'deny'
+  },
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin'
+  }
+}));
+
+// Additional security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // HTTPS redirect in production
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(301, `https://${req.headers.host}${req.url}`);
+  }
+  
+  next();
+});
+
 // Middleware
 app.use(express.json({ limit: '4.5mb' }));
 
@@ -46,13 +98,46 @@ app.use(compression({
   }
 }));
 
+// CORS Configuration - Environment-based
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [
+      'https://bazaarmkt.ca',
+      'https://www.bazaarmkt.ca',
+      'https://bazaarmkt.vercel.app',
+      /^https:\/\/bazaarmkt-.*\.vercel\.app$/ // Preview deployments
+    ]
+  : [
+      'http://localhost:5173',
+      'http://localhost:5180',
+      'http://localhost:3000',
+      'http://localhost:4000'
+    ];
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:5180',
-    'https://bazaarmkt.vercel.app'
-  ],
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, Vercel cron, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return allowed === origin;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // Cache preflight requests for 10 minutes
 }));
 
 // Database connection - singleton pattern for better performance

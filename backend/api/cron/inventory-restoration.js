@@ -6,6 +6,26 @@
 const { MongoClient, ObjectId } = require('mongodb');
 const InventoryRestorationService = require('../../services/inventoryRestorationService');
 
+// Cron authentication middleware
+const verifyCronAuth = (req) => {
+  if (process.env.NODE_ENV === 'production') {
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (!cronSecret) {
+      console.error('⚠️  CRON_SECRET not configured');
+      return false;
+    }
+    
+    if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+      console.warn('🚫 Unauthorized cron job attempt');
+      return false;
+    }
+  }
+  
+  return true;
+};
+
 // Database connection
 let db;
 const connectDB = async () => {
@@ -38,9 +58,8 @@ module.exports = async (req, res) => {
   }
   
   try {
-    // Verify the request is from Vercel Cron (optional security)
-    const authHeader = req.headers.authorization;
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    // Verify cron authentication
+    if (!verifyCronAuth(req)) {
       return res.status(401).json({
         success: false,
         message: 'Unauthorized'

@@ -56,22 +56,36 @@ export default function AdminRevenueManagement() {
       setIsLoading(true);
       setError(null);
 
+      console.log('🔵 Loading revenue data...');
+      const apiUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/admin/cash-flow?timeRange=${timeRange}`;
+      console.log('🔵 API URL:', apiUrl);
+      console.log('🔵 Token:', localStorage.getItem('token') ? 'Present' : 'Missing');
+
       // Load cash flow data with transactions
-      const cashFlowResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/admin/cash-flow?timeRange=${timeRange}`, {
+      const cashFlowResponse = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
+      console.log('🔵 Response status:', cashFlowResponse.status);
+      console.log('🔵 Response ok:', cashFlowResponse.ok);
+
       if (!cashFlowResponse.ok) {
+        const errorText = await cashFlowResponse.text();
+        console.error('🔴 Error response:', errorText);
         throw new Error('Failed to load cash flow data');
       }
 
       const cashFlowData = await cashFlowResponse.json();
+      console.log('🔵 Cash flow data received:', cashFlowData);
       
       if (cashFlowData.success) {
         const summary = cashFlowData.data.summary;
         const txns = cashFlowData.data.transactions || [];
+
+        console.log('🔵 Summary:', summary);
+        console.log('🔵 Transactions count:', txns.length);
 
         // Update revenue data
         const combinedData = {
@@ -91,6 +105,9 @@ export default function AdminRevenueManagement() {
 
         setRevenueData(combinedData);
         setTransactions(txns);
+
+        console.log('🔵 Revenue data set:', combinedData);
+        console.log('🔵 Transactions set:', txns.length);
 
         // Set analytics data
         setAnalytics({

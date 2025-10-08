@@ -16,7 +16,8 @@ import {
   ShieldCheckIcon,
   ClockIcon,
   MapPinIcon,
-  BellIcon
+  BellIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 
 export default function HowItWorks() {

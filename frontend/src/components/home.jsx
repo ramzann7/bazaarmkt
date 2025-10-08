@@ -575,11 +575,11 @@ export default function Home() {
   const handleFindNearMe = async () => {
     try {
       // Check if we already have a saved location
-      const savedLocation = locationService.getSavedLocation();
+      const savedLocation = locationService.getUserLocation();
       
-      if (savedLocation && savedLocation.latitude && savedLocation.longitude) {
+      if (savedLocation && savedLocation.lat && savedLocation.lng) {
         // Navigate with saved location
-        navigate(`/search?nearby=true&lat=${savedLocation.latitude}&lng=${savedLocation.longitude}`);
+        navigate(`/search?nearby=true&lat=${savedLocation.lat}&lng=${savedLocation.lng}`);
         return;
       }
 

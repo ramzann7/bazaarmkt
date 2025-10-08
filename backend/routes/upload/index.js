@@ -2,8 +2,11 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const sharp = require('sharp');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const path = require('path');
+
+// Use Node.js built-in crypto.randomUUID() instead of uuid package
+const uuidv4 = () => crypto.randomUUID();
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();

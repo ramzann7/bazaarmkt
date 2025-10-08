@@ -179,6 +179,11 @@ const updatePaymentSettings = async (req, res) => {
 const resetPlatformSettings = async (req, res) => {
   try {
     const platformSettingsService = new PlatformSettingsService(req.db);
+    
+    // Delete existing settings first
+    await req.db.collection('platformsettings').deleteMany({});
+    
+    // Create fresh default settings
     const defaultSettings = await platformSettingsService.createDefaultSettings();
     
     res.json({
@@ -202,6 +207,6 @@ router.put('/', verifyAdmin, updatePlatformSettings);
 router.get('/calculate-fee', calculatePlatformFee);
 router.get('/payment', getPaymentSettings);
 router.put('/payment', verifyAdmin, updatePaymentSettings);
-router.post('/reset', verifyAdmin, resetPlatformSettings);
+router.post('/reset-defaults', verifyAdmin, resetPlatformSettings);
 
 module.exports = router;

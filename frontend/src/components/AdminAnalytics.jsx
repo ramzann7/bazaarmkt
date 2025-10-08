@@ -47,7 +47,11 @@ export default function AdminAnalytics() {
       }
 
       const profile = await getProfile();
-      if (profile.role !== 'admin') {
+      
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         setAuthChecked(true);
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
@@ -265,7 +269,7 @@ export default function AdminAnalytics() {
               {/* Top Selling Products */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Selling Products</h3>
-                {analytics.topProducts.length > 0 ? (
+                {analytics.topProducts && analytics.topProducts.length > 0 ? (
                   <div className="space-y-4">
                     {analytics.topProducts.map((product, index) => (
                       <div key={product._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -296,7 +300,7 @@ export default function AdminAnalytics() {
               {/* Product Category Performance */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Category Performance</h3>
-                {analytics.productSales.length > 0 ? (
+                {analytics.productSales && analytics.productSales.length > 0 ? (
                   <div className="space-y-4">
                     {analytics.productSales.map((category) => (
                       <div key={category.category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -325,7 +329,7 @@ export default function AdminAnalytics() {
               {/* Order Status Distribution */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status Distribution</h3>
-                {analytics.orderStatusDistribution.length > 0 ? (
+                {analytics.orderStatusDistribution && analytics.orderStatusDistribution.length > 0 ? (
                   <div className="space-y-3">
                     {analytics.orderStatusDistribution.map((status) => (
                       <div key={status._id} className="flex items-center justify-between">
@@ -357,7 +361,7 @@ export default function AdminAnalytics() {
               {/* Payment Methods */}
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Methods</h3>
-                {analytics.paymentMethods.length > 0 ? (
+                {analytics.paymentMethods && analytics.paymentMethods.length > 0 ? (
                   <div className="space-y-3">
                     {analytics.paymentMethods.map((method) => (
                       <div key={method._id} className="flex items-center justify-between">
@@ -385,7 +389,7 @@ export default function AdminAnalytics() {
             {/* Top Performing Artisans */}
             <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Artisans</h3>
-              {analytics.artisanPerformance.length > 0 ? (
+              {analytics.artisanPerformance && analytics.artisanPerformance.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">

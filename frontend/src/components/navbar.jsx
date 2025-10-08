@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import OptimizedLink from "./OptimizedLink";
 import Logo from "./Logo";
 import CartDropdown from "./CartDropdown";
+import LanguageSwitcher from "./LanguageSwitcher";
 import { 
   ShoppingBagIcon, 
   UserIcon, 
@@ -24,6 +26,7 @@ import searchTrackingService from "../services/searchTrackingService";
 import toast from "react-hot-toast";
 
 export default function Navbar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, logout } = useAuth();
@@ -100,13 +103,11 @@ export default function Navbar() {
         cachedCartCount = cartService.getCartCount(currentUserId);
         cacheService.set(cartCountKey, cachedCartCount, CACHE_TTL.CART_COUNT);
       }
-      console.log('🛒 Navbar: Setting cart count for user:', { userId: currentUserId, count: cachedCartCount, userObject: user });
       setCartCount(cachedCartCount);
     } else {
       // For guest users, always get fresh cart count
       setIsGuest(true);
       const guestCartCount = cartService.getCartCount(null);
-      console.log('🛒 Navbar: Setting cart count for guest:', { count: guestCartCount });
       setCartCount(guestCartCount);
     }
   }, [user], { debounceMs: 300 });
@@ -135,8 +136,6 @@ export default function Navbar() {
   useEffect(() => {
     const handleCartUpdate = (event) => {
       const { userId, count, cart } = event.detail;
-      console.log('🛒 Navbar received cart update:', { userId, count, currentUser: user?._id, cartLength: cart?.length });
-      
       // Get current user ID (same logic as cart service)
       let currentUserId = user?._id;
       if (!currentUserId) {
@@ -151,11 +150,8 @@ export default function Navbar() {
         }
       }
       
-      console.log('🛒 Navbar comparing userIds:', { eventUserId: userId, currentUserId, userObject: user });
-      
       // Update cart count if it's for the current user or guest
       if (userId === currentUserId || (!currentUserId && userId === null) || (isGuest && userId === null)) {
-        console.log('🛒 Updating cart count to:', count);
         setCartCount(count);
         
         // Clear cache for authenticated users
@@ -163,8 +159,6 @@ export default function Navbar() {
           const cartCountKey = `cart_count_${currentUserId}`;
           cacheService.delete(cartCountKey);
         }
-      } else {
-        console.log('🛒 Cart update ignored - userId mismatch');
       }
     };
 
@@ -196,13 +190,11 @@ export default function Navbar() {
       if (currentUserId) {
         const currentCount = cartService.getCartCount(currentUserId);
         if (currentCount !== cartCount) {
-          console.log('🛒 Cart count mismatch detected, updating:', { current: cartCount, actual: currentCount });
           setCartCount(currentCount);
         }
       } else if (isGuest) {
         const currentCount = cartService.getCartCount(null);
         if (currentCount !== cartCount) {
-          console.log('🛒 Guest cart count mismatch detected, updating:', { current: cartCount, actual: currentCount });
           setCartCount(currentCount);
         }
       }
@@ -569,17 +561,20 @@ export default function Navbar() {
           </div>
 
           {/* Nav Links - Between search and cart */}
-          <div className="hidden lg:flex items-center gap-10 ml-auto mr-20">
+          <div className="hidden lg:flex items-center gap-10 ml-auto mr-12">
             <Link to="/find-artisans" className="text-secondary/90 hover:text-amber-600 font-semibold text-sm transition-colors whitespace-nowrap">
-              Market
+              {t('nav.findArtisans')}
             </Link>
             <Link to="/community" className="text-secondary/90 hover:text-amber-600 font-semibold text-sm transition-colors whitespace-nowrap">
-              Community
+              {t('nav.community')}
             </Link>
           </div>
 
           {/* Right side CTAs */}
           <div className="flex items-center gap-3 flex-shrink-0">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+            
             {/* Cart - Available for all users except artisans */}
             {(!user || (user?.role !== 'artisan' && user?.userType !== 'artisan')) && (
               <button 
@@ -601,10 +596,10 @@ export default function Navbar() {
             {!isAuthenticated ? (
               <>
                 <Link to="/login" className="hidden sm:block text-secondary/80 hover:text-amber-600 transition-colors text-sm font-semibold">
-                  Sign In
+                  {t('common.signIn')}
                 </Link>
                 <Link to="/register" className="btn-primary text-sm px-5 py-2">
-                  Join Now
+                  {t('auth.joinNow')}
                 </Link>
               </>
             ) : (
@@ -612,7 +607,7 @@ export default function Navbar() {
                 <button className="flex items-center space-x-2 p-2 text-secondary/80 hover:text-amber-600 transition-colors duration-200">
                   <UserIcon className="w-6 h-6" />
                   <span className="hidden xl:block text-sm font-medium">
-                    {isGuest ? 'Guest Checkout' : 'My Account'}
+                    {isGuest ? t('nav.guestCheckout') : t('nav.myAccount')}
                   </span>
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
@@ -622,7 +617,7 @@ export default function Navbar() {
                       {(user?.role === 'admin' || user?.userType === 'admin') && (
                         <>
                           <Link to="/admin" className="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium">
-                            Admin Dashboard
+                            {t('nav.adminDashboard')}
                           </Link>
                           <hr className="my-2 border-gray-200" />
                         </>
@@ -632,26 +627,26 @@ export default function Navbar() {
                           {(user?.role === 'artisan' || user?.userType === 'artisan') && (
                             <>
                               <Link to="/dashboard" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
-                                Dashboard
+                                {t('nav.dashboard')}
                               </Link>
                               <Link to="/profile" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
-                                My Profile
+                                {t('common.profile')}
                               </Link>
                               <Link to="/my-products" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
-                                My Products
+                                {t('nav.myProducts')}
                               </Link>
                               <Link to="/orders" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
-                                My Orders
+                                {t('nav.myOrders')}
                               </Link>
                             </>
                           )}
                           {(user?.role !== 'artisan' && user?.userType !== 'artisan') && (
                             <>
                               <Link to="/profile" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
-                                My Profile
+                                {t('common.profile')}
                               </Link>
                               <Link to="/orders" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
-                                My Orders
+                                {t('nav.myOrders')}
                               </Link>
                             </>
                           )}
@@ -664,7 +659,7 @@ export default function Navbar() {
                     onClick={handleLogout}
                     className="block w-full text-left px-4 py-2 text-sm text-secondary hover:bg-gray-50"
                   >
-                    {isGuest ? 'Clear Session' : 'Sign Out'}
+                    {isGuest ? t('nav.clearSession') : t('nav.signOut')}
                   </button>
                 </div>
               </div>
@@ -844,65 +839,65 @@ export default function Navbar() {
                     className="block px-3 py-2 text-base font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-300"
                     onClick={toggleMobileMenu}
                   >
-                    Admin Dashboard
+                    {t('nav.adminDashboard')}
                   </Link>
                 )}
                                   {(user?.role !== 'admin' && user?.userType !== 'admin') && (
-                    <>
-                      {(user?.role === 'artisan' || user?.userType === 'artisan') && (
-                        <>
+                      <>
+                        {(user?.role === 'artisan' || user?.userType === 'artisan') && (
+                          <>
                           <Link
                             to="/dashboard"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            Dashboard
+                            {t('nav.dashboard')}
                           </Link>
                           <Link
                             to="/profile"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            My Profile
+                            {t('common.profile')}
                           </Link>
                           <Link
                             to="/my-products"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            My Products
+                            {t('nav.myProducts')}
                           </Link>
                           <Link
                             to="/orders"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            My Orders
+                            {t('nav.myOrders')}
                           </Link>
                           <Link
                             to="/my-wallet"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            My Wallet
+                            {t('nav.myWallet')}
                           </Link>
                         </>
-                      )}
-                      {(user?.role !== 'artisan' && user?.userType !== 'artisan') && (
+                        )}
+                        {(user?.role !== 'artisan' && user?.userType !== 'artisan') && (
                         <>
                           <Link
                             to="/profile"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            My Profile
+                            {t('common.profile')}
                           </Link>
                           <Link
                             to="/orders"
                             className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                             onClick={toggleMobileMenu}
                           >
-                            My Orders
+                            {t('nav.myOrders')}
                           </Link>
                         </>
                       )}
@@ -916,7 +911,7 @@ export default function Navbar() {
                   onClick={handleLogout}
                   className="block w-full text-left px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
                 >
-                  {isGuest ? 'Clear Session' : 'Sign Out'}
+                  {isGuest ? t('nav.clearSession') : t('nav.signOut')}
                 </button>
               </>
             )}
@@ -927,14 +922,14 @@ export default function Navbar() {
                   className="block w-full text-center px-3 py-2 text-base font-medium text-[#2E2E2E] bg-[#F5F1EA] hover:bg-[#E6B655] hover:text-white rounded-lg transition-colors duration-300"
                   onClick={toggleMobileMenu}
                 >
-                  Sign In
+                  {t('common.signIn')}
                 </Link>
                 <Link
                   to="/register"
                   className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#D77A61] hover:bg-[#C06A51] rounded-lg transition-colors duration-300"
                   onClick={toggleMobileMenu}
                 >
-                  Join Now
+                  {t('auth.joinNow')}
                 </Link>
                 {cartCount > 0 && (
                   <button
@@ -944,7 +939,7 @@ export default function Navbar() {
                     }}
                     className="block w-full text-center px-3 py-2 text-base font-medium text-white bg-[#3C6E47] hover:bg-[#2E5A3A] rounded-lg transition-colors duration-300"
                   >
-                    View Cart ({cartCount})
+                    {t('nav.viewCart')} ({cartCount})
                   </button>
                 )}
               </div>

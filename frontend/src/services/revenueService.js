@@ -1,5 +1,6 @@
 import api from './apiClient';
 import config from '../config/environment.js';
+import { authToken } from './authservice';
 
 const API_URL = config.API_URL;
 
@@ -190,7 +191,7 @@ class RevenueService {
   async getPlatformRevenueSummary(period = '30') {
     try {
       const token = authToken.getToken();
-      const response = await fetch(`${API_URL}/revenue/admin/platform-summary?period=${period}`, {
+      const response = await fetch(`${API_URL}/revenue/platform/summary?period=${period}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -203,7 +204,7 @@ class RevenueService {
       }
 
       const data = await response.json();
-      return data.data;
+      return data.data || data;
     } catch (error) {
       console.error('Error fetching platform revenue summary:', error);
       throw error;
@@ -227,7 +228,7 @@ class RevenueService {
       }
 
       const data = await response.json();
-      return data.data;
+      return data.data || data;
     } catch (error) {
       console.error('Error fetching spotlight revenue stats:', error);
       throw error;

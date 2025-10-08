@@ -15,6 +15,7 @@ import { preloadService } from "./services/preloadService";
 import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import { orderNotificationService } from "./services/orderNotificationService";
 import { initializeNotificationService } from './services/notificationService';
+import './i18n'; // Import i18n configuration
 
 // Artisan-only route component
 const ArtisanOnlyRoute = ({ children }) => {
@@ -72,6 +73,7 @@ const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
 const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
 const AdminUserManagement = lazy(() => import("./components/AdminUserManagement.jsx"));
 const RevenueTransparency = lazy(() => import("./components/RevenueTransparency.jsx"));
+const DashboardHighlights = lazy(() => import("./components/DashboardHighlights.jsx"));
 const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
@@ -79,7 +81,6 @@ const AdminSettings = lazy(() => import("./components/AdminSettings.jsx"));
 const AdminPromotionalDashboard = lazy(() => import("./components/AdminPromotionalDashboard.jsx"));
 const AdminPlatformSettings = lazy(() => import("./components/AdminPlatformSettings.jsx"));
 const AdminGeographicSettings = lazy(() => import("./components/AdminGeographicSettings.jsx"));
-const GeographicSettingsTest = lazy(() => import("./components/GeographicSettingsTest.jsx"));
 const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
 const ArtisanProductManagement = lazy(() => import("./components/ArtisanProductManagement.jsx"));
 const ArtisanRevenueDashboard = lazy(() => import("./components/ArtisanRevenueDashboard.jsx"));
@@ -216,6 +217,8 @@ function AppRoutes() {
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/artisans" element={<Artisans />} />
+        <Route path="/transparency" element={<RevenueTransparency />} />
+        <Route path="/dashboard-highlights" element={<DashboardHighlights />} />
         
         {/* Admin Routes */}
         <Route
@@ -255,18 +258,9 @@ function AppRoutes() {
           element={isAuthenticated ? <AdminGeographicSettings /> : <Navigate to="/login" />}
         />
         <Route
-          path="/admin/geographic-test"
-          element={isAuthenticated ? <GeographicSettingsTest /> : <Navigate to="/login" />}
-        />
-        <Route
           path="/admin/settings"
           element={isAuthenticated ? <AdminSettings /> : <Navigate to="/login" />}
         />
-        
-
-        
-        {/* Transparency Route */}
-        <Route path="/transparency" element={<RevenueTransparency />} />
         
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" />} />

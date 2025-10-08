@@ -59,9 +59,12 @@ export default function AdminPromotionalDashboard() {
       }
 
       const profile = await getProfile();
-      console.log('🔍 Profile loaded:', { email: profile?.email, role: profile?.role });
+      console.log('🔍 Profile loaded:', { email: profile?.email, role: profile?.role, userType: profile?.userType });
       
-      if (profile.role !== 'admin') {
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         console.log('🔍 User is not admin, redirecting');
         toast.error('Access denied. Admin privileges required.');
         navigate('/');

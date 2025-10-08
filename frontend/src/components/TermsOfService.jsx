@@ -53,11 +53,11 @@ export default function TermsOfService() {
             <div>
               <h2 className="text-2xl font-bold text-stone-900 mb-4 font-display">Agreement to Terms</h2>
               <p className="text-stone-600 mb-4">
-                Welcome to Bazaar ("Company," "we," "our," "us"). By accessing or using the Bazaar platform ("Platform," "Service"), 
+                Welcome to BazaarMkt ("Company," "we," "our," "us"). By accessing or using the BazaarMkt platform ("Platform," "Service"), 
                 you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use our Service.
               </p>
               <p className="text-stone-600">
-                These Terms constitute a legally binding agreement between you and Bazaar regarding your use of the Platform, 
+                These Terms constitute a legally binding agreement between you and BazaarMkt regarding your use of the Platform, 
                 whether as a customer ("Patron") or artisan ("Artisan," "Seller").
               </p>
             </div>
@@ -71,7 +71,7 @@ export default function TermsOfService() {
             <dl className="space-y-4">
               <div>
                 <dt className="font-semibold text-stone-900 mb-1">"Platform"</dt>
-                <dd className="text-stone-600 ml-4">The Bazaar website, mobile application, and all associated services.</dd>
+                <dd className="text-stone-600 ml-4">The BazaarMkt website, mobile application, and all associated services.</dd>
               </div>
               <div>
                 <dt className="font-semibold text-stone-900 mb-1">"Artisan" or "Seller"</dt>
@@ -136,7 +136,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">3.1 Purchases</h3>
               <p className="text-stone-600">
-                All purchases are made directly from Artisans. Bazaar facilitates the transaction but is not a party to the sale. 
+                All purchases are made directly from Artisans. BazaarMkt facilitates the transaction but is not a party to the sale. 
                 You agree to pay all charges at the prices in effect when incurred, including applicable taxes and delivery fees.
               </p>
             </div>
@@ -170,7 +170,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">3.5 Product Quality</h3>
               <p className="text-stone-600">
-                While we strive to ensure quality, all products are handcrafted by independent Artisans. Bazaar does not guarantee 
+                While we strive to ensure quality, all products are handcrafted by independent Artisans. BazaarMkt does not guarantee 
                 product quality, suitability, or fitness for any particular purpose. Disputes should be resolved directly with the Artisan.
               </p>
             </div>
@@ -217,14 +217,14 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">4.4 Fees and Payment</h3>
               <p className="text-stone-600 mb-2">
-                Bazaar charges the following fees:
+                BazaarMkt charges the following fees:
               </p>
               <ul className="list-disc ml-8 text-stone-600 space-y-1">
                 <li><strong>Platform Fee:</strong> {platformFee}% of product sales (not applied to delivery fees)</li>
                 <li><strong>Payment Processing Fee:</strong> {paymentFee}% on total transaction amount (charged by Stripe)</li>
               </ul>
               <p className="text-stone-600 mt-2">
-                Revenue is credited to your Bazaar Wallet when Patrons confirm receipt. Automatic weekly payouts are processed 
+                Revenue is credited to your BazaarMkt Wallet when Patrons confirm receipt. Automatic weekly payouts are processed 
                 every Friday for balances over $50, arriving within 2-3 business days.
               </p>
             </div>
@@ -232,7 +232,7 @@ export default function TermsOfService() {
               <h3 className="font-semibold text-stone-900 mb-2">4.5 Taxes</h3>
               <p className="text-stone-600">
                 You are responsible for determining and paying all applicable taxes related to your sales, including sales tax, 
-                GST/HST, income tax, and business taxes. Bazaar does not collect or remit taxes on your behalf.
+                GST/HST, income tax, and business taxes. BazaarMkt does not collect or remit taxes on your behalf.
               </p>
             </div>
             <div>
@@ -283,7 +283,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">6.1 Platform Ownership</h3>
               <p className="text-stone-600">
-                The Platform, including all content, features, functionality, software, and design, is owned by Bazaar and is 
+                The Platform, including all content, features, functionality, software, and design, is owned by BazaarMkt and is 
                 protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, 
                 or create derivative works without express written permission.
               </p>
@@ -291,7 +291,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">6.2 User Content License</h3>
               <p className="text-stone-600">
-                By posting content on the Platform (product listings, photos, descriptions), you grant Bazaar a worldwide, 
+                By posting content on the Platform (product listings, photos, descriptions), you grant BazaarMkt a worldwide, 
                 non-exclusive, royalty-free license to use, display, reproduce, and distribute such content for the purpose of 
                 operating and promoting the Platform. You retain all ownership rights to your content.
               </p>
@@ -299,7 +299,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">6.3 Trademark</h3>
               <p className="text-stone-600">
-                "Bazaar" and all related logos are trademarks of Bazaar. You may not use our trademarks without prior written consent.
+                "BazaarMkt" and all related logos are trademarks of BazaarMkt. You may not use our trademarks without prior written consent.
               </p>
             </div>
           </div>
@@ -319,7 +319,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">7.2 Platform Fees</h3>
               <p className="text-stone-600 mb-2">
-                Bazaar charges a platform fee of {platformFee}% on product sales. This fee:
+                BazaarMkt charges a platform fee of {platformFee}% on product sales. This fee:
               </p>
               <ul className="list-disc ml-8 text-stone-600 space-y-1">
                 <li>Is calculated as a percentage of the product subtotal (excluding delivery fees)</li>
@@ -410,7 +410,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">9.3 Limitation of Liability</h3>
               <p className="text-stone-600">
-                Bazaar is a marketplace platform connecting Artisans and Patrons. We are not responsible for the quality, safety, 
+                BazaarMkt is a marketplace platform connecting Artisans and Patrons. We are not responsible for the quality, safety, 
                 or legality of products listed, the accuracy of listings, or the ability of Artisans to fulfill orders.
               </p>
             </div>
@@ -464,7 +464,7 @@ export default function TermsOfService() {
               <h3 className="font-semibold text-stone-900 mb-2">11.3 Maximum Liability</h3>
               <p className="text-stone-600">
                 Our total liability to you for any claims arising from your use of the Platform shall not exceed the greater of 
-                (a) the amount you have paid to Bazaar in the past 12 months, or (b) $100.
+                (a) the amount you have paid to BazaarMkt in the past 12 months, or (b) $100.
               </p>
             </div>
           </div>
@@ -482,7 +482,7 @@ export default function TermsOfService() {
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-stone-900 mb-2">12.2 Termination by Bazaar</h3>
+              <h3 className="font-semibold text-stone-900 mb-2">12.2 Termination by BazaarMkt</h3>
               <p className="text-stone-600 mb-2">
                 We reserve the right to suspend or terminate your account if you:
               </p>
@@ -547,7 +547,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">14.4 Entire Agreement</h3>
               <p className="text-stone-600">
-                These Terms, together with our Privacy Policy, constitute the entire agreement between you and Bazaar regarding 
+                These Terms, together with our Privacy Policy, constitute the entire agreement between you and BazaarMkt regarding 
                 the use of the Platform and supersede all prior agreements.
               </p>
             </div>
@@ -588,7 +588,7 @@ export default function TermsOfService() {
                 </a>
               </p>
               <p>
-                <strong>Platform:</strong> Bazaar Marketplace
+                <strong>Platform:</strong> BazaarMkt Marketplace
               </p>
               <p>
                 <strong>Last Updated:</strong> October 8, 2025
@@ -601,7 +601,7 @@ export default function TermsOfService() {
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 text-center">
           <ShieldCheckIcon className="w-12 h-12 text-blue-600 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-stone-900 mb-3 font-display">
-            By Using Bazaar, You Agree to These Terms
+            By Using BazaarMkt, You Agree to These Terms
           </h3>
           <p className="text-stone-600 mb-4">
             Your continued use of the Platform constitutes acceptance of these Terms of Service

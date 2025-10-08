@@ -209,6 +209,7 @@ const walletRoutes = require('./routes/wallet');
 const spotlightRoutes = require('./routes/spotlight');
 const geocodingRoutes = require('./routes/geocoding');
 const platformSettingsRoutes = require('./routes/platform-settings');
+const geographicSettingsRoutes = require('./routes/geographic-settings');
 
 // ============================================================================
 // WALLET TRANSACTION HELPER FUNCTIONS
@@ -275,6 +276,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/spotlight', spotlightRoutes);
 app.use('/api/geocoding', geocodingRoutes);
 app.use('/api/platform-settings', platformSettingsRoutes);
+app.use('/api/geographic-settings', geographicSettingsRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS

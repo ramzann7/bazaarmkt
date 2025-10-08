@@ -11,7 +11,7 @@ export const getStats = async () => {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching admin stats:', error);
     // Return mock data for development
@@ -32,7 +32,7 @@ export const getUsers = async () => {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
@@ -47,7 +47,7 @@ export const getProducts = async () => {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching products:', error);
     throw error;
@@ -62,7 +62,7 @@ export const getArtisans = async () => {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching artisans:', error);
     throw error;
@@ -200,7 +200,7 @@ export const getAnalytics = async (period = 30) => {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching analytics:', error);
     throw error;
@@ -220,7 +220,7 @@ export const getPromotionalStats = async (period = 30) => {
       }
     });
     console.log('🔍 getPromotionalStats - Response:', response.data);
-    return response.data;
+    return response.data.data || response.data;
   } catch (error) {
     console.error('Error fetching promotional stats:', error);
     throw error;
@@ -247,12 +247,35 @@ export const getActivePromotions = async () => {
 // Get promotional pricing configuration
 export const getPromotionalPricing = async () => {
   try {
-    const response = await api.get(`${API_URL}/admin/promotional/pricing`, {
+    const response = await api.get(`${API_URL}/promotional/pricing`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
-    return response.data;
+    
+    const pricingData = response.data.data || response.data;
+    
+    // Convert object format to array format expected by component
+    if (pricingData && typeof pricingData === 'object' && !Array.isArray(pricingData)) {
+      // Backend returns { featured_product: {...}, sponsored_product: {...} }
+      // Convert to array format
+      const pricingArray = Object.entries(pricingData)
+        .filter(([key]) => !['success', 'data', '_id', 'createdAt', 'updatedAt'].includes(key))
+        .map(([featureType, config]) => ({
+          featureType,
+          name: config.name || featureType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          description: config.description || '',
+          basePrice: config.pricePerDay || config.basePrice || 0,
+          pricePerDay: config.pricePerDay || 0,
+          benefits: config.benefits || [],
+          currency: config.currency || 'CAD',
+          isActive: config.isActive !== undefined ? config.isActive : true
+        }));
+      return pricingArray;
+    }
+    
+    // If already array, return as is
+    return pricingData;
   } catch (error) {
     console.error('Error fetching promotional pricing:', error);
     throw error;
@@ -262,7 +285,7 @@ export const getPromotionalPricing = async () => {
 // Update promotional pricing
 export const updatePromotionalPricing = async (pricingData) => {
   try {
-    const response = await api.put(`${API_URL}/admin/promotional/pricing`, pricingData, {
+    const response = await api.put(`${API_URL}/promotional/admin/pricing`, pricingData, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
@@ -277,7 +300,7 @@ export const updatePromotionalPricing = async (pricingData) => {
 // Initialize default promotional pricing
 export const initializeDefaultPricing = async () => {
   try {
-    const response = await api.post(`${API_URL}/admin/promotional/pricing/initialize`, {}, {
+    const response = await api.post(`${API_URL}/promotional/admin/pricing/initialize`, {}, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }

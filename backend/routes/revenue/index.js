@@ -395,9 +395,155 @@ const getRevenueTransparency = async (req, res) => {
   }
 };
 
+// ============================================================================
+// PLATFORM REVENUE ENDPOINTS (ADMIN ONLY)
+// ============================================================================
+
+/**
+ * Get platform revenue summary (admin only)
+ * Aggregates commission revenue from all orders
+ */
+const getPlatformRevenueSummary = async (req, res) => {
+  try {
+    const { period = '30' } = req.query;
+    const db = req.db;
+    
+    // Calculate date range
+    const now = new Date();
+    const days = parseInt(period);
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    
+    // Get revenue records for the period
+    const revenuesCollection = db.collection('revenues');
+    const revenueRecords = await revenuesCollection.find({
+      createdAt: { $gte: startDate },
+      status: 'completed'
+    }).toArray();
+    
+    // Calculate totals
+    const summary = revenueRecords.reduce((acc, record) => {
+      const platformFee = record.fees?.platformFeeAmount || 0;
+      const orderTotal = record.revenue?.totalAmount || 0;
+      
+      return {
+        totalCommission: acc.totalCommission + platformFee,
+        totalGMV: acc.totalGMV + orderTotal,
+        orderCount: acc.orderCount + 1
+      };
+    }, {
+      totalCommission: 0,
+      totalGMV: 0,
+      orderCount: 0
+    });
+    
+    const averageOrderValue = summary.orderCount > 0 
+      ? summary.totalGMV / summary.orderCount 
+      : 0;
+    
+    res.json({
+      success: true,
+      data: {
+        period: days,
+        startDate,
+        endDate: now,
+        commissionRevenue: {
+          totalCommission: summary.totalCommission,
+          orderCount: summary.orderCount,
+          averageOrderValue: averageOrderValue
+        },
+        totalGMV: summary.totalGMV
+      }
+    });
+  } catch (error) {
+    console.error('Get platform revenue summary error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get platform revenue summary',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get spotlight revenue statistics (admin only)
+ * Aggregates revenue from artisan spotlight subscriptions
+ */
+const getSpotlightRevenueStats = async (req, res) => {
+  try {
+    const { period = '30' } = req.query;
+    const db = req.db;
+    
+    // Calculate date range
+    const now = new Date();
+    const days = parseInt(period);
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    
+    // Get spotlight subscriptions
+    const spotlightCollection = db.collection('artisanspotlight');
+    const subscriptions = await spotlightCollection.find({
+      createdAt: { $gte: startDate }
+    }).toArray();
+    
+    // Calculate statistics
+    const stats = subscriptions.reduce((acc, sub) => {
+      return {
+        totalRevenue: acc.totalRevenue + (sub.cost || 0),
+        subscriptionCount: acc.subscriptionCount + 1,
+        activeSubscriptions: acc.activeSubscriptions + (sub.status === 'active' ? 1 : 0)
+      };
+    }, {
+      totalRevenue: 0,
+      subscriptionCount: 0,
+      activeSubscriptions: 0
+    });
+    
+    // Group by day for daily revenue
+    const dailyRevenue = {};
+    subscriptions.forEach(sub => {
+      const date = new Date(sub.createdAt).toISOString().split('T')[0];
+      if (!dailyRevenue[date]) {
+        dailyRevenue[date] = 0;
+      }
+      dailyRevenue[date] += sub.cost || 0;
+    });
+    
+    const dailyRevenueArray = Object.entries(dailyRevenue)
+      .map(([date, revenue]) => ({ date, revenue }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    
+    const averageSubscriptionValue = stats.subscriptionCount > 0
+      ? stats.totalRevenue / stats.subscriptionCount
+      : 0;
+    
+    res.json({
+      success: true,
+      data: {
+        period: days,
+        startDate,
+        endDate: now,
+        stats: {
+          totalRevenue: stats.totalRevenue,
+          activeSubscriptions: stats.activeSubscriptions,
+          averageSubscriptionValue: averageSubscriptionValue
+        },
+        dailyRevenue: dailyRevenueArray
+      }
+    });
+  } catch (error) {
+    console.error('Get spotlight revenue stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get spotlight revenue stats',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 router.get('/artisan/summary', getArtisanRevenueSummary);
 router.get('/transparency', getRevenueTransparency);
+router.get('/platform/summary', getPlatformRevenueSummary);
+router.get('/spotlight/stats', getSpotlightRevenueStats);
 
 module.exports = router;
 

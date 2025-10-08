@@ -46,12 +46,12 @@ export default function HowItWorks() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-stone-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white py-16">
+      <div className="bg-gradient-to-br from-stone-700 via-stone-800 to-stone-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4 font-display">
-            How Bazaar Works
+            How BazaarMkt Works
           </h1>
-          <p className="text-xl text-amber-50 max-w-3xl mx-auto">
+          <p className="text-xl text-stone-200 max-w-3xl mx-auto">
             Connecting local artisans with their communities. Simple, transparent, and designed to support local makers.
           </p>
         </div>

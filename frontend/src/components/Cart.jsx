@@ -1330,8 +1330,8 @@ const Cart = () => {
   const handlePaymentSuccess = async (orderData) => {
     console.log('Payment successful, order created:', orderData);
     
-    // Clear payment intent to prevent reuse
-    setPaymentIntent(null);
+    // Set checkout step to success immediately to prevent showing error page
+    setCheckoutStep('success');
       
     // Send order completion notification
     try {
@@ -1404,6 +1404,9 @@ const Cart = () => {
         isPickupOrder: Object.values(selectedDeliveryMethods)[0] === 'pickup'
       } 
     });
+    
+    // Clear payment intent after navigation to prevent reuse
+    setPaymentIntent(null);
   };
 
   // Handle payment error
@@ -1766,6 +1769,22 @@ const Cart = () => {
               </p>
                         </div>
                       </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Render success state (brief transition before navigation)
+  if (checkoutStep === 'success') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircleIcon className="w-12 h-12 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-stone-800 mb-2 font-display">Payment Successful!</h2>
+          <p className="text-stone-600 mb-4">Redirecting to order confirmation...</p>
+          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
     );

@@ -387,9 +387,10 @@ class WalletService extends BaseService {
       const platformFeeRate = (settings.platformFeePercentage || 10) / 100;
       const platformFee = totalRevenue * platformFeeRate;
       
-      // Calculate payment processing fee (Stripe fee)
+      // Calculate payment processing fee (Stripe fee: 2.9% + $0.30 CAD per transaction)
       const paymentProcessingFeeRate = (settings.paymentProcessingFee || 2.9) / 100;
-      const paymentProcessingFee = totalRevenue * paymentProcessingFeeRate;
+      const paymentProcessingFeeFixed = settings.paymentProcessingFeeFixed || 0.30; // Stripe's fixed fee per transaction in CAD
+      const paymentProcessingFee = (totalRevenue * paymentProcessingFeeRate) + paymentProcessingFeeFixed;
       
       // Calculate net earnings for artisan
       const netEarnings = totalRevenue - platformFee - paymentProcessingFee;

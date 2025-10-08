@@ -722,7 +722,7 @@ const changePassword = async (req, res) => {
   }
 };
 
-// Get payment methods
+// Get payment methods (synced from Stripe)
 const getPaymentMethods = async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -742,11 +742,7 @@ const getPaymentMethods = async (req, res) => {
     
     const user = await usersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(decoded.userId) 
-    }, {
-      projection: { paymentMethods: 1 }
     });
-    
-    // Connection managed by middleware - no close needed
     
     if (!user) {
       return res.status(404).json({
@@ -755,9 +751,56 @@ const getPaymentMethods = async (req, res) => {
       });
     }
     
+    // Sync payment methods from Stripe if user has a customer ID
+    let syncedPaymentMethods = user.paymentMethods || [];
+    
+    if (user.stripeCustomerId) {
+      try {
+        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        
+        // Fetch payment methods from Stripe
+        const stripePaymentMethods = await stripe.paymentMethods.list({
+          customer: user.stripeCustomerId,
+          type: 'card'
+        });
+        
+        console.log(`💳 Found ${stripePaymentMethods.data.length} payment methods in Stripe for customer ${user.stripeCustomerId}`);
+        
+        // Convert Stripe payment methods to our format
+        syncedPaymentMethods = stripePaymentMethods.data.map((pm, index) => ({
+          stripePaymentMethodId: pm.id,
+          brand: pm.card.brand,
+          last4: pm.card.last4,
+          expiryMonth: pm.card.exp_month,
+          expiryYear: pm.card.exp_year,
+          cardholderName: pm.billing_details?.name || 'Cardholder',
+          isDefault: index === 0, // First card is default
+          type: 'credit_card',
+          createdAt: new Date(pm.created * 1000)
+        }));
+        
+        // Update MongoDB with synced payment methods
+        await usersCollection.updateOne(
+          { _id: new ObjectId(decoded.userId) },
+          { 
+            $set: { 
+              paymentMethods: syncedPaymentMethods,
+              updatedAt: new Date()
+            }
+          }
+        );
+        
+        console.log(`✅ Synced ${syncedPaymentMethods.length} payment methods to user profile`);
+      } catch (stripeError) {
+        console.error('❌ Error syncing payment methods from Stripe:', stripeError);
+        // Fall back to MongoDB data if Stripe sync fails
+        syncedPaymentMethods = user.paymentMethods || [];
+      }
+    }
+    
     res.json({
       success: true,
-      data: user.paymentMethods || []
+      data: syncedPaymentMethods
     });
   } catch (error) {
     console.error('Get payment methods error:', error);

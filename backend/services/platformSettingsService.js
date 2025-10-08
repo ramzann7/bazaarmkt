@@ -39,11 +39,14 @@ class PlatformSettingsService {
    */
   async updatePlatformSettings(updates) {
     try {
+      // Remove _id and other MongoDB internal fields from updates
+      const { _id, __v, createdAt, ...cleanUpdates } = updates;
+      
       const result = await this.settingsCollection.updateOne(
         {},
         { 
           $set: { 
-            ...updates,
+            ...cleanUpdates,
             updatedAt: new Date()
           }
         },
@@ -86,11 +89,19 @@ class PlatformSettingsService {
       // Use existing platformFeePercentage field from the collection
       const feeRate = (settings.platformFeePercentage || 10) / 100; // Convert percentage to decimal
       const platformFee = amount * feeRate;
-      const artisanAmount = amount - platformFee;
+      
+      // Calculate Stripe payment processing fee: 2.9% + $0.30 per transaction
+      const stripeFeeRate = (settings.paymentProcessingFee || 2.9) / 100;
+      const stripeFeeFixed = settings.paymentProcessingFeeFixed || 0.30;
+      const stripeFee = (amount * stripeFeeRate) + stripeFeeFixed;
+      
+      // Calculate artisan amount (total - platform fee - stripe fee)
+      const artisanAmount = amount - platformFee - stripeFee;
 
       return {
         totalAmount: amount,
         platformFee: Math.round(platformFee * 100) / 100, // Round to 2 decimal places
+        stripeFee: Math.round(stripeFee * 100) / 100,
         artisanAmount: Math.round(artisanAmount * 100) / 100,
         feeRate: feeRate,
         feeType: 'percentage',
@@ -98,12 +109,14 @@ class PlatformSettingsService {
       };
     } catch (error) {
       console.error('Error calculating platform fee:', error);
-      // Fallback to simple 10% calculation
+      // Fallback to simple calculation
       const platformFee = amount * 0.10;
+      const stripeFee = (amount * 0.029) + 0.30;
       return {
         totalAmount: amount,
         platformFee: Math.round(platformFee * 100) / 100,
-        artisanAmount: Math.round((amount - platformFee) * 100) / 100,
+        stripeFee: Math.round(stripeFee * 100) / 100,
+        artisanAmount: Math.round((amount - platformFee - stripeFee) * 100) / 100,
         feeRate: 0.10,
         feeType: 'percentage',
         feeCategory: feeType
@@ -161,7 +174,8 @@ class PlatformSettingsService {
     return {
       platformFeePercentage: 10, // 10% platform fee
       currency: 'CAD',
-      paymentProcessingFee: 2.9,
+      paymentProcessingFee: 2.9, // Stripe percentage fee
+      paymentProcessingFeeFixed: 0.30, // Stripe fixed fee per transaction (CAD)
       minimumOrderAmount: 5,
       autoCaptureHours: 48, // Auto-capture after 48 hours
       payoutSettings: {
@@ -171,13 +185,18 @@ class PlatformSettingsService {
       },
       platformInfo: {
         name: 'bazaarMKT',
-        supportEmail: 'support@thebazaar.com'
+        supportEmail: 'support@thebazaar.com',
+        description: 'Connecting local artisans with customers',
+        currency: 'CAD',
+        timezone: 'America/Toronto'
       },
       features: {
         promotionalFeatures: true,
         spotlights: true,
         wallet: true,
-        reviews: true
+        reviews: true,
+        guestCheckout: true,
+        communityPosts: true
       },
       createdAt: new Date(),
       updatedAt: new Date()

@@ -29,6 +29,11 @@ const processScheduledPayouts = async () => {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
+    // Get platform settings for minimum payout amount
+    const platformSettingsCollection = database.collection('platformsettings');
+    const platformSettings = await platformSettingsCollection.findOne({});
+    const minimumPayoutAmount = platformSettings?.payoutSettings?.minimumPayoutAmount || 25;
+    
     // Find wallets with payouts due today
     const walletsDueForPayout = await walletsCollection.find({
       'payoutSettings.enabled': true,
@@ -36,7 +41,7 @@ const processScheduledPayouts = async () => {
         $lte: today
       },
       balance: {
-        $gte: 50 // Minimum payout amount
+        $gte: minimumPayoutAmount // Use platform settings minimum payout amount
       }
     }).toArray();
     
@@ -56,9 +61,9 @@ const processScheduledPayouts = async () => {
           continue;
         }
         
-        // Check if payout amount meets minimum
+        // Check if payout amount meets minimum (use wallet settings or platform settings)
         const payoutAmount = wallet.balance;
-        const minimumPayout = wallet.payoutSettings.minimumPayout;
+        const minimumPayout = wallet.payoutSettings.minimumPayout || minimumPayoutAmount;
         
         if (payoutAmount < minimumPayout) {
           console.log(`⏭️ Skipping wallet ${wallet._id} - balance ${payoutAmount} below minimum ${minimumPayout}`);

@@ -27,36 +27,48 @@ const sendNotificationDirect = async (notificationData, db) => {
     await sendNotification(mockReq, mockRes);
     
         // Send email notification if user has email and it's an order status update
-        // For patrons, only send emails for specific statuses: confirmation, declined, out_for_delivery
-        const patronEmailStatuses = ['confirmed', 'declined', 'out_for_delivery'];
+        // For patrons, send emails for: order placement (pending), confirmation (confirmed), declined, delivery updates
+        // Note: These are ORDER STATUSES, not notification types
+        const patronEmailStatuses = ['pending', 'confirmed', 'declined', 'out_for_delivery', 'ready_for_pickup', 'ready_for_delivery', 'delivered', 'picked_up', 'completed'];
+        // These are NOTIFICATION TYPES
+        const patronEmailTypes = ['order_placed', 'order_completion', 'order_confirmed', 'order_declined', 'order_ready', 'order_completed', 'order_ready_for_pickup', 'order_ready_for_delivery', 'order_out_for_delivery'];
+        
         const isPatronEmailAllowed = notificationData.userInfo?.isGuest || 
                                    !notificationData.userId || 
-                                   patronEmailStatuses.includes(notificationData.status);
+                                   patronEmailStatuses.includes(notificationData.status) ||
+                                   patronEmailTypes.includes(notificationData.type);
         
         // Log email filtering for patrons
         console.log('📧 Email notification check:', {
           hasUserEmail: !!notificationData.userEmail,
           hasType: !!notificationData.type,
+          type: notificationData.type,
+          status: notificationData.status,
           typeIncludesOrder: notificationData.type?.includes('order'),
           isPatronEmailAllowed: isPatronEmailAllowed,
-          status: notificationData.status,
           userEmail: notificationData.userEmail
         });
         
         if (notificationData.userEmail && notificationData.userId && !notificationData.userInfo?.isGuest) {
           if (!isPatronEmailAllowed) {
-            console.log(`📧 Patron email filtered out for status: ${notificationData.status} (only emails sent for: ${patronEmailStatuses.join(', ')})`);
+            console.log(`📧 Patron email filtered out - type: ${notificationData.type}, status: ${notificationData.status} (allowed statuses: ${patronEmailStatuses.join(', ')}, allowed types: ${patronEmailTypes.join(', ')})`);
           } else {
-            console.log(`📧 Patron email allowed for status: ${notificationData.status}`);
+            console.log(`📧 Patron email allowed - type: ${notificationData.type}, status: ${notificationData.status}`);
           }
         }
         
-        if (notificationData.userEmail && notificationData.type && notificationData.type.includes('order') && isPatronEmailAllowed) {
+        // Also allow artisan notification types
+        const artisanEmailTypes = ['new_order_pending', 'order_confirmation_sent', 'order_status_update'];
+        const isArtisanEmail = artisanEmailTypes.includes(notificationData.type);
+        
+        if (notificationData.userEmail && notificationData.type && (isPatronEmailAllowed || isArtisanEmail)) {
           console.log('📧 Sending email notification for status update:', {
             to: notificationData.userEmail,
             status: notificationData.status,
             type: notificationData.type,
-            orderNumber: notificationData.orderNumber
+            orderNumber: notificationData.orderNumber,
+            isPatronEmail: isPatronEmailAllowed,
+            isArtisanEmail: isArtisanEmail
           });
           
           try {
@@ -250,6 +262,21 @@ const createPaymentIntent = async (req, res) => {
 
     const finalAmount = totalAmount + deliveryFee;
 
+    // Validate minimum order amount from platform settings
+    const PlatformSettingsService = require('../../services/platformSettingsService');
+    const platformSettingsService = new PlatformSettingsService(db);
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    const minimumOrderAmount = platformSettings.minimumOrderAmount || 5;
+    
+    if (finalAmount < minimumOrderAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Order total ($${finalAmount.toFixed(2)}) is below minimum order amount ($${minimumOrderAmount.toFixed(2)})`,
+        minimumRequired: minimumOrderAmount,
+        currentAmount: finalAmount
+      });
+    }
+
     // Create Stripe PaymentIntent with authorization (not immediate capture)
     // Get or create Stripe customer for the user
     let stripeCustomerId = null;
@@ -349,6 +376,7 @@ const createPaymentIntent = async (req, res) => {
       currency: 'cad',
       capture_method: 'manual', // Authorize now, capture later
       customer: stripeCustomerId, // Attach to Stripe customer for saved card support
+      setup_future_usage: 'off_session', // Save payment method for future use
       metadata: {
         userId: decoded.userId.toString(),
         orderType: 'regular_order',
@@ -786,6 +814,40 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
     try {
       const axios = require('axios');
       
+      // Fetch user data for authenticated users to get email for notifications
+      let customerUserInfo = {
+        id: userId,
+        isGuest: order.isGuestOrder,
+        email: order.isGuestOrder ? order.guestInfo?.email : null,
+        firstName: order.isGuestOrder ? order.guestInfo?.firstName : null,
+        lastName: order.isGuestOrder ? order.guestInfo?.lastName : null,
+        phone: order.isGuestOrder ? order.guestInfo?.phone : null
+      };
+      
+      // For authenticated users, fetch their email from database
+      if (userId && !order.isGuestOrder) {
+        try {
+          const usersCollection = db.collection('users');
+          const user = await usersCollection.findOne({ 
+            _id: new (require('mongodb')).ObjectId(userId) 
+          });
+          
+          if (user) {
+            customerUserInfo = {
+              id: userId,
+              isGuest: false,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              phone: user.phone
+            };
+            console.log(`✅ Retrieved user email for notifications: ${user.email}`);
+          }
+        } catch (userFetchError) {
+          console.error('❌ Error fetching user for notification:', userFetchError);
+        }
+      }
+      
       // Send notification to customer about order placement
       const customerNotificationData = {
         type: 'order_placed',
@@ -808,14 +870,8 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           guestInfo: order.guestInfo,
           createdAt: order.createdAt
         },
-        userInfo: {
-          id: userId,
-          isGuest: order.isGuestOrder,
-          email: order.isGuestOrder ? order.guestInfo?.email : null,
-          firstName: order.isGuestOrder ? order.guestInfo?.firstName : null,
-          lastName: order.isGuestOrder ? order.guestInfo?.lastName : null,
-          phone: order.isGuestOrder ? order.guestInfo?.phone : null
-        },
+        userInfo: customerUserInfo,
+        userEmail: customerUserInfo.email, // Explicitly set userEmail for backend notification service
         timestamp: new Date().toISOString()
       };
 
@@ -824,9 +880,42 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
 
       // Send notification to artisan about new pending order
       if (order.artisan) {
+        // Fetch artisan user email
+        let artisanUserInfo = {
+          id: order.artisan,
+          isGuest: false,
+          email: null,
+          firstName: null,
+          lastName: null,
+          phone: null
+        };
+        
+        try {
+          const artisansCollection = db.collection('artisans');
+          const usersCollection = db.collection('users');
+          
+          const artisan = await artisansCollection.findOne({ _id: order.artisan });
+          if (artisan && artisan.user) {
+            const artisanUser = await usersCollection.findOne({ _id: artisan.user });
+            if (artisanUser) {
+              artisanUserInfo = {
+                id: artisan.user,
+                isGuest: false,
+                email: artisanUser.email,
+                firstName: artisanUser.firstName,
+                lastName: artisanUser.lastName,
+                phone: artisanUser.phone
+              };
+              console.log(`✅ Retrieved artisan email for notifications: ${artisanUser.email}`);
+            }
+          }
+        } catch (artisanFetchError) {
+          console.error('❌ Error fetching artisan user for notification:', artisanFetchError);
+        }
+        
         const artisanNotificationData = {
           type: 'new_order_pending',
-          userId: order.artisan,
+          userId: artisanUserInfo.id,
           orderId: result.insertedId,
           orderData: {
             _id: result.insertedId,
@@ -845,14 +934,8 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
             guestInfo: order.guestInfo,
             createdAt: order.createdAt
           },
-          userInfo: {
-            id: userId,
-            isGuest: order.isGuestOrder,
-            email: order.isGuestOrder ? order.guestInfo?.email : null,
-            firstName: order.isGuestOrder ? order.guestInfo?.firstName : null,
-            lastName: order.isGuestOrder ? order.guestInfo?.lastName : null,
-            phone: order.isGuestOrder ? order.guestInfo?.phone : null
-          },
+          userInfo: artisanUserInfo,
+          userEmail: artisanUserInfo.email, // Explicitly set userEmail for backend notification service
           timestamp: new Date().toISOString()
         };
 
@@ -1630,22 +1713,23 @@ const updateOrderStatus = async (req, res) => {
         notificationType = 'order_completed';
       }
       
-      // Get user information for notifications
+      // Get patron user information for notifications
       const usersCollection = db.collection('users');
-      let userInfo = null;
+      let patronUserInfo = null;
       
       if (updatedOrder.userId && !updatedOrder.isGuestOrder) {
-        userInfo = await usersCollection.findOne({ _id: updatedOrder.userId });
+        patronUserInfo = await usersCollection.findOne({ _id: updatedOrder.userId });
       }
       
-      const notificationData = {
+      // Send notification to patron (customer)
+      const patronNotificationData = {
         type: notificationType,
         userId: updatedOrder.userId,
         orderId: updatedOrder._id,
         orderData: updatedOrder,
-        userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (userInfo?.email || null),
+        userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUserInfo?.email || null),
         orderNumber: updatedOrder._id.toString().slice(-8),
-        status: finalStatus, // Use the final status (completed for auto-completed guest orders)
+        status: finalStatus,
         updateType: finalStatus === 'declined' ? 'order_declined' : 'status_change',
         updateDetails: {
           newStatus: finalStatus,
@@ -1657,16 +1741,18 @@ const updateOrderStatus = async (req, res) => {
         userInfo: {
           id: updatedOrder.userId,
           isGuest: updatedOrder.isGuestOrder || false,
-          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (userInfo?.email || null),
-          firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (userInfo?.firstName || null),
-          lastName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.lastName : (userInfo?.lastName || null)
+          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUserInfo?.email || null),
+          firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUserInfo?.firstName || null),
+          lastName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.lastName : (patronUserInfo?.lastName || null)
         },
         timestamp: new Date().toISOString()
       };
 
-      // Send notification directly using the notification service
-      await sendNotificationDirect(notificationData, db);
-      console.log(`✅ Order ${finalStatus} notification sent for order ${updatedOrder._id}`);
+      await sendNotificationDirect(patronNotificationData, db);
+      console.log(`✅ Patron notification sent for order ${finalStatus}: ${updatedOrder._id}`);
+      
+      // Note: Artisan does NOT receive email when they update order status
+      // Artisan only receives email when a NEW order is placed (type: 'new_order_pending')
     } catch (notificationError) {
       console.error('❌ Error sending order status update notification:', notificationError);
       // Don't fail the status update if notification fails

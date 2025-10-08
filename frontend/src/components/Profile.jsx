@@ -93,6 +93,13 @@ export default function Profile() {
     { id: 'security', name: 'Security', icon: ShieldCheckIcon }
   ];
 
+  const adminTabs = [
+    { id: 'personal', name: 'Personal Info', icon: UserIcon },
+    { id: 'notifications', name: 'Notifications', icon: BellIcon },
+    { id: 'security', name: 'Security', icon: ShieldCheckIcon },
+    { id: 'settings', name: 'Admin Settings', icon: CogIcon }
+  ];
+
   const setupTabs = [
     { id: 'setup', name: 'Setup Profile', icon: UserIcon },
     { id: 'personal', name: 'Personal Info', icon: UserIcon },
@@ -264,8 +271,18 @@ export default function Profile() {
       const userRole = profile.userType || profile.role;
       const isPatron = userRole === 'patron' || userRole === 'customer' || userRole === 'buyer';
       const isArtisanUser = userRole === 'artisan';
+      const isAdminUser = userRole === 'admin';
       
-      if (isPatron) {
+      if (isAdminUser) {
+        // Admin users get simplified tabs focused on admin functions
+        setTabs(adminTabs);
+        setIsArtisan(false);
+        // Set default tab to personal for admins
+        if (activeTab === 'setup' || !activeTab) {
+          setActiveTab('personal');
+        }
+        setNeedsSetup(false); // Admins don't need profile setup
+      } else if (isPatron) {
         setTabs(patronTabs);
         setIsArtisan(false);
         // Set default tab to personal for patrons if coming from setup or no tab set
@@ -288,8 +305,8 @@ export default function Profile() {
       // Check if setup is needed based on user role and completion status
       if (userRole === 'setup') {
         setNeedsSetup(true);
-      } else {
-        // Check if profile is complete for patrons
+      } else if (!isAdminUser) {
+        // Check if profile is complete for non-admin users
         const isProfileComplete = isPatron 
           ? (profile.firstName && profile.lastName && profile.phone && profile.addresses?.length > 0)
           : (profile.firstName && profile.lastName && profile.phone); // For artisans, just check basic info here

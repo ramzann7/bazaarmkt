@@ -28,7 +28,7 @@ export default function AdminSettings() {
 
   // Settings state
   const [platformSettings, setPlatformSettings] = useState({
-    siteName: 'Bazaar',
+    siteName: 'BazaarMkt',
     siteDescription: 'Connecting local artisans with customers',
     maintenanceMode: false,
     registrationEnabled: true,
@@ -87,7 +87,11 @@ export default function AdminSettings() {
       }
 
       const profile = await getProfile();
-      if (profile.role !== 'admin') {
+      
+      // Check both role and userType fields for admin access
+      const isAdmin = profile.role === 'admin' || profile.userType === 'admin';
+      
+      if (!isAdmin) {
         toast.error('Access denied. Admin privileges required.');
         navigate('/');
         return;

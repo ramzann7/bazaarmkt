@@ -30,6 +30,8 @@ import ProductTypeBadge from './ProductTypeBadge';
 import ProductCard from './ProductCard';
 import AddToCart from './AddToCart';
 import InventoryModel from '../models/InventoryModel';
+import LocationPrompt from './LocationPrompt';
+import { locationService } from '../services/locationService';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
@@ -54,6 +56,9 @@ export default function SearchResults() {
   const [showCartPopup, setShowCartPopup] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
+  // Location prompt state
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+
   // Helper function to filter out out-of-stock products
   const filterInStockProducts = (products) => {
     return products.filter(product => {
@@ -67,6 +72,9 @@ export default function SearchResults() {
   const categoryParam = searchParams.get('category') || '';
   const subcategoryParam = searchParams.get('subcategory') || '';
   const autoSearch = searchParams.get('autoSearch') === 'true';
+  const nearbySearch = searchParams.get('nearby') === 'true';
+  const urlLat = searchParams.get('lat');
+  const urlLng = searchParams.get('lng');
 
   const categories = [
     { id: 'Bakery', name: 'Bakery', icon: '🥖' },
@@ -317,40 +325,110 @@ export default function SearchResults() {
 
   const getCurrentLocation = async () => {
     try {
-      // First, try to get user coordinates from profile
+      console.log('🌍 Getting current location for search...');
+      
+      // 1. Check if we have location from URL parameters (highest priority)
+      if (urlLat && urlLng) {
+        const lat = parseFloat(urlLat);
+        const lng = parseFloat(urlLng);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          console.log('✅ Using URL location parameters:', { lat, lng });
+          const locationData = { lat, lng };
+          setUserLocation(locationData);
+          
+          // Save to locationService for future use
+          locationService.updateLocationFromGPS(lat, lng);
+          return;
+        }
+      }
+      
+      // 2. Check locationService cache (most reliable)
+      const cachedLocation = locationService.getUserLocation();
+      if (cachedLocation && cachedLocation.lat && cachedLocation.lng) {
+        console.log('✅ Using cached location from locationService:', cachedLocation);
+        setUserLocation({
+          lat: cachedLocation.lat,
+          lng: cachedLocation.lng
+        });
+        return;
+      }
+      
+      // 3. Try to get user coordinates from profile
       try {
         const userCoords = await geocodingService.getUserCoordinates();
-        if (userCoords) {
-          setUserLocation({
+        if (userCoords && userCoords.latitude && userCoords.longitude) {
+          console.log('✅ Using user profile coordinates:', userCoords);
+          const locationData = {
             lat: userCoords.latitude,
             lng: userCoords.longitude
+          };
+          setUserLocation(locationData);
+          
+          // Cache it for future use
+          locationService.saveUserLocation({
+            lat: userCoords.latitude,
+            lng: userCoords.longitude,
+            address: 'Profile location',
+            confidence: 100
           });
           return;
         }
       } catch (error) {
-        // User coordinates not available from profile
+        console.log('⚠️ User profile coordinates not available:', error);
       }
 
-      // Fallback to browser geolocation
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setUserLocation({
+      // 4. Try browser geolocation (with timeout to avoid hanging)
+      if (navigator.geolocation && !nearbySearch) {
+        try {
+          const position = await Promise.race([
+            new Promise((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 300000 // 5 minutes
+              });
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Geolocation timeout')), 6000)
+            )
+          ]);
+          
+          if (position && position.coords) {
+            console.log('✅ Using browser geolocation:', position.coords);
+            const locationData = {
               lat: position.coords.latitude,
               lng: position.coords.longitude
-            });
-          },
-          (error) => {
-            // Set default location (can be updated later)
-            setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-          },
-          { timeout: 10000, enableHighAccuracy: true }
-        );
-      } else {
-        setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
+            };
+            setUserLocation(locationData);
+            
+            // Cache it for future use
+            locationService.updateLocationFromGPS(
+              position.coords.latitude,
+              position.coords.longitude
+            );
+            return;
+          }
+        } catch (error) {
+          console.log('⚠️ Browser geolocation failed or timed out:', error.message);
+        }
       }
+      
+      // 5. If nearbySearch is true and we still don't have a location, show prompt
+      if (nearbySearch && !userLocation) {
+        console.log('📍 No location available for nearby search, showing location prompt');
+        setShowLocationPrompt(true);
+        return;
+      }
+      
+      // 6. Fall back to default location (Toronto)
+      console.log('📍 Using default location (Toronto)');
+      setUserLocation({ lat: 43.6532, lng: -79.3832 });
+      
     } catch (error) {
-      setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
+      console.error('❌ Error getting location:', error);
+      // Set default location on error
+      setUserLocation({ lat: 43.6532, lng: -79.3832 });
     }
   };
 
@@ -403,6 +481,32 @@ export default function SearchResults() {
     setShowCartPopup(false);
     setSelectedProduct(null);
     setQuantity(1);
+  };
+
+  // LocationPrompt handlers
+  const handleLocationSet = (locationData) => {
+    console.log('✅ Location set from prompt:', locationData);
+    setUserLocation({
+      lat: locationData.lat,
+      lng: locationData.lng
+    });
+    setShowLocationPrompt(false);
+    
+    // Trigger search with new location
+    if (nearbySearch) {
+      performSearch();
+    }
+  };
+
+  const handleLocationDismiss = () => {
+    console.log('⚠️ Location prompt dismissed');
+    setShowLocationPrompt(false);
+    
+    // If this was a nearby search, redirect to regular search or home
+    if (nearbySearch) {
+      toast.error('Location is required for nearby search');
+      navigate('/');
+    }
   };
 
 
@@ -666,6 +770,14 @@ export default function SearchResults() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Location Prompt Modal */}
+      {showLocationPrompt && (
+        <LocationPrompt
+          onLocationSet={handleLocationSet}
+          onDismiss={handleLocationDismiss}
+        />
       )}
     </div>
   );

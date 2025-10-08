@@ -1140,7 +1140,7 @@ const DeliveryInformation = ({
                             <InformationCircleIcon className="w-4 h-4 text-blue-600" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="font-semibold text-blue-800 mb-2">New to Bazaar?</h4>
+                            <h4 className="font-semibold text-blue-800 mb-2">New to BazaarMkt?</h4>
                             <p className="text-sm text-blue-700 mb-3">
                               Create an account to save your information, track orders, and enjoy a faster checkout experience.
                             </p>

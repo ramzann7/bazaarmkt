@@ -158,72 +158,48 @@ const StripeOrderPayment = ({
         // Clear any error state immediately on success
         setPaymentError(null);
         
-        // Save card for future use if requested (for authenticated users only)
-        if (saveCardForFuture && !isGuest && paymentIntent.payment_method) {
-          try {
-            // Handle both string and object payment_method formats from Stripe
-            const stripePaymentMethodId = typeof paymentIntent.payment_method === 'string' 
-              ? paymentIntent.payment_method 
-              : paymentIntent.payment_method.id;
-            
-            const paymentMethodData = {
-              stripePaymentMethodId,
-              brand: paymentIntent.payment_method_details?.card?.brand || 'card',
-              last4: paymentIntent.payment_method_details?.card?.last4 || '****',
-              expiryMonth: paymentIntent.payment_method_details?.card?.exp_month || 12,
-              expiryYear: paymentIntent.payment_method_details?.card?.exp_year || 2025,
-              cardholderName: paymentIntent.payment_method_details?.card?.name || 'Cardholder',
-              isDefault: savedPaymentMethods.length === 0, // First card is default
-              type: 'credit_card'
-            };
-            
-            await orderPaymentService.savePaymentMethod(paymentMethodData);
-            
-            // Update the profile cache to include the new payment method
-            try {
-              const { updateProfileCache } = await import('../services/profileService');
-              // Get current profile and add the new payment method
-              const { getProfile } = await import('../services/authservice');
-              const currentProfile = await getProfile(true); // Force refresh
-              updateProfileCache(currentProfile);
-            } catch (cacheError) {
-              console.warn('Could not update profile cache:', cacheError);
-            }
-            
-            toast.success('Card saved for future use!');
-          } catch (saveError) {
-            console.error('❌ Error saving card:', saveError);
-            console.error('❌ Save error details:', saveError.response?.data);
-            
-            // Handle specific error for payment methods that can't be reused
-            if (saveError.response?.data?.error === 'PAYMENT_METHOD_NOT_REUSABLE') {
-              toast.error('This card cannot be saved for future use. Your payment was successful, but you\'ll need to enter card details for future orders.', {
-                duration: 6000
-              });
-            } else {
-              toast.error('Failed to save card for future use, but payment was successful');
-            }
-            // Don't fail the payment if saving fails
-          }
-        }
-
-        // For requires_capture status, proceed with order creation
-        // The backend will handle capturing the payment when creating the order
-
-        // Confirm payment and create order
+        // Confirm payment and create order FIRST (critical path)
         const result = await orderPaymentService.confirmPaymentAndCreateOrder(
           paymentIntent.id,
           orderData
         );
 
-        if (result.success) {
-          // Clear any error state before showing success
-          setPaymentError(null);
-          // Note: Toast notification handled by Cart.jsx → orderNotificationService.triggerOrderCreatedNotification
-          onPaymentSuccess?.(result.data);
-        } else {
+        if (!result.success) {
           throw new Error(result.message || 'Failed to create order');
         }
+        
+        // Order creation succeeded! Now handle non-critical operations
+        
+        // Note: With setup_future_usage='off_session' in the PaymentIntent,
+        // Stripe automatically saves the payment method to the customer.
+        // We'll refresh profile in the background to sync payment methods.
+        if (saveCardForFuture && !isGuest) {
+          // Don't await - run in background so it doesn't block success flow
+          (async () => {
+            try {
+              // Give Stripe a moment to process the attachment
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              // Refresh profile to get the newly saved payment method from Stripe
+              const { getProfile } = await import('../services/authservice');
+              const { updateProfileCache } = await import('../services/profileService');
+              
+              const currentProfile = await getProfile(true); // Force refresh
+              updateProfileCache(currentProfile);
+              
+              console.log('✅ Payment method automatically saved by Stripe via setup_future_usage');
+              toast.success('Card saved for future use!');
+            } catch (refreshError) {
+              console.warn('⚠️ Could not refresh profile after payment:', refreshError);
+              // Silent failure - payment and order creation already succeeded
+            }
+          })();
+        }
+
+        // Clear any error state before showing success
+        setPaymentError(null);
+        // Call success handler
+        onPaymentSuccess?.(result.data);
       } else {
         // Handle other payment intent statuses
         if (paymentIntent.status === 'processing') {
@@ -237,8 +213,16 @@ const StripeOrderPayment = ({
       }
     } catch (error) {
       console.error('Payment processing error:', error);
-      setPaymentError(error.message || 'Payment failed');
-      onPaymentError?.(error);
+      
+      // Only show error UI if this is an actual payment/order failure
+      // Don't show errors for background operations that failed
+      if (error.message && !error.message.includes('profile') && !error.message.includes('cache')) {
+        setPaymentError(error.message || 'Payment failed');
+        onPaymentError?.(error);
+      } else {
+        // Background operation failed but payment succeeded - log only
+        console.warn('Non-critical error after successful payment:', error);
+      }
     } finally {
       setIsProcessing(false);
       // Only reset hasSubmitted for non-critical errors

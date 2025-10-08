@@ -475,4 +475,116 @@ router.get('/artisans/bulk', async (req, res) => {
   }
 });
 
+// Update promotional pricing (admin only)
+router.put('/admin/pricing', async (req, res) => {
+  try {
+    const { db } = req;
+    const pricingData = req.body;
+    
+    // Get or create pricing document
+    const pricingCollection = db.collection('promotional_pricing');
+    
+    const result = await pricingCollection.updateOne(
+      { _id: 'default' },
+      { 
+        $set: { 
+          ...pricingData,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Promotional pricing updated successfully',
+      data: pricingData
+    });
+  } catch (error) {
+    console.error('Update promotional pricing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update promotional pricing',
+      error: error.message
+    });
+  }
+});
+
+// Initialize default promotional pricing (admin only)
+router.post('/admin/pricing/initialize', async (req, res) => {
+  try {
+    const { db } = req;
+    const pricingCollection = db.collection('promotional_pricing');
+    
+    // Check if pricing already exists
+    const existing = await pricingCollection.findOne({ _id: 'default' });
+    
+    if (existing) {
+      return res.json({
+        success: true,
+        message: 'Pricing already initialized',
+        data: existing
+      });
+    }
+    
+    // Create default pricing
+    const defaultPricing = {
+      _id: 'default',
+      featured_product: {
+        pricePerDay: 5,
+        currency: 'CAD',
+        description: 'Featured on homepage with distance-based ranking',
+        benefits: [
+          'Homepage visibility',
+          'Distance-based ranking',
+          'Priority placement'
+        ],
+        isActive: true
+      },
+      sponsored_product: {
+        pricePerDay: 10,
+        currency: 'CAD',
+        description: 'Sponsored placement with guaranteed visibility',
+        benefits: [
+          'Guaranteed visibility',
+          'Top placement priority',
+          'Enhanced product display'
+        ],
+        isActive: true
+      },
+      spotlight_artisan: {
+        pricePerDay: 25,
+        currency: 'CAD',
+        description: 'Spotlight your entire artisan profile',
+        benefits: [
+          'Profile spotlight',
+          'Featured artisan badge',
+          'Priority in search results'
+        ],
+        isActive: true
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    await pricingCollection.insertOne(defaultPricing);
+    
+    res.json({
+      success: true,
+      message: 'Default pricing initialized successfully',
+      data: defaultPricing
+    });
+  } catch (error) {
+    console.error('Initialize promotional pricing error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to initialize promotional pricing',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

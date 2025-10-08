@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
+const { verifyJWT, verifyAdminRole } = require('../../middleware/auth');
+const { logAdminAction, getRecentActivity } = require('../../utils/adminAuditLogger');
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS
@@ -526,12 +528,20 @@ const getAdminStats = async (req, res) => {
     // Check if user is admin (you might want to add admin role check)
     const db = req.db; // Use shared connection
 
-    const [usersCount, artisansCount, productsCount, ordersCount] = await Promise.all([
+    // Active order statuses = all orders EXCEPT cancelled, completed, and declined
+    // This matches the Orders.jsx component logic (line 143-146)
+    const inactiveStatuses = ['cancelled', 'completed', 'declined'];
+
+    const [usersCount, artisansCount, productsCount, totalOrdersCount, activeOrdersCount] = await Promise.all([
       db.collection('users').countDocuments(),
       db.collection('artisans').countDocuments(),
       db.collection('products').countDocuments({ status: 'active' }),
-      db.collection('orders').countDocuments()
+      db.collection('orders').countDocuments(),
+      db.collection('orders').countDocuments({ status: { $nin: inactiveStatuses } })
     ]);
+
+    // Get recent admin activity (last 20 actions)
+    const recentActivity = await getRecentActivity(db, 20);
 
     // Connection managed by middleware
 
@@ -541,7 +551,9 @@ const getAdminStats = async (req, res) => {
         totalUsers: usersCount,
         totalArtisans: artisansCount,
         totalProducts: productsCount,
-        totalOrders: ordersCount
+        totalOrders: totalOrdersCount,
+        activeOrders: activeOrdersCount,
+        recentActivity: recentActivity
       }
     });
   } catch (error) {
@@ -655,6 +667,16 @@ const updateProductStatus = async (req, res) => {
       });
     }
 
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'update',
+      resource: 'product',
+      resourceId: id,
+      description: `${isActive ? 'Activated' : 'Deactivated'} product`,
+      details: `Product status changed to ${isActive ? 'active' : 'inactive'}`
+    });
+
     res.json({
       success: true,
       message: `Product ${isActive ? 'activated' : 'deactivated'} successfully`
@@ -711,6 +733,16 @@ const setFeaturedProduct = async (req, res) => {
       });
     }
 
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'update',
+      resource: 'product',
+      resourceId: id,
+      description: `${isFeatured ? 'Featured' : 'Unfeatured'} product`,
+      details: `Product featured status changed to ${isFeatured}`
+    });
+
     res.json({
       success: true,
       message: `Product ${isFeatured ? 'featured' : 'unfeatured'} successfully`
@@ -750,6 +782,16 @@ const deleteAdminProduct = async (req, res) => {
         message: 'Product not found'
       });
     }
+
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'delete',
+      resource: 'product',
+      resourceId: id,
+      description: `Deleted product`,
+      details: `Product permanently removed from database`
+    });
 
     res.json({
       success: true,
@@ -865,6 +907,16 @@ const updateArtisanStatus = async (req, res) => {
       });
     }
 
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'update',
+      resource: 'artisan',
+      resourceId: id,
+      description: `${isActive ? 'Activated' : 'Deactivated'} artisan profile`,
+      details: `Artisan status changed to ${isActive ? 'active' : 'inactive'}`
+    });
+
     res.json({
       success: true,
       message: `Artisan ${isActive ? 'activated' : 'deactivated'} successfully`
@@ -921,6 +973,16 @@ const updateArtisanVerification = async (req, res) => {
         message: 'Artisan not found'
       });
     }
+
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'update',
+      resource: 'artisan',
+      resourceId: id,
+      description: `${isVerified ? 'Verified' : 'Unverified'} artisan`,
+      details: `Artisan verification status changed to ${isVerified ? 'verified' : 'unverified'}${isVerified ? ' at ' + new Date().toISOString() : ''}`
+    });
 
     res.json({
       success: true,
@@ -1013,6 +1075,16 @@ const updateUserStatus = async (req, res) => {
       });
     }
 
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'update',
+      resource: 'user',
+      resourceId: id,
+      description: `${isActive ? 'Activated' : 'Deactivated'} user account`,
+      details: `User status changed to ${isActive ? 'active' : 'inactive'}`
+    });
+
     res.json({
       success: true,
       message: `User ${isActive ? 'activated' : 'deactivated'} successfully`
@@ -1069,6 +1141,16 @@ const updateUserRole = async (req, res) => {
         message: 'User not found'
       });
     }
+
+    // Log admin action
+    await logAdminAction(db, {
+      adminId: decoded.userId,
+      action: 'update',
+      resource: 'user',
+      resourceId: id,
+      description: `Changed user role to ${role}`,
+      details: `User role updated from previous role to ${role}`
+    });
 
     res.json({
       success: true,
@@ -1532,6 +1614,426 @@ const updatePayoutSettings = async (req, res) => {
   }
 };
 
+// ============================================================================
+// PROMOTIONAL ENDPOINTS (ADMIN)
+// ============================================================================
+
+/**
+ * Get promotional statistics (admin only)
+ * Aggregates revenue from promotional features
+ */
+const getPromotionalStats = async (req, res) => {
+  try {
+    const { period = '30' } = req.query;
+    const db = req.db;
+    
+    // Calculate date range
+    const now = new Date();
+    const days = parseInt(period);
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    
+    // Get promotional features
+    const promotionalCollection = db.collection('promotional_features');
+    const features = await promotionalCollection.find({
+      createdAt: { $gte: startDate }
+    }).toArray();
+    
+    // Calculate statistics
+    const stats = features.reduce((acc, feature) => {
+      const isActive = feature.status === 'active' && new Date(feature.endDate) > now;
+      
+      return {
+        totalRevenue: acc.totalRevenue + (feature.cost || 0),
+        activePromotions: acc.activePromotions + (isActive ? 1 : 0),
+        totalPromotions: acc.totalPromotions + 1
+      };
+    }, {
+      totalRevenue: 0,
+      activePromotions: 0,
+      totalPromotions: 0
+    });
+    
+    // Group by feature type for revenue breakdown
+    const revenueByType = features.reduce((acc, feature) => {
+      const type = feature.featureType || 'unknown';
+      if (!acc[type]) {
+        acc[type] = 0;
+      }
+      acc[type] += feature.cost || 0;
+      return acc;
+    }, {});
+    
+    const revenueByFeatureType = Object.entries(revenueByType).map(([type, revenue]) => ({
+      type,
+      revenue
+    }));
+    
+    res.json({
+      success: true,
+      data: {
+        period: days,
+        startDate,
+        endDate: now,
+        totalPromotionalRevenue: stats.totalRevenue,
+        activePromotions: stats.activePromotions,
+        totalPromotions: stats.totalPromotions,
+        revenueByFeatureType
+      }
+    });
+  } catch (error) {
+    console.error('Get promotional stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get promotional stats',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get active promotions (admin only)
+ * Returns list of currently active promotional features
+ */
+const getActivePromotions = async (req, res) => {
+  try {
+    const db = req.db;
+    const now = new Date();
+    
+    // Get active promotional features with artisan info
+    const promotionalCollection = db.collection('promotional_features');
+    const activeFeatures = await promotionalCollection.aggregate([
+      {
+        $match: {
+          status: 'active',
+          endDate: { $gt: now }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanId',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          artisanId: 1,
+          artisanName: '$artisan.artisanName',
+          featureType: 1,
+          startDate: 1,
+          endDate: 1,
+          cost: 1,
+          status: 1,
+          productId: 1
+        }
+      },
+      {
+        $sort: { startDate: -1 }
+      }
+    ]).toArray();
+    
+    // Also get active spotlight subscriptions
+    const spotlightCollection = db.collection('artisanspotlight');
+    const activeSpotlights = await spotlightCollection.aggregate([
+      {
+        $match: {
+          status: 'active',
+          endDate: { $gt: now }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: 'artisanId',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $addFields: {
+          artisan: { $arrayElemAt: ['$artisanInfo', 0] }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          artisanId: 1,
+          artisanName: '$artisan.artisanName',
+          featureType: { $literal: 'artisan_spotlight' },
+          startDate: 1,
+          endDate: 1,
+          cost: 1,
+          status: 1
+        }
+      },
+      {
+        $sort: { startDate: -1 }
+      }
+    ]).toArray();
+    
+    // Combine both types
+    const allPromotions = [...activeFeatures, ...activeSpotlights];
+    
+    res.json({
+      success: true,
+      data: allPromotions,
+      count: allPromotions.length,
+      pagination: {
+        total: allPromotions.length,
+        page: 1,
+        pages: 1
+      }
+    });
+  } catch (error) {
+    console.error('Get active promotions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get active promotions',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get platform-wide analytics (admin only)
+ * Returns aggregated analytics across the entire platform
+ */
+const getPlatformAnalytics = async (req, res) => {
+  try {
+    const { period = '30' } = req.query;
+    const db = req.db;
+    
+    // Calculate date range
+    const now = new Date();
+    const days = parseInt(period);
+    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    
+    // Get orders for the period
+    const ordersCollection = db.collection('orders');
+    const orders = await ordersCollection.find({
+      createdAt: { $gte: startDate }
+    }).toArray();
+    
+    // Calculate order statistics
+    const completedStatuses = ['completed', 'delivered', 'picked_up'];
+    const orderStats = orders.reduce((acc, order) => {
+      const status = order.status || 'unknown';
+      if (!acc.byStatus[status]) {
+        acc.byStatus[status] = 0;
+      }
+      acc.byStatus[status]++;
+      
+      acc.totalRevenue += order.totalAmount || 0;
+      acc.totalOrders++;
+      
+      if (completedStatuses.includes(status)) {
+        acc.completedOrders++;
+      }
+      
+      // Track payment methods
+      const paymentMethod = order.paymentMethod || 'card';
+      if (!acc.paymentMethods[paymentMethod]) {
+        acc.paymentMethods[paymentMethod] = 0;
+      }
+      acc.paymentMethods[paymentMethod]++;
+      
+      return acc;
+    }, {
+      byStatus: {},
+      paymentMethods: {},
+      totalRevenue: 0,
+      totalOrders: 0,
+      completedOrders: 0
+    });
+    
+    const ordersByStatus = Object.entries(orderStats.byStatus).map(([status, count]) => ({
+      status,
+      count,
+      percentage: orderStats.totalOrders > 0 ? (count / orderStats.totalOrders) * 100 : 0
+    }));
+    
+    const paymentMethodsArray = Object.entries(orderStats.paymentMethods).map(([method, count]) => ({
+      method,
+      count,
+      percentage: orderStats.totalOrders > 0 ? (count / orderStats.totalOrders) * 100 : 0
+    }));
+    
+    // Get user growth
+    const usersCollection = db.collection('users');
+    const newUsers = await usersCollection.countDocuments({
+      createdAt: { $gte: startDate }
+    });
+    
+    // Get all users to calculate growth
+    const totalUsers = await usersCollection.countDocuments();
+    
+    // Get product statistics - aggregate by category
+    const productsCollection = db.collection('products');
+    
+    // Get top products by sales
+    const topProducts = await productsCollection.aggregate([
+      {
+        $match: {
+          status: 'active',
+          soldCount: { $gt: 0 }
+        }
+      },
+      {
+        $sort: { soldCount: -1 }
+      },
+      {
+        $limit: 10
+      },
+      {
+        $project: {
+          _id: 1,
+          productName: '$name',
+          category: 1,
+          totalSold: '$soldCount',
+          totalRevenue: { $multiply: ['$price', { $ifNull: ['$soldCount', 0] }] }
+        }
+      }
+    ]).toArray();
+    
+    // Get category performance
+    const productSales = await productsCollection.aggregate([
+      {
+        $match: {
+          status: 'active'
+        }
+      },
+      {
+        $group: {
+          _id: '$category',
+          totalSold: { $sum: { $ifNull: ['$soldCount', 0] } },
+          totalRevenue: { 
+            $sum: { 
+              $multiply: ['$price', { $ifNull: ['$soldCount', 0] }] 
+            } 
+          },
+          uniqueProducts: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          totalSold: 1,
+          totalRevenue: 1,
+          uniqueProducts: 1
+        }
+      },
+      {
+        $sort: { totalRevenue: -1 }
+      }
+    ]).toArray();
+    
+    // Get artisan statistics  
+    const artisansCollection = db.collection('artisans');
+    const totalArtisans = await artisansCollection.countDocuments();
+    
+    // Get top performing artisans
+    const artisanPerformance = await ordersCollection.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate },
+          status: { $in: ['completed', 'delivered', 'picked_up'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$artisan',
+          orderCount: { $sum: 1 },
+          totalRevenue: { $sum: '$totalAmount' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'artisans',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'artisanInfo'
+        }
+      },
+      {
+        $unwind: { path: '$artisanInfo', preserveNullAndEmptyArrays: true }
+      },
+      {
+        $project: {
+          _id: 1,
+          artisanName: '$artisanInfo.artisanName',
+          orderCount: 1,
+          totalRevenue: 1,
+          avgOrderValue: { $divide: ['$totalRevenue', '$orderCount'] }
+        }
+      },
+      {
+        $sort: { totalRevenue: -1 }
+      },
+      {
+        $limit: 10
+      }
+    ]).toArray();
+    
+    // User growth trend (simplified for performance)
+    const userGrowth = [];
+    
+    // Daily orders trend (for chart)
+    const dailyOrdersMap = {};
+    orders.forEach(order => {
+      const dateStr = new Date(order.createdAt).toISOString().split('T')[0];
+      if (!dailyOrdersMap[dateStr]) {
+        dailyOrdersMap[dateStr] = { date: dateStr, count: 0, revenue: 0 };
+      }
+      dailyOrdersMap[dateStr].count++;
+      dailyOrdersMap[dateStr].revenue += order.totalAmount || 0;
+    });
+    
+    const dailyOrders = Object.values(dailyOrdersMap).sort((a, b) => a.date.localeCompare(b.date));
+    
+    res.json({
+      success: true,
+      data: {
+        period: days,
+        startDate,
+        endDate: now,
+        orderStats: {
+          totalOrders: orderStats.totalOrders,
+          totalRevenue: orderStats.totalRevenue,
+          averageOrderValue: orderStats.totalOrders > 0 
+            ? orderStats.totalRevenue / orderStats.totalOrders 
+            : 0,
+          completedOrders: orderStats.completedOrders
+        },
+        orderStatusDistribution: ordersByStatus || [], // Component expects orderStatusDistribution
+        topProducts: topProducts || [],
+        productSales: productSales || [],
+        paymentMethods: paymentMethodsArray || [],
+        artisanPerformance: artisanPerformance || [],
+        dailyOrders: dailyOrders || [],
+        userGrowth: userGrowth || [],
+        totalUsers,
+        newUsers,
+        totalArtisans
+      }
+    });
+  } catch (error) {
+    console.error('Get platform analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get platform analytics',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 router.get('/spotlight', getSpotlightStatus);
 router.get('/wallet/balance', getWalletBalance);
@@ -1580,21 +2082,24 @@ router.post('/inventory/restore-all', async (req, res) => {
 });
 router.post('/geocoding', geocodeAddress);
 router.get('/revenue', getArtisanRevenue);
-router.get('/stats', getAdminStats);
+router.get('/stats', verifyJWT, verifyAdminRole, getAdminStats);
 router.get('/search', enhancedSearch);
-router.get('/analytics', getBusinessAnalytics);
+router.get('/analytics', verifyJWT, verifyAdminRole, getPlatformAnalytics);
 
-// Admin management routes
-router.get('/products', getAdminProducts);
-router.patch('/products/:id/status', updateProductStatus);
-router.patch('/products/:id/featured', setFeaturedProduct);
-router.delete('/products/:id', deleteAdminProduct);
-router.get('/artisans', getAdminArtisans);
-router.patch('/artisans/:id/status', updateArtisanStatus);
-router.patch('/artisans/:id/verification', updateArtisanVerification);
-router.get('/users', getAdminUsers);
-router.patch('/users/:id/status', updateUserStatus);
-router.patch('/users/:id/role', updateUserRole);
+// Admin management routes - Protected with admin middleware
+router.get('/products', verifyJWT, verifyAdminRole, getAdminProducts);
+router.patch('/products/:id/status', verifyJWT, verifyAdminRole, updateProductStatus);
+router.patch('/products/:id/featured', verifyJWT, verifyAdminRole, setFeaturedProduct);
+router.delete('/products/:id', verifyJWT, verifyAdminRole, deleteAdminProduct);
+router.get('/artisans', verifyJWT, verifyAdminRole, getAdminArtisans);
+router.patch('/artisans/:id/status', verifyJWT, verifyAdminRole, updateArtisanStatus);
+router.patch('/artisans/:id/verification', verifyJWT, verifyAdminRole, updateArtisanVerification);
+router.get('/users', verifyJWT, verifyAdminRole, getAdminUsers);
+router.patch('/users/:id/status', verifyJWT, verifyAdminRole, updateUserStatus);
+router.patch('/users/:id/role', verifyJWT, verifyAdminRole, updateUserRole);
 
+// Admin promotional routes - Protected with admin middleware
+router.get('/promotional/stats', verifyJWT, verifyAdminRole, getPromotionalStats);
+router.get('/promotional/active', verifyJWT, verifyAdminRole, getActivePromotions);
 
 module.exports = router;

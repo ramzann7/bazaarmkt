@@ -25,7 +25,8 @@ const register = async (req, res) => {
       artisanData = null,
       artisanName,
       type,
-      description
+      description,
+      location // Geographic location for validation
     } = req.body;
     
     if (!email || !password || !firstName || !lastName) {
@@ -38,6 +39,32 @@ const register = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
     const artisansCollection = db.collection('artisans');
+    
+    // Check geographic restrictions if enabled
+    const geographicSettingsCollection = db.collection('geographicsettings');
+    const geoSettings = await geographicSettingsCollection.findOne({});
+    
+    if (geoSettings && geoSettings.isEnabled && geoSettings.restrictions.type !== 'none') {
+      // Validate location based on restriction type
+      let allowed = true;
+      let reason = '';
+      
+      if (geoSettings.restrictions.type === 'country' && location?.country) {
+        allowed = geoSettings.restrictions.allowedCountries.includes(location.country);
+        reason = allowed ? '' : 'Registration is not available in your country';
+      } else if (geoSettings.restrictions.type === 'region' && location?.region) {
+        allowed = geoSettings.restrictions.allowedRegions.includes(location.region);
+        reason = allowed ? '' : 'Registration is not available in your region';
+      }
+      
+      if (!allowed) {
+        return res.status(403).json({
+          success: false,
+          message: reason || geoSettings.userExperience?.restrictionMessage || 'Service not available in your region',
+          restrictionType: geoSettings.restrictions.type
+        });
+      }
+    }
     
     // Check if user already exists
     const existingUser = await usersCollection.findOne({ email: email.toLowerCase() });
@@ -252,6 +279,53 @@ const getProfile = async (req, res) => {
       });
     }
     
+    // Sync payment methods from Stripe if user has a customer ID
+    let syncedPaymentMethods = user.paymentMethods || [];
+    
+    if (user.stripeCustomerId) {
+      try {
+        const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+        
+        // Fetch payment methods from Stripe
+        const stripePaymentMethods = await stripe.paymentMethods.list({
+          customer: user.stripeCustomerId,
+          type: 'card'
+        });
+        
+        console.log(`💳 Profile sync: Found ${stripePaymentMethods.data.length} payment methods in Stripe`);
+        
+        // Convert Stripe payment methods to our format
+        syncedPaymentMethods = stripePaymentMethods.data.map((pm, index) => ({
+          stripePaymentMethodId: pm.id,
+          brand: pm.card.brand,
+          last4: pm.card.last4,
+          expiryMonth: pm.card.exp_month,
+          expiryYear: pm.card.exp_year,
+          cardholderName: pm.billing_details?.name || 'Cardholder',
+          isDefault: index === 0,
+          type: 'credit_card',
+          createdAt: new Date(pm.created * 1000)
+        }));
+        
+        // Update MongoDB with synced payment methods
+        await usersCollection.updateOne(
+          { _id: user._id },
+          { 
+            $set: { 
+              paymentMethods: syncedPaymentMethods,
+              updatedAt: new Date()
+            }
+          }
+        );
+        
+        console.log(`✅ Profile sync: Synced ${syncedPaymentMethods.length} payment methods`);
+      } catch (stripeError) {
+        console.error('❌ Error syncing payment methods from Stripe:', stripeError);
+        // Fall back to MongoDB data if Stripe sync fails
+        syncedPaymentMethods = user.paymentMethods || [];
+      }
+    }
+    
     // Build user profile object
     const userProfile = {
       _id: user._id,
@@ -267,7 +341,7 @@ const getProfile = async (req, res) => {
       addresses: user.addresses || [],
       notificationPreferences: user.notificationPreferences || {},
       accountSettings: user.accountSettings || {},
-      paymentMethods: user.paymentMethods || []
+      paymentMethods: syncedPaymentMethods
     };
     
     // If user is an artisan, fetch artisan data

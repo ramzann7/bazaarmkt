@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ShieldCheckIcon,
@@ -6,8 +6,27 @@ import {
   ScaleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { getPlatformSettings } from '../services/adminService';
 
 export default function TermsOfService() {
+  const [platformFee, setPlatformFee] = useState(10); // Default 10%
+  const [paymentFee, setPaymentFee] = useState(2.9); // Default 2.9%
+
+  useEffect(() => {
+    const loadPlatformSettings = async () => {
+      try {
+        const settings = await getPlatformSettings();
+        if (settings) {
+          setPlatformFee(settings.platformFeePercentage || 10);
+          setPaymentFee(settings.paymentProcessingFee || 2.9);
+        }
+      } catch (error) {
+        console.warn('Could not load platform settings, using defaults');
+      }
+    };
+    
+    loadPlatformSettings();
+  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-stone-50">
       {/* Hero Section */}
@@ -201,8 +220,8 @@ export default function TermsOfService() {
                 Bazaar charges the following fees:
               </p>
               <ul className="list-disc ml-8 text-stone-600 space-y-1">
-                <li><strong>Platform Fee:</strong> 10% of product sales (not applied to delivery fees)</li>
-                <li><strong>Payment Processing Fee:</strong> 2.9% on total transaction amount (charged by Stripe)</li>
+                <li><strong>Platform Fee:</strong> {platformFee}% of product sales (not applied to delivery fees)</li>
+                <li><strong>Payment Processing Fee:</strong> {paymentFee}% on total transaction amount (charged by Stripe)</li>
               </ul>
               <p className="text-stone-600 mt-2">
                 Revenue is credited to your Bazaar Wallet when Patrons confirm receipt. Automatic weekly payouts are processed 
@@ -300,7 +319,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">7.2 Platform Fees</h3>
               <p className="text-stone-600 mb-2">
-                Bazaar charges a platform fee of 10% on product sales. This fee:
+                Bazaar charges a platform fee of {platformFee}% on product sales. This fee:
               </p>
               <ul className="list-disc ml-8 text-stone-600 space-y-1">
                 <li>Is calculated as a percentage of the product subtotal (excluding delivery fees)</li>
@@ -312,7 +331,7 @@ export default function TermsOfService() {
             <div>
               <h3 className="font-semibold text-stone-900 mb-2">7.3 Payment Processing Fees</h3>
               <p className="text-stone-600">
-                Stripe charges a payment processing fee of 2.9% on the total transaction amount. This fee is deducted from 
+                Stripe charges a payment processing fee of {paymentFee}% on the total transaction amount. This fee is deducted from 
                 Artisan earnings.
               </p>
             </div>

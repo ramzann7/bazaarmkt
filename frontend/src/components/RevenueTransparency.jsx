@@ -7,14 +7,30 @@ import {
   ArrowRightIcon
 } from '@heroicons/react/24/outline';
 import { revenueService } from '../services/revenueService';
+import { getPlatformSettings } from '../services/adminService';
 
 export default function RevenueTransparency() {
   const [transparencyInfo, setTransparencyInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [platformFee, setPlatformFee] = useState(10); // Default 10%
+  const [paymentFee, setPaymentFee] = useState(2.9); // Default 2.9%
 
   useEffect(() => {
     loadTransparencyInfo();
+    loadPlatformSettings();
   }, []);
+
+  const loadPlatformSettings = async () => {
+    try {
+      const settings = await getPlatformSettings();
+      if (settings) {
+        setPlatformFee(settings.platformFeePercentage || 10);
+        setPaymentFee(settings.paymentProcessingFee || 2.9);
+      }
+    } catch (error) {
+      console.warn('Could not load platform settings, using defaults');
+    }
+  };
 
   const loadTransparencyInfo = async () => {
     try {
@@ -23,12 +39,13 @@ export default function RevenueTransparency() {
       setTransparencyInfo(info);
     } catch (error) {
       console.error('Error loading transparency info:', error);
-      // Fallback to static data
+      // Fallback to static data with dynamic fees
+      const artisanEarnings = 100 - platformFee - paymentFee;
       setTransparencyInfo({
         commissionStructure: {
-          platformCommission: '10%',
-          artisanEarnings: '90%',
-          description: 'For every sale, artisans receive 90% of the total amount while 10% goes to platform maintenance and development.'
+          platformCommission: `${platformFee}%`,
+          artisanEarnings: `${artisanEarnings}%`,
+          description: `For every sale, artisans receive ${artisanEarnings}% of the total amount while ${platformFee}% goes to platform maintenance and development.`
         },
         promotionalFeatures: {
           description: 'Artisans can purchase additional promotional features to increase visibility and sales.',
@@ -41,7 +58,7 @@ export default function RevenueTransparency() {
         },
         paymentProcessing: {
           description: 'All payments are processed securely through Stripe with transparent fee structure.',
-          processingFees: 'Standard Stripe processing fees apply (2.9% + 30¢ per transaction)'
+          processingFees: `Standard Stripe processing fees apply (${paymentFee}% + 30¢ per transaction)`
         },
         settlement: {
           description: 'Artisan earnings are settled weekly via direct deposit or PayPal.',
@@ -87,11 +104,11 @@ export default function RevenueTransparency() {
           <div className="bg-green-50 rounded-lg p-4 mb-4">
             <div className="grid grid-cols-2 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-green-600">90%</div>
-                <p className="text-sm text-gray-600">Goes to Artisans</p>
+                <div className="text-2xl font-bold text-green-600">{(100 - platformFee - paymentFee).toFixed(1)}%</div>
+                <p className="text-sm text-gray-600">Net to Artisans</p>
               </div>
               <div>
-                <div className="text-2xl font-bold text-orange-600">10%</div>
+                <div className="text-2xl font-bold text-orange-600">{platformFee}%</div>
                 <p className="text-sm text-gray-600">Platform Fee</p>
               </div>
             </div>
@@ -99,7 +116,7 @@ export default function RevenueTransparency() {
 
           <p className="text-sm text-gray-600 mb-4">
             {transparencyInfo?.commissionStructure?.description || 
-              'For every sale, artisans receive 90% of the total amount while 10% goes to platform maintenance and development.'}
+              `For every sale, artisans receive ${(100 - platformFee - paymentFee).toFixed(1)}% of the total amount (after ${platformFee}% platform fee and ${paymentFee}% payment processing).`}
           </p>
 
           <div className="space-y-2">
@@ -136,7 +153,7 @@ export default function RevenueTransparency() {
             <div className="bg-orange-50 rounded-lg p-4">
               <h4 className="font-medium text-gray-900 mb-2">Platform Development</h4>
               <p className="text-sm text-gray-600">
-                The 10% platform fee helps us maintain and improve the marketplace, ensuring better service for everyone.
+                The {platformFee}% platform fee helps us maintain and improve the marketplace, ensuring better service for everyone.
               </p>
             </div>
 

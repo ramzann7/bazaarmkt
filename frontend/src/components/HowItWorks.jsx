@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   UserPlusIcon,
@@ -19,8 +19,30 @@ import {
   BellIcon,
   EnvelopeIcon
 } from '@heroicons/react/24/outline';
+import { getPlatformSettings } from '../services/adminService';
 
 export default function HowItWorks() {
+  const [platformFee, setPlatformFee] = useState(10); // Default 10%
+  const [paymentFee, setPaymentFee] = useState(2.9); // Default 2.9%
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPlatformSettings = async () => {
+      try {
+        const settings = await getPlatformSettings();
+        if (settings) {
+          setPlatformFee(settings.platformFeePercentage || 10);
+          setPaymentFee(settings.paymentProcessingFee || 2.9);
+        }
+      } catch (error) {
+        console.warn('Could not load platform settings, using defaults');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadPlatformSettings();
+  }, []);
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-stone-50">
       {/* Hero Section */}
@@ -312,7 +334,7 @@ export default function HowItWorks() {
             {/* Platform Fee */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
               <h3 className="text-xl font-bold text-stone-900 mb-3 font-display">Platform Fee</h3>
-              <div className="text-4xl font-bold text-blue-600 mb-4">10%</div>
+              <div className="text-4xl font-bold text-blue-600 mb-4">{platformFee}%</div>
               <p className="text-stone-600 mb-4">
                 On product sales only. Covers platform development, hosting, security, and support.
               </p>
@@ -335,7 +357,7 @@ export default function HowItWorks() {
             {/* Payment Processing */}
             <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200">
               <h3 className="text-xl font-bold text-stone-900 mb-3 font-display">Payment Processing</h3>
-              <div className="text-4xl font-bold text-purple-600 mb-4">2.9%</div>
+              <div className="text-4xl font-bold text-purple-600 mb-4">{paymentFee}%</div>
               <p className="text-stone-600 mb-4">
                 Stripe payment processing fee. Industry-standard secure payment handling.
               </p>
@@ -374,17 +396,19 @@ export default function HowItWorks() {
                 <span className="font-semibold text-stone-900">$105.00</span>
               </div>
               <div className="flex justify-between text-red-600">
-                <span>Platform Fee (10% of $100)</span>
-                <span className="font-semibold">-$10.00</span>
+                <span>Platform Fee ({platformFee}% of $100)</span>
+                <span className="font-semibold">-${(100 * platformFee / 100).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-red-600">
-                <span>Payment Processing (2.9% of $105)</span>
-                <span className="font-semibold">-$3.05</span>
+                <span>Payment Processing ({paymentFee}% of $105)</span>
+                <span className="font-semibold">-${(105 * paymentFee / 100).toFixed(2)}</span>
               </div>
               <div className="border-t border-stone-300 pt-2"></div>
               <div className="flex justify-between text-lg">
                 <span className="font-bold text-stone-900">Your Earnings</span>
-                <span className="font-bold text-green-600">$91.95</span>
+                <span className="font-bold text-green-600">
+                  ${(105 - (100 * platformFee / 100) - (105 * paymentFee / 100)).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>

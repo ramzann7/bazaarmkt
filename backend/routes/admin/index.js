@@ -10,6 +10,9 @@ const jwt = require('jsonwebtoken');
 const { verifyJWT, verifyAdminRole } = require('../../middleware/auth');
 const { logAdminAction, getRecentActivity } = require('../../utils/adminAuditLogger');
 
+// Import cash flow handlers
+const cashFlowHandlers = require('./cashFlowHandlers');
+
 // ============================================================================
 // SPOTLIGHT ENDPOINTS
 // ============================================================================
@@ -2101,5 +2104,8 @@ router.patch('/users/:id/role', verifyJWT, verifyAdminRole, updateUserRole);
 // Admin promotional routes - Protected with admin middleware
 router.get('/promotional/stats', verifyJWT, verifyAdminRole, getPromotionalStats);
 router.get('/promotional/active', verifyJWT, verifyAdminRole, getActivePromotions);
+
+// Admin cash flow routes - Protected with admin middleware
+router.get('/cash-flow', verifyJWT, verifyAdminRole, cashFlowHandlers.getPlatformCashFlow);
 
 module.exports = router;

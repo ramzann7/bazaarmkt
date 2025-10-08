@@ -1625,7 +1625,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
     try {
       setIsSettingUpStripe(true);
       
-      const response = await fetch(`${config.API_URL}/profile/artisan/stripe-connect`, {
+      const response = await fetch(`${config.API_URL}/profile/stripe-connect/setup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

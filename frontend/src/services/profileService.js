@@ -142,6 +142,17 @@ export const profileService = {
   updateDeliveryOptions: async (deliveryOptions) => {
     const response = await api.put(`${API_URL}/profile/artisan/delivery`, { deliveryOptions });
     return response.data;
+  },
+
+  // Stripe Connect methods
+  setupStripeConnect: async () => {
+    const response = await api.post(`${API_URL}/profile/stripe-connect/setup`);
+    return response.data;
+  },
+
+  getStripeConnectStatus: async () => {
+    const response = await api.get(`${API_URL}/profile/stripe-connect/status`);
+    return response.data;
   }
 };
 

@@ -29,7 +29,6 @@ const COLLECTIONS_TO_EXPORT = [
   'orders',
   'wallets',
   'wallettransactions',
-  'transactions',
   'revenues',
   
   // Community and engagement

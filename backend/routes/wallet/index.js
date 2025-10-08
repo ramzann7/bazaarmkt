@@ -38,7 +38,7 @@ const getWalletBalance = async (req, res) => {
     }
 
     // Get recent transaction summary
-    const transactionsCollection = db.collection('transactions');
+    const transactionsCollection = db.collection('wallettransactions');
     const recentTransactions = await transactionsCollection
       .find({ userId: new ObjectId(decoded.userId) })
       .sort({ createdAt: -1 })
@@ -116,8 +116,8 @@ const getWalletTransactions = async (req, res) => {
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
     
-    // Get transactions from transactions collection
-    const transactionsCollection = db.collection('transactions');
+    // Get transactions from wallettransactions collection
+    const transactionsCollection = db.collection('wallettransactions');
     const transactions = await transactionsCollection
       .find(query)
       .sort({ createdAt: -1 })
@@ -220,7 +220,7 @@ const getWalletAnalytics = async (req, res) => {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     }
 
-    const transactionsCollection = db.collection('transactions');
+    const transactionsCollection = db.collection('wallettransactions');
     
     // Get earnings by transaction type
     const earningsByType = await transactionsCollection.aggregate([

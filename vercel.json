@@ -1,7 +1,9 @@
 {
-  "buildCommand": "cd backend && npm install && cd ../frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm ci && npm run build",
+  "devCommand": "cd frontend && npm run dev",
+  "installCommand": "npm ci --prefix backend",
   "outputDirectory": "frontend/dist",
-  "installCommand": "echo 'Dependencies installed in buildCommand'",
+  "framework": null,
   "rewrites": [
     {
       "source": "/api/:path*",

@@ -8,10 +8,11 @@ import {
   UsersIcon,
   StarIcon,
   CalendarIcon,
-  EyeIcon,
   BanknotesIcon,
   SparklesIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  ClockIcon,
+  ReceiptPercentIcon
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import * as adminService from '../services/adminService';
@@ -28,6 +29,7 @@ export default function AdminRevenueManagement() {
     totalArtisans: 0,
     averageOrderValue: 0,
     commissionRate: 0.10,
+    platformFeePercentage: 10,
     growthRate: 0
   });
   
@@ -39,6 +41,7 @@ export default function AdminRevenueManagement() {
     monthlyTrends: []
   });
   
+  const [transactions, setTransactions] = useState([]);
   const [timeRange, setTimeRange] = useState('30');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,47 +56,55 @@ export default function AdminRevenueManagement() {
       setIsLoading(true);
       setError(null);
 
-      // Load platform revenue summary
-      const platformData = await revenueService.getPlatformRevenueSummary(timeRange);
-      
-      // Load spotlight revenue stats
-      const spotlightData = await revenueService.getSpotlightRevenueStats(timeRange);
-      
-      // Load promotional revenue from admin service
-      const promotionalData = await adminService.getPromotionalStats(timeRange);
-      
-      // Load general analytics
-      const analyticsData = await adminService.getAnalytics(timeRange);
-
-      // Combine all revenue data
-      const combinedData = {
-        totalRevenue: (platformData.commissionRevenue?.totalCommission || 0) + 
-                     (promotionalData?.totalPromotionalRevenue || 0) + 
-                     (spotlightData?.stats?.totalRevenue || 0),
-        commissionRevenue: platformData.commissionRevenue?.totalCommission || 0,
-        promotionalRevenue: promotionalData?.totalPromotionalRevenue || 0,
-        spotlightRevenue: spotlightData?.stats?.totalRevenue || 0,
-        totalOrders: platformData.commissionRevenue?.orderCount || 0,
-        totalArtisans: analyticsData?.totalArtisans || 0,
-        averageOrderValue: platformData.commissionRevenue?.averageOrderValue || 0,
-        commissionRate: 0.10,
-        growthRate: analyticsData?.growthRate || 0
-      };
-
-      setRevenueData(combinedData);
-
-      // Set analytics data
-      setAnalytics({
-        dailyRevenue: spotlightData?.dailyRevenue || [],
-        topArtisans: analyticsData?.topArtisans || [],
-        topCategories: analyticsData?.topCategories || [],
-        revenueBySource: [
-          { name: 'Commission (10%)', value: combinedData.commissionRevenue, color: 'bg-blue-500' },
-          { name: 'Promotional Features', value: combinedData.promotionalRevenue, color: 'bg-green-500' },
-          { name: 'Artisan Spotlight', value: combinedData.spotlightRevenue, color: 'bg-purple-500' }
-        ],
-        monthlyTrends: analyticsData?.monthlyTrends || []
+      // Load cash flow data with transactions
+      const cashFlowResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/admin/cash-flow?timeRange=${timeRange}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       });
+
+      if (!cashFlowResponse.ok) {
+        throw new Error('Failed to load cash flow data');
+      }
+
+      const cashFlowData = await cashFlowResponse.json();
+      
+      if (cashFlowData.success) {
+        const summary = cashFlowData.data.summary;
+        const txns = cashFlowData.data.transactions || [];
+
+        // Update revenue data
+        const combinedData = {
+          totalRevenue: summary.totalRevenue || 0,
+          commissionRevenue: summary.orderCommissions || 0,
+          promotionalRevenue: summary.promotionalRevenue || 0,
+          spotlightRevenue: summary.spotlightRevenue || 0,
+          totalOrders: summary.totalOrders || 0,
+          totalArtisans: 0,
+          averageOrderValue: summary.totalOrders > 0 ? summary.totalGMV / summary.totalOrders : 0,
+          commissionRate: (summary.platformFeePercentage || 10) / 100, // Convert to decimal
+          platformFeePercentage: summary.platformFeePercentage || 10, // Store as percentage
+          netRevenue: summary.netRevenue || 0,
+          estimatedStripeFees: summary.estimatedStripeFees || 0,
+          growthRate: 0
+        };
+
+        setRevenueData(combinedData);
+        setTransactions(txns);
+
+        // Set analytics data
+        setAnalytics({
+          dailyRevenue: [],
+          topArtisans: [],
+          topCategories: [],
+          revenueBySource: [
+            { name: `Order Commissions (${combinedData.platformFeePercentage}%)`, value: combinedData.commissionRevenue, color: 'bg-blue-500' },
+            { name: 'Promotional Features', value: combinedData.promotionalRevenue, color: 'bg-green-500' },
+            { name: 'Artisan Spotlight', value: combinedData.spotlightRevenue, color: 'bg-purple-500' }
+          ],
+          monthlyTrends: []
+        });
+      }
 
     } catch (error) {
       console.error('Error loading revenue data:', error);
@@ -110,6 +121,7 @@ export default function AdminRevenueManagement() {
         totalArtisans: 0,
         averageOrderValue: 0,
         commissionRate: 0.10,
+        platformFeePercentage: 10,
         growthRate: 0
       });
       } finally {
@@ -408,21 +420,84 @@ export default function AdminRevenueManagement() {
           </div>
         )}
 
-        {/* Revenue Transparency Note */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <EyeIcon className="h-5 w-5 text-blue-400" />
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">Revenue Transparency</h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>
-                  This platform operates on a transparent revenue model where 10% of each sale goes to platform maintenance and development, 
-                  while 90% goes directly to artisans. Additional revenue comes from promotional features and spotlight subscriptions.
-                </p>
-        </div>
-            </div>
+        {/* Recent Revenue Transactions */}
+        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <ReceiptPercentIcon className="w-5 h-5 mr-2 text-emerald-600" />
+              Recent Revenue Transactions
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              All platform revenue transactions from orders, promotions, and spotlight
+            </p>
+          </div>
+          <div className="p-6">
+            {transactions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <BanknotesIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No transactions found for this time period</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {transactions.map((transaction, index) => (
+                  <div 
+                    key={transaction._id || index}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className={`p-2 rounded-lg ${
+                        transaction.type === 'order_commission' ? 'bg-blue-100' :
+                        transaction.type === 'spotlight_subscription' ? 'bg-purple-100' :
+                        'bg-green-100'
+                      }`}>
+                        {transaction.type === 'order_commission' ? (
+                          <ShoppingCartIcon className="w-5 h-5 text-blue-600" />
+                        ) : transaction.type === 'spotlight_subscription' ? (
+                          <SparklesIcon className="w-5 h-5 text-purple-600" />
+                        ) : (
+                          <BuildingStorefrontIcon className="w-5 h-5 text-green-600" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {transaction.description || transaction.type}
+                        </p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            transaction.type === 'order_commission' ? 'bg-blue-100 text-blue-700' :
+                            transaction.type === 'spotlight_subscription' ? 'bg-purple-100 text-purple-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {transaction.type === 'order_commission' ? 'Order Commission' :
+                             transaction.type === 'spotlight_subscription' ? 'Spotlight' :
+                             'Promotional'}
+                          </span>
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <ClockIcon className="w-3 h-3" />
+                            {new Date(transaction.createdAt).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-emerald-600">
+                        ${transaction.amount?.toFixed(2) || '0.00'}
+                      </p>
+                      {transaction.totalAmount && (
+                        <p className="text-xs text-gray-500">
+                          of ${transaction.totalAmount.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

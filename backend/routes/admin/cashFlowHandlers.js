@@ -12,7 +12,21 @@ const { ObjectId } = require('mongodb');
 const getPlatformCashFlow = async (req, res) => {
   try {
     const { timeRange = '30' } = req.query;
-    const db = req.app.locals.db;
+    const db = req.db || req.app.locals.db;
+    
+    if (!db) {
+      console.error('❌ Database connection not available');
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection not available'
+      });
+    }
+    
+    // Get platform settings to retrieve the platform fee percentage
+    const platformSettings = await db.collection('platformsettings').findOne({});
+    const platformFeePercentage = (platformSettings?.platformFeePercentage || 10) / 100; // Convert to decimal
+    
+    console.log('📊 Using platform fee percentage:', (platformFeePercentage * 100) + '%');
     
     // Calculate date range
     const startDate = timeRange === 'all' 
@@ -100,6 +114,7 @@ const getPlatformCashFlow = async (req, res) => {
       spotlightRevenue: spotlightData.totalRevenue,
       totalOrders: orderData.totalOrders,
       totalGMV: orderData.totalGMV,
+      platformFeePercentage: platformFeePercentage * 100, // Send as percentage (e.g., 10 for 10%)
       // Estimate Stripe fees (2.9% + $0.30 per transaction)
       estimatedStripeFees: orderData.totalGMV * 0.029 + (orderData.totalOrders * 0.30),
       netRevenue: 0 // Will calculate after Stripe fees
@@ -115,8 +130,8 @@ const getPlatformCashFlow = async (req, res) => {
       transactions.push({
         _id: order._id,
         type: 'order_commission',
-        amount: order.platformFee || (order.totalAmount * 0.10),
-        description: `10% commission from order #${order._id.toString().slice(-8)}`,
+        amount: order.platformFee || (order.totalAmount * platformFeePercentage),
+        description: `${(platformFeePercentage * 100).toFixed(0)}% commission from order #${order._id.toString().slice(-8)}`,
         orderId: order._id,
         artisanId: order.artisan,
         totalAmount: order.totalAmount,

@@ -324,66 +324,51 @@ export default function AdminAnalytics() {
               </div>
             </div>
 
-            {/* Order Status and Payment Methods */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              {/* Order Status Distribution */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status Distribution</h3>
-                {analytics.orderStatusDistribution && analytics.orderStatusDistribution.length > 0 ? (
-                  <div className="space-y-3">
-                    {analytics.orderStatusDistribution.map((status) => (
-                      <div key={status._id} className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status._id)}`}>
-                            {status._id}
+            {/* Order Status Distribution */}
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status Distribution</h3>
+              {analytics.orderStatusDistribution && analytics.orderStatusDistribution.length > 0 ? (
+                <div className="space-y-3">
+                  {analytics.orderStatusDistribution.map((status) => {
+                    const statusLabel = status._id || status.status || 'unknown';
+                    const statusCount = status.count || 0;
+                    const percentage = analytics.orderStats?.totalOrders > 0 
+                      ? Math.round((statusCount / analytics.orderStats.totalOrders) * 100)
+                      : 0;
+                    
+                    return (
+                      <div key={statusLabel} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(statusLabel)}`}>
+                            {statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)}
                           </span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-xs">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                getStatusColor(statusLabel).includes('yellow') ? 'bg-yellow-500' :
+                                getStatusColor(statusLabel).includes('blue') ? 'bg-blue-500' :
+                                getStatusColor(statusLabel).includes('green') ? 'bg-green-500' :
+                                getStatusColor(statusLabel).includes('red') ? 'bg-red-500' :
+                                'bg-gray-500'
+                              }`}
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">{status.count} orders</p>
-                          <p className="text-sm text-gray-500">
-                            {analytics.orderStats.totalOrders > 0 
-                              ? `${Math.round((status.count / analytics.orderStats.totalOrders) * 100)}%`
-                              : '0%'
-                            }
-                          </p>
+                        <div className="text-right ml-4">
+                          <p className="font-medium text-gray-900">{statusCount} orders</p>
+                          <p className="text-sm text-gray-500">{percentage}%</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <ClockIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No order status data available</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Payment Methods */}
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Methods</h3>
-                {analytics.paymentMethods && analytics.paymentMethods.length > 0 ? (
-                  <div className="space-y-3">
-                    {analytics.paymentMethods.map((method) => (
-                      <div key={method._id} className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            {getPaymentMethodLabel(method._id)}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900">{method.count} orders</p>
-                          <p className="text-sm text-gray-500">{formatCurrency(method.totalAmount)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-gray-500 py-8">
-                    <CurrencyDollarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p>No payment method data available</p>
-                  </div>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  <ClockIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p>No order status data available</p>
+                </div>
+              )}
             </div>
 
             {/* Top Performing Artisans */}
@@ -406,30 +391,69 @@ export default function AdminAnalytics() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Avg Order Value
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Performance
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {analytics.artisanPerformance.map((artisan) => (
-                        <tr key={artisan._id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                {artisan.artisanName || 'Unknown'}
+                      {analytics.artisanPerformance.map((artisan, index) => {
+                        const avgOrderValue = artisan.totalOrders > 0 ? artisan.totalRevenue / artisan.totalOrders : 0;
+                        const performanceScore = artisan.totalOrders * 0.4 + (artisan.totalRevenue / 100) * 0.6;
+                        
+                        return (
+                          <tr key={artisan._id || index}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
+                                    <span className="text-white font-medium text-sm">
+                                      {(artisan.artisanName || 'Unknown').charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {artisan.artisanName || artisan.name || 'Unknown Artisan'}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {artisan.artisanEmail || artisan.email || 'No email'}
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-500">{artisan.artisanEmail}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatNumber(artisan.totalOrders)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(artisan.totalRevenue)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(artisan.averageOrderValue)}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex items-center">
+                                <span className="font-medium">{formatNumber(artisan.totalOrders || artisan.orderCount || 0)}</span>
+                                {index < 3 && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    #{index + 1}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(artisan.totalRevenue || artisan.revenue || 0)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatCurrency(avgOrderValue)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-20">
+                                  <div 
+                                    className="h-2 rounded-full bg-gradient-to-r from-green-400 to-blue-500"
+                                    style={{ width: `${Math.min(performanceScore / 10 * 100, 100)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="ml-2 text-xs text-gray-500">
+                                  {Math.round(performanceScore / 10 * 100)}%
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -437,6 +461,7 @@ export default function AdminAnalytics() {
                 <div className="text-center text-gray-500 py-8">
                   <UserGroupIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                   <p>No artisan performance data available for this period</p>
+                  <p className="text-sm mt-2">Artisan performance data will appear here once orders are processed</p>
                 </div>
               )}
             </div>
@@ -444,7 +469,7 @@ export default function AdminAnalytics() {
             {/* Daily Order Trends */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Order Trends</h3>
-              {analytics.dailyOrders.length > 0 ? (
+              {analytics.dailyOrders && analytics.dailyOrders.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -453,27 +478,74 @@ export default function AdminAnalytics() {
                           Date
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Day
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Orders
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Revenue
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Avg Order Value
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {analytics.dailyOrders.map((day) => (
-                        <tr key={day._id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(day._id).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatNumber(day.orders)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatCurrency(day.revenue)}
-                          </td>
-                        </tr>
-                      ))}
+                      {analytics.dailyOrders
+                        .sort((a, b) => new Date(b._id || b.date) - new Date(a._id || a.date))
+                        .map((day, index) => {
+                          const dateId = day._id || day.date || day.day;
+                          const orderCount = day.orders || day.orderCount || 0;
+                          const dayRevenue = day.revenue || day.totalRevenue || 0;
+                          const avgOrderValue = orderCount > 0 ? dayRevenue / orderCount : 0;
+                          const dateObj = new Date(dateId);
+                          
+                          return (
+                            <tr key={dateId || index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {dateObj.toLocaleDateString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {dateObj.toLocaleDateString('en-US', { weekday: 'short' })}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {dateObj.toLocaleDateString('en-US', { weekday: 'long' })}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <div className="flex items-center">
+                                  <span className="font-medium">{formatNumber(orderCount)}</span>
+                                  {orderCount > 0 && (
+                                    <div className="ml-2 flex-1 bg-gray-200 rounded-full h-1.5 max-w-16">
+                                      <div 
+                                        className="h-1.5 rounded-full bg-blue-500"
+                                        style={{ 
+                                          width: `${Math.min((orderCount / Math.max(...analytics.dailyOrders.map(d => d.orders || d.orderCount || 0))) * 100, 100)}%` 
+                                        }}
+                                      ></div>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span className="font-medium text-emerald-600">
+                                  {formatCurrency(dayRevenue)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {formatCurrency(avgOrderValue)}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -481,6 +553,7 @@ export default function AdminAnalytics() {
                 <div className="text-center text-gray-500 py-8">
                   <ArrowTrendingUpIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                   <p>No daily trend data available for this period</p>
+                  <p className="text-sm mt-2">Daily order trends will appear here once orders are placed</p>
                 </div>
               )}
             </div>

@@ -40,13 +40,12 @@ const getPlatformCashFlow = async (req, res) => {
       orderCommissions,
       spotlightSubscriptions,
       promotionalFeatures,
-      stripeTransfers
+      recentOrders
     ] = await Promise.all([
-      // Order commissions (10% of completed orders)
+      // Order commissions from all captured orders
       db.collection('orders').aggregate([
         {
           $match: {
-            status: 'completed',
             paymentStatus: 'captured',
             createdAt: { $gte: startDate }
           }
@@ -95,9 +94,9 @@ const getPlatformCashFlow = async (req, res) => {
         }
       ]).toArray(),
       
-      // Get recent Stripe transfers for audit - USE EXISTING COLLECTION: orders
+      // Get recent orders for transaction display
       db.collection('orders').find({
-        stripeTransferId: { $exists: true },
+        paymentStatus: 'captured',
         createdAt: { $gte: startDate }
       }).sort({ createdAt: -1 }).limit(100).toArray()
     ]);
@@ -126,7 +125,7 @@ const getPlatformCashFlow = async (req, res) => {
     const transactions = [];
     
     // Add order commission transactions
-    for (const order of stripeTransfers.slice(0, 20)) {
+    for (const order of recentOrders.slice(0, 20)) {
       transactions.push({
         _id: order._id,
         type: 'order_commission',

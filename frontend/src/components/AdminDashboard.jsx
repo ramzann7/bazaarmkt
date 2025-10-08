@@ -122,14 +122,6 @@ export default function AdminDashboard() {
       icon: GlobeAltIcon,
       color: 'bg-indigo-500',
       path: '/admin/geographic-settings'
-    },
-    {
-      id: 'settings',
-      title: 'Admin Settings',
-      description: 'Configure platform settings and admin preferences',
-      icon: CogIcon,
-      color: 'bg-gray-500',
-      path: '/admin/settings'
     }
   ];
 

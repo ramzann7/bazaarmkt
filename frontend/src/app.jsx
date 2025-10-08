@@ -281,10 +281,6 @@ function AppRoutes() {
           path="/admin/geographic-settings"
           element={isAuthenticated ? <AdminGeographicSettings /> : <Navigate to="/login" />}
         />
-        <Route
-          path="/admin/settings"
-          element={isAuthenticated ? <AdminSettings /> : <Navigate to="/login" />}
-        />
         
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/" />} />

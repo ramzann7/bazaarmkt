@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -202,7 +202,7 @@ export default function SearchResults() {
     }
   };
 
-  const performSearch = async () => {
+  const performSearch = useCallback(async () => {
     try {
       setIsLoading(true);
       console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'autoSearch:', autoSearch);
@@ -318,7 +318,7 @@ export default function SearchResults() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [query, categoryParam, subcategoryParam, autoSearch, userLocation]);
 
   const calculateDistance = (product) => {
     if (!userLocation || !product.location) return null;

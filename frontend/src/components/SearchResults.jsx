@@ -148,11 +148,38 @@ export default function SearchResults() {
   const performSearch = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'autoSearch:', autoSearch);
+      console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'nearbySearch:', nearbySearch);
       
       let searchResults;
       
-      if (subcategoryParam && categoryParam) {
+      // Priority 1: Nearby search (location-based)
+      if (nearbySearch && userLocation) {
+        try {
+          console.log('📍 Using enhanced nearby search with location:', userLocation);
+          
+          // Use enhanced search service for location-based search
+          const enhancedResults = await enhancedSearchService.searchProducts(
+            '', // Empty query to get all products
+            { latitude: userLocation.lat, longitude: userLocation.lng },
+            {
+              maxDistance: 50, // 50km radius
+              includeDistance: true,
+              enhancedRanking: true,
+              includeQualityScore: true,
+              includeProximity: true
+            }
+          );
+          
+          searchResults = enhancedResults.products || [];
+          console.log('✨ Enhanced nearby search results:', searchResults.length, 'products');
+        } catch (error) {
+          console.log('⚠️ Enhanced nearby search failed, falling back to regular search:', error);
+          // Fallback to regular product service
+          searchResults = await getAllProducts();
+        }
+      }
+      // Priority 2: Subcategory search
+      else if (subcategoryParam && categoryParam) {
         // Enhanced subcategory search with complex prioritization
         try {
           console.log('🎯 Using enhanced subcategory search');
@@ -171,7 +198,9 @@ export default function SearchResults() {
           console.log('⚠️ Enhanced subcategory search failed, falling back to regular search:', error);
           searchResults = await getAllProducts({ category: categoryParam, subcategory: subcategoryParam });
         }
-      } else if (query) {
+      } 
+      // Priority 3: Query search
+      else if (query) {
         // Search by query - try promotional service first, then fallback to regular service
         try {
           const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
@@ -194,7 +223,9 @@ export default function SearchResults() {
           console.log('⚠️ Promotional search failed, falling back to regular search');
           searchResults = await getAllProducts({ search: query });
         }
-      } else if (categoryParam) {
+      } 
+      // Priority 4: Category search
+      else if (categoryParam) {
         // Search by category - try promotional service first, then fallback to regular service
         try {
           const promotionalResults = await promotionalService.getPremiumShowcaseProducts(20, userLocation);
@@ -261,7 +292,7 @@ export default function SearchResults() {
     } finally {
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, autoSearch, userLocation, calculateDistance, formatDistance]);
+  }, [query, categoryParam, subcategoryParam, nearbySearch, autoSearch, userLocation, calculateDistance, formatDistance]);
 
   useEffect(() => {
     getCurrentLocation();
@@ -272,7 +303,7 @@ export default function SearchResults() {
   }, []);
 
   useEffect(() => {
-    if (query || categoryParam || subcategoryParam) {
+    if (query || categoryParam || subcategoryParam || nearbySearch) {
       // Track the search when component loads
       if (query) {
         searchTrackingService.trackSearch(query, categoryParam || subcategoryParam);
@@ -284,7 +315,7 @@ export default function SearchResults() {
       setFilteredProducts([]);
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, userLocation]);
+  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation]);
 
   // Refresh search results when page becomes visible (handles tab switching)
   useEffect(() => {

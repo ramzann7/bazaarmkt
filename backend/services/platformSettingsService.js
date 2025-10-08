@@ -42,6 +42,13 @@ class PlatformSettingsService {
       // Remove _id and other MongoDB internal fields from updates
       const { _id, __v, createdAt, ...cleanUpdates } = updates;
       
+      // Encrypt platform bank info if provided
+      if (cleanUpdates.platformBankInfo && cleanUpdates.platformBankInfo.accountNumber) {
+        const { encryptBankInfo } = require('../utils/encryption');
+        cleanUpdates.platformBankInfo = encryptBankInfo(cleanUpdates.platformBankInfo);
+        cleanUpdates.platformBankInfo.lastUpdated = new Date();
+      }
+      
       const result = await this.settingsCollection.updateOne(
         {},
         { 

@@ -36,6 +36,15 @@ export default function AdminPlatformSettings() {
       payoutFrequency: 'weekly',
       payoutDelay: 7
     },
+    platformBankInfo: {
+      accountHolderName: '',
+      bankName: '',
+      institutionNumber: '',
+      transitNumber: '',
+      accountNumber: '',
+      accountType: 'checking',
+      stripeConnectAccountId: null
+    },
     platformInfo: {
       name: 'bazaar',
       supportEmail: 'support@thebazaar.com'
@@ -391,6 +400,183 @@ export default function AdminPlatformSettings() {
                 <p className="text-xs text-gray-500 mt-1">
                   Number of days to wait after order completion before payout is available.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Platform Bank Account */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <CreditCardIcon className="w-5 h-5 mr-2 text-emerald-600" />
+                Platform Bank Account (Documentation)
+              </h2>
+              <p className="text-sm text-gray-600 mt-1">
+                Document the platform's bank account for reference purposes
+              </p>
+            </div>
+            <div className="p-6">
+              {/* Important Notice */}
+              <div className="mb-6 bg-blue-50 border border-blue-300 rounded-lg p-4">
+                <div className="flex items-start">
+                  <InformationCircleIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold text-blue-900 mb-2">💡 Important: Stripe Dashboard Configuration</h4>
+                    <p className="text-sm text-blue-800 mb-2">
+                      The actual platform bank account that receives fees must be configured in your <strong>Stripe Dashboard</strong>, not here.
+                    </p>
+                    <p className="text-sm text-blue-800 mb-2">
+                      <strong>How it works:</strong>
+                    </p>
+                    <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1 ml-2">
+                      <li>Customer pays for order (e.g., $100)</li>
+                      <li>Platform receives full payment to Stripe account</li>
+                      <li>Platform transfers artisan portion (e.g., $90) to their Stripe Connect account</li>
+                      <li>Platform fee (e.g., $10) stays in platform Stripe balance</li>
+                      <li><strong>Stripe automatically pays out</strong> platform fees to your bank account</li>
+                    </ol>
+                    <p className="text-sm text-blue-700 mt-3 font-medium">
+                      ℹ️ This form is for documentation purposes only. To setup automatic payouts, configure your bank account in the Stripe Dashboard → Settings → Bank Accounts.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <CheckCircleIcon className="h-5 w-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-emerald-900 mb-1">Platform Revenue Collection</h4>
+                    <p className="text-sm text-emerald-700">
+                      This bank account information is for your records. Revenue collected includes:
+                    </p>
+                    <ul className="text-sm text-emerald-700 mt-2 space-y-1 list-disc list-inside">
+                      <li>Platform fees ({formData.platformFeePercentage || 10}% from each order)</li>
+                      <li>Promotional feature payments</li>
+                      <li>Artisan spotlight subscriptions</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Account Holder Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Holder Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.platformBankInfo?.accountHolderName || ''}
+                    onChange={(e) => handleInputChange('platformBankInfo.accountHolderName', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Bazaar Inc."
+                  />
+                </div>
+
+                {/* Bank Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bank Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.platformBankInfo?.bankName || ''}
+                    onChange={(e) => handleInputChange('platformBankInfo.bankName', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="TD Canada Trust, RBC, Scotiabank, etc."
+                  />
+                </div>
+
+                {/* Institution Number and Transit Number */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Institution Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.platformBankInfo?.institutionNumber || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                        handleInputChange('platformBankInfo.institutionNumber', value);
+                      }}
+                      maxLength="3"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
+                      placeholder="001"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">3 digits</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Transit Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.platformBankInfo?.transitNumber || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                        handleInputChange('platformBankInfo.transitNumber', value);
+                      }}
+                      maxLength="5"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
+                      placeholder="12345"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">5 digits</p>
+                  </div>
+                </div>
+
+                {/* Account Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.platformBankInfo?.accountNumber || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      handleInputChange('platformBankInfo.accountNumber', value);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono"
+                    placeholder="••••••••"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    7-12 digits (encrypted when saved)
+                  </p>
+                </div>
+
+                {/* Account Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Account Type
+                  </label>
+                  <select
+                    value={formData.platformBankInfo?.accountType || 'checking'}
+                    onChange={(e) => handleInputChange('platformBankInfo.accountType', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="checking">Checking</option>
+                    <option value="savings">Savings</option>
+                  </select>
+                </div>
+
+                {/* Display masked account if already saved */}
+                {settings.platformBankInfo?.accountNumber && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Current Account</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {settings.platformBankInfo.bankName} - ••••{settings.platformBankInfo.accountNumber?.slice(-4)}
+                        </p>
+                      </div>
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

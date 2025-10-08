@@ -22,11 +22,15 @@ const getPlatformCashFlow = async (req, res) => {
       });
     }
     
+    console.log('📊 === CASH FLOW REQUEST START ===');
+    console.log('Time Range:', timeRange, 'days');
+    
     // Get platform settings to retrieve the platform fee percentage
     const platformSettings = await db.collection('platformsettings').findOne({});
     const platformFeePercentage = (platformSettings?.platformFeePercentage || 10) / 100; // Convert to decimal
     
-    console.log('📊 Using platform fee percentage:', (platformFeePercentage * 100) + '%');
+    console.log('📊 Platform fee percentage:', (platformFeePercentage * 100) + '%');
+    console.log('📊 Platform settings found:', !!platformSettings);
     
     // Calculate date range
     const startDate = timeRange === 'all' 
@@ -34,6 +38,7 @@ const getPlatformCashFlow = async (req, res) => {
       : new Date(Date.now() - parseInt(timeRange) * 24 * 60 * 60 * 1000);
     
     console.log('📊 Loading platform cash flow for time range:', timeRange, 'days');
+    console.log('📊 Start date:', startDate.toISOString());
     
     // Get platform revenues from multiple EXISTING sources
     const [
@@ -101,10 +106,19 @@ const getPlatformCashFlow = async (req, res) => {
       }).sort({ createdAt: -1 }).limit(100).toArray()
     ]);
     
+    console.log('📊 Order commissions result:', orderCommissions);
+    console.log('📊 Spotlight subscriptions result:', spotlightSubscriptions);
+    console.log('📊 Promotional features result:', promotionalFeatures);
+    console.log('📊 Recent orders count:', recentOrders.length);
+    
     // Calculate summary
     const orderData = orderCommissions[0] || { totalOrders: 0, totalGMV: 0, totalCommissions: 0 };
     const spotlightData = spotlightSubscriptions[0] || { totalSubscriptions: 0, totalRevenue: 0 };
     const promotionalData = promotionalFeatures[0] || { totalPromotions: 0, totalRevenue: 0 };
+    
+    console.log('📊 Processed order data:', orderData);
+    console.log('📊 Processed spotlight data:', spotlightData);
+    console.log('📊 Processed promotional data:', promotionalData);
     
     const summary = {
       totalRevenue: orderData.totalCommissions + spotlightData.totalRevenue + promotionalData.totalRevenue,
@@ -170,8 +184,10 @@ const getPlatformCashFlow = async (req, res) => {
     
     console.log('✅ Platform cash flow loaded:', {
       totalRevenue: summary.totalRevenue,
-      transactionCount: transactions.length
+      transactionCount: transactions.length,
+      summary: summary
     });
+    console.log('📊 === CASH FLOW REQUEST END ===');
     
     res.json({
       success: true,

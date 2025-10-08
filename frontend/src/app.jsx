@@ -96,7 +96,6 @@ const DashboardHighlights = lazy(() => import("./components/DashboardHighlights.
 const AdminProductManagement = lazy(() => import("./components/AdminProductManagement.jsx"));
 const AdminArtisanManagement = lazy(() => import("./components/AdminArtisanManagement.jsx"));
 const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
-const AdminSettings = lazy(() => import("./components/AdminSettings.jsx"));
 const AdminPromotionalDashboard = lazy(() => import("./components/AdminPromotionalDashboard.jsx"));
 const AdminPlatformSettings = lazy(() => import("./components/AdminPlatformSettings.jsx"));
 const AdminGeographicSettings = lazy(() => import("./components/AdminGeographicSettings.jsx"));

@@ -1,6 +1,7 @@
 /**
  * Admin Service - Cash Flow Endpoint
  * Track platform revenues from all sources
+ * Uses existing collections: orders, artisanspotlight, promotional_features
  */
 
 const { ObjectId } = require('mongodb');
@@ -20,7 +21,7 @@ const getPlatformCashFlow = async (req, res) => {
     
     console.log('📊 Loading platform cash flow for time range:', timeRange, 'days');
     
-    // Get platform revenues from multiple sources
+    // Get platform revenues from multiple EXISTING sources
     const [
       orderCommissions,
       spotlightSubscriptions,
@@ -46,8 +47,8 @@ const getPlatformCashFlow = async (req, res) => {
         }
       ]).toArray(),
       
-      // Spotlight subscriptions
-      db.collection('artisan_spotlight').aggregate([
+      // Spotlight subscriptions - USE EXISTING COLLECTION: artisanspotlight (no underscore)
+      db.collection('artisanspotlight').aggregate([
         {
           $match: {
             'payment.status': 'paid',
@@ -63,7 +64,7 @@ const getPlatformCashFlow = async (req, res) => {
         }
       ]).toArray(),
       
-      // Promotional features (featured products, boosts, etc)
+      // Promotional features - USE EXISTING COLLECTION: promotional_features
       db.collection('promotional_features').aggregate([
         {
           $match: {
@@ -80,7 +81,7 @@ const getPlatformCashFlow = async (req, res) => {
         }
       ]).toArray(),
       
-      // Get recent Stripe transfers for audit
+      // Get recent Stripe transfers for audit - USE EXISTING COLLECTION: orders
       db.collection('orders').find({
         stripeTransferId: { $exists: true },
         createdAt: { $gte: startDate }
@@ -129,8 +130,8 @@ const getPlatformCashFlow = async (req, res) => {
       });
     }
     
-    // Add spotlight subscriptions
-    const recentSpotlight = await db.collection('artisan_spotlight').find({
+    // Add spotlight subscriptions - USE EXISTING COLLECTION: artisanspotlight (no underscore)
+    const recentSpotlight = await db.collection('artisanspotlight').find({
       'payment.status': 'paid',
       createdAt: { $gte: startDate }
     }).sort({ createdAt: -1 }).limit(10).toArray();
@@ -178,5 +179,6 @@ const getPlatformCashFlow = async (req, res) => {
 module.exports = {
   getPlatformCashFlow
 };
+
 
 

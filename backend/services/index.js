@@ -11,7 +11,7 @@ const initServices = async () => {
   
   return {
     CommunityService: require('./CommunityService'),
-    GeocodingService: require('./GeocodingService'),
+    GeocodingService: require('./geocodingService'),
     SpotlightService: require('./SpotlightService'),
     WalletService: require('./WalletService'),
     InventoryService: require('./InventoryService'),
@@ -36,7 +36,7 @@ module.exports = {
   
   // Service factories
   createCommunityService: createService(require('./CommunityService')),
-  createGeocodingService: createService(require('./GeocodingService')),
+  createGeocodingService: createService(require('./geocodingService')),
   createSpotlightService: createService(require('./SpotlightService')),
   createWalletService: createService(require('./WalletService')),
   createInventoryService: createService(require('./InventoryService')),

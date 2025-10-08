@@ -4,50 +4,12 @@
     {
       "src": "backend/server-working.js",
       "use": "@vercel/node"
-    },
-    {
-      "src": "backend/api/cron/payouts.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "backend/api/cron/inventory-restoration.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "backend/api/cron/auto-capture-payments.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/cron/payouts",
-      "dest": "backend/api/cron/payouts.js"
-    },
-    {
-      "src": "/api/cron/inventory-restoration",
-      "dest": "backend/api/cron/inventory-restoration.js"
-    },
-    {
-      "src": "/api/cron/auto-capture-payments",
-      "dest": "backend/api/cron/auto-capture-payments.js"
-    },
-    {
       "src": "/(.*)",
       "dest": "backend/server-working.js"
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/payouts",
-      "schedule": "0 9 * * 5"
-    },
-    {
-      "path": "/api/cron/inventory-restoration",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/auto-capture-payments",
-      "schedule": "0 * * * *"
     }
   ],
   "env": {

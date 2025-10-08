@@ -60,7 +60,15 @@ const getPlatformCashFlow = async (req, res) => {
             _id: null,
             totalOrders: { $sum: 1 },
             totalGMV: { $sum: '$totalAmount' },
-            totalCommissions: { $sum: '$platformFee' }
+            // Calculate commission: use platformFee if exists, otherwise calculate from totalAmount
+            totalCommissions: { 
+              $sum: { 
+                $ifNull: [
+                  '$platformFee', 
+                  { $multiply: ['$totalAmount', platformFeePercentage] }
+                ]
+              }
+            }
           }
         }
       ]).toArray(),

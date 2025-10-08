@@ -6,6 +6,38 @@
 const winston = require('winston');
 
 // Configure logger
+// Note: In serverless environments (Vercel), filesystem is read-only
+// So we only use console transports
+const transports = [];
+
+// Always use console transport (Vercel captures these)
+transports.push(new winston.transports.Console({
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    process.env.NODE_ENV === 'production' 
+      ? winston.format.json()
+      : winston.format.combine(
+          winston.format.colorize(),
+          winston.format.simple()
+        )
+  )
+}));
+
+// Only use file transports in local development (not serverless)
+if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') {
+  try {
+    const fs = require('fs');
+    if (!fs.existsSync('logs')) {
+      fs.mkdirSync('logs', { recursive: true });
+    }
+    transports.push(new winston.transports.File({ filename: 'logs/error.log', level: 'error' }));
+    transports.push(new winston.transports.File({ filename: 'logs/combined.log' }));
+  } catch (err) {
+    // Ignore file transport errors in serverless
+    console.warn('File logging disabled (serverless environment)');
+  }
+}
+
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
   format: winston.format.combine(
@@ -14,21 +46,8 @@ const logger = winston.createLogger({
     winston.format.json()
   ),
   defaultMeta: { service: 'bazaarmkt-api' },
-  transports: [
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' }),
-  ],
+  transports
 });
-
-// Add console transport for development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    )
-  }));
-}
 
 /**
  * Custom error classes

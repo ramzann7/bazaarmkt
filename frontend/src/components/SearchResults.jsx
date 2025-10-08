@@ -103,104 +103,39 @@ export default function SearchResults() {
     { id: 'Other', name: 'Other', icon: '📦' }
   ];
 
-  useEffect(() => {
-    getCurrentLocation();
-    loadCurrentUser();
-    // Clear product cache on mount to ensure fresh inventory data
-    clearProductCache();
-    console.log('🧹 SearchResults: Cleared product cache on mount');
+  // Helper functions - must be defined BEFORE useEffects that use them
+  const calculateDistance = useCallback((product) => {
+    if (!userLocation || !product.location) return null;
+    
+    try {
+      const productLat = product.location.coordinates?.[1] || product.location.lat;
+      const productLng = product.location.coordinates?.[0] || product.location.lng;
+      
+      if (!productLat || !productLng) return null;
+      
+      const R = 6371; // Earth's radius in km
+      const dLat = (productLat - userLocation.lat) * Math.PI / 180;
+      const dLng = (productLng - userLocation.lng) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(productLat * Math.PI / 180) * 
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c;
+      
+      return distance;
+    } catch (error) {
+      console.error('Error calculating distance:', error);
+      return null;
+    }
+  }, [userLocation]);
+
+  const formatDistance = useCallback((distance) => {
+    if (!distance) return '';
+    if (distance < 1) return `${Math.round(distance * 1000)}m`;
+    if (distance < 10) return `${distance.toFixed(1)}km`;
+    return `${Math.round(distance)}km`;
   }, []);
-
-  useEffect(() => {
-    if (query || categoryParam || subcategoryParam) {
-      // Track the search when component loads
-      if (query) {
-        searchTrackingService.trackSearch(query, categoryParam || subcategoryParam);
-      }
-      performSearch();
-    } else {
-      // If no query or category, show empty state
-      setProducts([]);
-      setFilteredProducts([]);
-      setIsLoading(false);
-    }
-  }, [query, categoryParam, subcategoryParam, userLocation]);
-
-  // Refresh search results when page becomes visible (handles tab switching)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && (query || categoryParam || subcategoryParam)) {
-        console.log('🔄 SearchResults page became visible, refreshing data...');
-        clearProductCache();
-        performSearch();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [query, categoryParam, subcategoryParam, performSearch]);
-
-  useEffect(() => {
-    applyFiltersAndSort();
-  }, [products, sortBy, priceRange, selectedCategories]);
-
-  const loadCurrentUser = async () => {
-    try {
-      const token = authToken.getToken();
-      if (token) {
-        const profile = await getProfile();
-        setCurrentUserId(profile._id);
-      } else {
-        // For guest users, set currentUserId to null
-        setCurrentUserId(null);
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-      setCurrentUserId(null);
-    }
-  };
-
-  const getCurrentLocation = async () => {
-    try {
-      // First, try to get user coordinates from profile
-      try {
-        const userCoords = await geocodingService.getUserCoordinates();
-        if (userCoords) {
-          setUserLocation({
-            lat: userCoords.latitude,
-            lng: userCoords.longitude
-          });
-          return;
-        }
-      } catch (error) {
-        // User coordinates not available from profile
-      }
-
-      // Fallback to browser geolocation
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            });
-          },
-          (error) => {
-            // Set default location (can be updated later)
-            setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-          },
-          { timeout: 10000, enableHighAccuracy: true }
-        );
-      } else {
-        setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-      }
-    } catch (error) {
-      setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
-    }
-  };
 
   const performSearch = useCallback(async () => {
     try {
@@ -318,39 +253,105 @@ export default function SearchResults() {
     } finally {
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, autoSearch, userLocation]);
+  }, [query, categoryParam, subcategoryParam, autoSearch, userLocation, calculateDistance, formatDistance]);
 
-  const calculateDistance = (product) => {
-    if (!userLocation || !product.location) return null;
-    
+  useEffect(() => {
+    getCurrentLocation();
+    loadCurrentUser();
+    // Clear product cache on mount to ensure fresh inventory data
+    clearProductCache();
+    console.log('🧹 SearchResults: Cleared product cache on mount');
+  }, []);
+
+  useEffect(() => {
+    if (query || categoryParam || subcategoryParam) {
+      // Track the search when component loads
+      if (query) {
+        searchTrackingService.trackSearch(query, categoryParam || subcategoryParam);
+      }
+      performSearch();
+    } else {
+      // If no query or category, show empty state
+      setProducts([]);
+      setFilteredProducts([]);
+      setIsLoading(false);
+    }
+  }, [query, categoryParam, subcategoryParam, userLocation]);
+
+  // Refresh search results when page becomes visible (handles tab switching)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && (query || categoryParam || subcategoryParam)) {
+        console.log('🔄 SearchResults page became visible, refreshing data...');
+        clearProductCache();
+        performSearch();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [query, categoryParam, subcategoryParam, performSearch]);
+
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [products, sortBy, priceRange, selectedCategories]);
+
+  const loadCurrentUser = async () => {
     try {
-      const productLat = product.location.coordinates?.[1] || product.location.lat;
-      const productLng = product.location.coordinates?.[0] || product.location.lng;
-      
-      if (!productLat || !productLng) return null;
-      
-      const R = 6371; // Earth's radius in km
-      const dLat = (productLat - userLocation.lat) * Math.PI / 180;
-      const dLng = (productLng - userLocation.lng) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(productLat * Math.PI / 180) * 
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = R * c;
-      
-      return distance;
+      const token = authToken.getToken();
+      if (token) {
+        const profile = await getProfile();
+        setCurrentUserId(profile._id);
+      } else {
+        // For guest users, set currentUserId to null
+        setCurrentUserId(null);
+      }
     } catch (error) {
-      console.error('Error calculating distance:', error);
-      return null;
+      console.error('Error loading current user:', error);
+      setCurrentUserId(null);
     }
   };
 
-  const formatDistance = (distance) => {
-    if (!distance) return '';
-    if (distance < 1) return `${Math.round(distance * 1000)}m`;
-    if (distance < 10) return `${distance.toFixed(1)}km`;
-    return `${Math.round(distance)}km`;
+  const getCurrentLocation = async () => {
+    try {
+      // First, try to get user coordinates from profile
+      try {
+        const userCoords = await geocodingService.getUserCoordinates();
+        if (userCoords) {
+          setUserLocation({
+            lat: userCoords.latitude,
+            lng: userCoords.longitude
+          });
+          return;
+        }
+      } catch (error) {
+        // User coordinates not available from profile
+      }
+
+      // Fallback to browser geolocation
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
+          },
+          (error) => {
+            // Set default location (can be updated later)
+            setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
+          },
+          { timeout: 10000, enableHighAccuracy: true }
+        );
+      } else {
+        setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
+      }
+    } catch (error) {
+      setUserLocation({ lat: 40.7128, lng: -74.0060 }); // NYC default
+    }
   };
 
   const applyFiltersAndSort = () => {

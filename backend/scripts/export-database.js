@@ -19,31 +19,47 @@ const EXPORT_PATH = path.join(EXPORT_DIR, `export-${TIMESTAMP}`);
 
 // Collections to export (in order to maintain referential integrity)
 const COLLECTIONS_TO_EXPORT = [
+  // Core collections
   'users',
+  'guestUsers',
   'artisans',
   'products',
-  'categories',
+  
+  // Order and transaction collections
   'orders',
-  'reviews',
   'wallets',
   'wallettransactions',
+  'transactions',
+  'revenues',
+  
+  // Community and engagement
+  'reviews',
+  'favorites',
+  'communityposts',
+  'communitycomments',
+  
+  // Promotional and marketing
   'artisanspotlight',
   'promotionalfeatures',
-  'revenues',
+  'promotional_campaigns',
+  'promotional_pricing',
+  
+  // System configuration
   'platformsettings',
   'geographicsettings',
   'notifications',
-  'favorites',
-  'cart',
-  'addresses',
+  
+  // Admin
   'adminauditlogs'
 ];
 
 // Sensitive fields to exclude from export
 const SENSITIVE_FIELDS = {
   users: ['password', 'resetPasswordToken', 'resetPasswordExpires'],
+  guestUsers: ['password'],
   artisans: ['bankInfo.accountNumber', 'bankInfo.encryptedAccountNumber'],
-  wallets: ['stripeCustomerId']
+  wallets: ['stripeCustomerId', 'stripeAccountId'],
+  platformsettings: ['platformBankInfo.accountNumber']
 };
 
 async function exportDatabase() {

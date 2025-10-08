@@ -1769,7 +1769,7 @@ const getActivePromotions = async (req, res) => {
           _id: 1,
           artisanId: 1,
           artisanName: '$artisan.artisanName',
-          featureType: { $literal: 'artisan_spotlight' },
+          featureType: { $literal: 'artisanspotlight' },
           startDate: 1,
           endDate: 1,
           cost: 1,

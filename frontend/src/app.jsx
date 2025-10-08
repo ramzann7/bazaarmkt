@@ -67,6 +67,7 @@ const EventDetails = lazy(() => import("./components/EventDetails.jsx"));
 const Cart = lazy(() => import("./components/Cart.jsx"));
 const BuyingLocal = lazy(() => import("./components/BuyingLocal.jsx"));
 const HowItWorks = lazy(() => import("./components/HowItWorks.jsx"));
+const TermsOfService = lazy(() => import("./components/TermsOfService.jsx"));
 const AdminDashboard = lazy(() => import("./components/AdminDashboard.jsx"));
 const AdminRevenueManagement = lazy(() => import("./components/AdminRevenueManagement.jsx"));
 const AdminUserManagement = lazy(() => import("./components/AdminUserManagement.jsx"));
@@ -213,6 +214,7 @@ function AppRoutes() {
         />
         <Route path="/buying-local" element={<BuyingLocal />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route path="/artisans" element={<Artisans />} />
         
         {/* Admin Routes */}

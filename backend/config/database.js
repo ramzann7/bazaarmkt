@@ -1,130 +1,294 @@
 /**
- * Database Configuration Module
- * Centralized database connection management for serverless environments
+ * Serverless-Optimized Database Configuration
+ * MongoDB connection management for Vercel serverless functions
+ * 
+ * Best Practices:
+ * - Single connection per function instance (maxPoolSize: 1)
+ * - Connection reuse across invocations
+ * - Lazy connection initialization
+ * - Automatic reconnection on failure
+ * - Fast timeout settings
  */
 
-// Database connection management
 const { MongoClient } = require('mongodb');
 
-let client = null;
-let db = null;
-let connectionPromise = null;
-let connectionAttempts = 0;
+// Global connection state (persists across warm invocations)
+let cachedClient = null;
+let cachedDb = null;
+let isConnecting = false;
 
-const getDB = async () => {
-  // Return existing healthy connection immediately
-  if (db && client && client.topology && client.topology.isConnected && client.topology.isConnected()) {
-    return db;
+/**
+ * Serverless-optimized connection options
+ * Based on MongoDB and Vercel best practices
+ */
+const getConnectionOptions = () => {
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  
+  if (isServerless) {
+    return {
+      // Connection Pool Settings
+      maxPoolSize: 1,              // ONE connection per serverless instance
+      minPoolSize: 0,              // No minimum (saves resources)
+      maxIdleTimeMS: 10000,        // Close idle connections after 10s
+      waitQueueTimeoutMS: 5000,    // Fail fast if pool is busy
+      
+      // Timeout Settings
+      serverSelectionTimeoutMS: 5000,   // 5s to select server (fast fail)
+      connectTimeoutMS: 10000,          // 10s to establish connection
+      socketTimeoutMS: 45000,           // 45s for operations (Vercel max: 60s)
+      heartbeatFrequencyMS: 10000,      // Check connection every 10s
+      
+      // Reliability Settings
+      retryWrites: true,                // Retry failed writes
+      retryReads: true,                 // Retry failed reads
+      
+      // Performance Settings
+      compressors: ['zlib'],            // Compress network traffic
+      zlibCompressionLevel: 6           // Balance speed vs compression
+    };
   }
-
-  // If connection is in progress, wait for it
-  if (connectionPromise) {
-    return connectionPromise;
-  }
-
-  // Start new connection
-  connectionPromise = connectToDatabase();
-  return connectionPromise;
+  
+  // Traditional server settings (local development)
+  return {
+    maxPoolSize: 10,
+    minPoolSize: 2,
+    maxIdleTimeMS: 60000,
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 60000,
+    retryWrites: true,
+    retryReads: true
+  };
 };
 
-const connectToDatabase = async () => {
+/**
+ * Check if connection is healthy
+ */
+const isConnectionHealthy = () => {
+  if (!cachedClient || !cachedDb) {
+    return false;
+  }
+  
   try {
-    connectionAttempts++;
-    console.log(`🔄 Connecting to MongoDB Atlas (attempt ${connectionAttempts})...`);
-
-    if (client) {
-      await client.close();
+    // Check if topology is connected
+    const topology = cachedClient.topology;
+    if (!topology) return false;
+    
+    // Check connection state
+    if (topology.isConnected && !topology.isConnected()) {
+      return false;
     }
-
-    // Serverless-optimized connection settings
-    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
     
-    const connectionOptions = {
-      maxPoolSize: isServerless ? 1 : 10,           // 1 connection for serverless
-      minPoolSize: isServerless ? 0 : 2,             // No minimum for serverless  
-      maxIdleTimeMS: isServerless ? 10000 : 60000,   // Close idle connections faster
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 45000
-    };
-    
-    console.log(`📊 Pool config: max=${connectionOptions.maxPoolSize}, min=${connectionOptions.minPoolSize}, serverless=${isServerless}`);
-
-    client = new MongoClient(process.env.MONGODB_URI, connectionOptions);
-
-    await client.connect();
-    db = client.db('bazarmkt');
-    
-    console.log(`✅ MongoDB connected successfully to database: ${db.databaseName}`);
-    console.log(`📊 Connection stats: ${connectionAttempts} total attempts`);
-    
-    connectionPromise = null;
-    return db;
+    return true;
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
+    console.error('❌ Connection health check failed:', error.message);
+    return false;
+  }
+};
+
+/**
+ * Main function to get database connection
+ * Implements connection reuse and lazy initialization
+ */
+const getDB = async () => {
+  // Return cached connection if healthy
+  if (isConnectionHealthy()) {
+    console.log('♻️ Reusing existing MongoDB connection');
+    return cachedDb;
+  }
+  
+  // Wait if connection is already in progress
+  if (isConnecting) {
+    console.log('⏳ Connection in progress, waiting...');
+    let attempts = 0;
+    while (isConnecting && attempts < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      attempts++;
+    }
+    
+    if (isConnectionHealthy()) {
+      return cachedDb;
+    }
+  }
+  
+  // Establish new connection
+  return connectToDatabase();
+};
+
+/**
+ * Establish database connection with retry logic
+ */
+const connectToDatabase = async () => {
+  if (isConnecting) {
+    throw new Error('Connection already in progress');
+  }
+  
+  isConnecting = true;
+  
+  try {
+    const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    console.log(`🔄 Connecting to MongoDB (serverless: ${isServerless})...`);
+    
+    // Validate environment variable
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI environment variable is not set');
+    }
+    
+    // Close existing connection if any
+    if (cachedClient) {
+      try {
+        await cachedClient.close();
+      } catch (closeError) {
+        console.warn('⚠️ Error closing old connection:', closeError.message);
+      }
+    }
+    
+    // Get connection options
+    const options = getConnectionOptions();
+    console.log(`📊 Connection config: maxPool=${options.maxPoolSize}, minPool=${options.minPoolSize}`);
+    
+    // Create new client
+    cachedClient = new MongoClient(process.env.MONGODB_URI, options);
+    
+    // Connect with timeout
+    const connectPromise = cachedClient.connect();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout after 15s')), 15000)
+    );
+    
+    await Promise.race([connectPromise, timeoutPromise]);
+    
+    // Get database
+    cachedDb = cachedClient.db('bazarmkt');
+    
+    // Verify connection with ping
+    await cachedDb.admin().ping();
+    
+    console.log(`✅ MongoDB connected to database: ${cachedDb.databaseName}`);
+    
+    isConnecting = false;
+    return cachedDb;
+    
+  } catch (error) {
+    isConnecting = false;
+    cachedClient = null;
+    cachedDb = null;
+    
+    console.error('❌ MongoDB connection failed:', error.message);
     console.error('❌ Error details:', {
       message: error.message,
       code: error.code,
-      mongoUri: process.env.MONGODB_URI ? 'Set' : 'NOT SET'
+      name: error.name,
+      mongoUriSet: !!process.env.MONGODB_URI,
+      environment: process.env.VERCEL ? 'Vercel' : process.env.NODE_ENV || 'unknown'
     });
-    connectionPromise = null;
+    
     throw error;
   }
 };
 
+/**
+ * Close database connection
+ * Called during graceful shutdown
+ */
 const closeDB = async () => {
   try {
-    if (client) {
-      await client.close();
-      console.log('🔌 MongoDB topology closed');
+    if (cachedClient) {
+      console.log('🔌 Closing MongoDB connection...');
+      await cachedClient.close();
+      console.log('✅ MongoDB connection closed');
     }
-    client = null;
-    db = null;
-    connectionPromise = null;
   } catch (error) {
-    console.error('❌ Error closing database connection:', error);
+    console.error('❌ Error closing connection:', error.message);
+  } finally {
+    cachedClient = null;
+    cachedDb = null;
+    isConnecting = false;
   }
 };
 
+/**
+ * Get connection statistics
+ */
 const getStats = () => {
+  const healthy = isConnectionHealthy();
+  
   return {
-    connected: db && client && client.topology && client.topology.isConnected && client.topology.isConnected(),
-    connectionAttempts,
-    databaseName: db ? db.databaseName : null,
-    isConnected: db && client && client.topology && client.topology.isConnected && client.topology.isConnected(),
-    lastConnectedAt: db ? new Date().toISOString() : null
+    isConnected: healthy,
+    databaseName: cachedDb ? cachedDb.databaseName : null,
+    hasClient: !!cachedClient,
+    hasDb: !!cachedDb,
+    isServerless: !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME),
+    timestamp: new Date().toISOString()
   };
 };
 
+/**
+ * Test connection
+ */
 const testConnection = async () => {
   try {
-    const database = await getDB();
-    await database.admin().ping();
-    return { success: true, message: 'Database connection successful' };
+    const db = await getDB();
+    await db.admin().ping();
+    return { 
+      success: true, 
+      message: 'Database connection successful',
+      stats: getStats()
+    };
   } catch (error) {
-    return { success: false, message: error.message };
+    return { 
+      success: false, 
+      message: error.message,
+      error: error.code || error.name
+    };
   }
 };
 
+/**
+ * Force reconnection
+ */
 const resetConnection = async () => {
+  console.log('🔄 Forcing connection reset...');
   await closeDB();
   return getDB();
 };
 
-// Database middleware for Express
+/**
+ * Database middleware for Express
+ * Attaches database connection to request object
+ */
 const databaseMiddleware = async (req, res, next) => {
   try {
     req.db = await getDB();
     next();
   } catch (error) {
-    console.error('Database middleware error:', error);
-    res.status(500).json({
+    console.error('❌ Database middleware error:', error);
+    
+    // Return detailed error for debugging
+    return res.status(500).json({
       success: false,
       message: 'Database connection failed',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      code: error.code || 'CONNECTION_ERROR'
     });
   }
 };
+
+/**
+ * Graceful shutdown handler
+ * For traditional servers (not serverless)
+ */
+const gracefulShutdown = async (signal) => {
+  console.log(`\n🛑 Received ${signal}, closing connections...`);
+  await closeDB();
+  process.exit(0);
+};
+
+// Register shutdown handlers for traditional servers
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+}
 
 module.exports = {
   getDB,

@@ -1,6 +1,6 @@
 // src/components/Home.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import config from '../config/environment.js';
+import config, { VECTEEZY_ARTISAN_MARKET } from '../config/environment.js';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -1027,7 +1027,7 @@ export default function Home() {
           {/* Hero Right - Image */}
           <div className="rounded-xl overflow-hidden shadow-soft bg-white h-64 lg:h-auto">
             <img 
-              src="/artisan-market-hero.jpeg" 
+              src={VECTEEZY_ARTISAN_MARKET} 
               alt="Vibrant artisan market with pottery and handcrafted goods"
               className="w-full h-full object-cover"
             />

@@ -595,10 +595,10 @@ export default function Navbar() {
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (
               <>
-                <Link to="/login" className="hidden sm:block text-secondary/80 hover:text-amber-600 transition-colors text-sm font-semibold">
+                <Link to="/login" className="text-secondary/80 hover:text-amber-600 transition-colors text-sm font-semibold">
                   {t('common.signIn')}
                 </Link>
-                <Link to="/register" className="btn-primary text-sm px-5 py-2">
+                <Link to="/register" className="hidden sm:inline-block btn-primary text-sm px-5 py-2">
                   {t('auth.joinNow')}
                 </Link>
               </>

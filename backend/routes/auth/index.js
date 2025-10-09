@@ -683,6 +683,7 @@ const checkEmailGet = async (req, res) => {
 // Main auth routes
 // Routes - with rate limiting
 router.post('/register', registerLimiter, register);
+router.post('/register/artisan', registerLimiter, register); // Artisan registration uses same handler
 router.post('/login', loginLimiter, login);
 router.get('/profile', getProfile);
 router.put('/profile', updateProfile);

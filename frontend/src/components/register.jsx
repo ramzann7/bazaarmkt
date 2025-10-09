@@ -39,7 +39,7 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [fieldTouched, setFieldTouched] = useState({});
-  const [addressConfig, setAddressConfig] = useState(ADDRESS_CONFIG.Canada || ADDRESS_CONFIG.default);
+  const [addressConfig, setAddressConfig] = useState(ADDRESS_CONFIG.canada || ADDRESS_CONFIG.default);
 
   const handleChange = (e) => {
     let value = e.target.value;

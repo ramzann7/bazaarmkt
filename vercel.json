@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "cd frontend && PATH=$PATH:./node_modules/.bin npm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {

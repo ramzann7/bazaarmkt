@@ -4,29 +4,16 @@ const helmet = require('helmet');
 const cors = require('cors');
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
-const compression = require('compression');
+// REMOVED: compression - Vercel handles compression at edge
+// const compression = require('compression');
 const path = require('path');
-const sharp = require('sharp');
+// REMOVED: sharp - not needed for serverless (Vercel Blob has image optimization)
 
-// Simple in-memory cache
-const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// REMOVED: In-memory cache - doesn't persist in serverless
+// Vercel provides edge caching; use Redis if app-level caching is needed
 
-const getCached = (key) => {
-  const item = cache.get(key);
-  if (item && Date.now() - item.timestamp < CACHE_TTL) {
-    return item.data;
-  }
-  cache.delete(key);
-  return null;
-};
-
-const setCache = (key, data) => {
-  cache.set(key, {
-    data,
-    timestamp: Date.now()
-  });
-};
+// Import database utilities from centralized config  
+const { getDB, closeDB, getStats } = require('./config/database');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -86,17 +73,9 @@ app.use((req, res, next) => {
 // Middleware
 app.use(express.json({ limit: '4.5mb' }));
 
-// Compression middleware for better performance
-app.use(compression({
-  level: 6,
-  threshold: 1024, // Only compress responses > 1KB
-  filter: (req, res) => {
-    if (req.headers['x-no-compression']) {
-      return false;
-    }
-    return compression.filter(req, res);
-  }
-}));
+// REMOVED: Compression middleware - Vercel handles compression at the edge
+// No need for application-level compression in serverless
+// This reduces function execution time and compute costs
 
 // CORS Configuration - Environment-based
 const allowedOrigins = process.env.NODE_ENV === 'production' 
@@ -140,58 +119,10 @@ app.use(cors({
   maxAge: 600 // Cache preflight requests for 10 minutes
 }));
 
-// Database connection - singleton pattern for better performance
-let db = null;
-let client = null;
+// REMOVED: In-memory cache middleware - doesn't persist in serverless
+// REMOVED: Broken inline database code - now using config/database.js module
 
-const getDB = async () => {
-  if (db && client && client.topology && client.topology.isConnected()) {
-    return db;
-  }
-  
-  try {
-    if (client) {
-      await client.close();
-    }
-    
-    client = new MongoClient(process.env.MONGODB_URI, {
-      maxPoolSize: 20,
-      minPoolSize: 5,
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000
-    });
-    
-    await client.connect();
-    db = client.db('bazarmkt');
-    console.log('✅ Database connected');
-    return db;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    throw error;
-  }
-};
-
-// Cache middleware for GET requests
-app.use((req, res, next) => {
-  if (req.method === 'GET' && req.path.startsWith('/api/')) {
-    const cacheKey = `${req.method}:${req.path}:${JSON.stringify(req.query)}`;
-    const cached = getCached(cacheKey);
-    
-    if (cached) {
-      return res.json(cached);
-    }
-    
-    // Store original res.json
-    const originalJson = res.json.bind(res);
-    res.json = function(data) {
-      setCache(cacheKey, data);
-      return originalJson(data);
-    };
-  }
-  next();
-});
-
-// Database middleware - reuse connection
+// Database middleware - reuse connection with proper error handling
 app.use(async (req, res, next) => {
   if (req.path === '/api/health') return next();
   
@@ -224,57 +155,22 @@ app.get('/api/health/redis', async (req, res) => {
   }
 });
 
-// Image optimization endpoint
-app.get('/api/images/optimize/:path(*)', async (req, res) => {
-  try {
-    const imagePath = path.join(__dirname, 'public', 'uploads', req.params.path);
-    const { width = 400, height = 400, quality = 80 } = req.query;
-    
-    // Check if file exists
-    const fs = require('fs');
-    if (!fs.existsSync(imagePath)) {
-      return res.status(404).json({ error: 'Image not found' });
-    }
-    
-    // Optimize image with Sharp
-    const optimizedBuffer = await sharp(imagePath)
-      .resize(parseInt(width), parseInt(height), {
-        fit: 'inside',
-        withoutEnlargement: true
-      })
-      .jpeg({ 
-        quality: parseInt(quality),
-        progressive: true,
-        mozjpeg: true
-      })
-      .toBuffer();
-    
-    // Set appropriate headers
-    res.set({
-      'Content-Type': 'image/jpeg',
-      'Content-Length': optimizedBuffer.length,
-      'Cache-Control': 'public, max-age=31536000', // 1 year cache
-      'ETag': `"${Date.now()}"`
-    });
-    
-    res.send(optimizedBuffer);
-  } catch (error) {
-    console.error('Image optimization error:', error);
-    res.status(500).json({ error: 'Image optimization failed' });
-  }
-});
+// REMOVED: Image optimization endpoint - Vercel has read-only filesystem
+// Images should be served from Vercel Blob Storage with built-in optimization
+// See: https://vercel.com/docs/storage/vercel-blob
 
-// Static file serving with caching
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads'), {
-  maxAge: '1y', // Cache for 1 year
-  etag: true,
-  lastModified: true,
-  setHeaders: (res, path) => {
-    if (path.endsWith('.jpg') || path.endsWith('.jpeg') || path.endsWith('.png')) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-    }
-  }
-}));
+// REMOVED: Static file serving - Vercel filesystem is read-only
+// All uploads must use Vercel Blob Storage instead of local /public/uploads
+// Vercel Blob provides CDN, automatic optimization, and global distribution
+
+// Redirect old /uploads URLs to Vercel Blob (if configured)
+if (process.env.VERCEL_BLOB_URL) {
+  app.get('/uploads/*', (req, res) => {
+    const filename = req.params[0];
+    const blobUrl = `${process.env.VERCEL_BLOB_URL}/${filename}`;
+    res.redirect(301, blobUrl);
+  });
+}
 
 // Import routes that ACTUALLY EXIST
 const authRoutes = require('./routes/auth');

@@ -370,7 +370,10 @@ const getProfile = async (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       phone: user.phone,
+      profilePicture: user.profilePicture, // Profile picture URL
+      bio: user.bio,
       userType: user.role, // Frontend expects userType
+      role: user.role,
       isActive: user.isActive,
       isVerified: user.isVerified,
       createdAt: user.createdAt,
@@ -378,7 +381,9 @@ const getProfile = async (req, res) => {
       addresses: user.addresses || [],
       notificationPreferences: user.notificationPreferences || {},
       accountSettings: user.accountSettings || {},
-      paymentMethods: syncedPaymentMethods
+      paymentMethods: syncedPaymentMethods,
+      stripeCustomerId: user.stripeCustomerId,
+      coordinates: user.coordinates
     };
     
     // If user is an artisan, fetch artisan data
@@ -435,7 +440,15 @@ const updateProfile = async (req, res) => {
     }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { firstName, lastName, phone } = req.body;
+    const { 
+      firstName, 
+      lastName, 
+      phone, 
+      profilePicture, 
+      bio,
+      notificationPreferences,
+      accountSettings 
+    } = req.body;
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
@@ -447,6 +460,32 @@ const updateProfile = async (req, res) => {
     if (firstName) updateData.firstName = firstName;
     if (lastName) updateData.lastName = lastName;
     if (phone !== undefined) updateData.phone = phone;
+    if (profilePicture) updateData.profilePicture = profilePicture;
+    if (bio !== undefined) updateData.bio = bio;
+    
+    // Handle notification preferences with proper structure
+    if (notificationPreferences !== undefined) {
+      const completePreferences = {
+        email: {
+          marketing: notificationPreferences.email?.marketing ?? true,
+          orderUpdates: notificationPreferences.email?.orderUpdates ?? true,
+          promotions: notificationPreferences.email?.promotions ?? true,
+          security: notificationPreferences.email?.security ?? true
+        },
+        push: {
+          orderUpdates: notificationPreferences.push?.orderUpdates ?? true,
+          promotions: notificationPreferences.push?.promotions ?? true,
+          newArtisans: notificationPreferences.push?.newArtisans ?? true,
+          nearbyOffers: notificationPreferences.push?.nearbyOffers ?? true
+        }
+      };
+      updateData.notificationPreferences = completePreferences;
+    }
+    
+    // Handle account settings
+    if (accountSettings !== undefined) {
+      updateData.accountSettings = accountSettings;
+    }
     
     const result = await usersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(decoded.userId) },
@@ -474,9 +513,18 @@ const updateProfile = async (req, res) => {
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           phone: updatedUser.phone,
-          userType: updatedUser.role, // Frontend expects userType
+          profilePicture: updatedUser.profilePicture,
+          bio: updatedUser.bio,
+          userType: updatedUser.role,
+          role: updatedUser.role,
           isActive: updatedUser.isActive,
           isVerified: updatedUser.isVerified,
+          addresses: updatedUser.addresses || [],
+          notificationPreferences: updatedUser.notificationPreferences || {},
+          accountSettings: updatedUser.accountSettings || {},
+          paymentMethods: updatedUser.paymentMethods || [],
+          stripeCustomerId: updatedUser.stripeCustomerId,
+          coordinates: updatedUser.coordinates,
           createdAt: updatedUser.createdAt,
           updatedAt: updatedUser.updatedAt
         }

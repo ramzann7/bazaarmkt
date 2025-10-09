@@ -821,7 +821,7 @@ export default function Navbar() {
               className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
               onClick={toggleMobileMenu}
             >
-              Market
+              MarketPlace
             </OptimizedLink>
             <Link
               to="/community"

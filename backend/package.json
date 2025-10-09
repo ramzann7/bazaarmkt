@@ -1,8 +1,13 @@
 {
+  "name": "bazaarmkt-backend",
+  "version": "1.0.0",
+  "description": "BazaarMKT Backend Server",
+  "main": "server-working.js",
   "scripts": {
     "start": "node server-working.js",
     "dev": "nodemon server-working.js",
-    "vercel-build": "echo 'Vercel build completed'",
+    "vercel-build": "echo 'Backend dependencies installed'",
+    "build": "npm install",
     "test": "jest --testPathPattern=tests --setupFilesAfterEnv=./tests/setup.js",
     "test:watch": "jest --watch --testPathPattern=tests --setupFilesAfterEnv=./tests/setup.js",
     "test:coverage": "jest --coverage --testPathPattern=tests --setupFilesAfterEnv=./tests/setup.js",
@@ -11,6 +16,10 @@
     "lint:fix": "eslint . --ext .js --fix",
     "setup-db": "node scripts/setup-database.js",
     "performance": "node -e \"console.log(require('./utils/performance').getPerformanceHealth())\""
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   },
   "dependencies": {
     "@vercel/blob": "^2.0.0",

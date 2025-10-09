@@ -1,4 +1,8 @@
-require('dotenv').config({ path: './.env' });
+// Load environment variables (only needed for local development)
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  require('dotenv').config({ path: './.env' });
+}
+
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');

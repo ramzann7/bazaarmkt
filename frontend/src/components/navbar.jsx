@@ -412,10 +412,10 @@ export default function Navbar() {
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo + BazaarMkt Text */}
-          <OptimizedLink to="/" className="flex items-center gap-3 flex-shrink-0">
-            <Logo showText={false} className="w-10 h-10" />
-            <span className="text-xl font-display font-bold text-amber-600">BazaarMkt</span>
+          {/* Logo + BazaarMkt Text - Smaller on mobile */}
+          <OptimizedLink to="/" className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            <Logo showText={false} className="w-8 h-8 md:w-10 md:h-10" />
+            <span className="text-base md:text-xl font-display font-bold text-amber-600">BazaarMkt</span>
           </OptimizedLink>
 
           {/* Search Bar (Desktop) */}
@@ -571,20 +571,22 @@ export default function Navbar() {
           </div>
 
           {/* Right side CTAs */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Language Switcher */}
-            <LanguageSwitcher />
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            {/* Language Switcher - Desktop only, moved to mobile menu */}
+            <div className="hidden lg:block">
+              <LanguageSwitcher />
+            </div>
             
             {/* Cart - Available for all users except artisans */}
             {(!user || (user?.role !== 'artisan' && user?.userType !== 'artisan')) && (
               <button 
                 onClick={() => setShowCartDropdown(!showCartDropdown)}
-                className="relative p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
+                className="relative p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
               >
-                <ShoppingBagIcon className="w-6 h-6" />
+                <ShoppingBagIcon className="w-5 h-5 md:w-6 md:h-6" />
                 {cartCount > 0 && (
-                  <span className={`absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg ${
-                    cartCount > 99 ? 'w-6 h-6 text-[10px]' : 'w-5 h-5'
+                  <span className={`absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg ${
+                    cartCount > 99 ? 'w-5 h-5 md:w-6 md:h-6 text-[9px] md:text-[10px]' : 'w-4 h-4 md:w-5 md:h-5 text-[10px]'
                   }`}>
                     {cartCount > 99 ? '99+' : cartCount}
                   </span>
@@ -595,10 +597,10 @@ export default function Navbar() {
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (
               <>
-                <Link to="/login" className="text-secondary/80 hover:text-amber-600 transition-colors text-sm font-semibold">
+                <Link to="/login" className="text-secondary/80 hover:text-amber-600 transition-colors text-xs md:text-sm font-semibold whitespace-nowrap px-2 md:px-0">
                   {t('common.signIn')}
                 </Link>
-                <Link to="/register" className="hidden sm:inline-block btn-primary text-sm px-5 py-2">
+                <Link to="/register" className="btn-primary text-xs md:text-sm px-3 py-1.5 md:px-5 md:py-2 whitespace-nowrap">
                   {t('auth.joinNow')}
                 </Link>
               </>
@@ -668,12 +670,12 @@ export default function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={toggleMobileMenu}
-            className="lg:hidden p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
+            className="lg:hidden p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
           >
             {isMobileMenuOpen ? (
-              <XMarkIcon className="w-6 h-6" />
+              <XMarkIcon className="w-5 h-5 md:w-6 md:h-6" />
             ) : (
-              <Bars3Icon className="w-6 h-6" />
+              <Bars3Icon className="w-5 h-5 md:w-6 md:h-6" />
             )}
           </button>
           </div>
@@ -809,6 +811,14 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-[#D77A61]/20">
           <div className="px-2 pt-2 pb-3 space-y-1">
+            {/* Language Switcher in mobile menu */}
+            <div className="px-3 py-2 border-b border-gray-200 mb-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Language</span>
+                <LanguageSwitcher />
+              </div>
+            </div>
+            
             <OptimizedLink
               to="/"
               className="block px-3 py-2 text-lg font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"

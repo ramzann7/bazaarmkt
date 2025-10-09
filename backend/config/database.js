@@ -36,24 +36,37 @@ const connectToDatabase = async () => {
       await client.close();
     }
 
-    client = new MongoClient(process.env.MONGODB_URI, {
-      maxPoolSize: 20,
-      minPoolSize: 5,
+    // Serverless-optimized connection settings
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    
+    const connectionOptions = {
+      maxPoolSize: isServerless ? 1 : 10,           // 1 connection for serverless
+      minPoolSize: isServerless ? 0 : 2,             // No minimum for serverless  
+      maxIdleTimeMS: isServerless ? 10000 : 60000,   // Close idle connections faster
       serverSelectionTimeoutMS: 10000,
       connectTimeoutMS: 10000,
-      compressors: ['zlib']
-    });
+      socketTimeoutMS: 45000
+    };
+    
+    console.log(`📊 Pool config: max=${connectionOptions.maxPoolSize}, min=${connectionOptions.minPoolSize}, serverless=${isServerless}`);
+
+    client = new MongoClient(process.env.MONGODB_URI, connectionOptions);
 
     await client.connect();
     db = client.db('bazarmkt');
     
     console.log(`✅ MongoDB connected successfully to database: ${db.databaseName}`);
-    console.log(`📊 Connection stats: ${connectionAttempts} total, ${connectionAttempts - 1} reconnects`);
+    console.log(`📊 Connection stats: ${connectionAttempts} total attempts`);
     
     connectionPromise = null;
     return db;
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      code: error.code,
+      mongoUri: process.env.MONGODB_URI ? 'Set' : 'NOT SET'
+    });
     connectionPromise = null;
     throw error;
   }

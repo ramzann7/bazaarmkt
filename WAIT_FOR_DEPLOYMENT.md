@@ -1,85 +1,75 @@
-# ⏳ Waiting for New Deployment
+# 🔍 Check Vercel Build Logs (Not Function Logs)
 
-**Current Time:** These logs are from the OLD deployment (before the fix)  
-**Fix Pushed:** Just now (commit f27fd8b)  
-**Status:** Vercel is building the new deployment
+**Important:** You're looking at FUNCTION logs (runtime errors)  
+**Need to check:** BUILD logs (installation process)
 
 ---
 
-## 🚀 Check Deployment Status
+## 📊 How to Check Build Logs
 
-### Step 1: Go to Deployments Page
-1. Visit: https://vercel.com/dashboard
-2. Click: **bazaarmkt** project
+### Step 1: Go to Deployments
+1. https://vercel.com/dashboard
+2. Click: **bazaarmkt**
 3. Click: **Deployments** tab
 
-### Step 2: Look for New Deployment
+### Step 2: Find Latest Deployment
 
-You should see a deployment with:
-- **Status:** "Building" or "Ready"
-- **Commit:** "fix: Add missing dependencies to api/package.json"
-- **Time:** Within last 2-3 minutes
+Look for the most recent one (top of list):
+- Should say: "fix: Ensure api dependencies are installed"
+- Time: Within last 5 minutes
 
-**Building** = Wait a bit longer  
-**Ready** = Deployment complete, test now!
+### Step 3: Click on the Deployment
+
+Click on the deployment (not the "..." menu)
+
+### Step 4: View BUILD Logs
+
+You'll see tabs:
+- **Building** or **Ready** status
+- Scroll down to see the build output
+
+**Look for:**
+```
+Running "install" command: cd frontend && npm install && cd ../api && npm install
+
+added X packages (for frontend)
+added Y packages (for api) ← THIS SHOULD BE THERE!
+```
+
+**If you see:**
+```
+npm error code ENOENT
+npm error path .../api/package.json
+```
+Then api/package.json wasn't found
 
 ---
 
-## ⚡ If No New Deployment Showing
+## ⚠️ Alternative: Check Current Deployment Time
 
-### Option 1: Manual Redeploy (Fastest)
-1. On Deployments page
-2. Click **"..."** on the LATEST deployment
-3. Click **"Redeploy"**
-4. Wait 2-3 minutes
+**Your function logs show:** 10:12:32
 
-### Option 2: Dummy Commit
-```bash
-git commit --allow-empty -m "trigger deployment"
-git push origin main
-```
+**Last commit pushed:** ~10:13
+
+**Meaning:** These logs are from BEFORE the fix!
 
 ---
 
-## ✅ How to Know It's Working
+## 🎯 What to Do
 
-### After New Deployment is "Ready":
+### Option 1: Wait (Recommended)
+- New deployment should finish in 1-2 more minutes
+- Refresh the site after that
+- Check logs again (should show later timestamp)
 
-**Test 1: Health Check**
-```
-https://www.bazaarmkt.ca/api/health
-```
-Should return JSON (not error)
-
-**Test 2: Check Logs**
-- Go to new deployment → Functions → api/index.js → Logs
-- Should NOT show "Cannot find module 'dotenv'"
-- Should show "✅ MongoDB connected"
-
-**Test 3: Your Site**
-```
-https://www.bazaarmkt.ca
-```
-Products should load!
+### Option 2: Check Build Tab
+- Go to latest deployment
+- Click "Building" or "Ready"
+- See if `cd ../api && npm install` ran
+- Should show "added XX packages"
 
 ---
 
-## 📊 Timeline
-
-```
-10:06 - Old logs (has error)
-       ↓
-Now   - New code pushed (has fix)
-       ↓
-+2min - Vercel builds with new api/package.json
-       ↓
-+3min - Deployment ready with dotenv installed
-       ↓
-       - All APIs work! ✅
-```
-
----
-
-**Action:** Wait 2-3 minutes, then refresh your site OR manually redeploy now for faster results.
+**The logs you're seeing (10:12) are from BEFORE the vercel.json fix was applied. Wait for the NEW deployment to complete.**
 
 

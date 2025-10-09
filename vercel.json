@@ -13,10 +13,12 @@
     "api/index.js": {
       "memory": 1024,
       "maxDuration": 30,
-      "includeFiles": "backend/**"
+      "includeFiles": "backend/**",
+      "runtime": "@vercel/node@18"
     }
   },
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "NODE_PATH": "api/node_modules"
   }
 }

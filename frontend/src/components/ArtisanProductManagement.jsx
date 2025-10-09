@@ -426,56 +426,56 @@ export default function ArtisanProductManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="card p-8 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
-                <CubeIcon className="w-10 h-10 text-white" />
+        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-4">
+            <div className="text-center sm:text-left w-full sm:w-auto">
+              <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-3 sm:mb-6 shadow-lg">
+                <CubeIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
               </div>
-              <h2 className="text-4xl font-bold text-stone-800 mb-3 font-display">My Product Management</h2>
-              <p className="text-stone-600 text-lg">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-800 mb-2 sm:mb-3 font-display">My Product Management</h2>
+              <p className="text-sm sm:text-base lg:text-lg text-stone-600">
                 Manage your products and promotional features
               </p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3 w-full sm:w-auto">
               <button
                 onClick={loadProducts}
-                className="btn-secondary flex items-center space-x-2"
+                className="flex-1 sm:flex-initial btn-secondary flex items-center justify-center space-x-2 text-sm sm:text-base py-2 sm:py-2.5"
                 title="Refresh Products"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <span>Refresh</span>
+                <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
                 onClick={handleAddProduct}
-                className="btn-primary flex items-center space-x-2"
+                className="flex-1 sm:flex-initial btn-primary flex items-center justify-center space-x-2 text-sm sm:text-base py-2 sm:py-2.5"
               >
-                <PlusIcon className="w-5 h-5" />
+                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 <span>Add Product</span>
               </button>
             </div>
           </div>
           
           {/* Promotional Features Info */}
-          <div className="bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl p-6 border border-amber-200">
-            <h3 className="text-lg font-semibold text-stone-800 mb-4 text-center">Promotional Features</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-amber-200">
-                <StarIcon className="w-6 h-6 text-amber-500" />
+          <div className="bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-amber-200">
+            <h3 className="text-base sm:text-lg font-semibold text-stone-800 mb-3 sm:mb-4 text-center">Promotional Features</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+              <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 bg-white rounded-lg border border-amber-200">
+                <StarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 flex-shrink-0" />
                 <div>
-                  <span className="font-semibold text-amber-700">Featured Product</span>
-                  <p className="text-sm text-stone-600">$5/day - Homepage visibility with distance-based ranking</p>
+                  <span className="font-semibold text-amber-700 text-sm sm:text-base">Featured Product</span>
+                  <p className="text-xs sm:text-sm text-stone-600">$5/day - Homepage visibility with distance-based ranking</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-emerald-200">
-                <SparklesIcon className="w-6 h-6 text-emerald-500" />
+              <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 bg-white rounded-lg border border-emerald-200">
+                <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 flex-shrink-0" />
                 <div>
-                  <span className="font-semibold text-emerald-700">Sponsored Product</span>
-                  <p className="text-sm text-stone-600">$10/day - Enhanced search visibility</p>
+                  <span className="font-semibold text-emerald-700 text-sm sm:text-base">Sponsored Product</span>
+                  <p className="text-xs sm:text-sm text-stone-600">$10/day - Enhanced search visibility</p>
                 </div>
               </div>
             </div>
@@ -483,13 +483,13 @@ export default function ArtisanProductManagement() {
         </div>
 
         {/* Search and Filters - Subtle Design */}
-        <div className="mb-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-start lg:items-center">
             {/* Search Input - Subtle like navbar */}
-            <div className="flex-1 max-w-md">
+            <div className="flex-1 w-full lg:max-w-md">
               <div className="relative">
                 <div className="flex shadow-sm">
-                  <div className="flex items-center px-3 py-2 bg-stone-50 text-stone-600 border border-r-0 border-stone-300 rounded-l-lg">
+                  <div className="flex items-center px-2 sm:px-3 py-2 bg-stone-50 text-stone-600 border border-r-0 border-stone-300 rounded-l-lg">
                     <MagnifyingGlassIcon className="h-4 w-4" />
                   </div>
                   <input
@@ -504,11 +504,11 @@ export default function ArtisanProductManagement() {
             </div>
             
             {/* Category Filter - Subtle dropdown */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full lg:w-auto">
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
+                className="flex-1 lg:flex-initial px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
               >
                 <option value="all">All Categories</option>
                 <option value="bakery">Bakery</option>
@@ -523,7 +523,7 @@ export default function ArtisanProductManagement() {
         </div>
 
         {/* Products List */}
-        <div className="card p-8 mb-8">
+        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-2xl font-bold text-stone-800 font-display">

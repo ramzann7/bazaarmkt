@@ -58,25 +58,9 @@ const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
 const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 
 // Debug routes - only loaded in development
-const DashboardTest = import.meta.env.MODE === 'development' 
-  ? lazy(() => import("./components/dashboard/DashboardTest.jsx"))
-  : null;
 const UserRoleCheck = import.meta.env.MODE === 'development' 
   ? lazy(() => import("./components/dashboard/UserRoleCheck.jsx"))
   : null;
-const DashboardDebug = import.meta.env.MODE === 'development' 
-  ? lazy(() => import("./components/dashboard/DashboardDebug.jsx"))
-  : null;
-const DashboardSimple = import.meta.env.MODE === 'development' 
-  ? lazy(() => import("./components/dashboard/DashboardSimple.jsx"))
-  : null;
-const DashboardMinimal = import.meta.env.MODE === 'development' 
-  ? lazy(() => import("./components/dashboard/DashboardMinimal.jsx"))
-  : null;
-const DashboardTestSimple = import.meta.env.MODE === 'development' 
-  ? lazy(() => import("./components/dashboard/DashboardTestSimple.jsx"))
-  : null;
-const DashboardFixed = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
 const LoginDebug = import.meta.env.MODE === 'development' 
   ? lazy(() => import("./components/dashboard/LoginDebug.jsx"))
   : null;
@@ -194,17 +178,11 @@ function AppRoutes() {
         {/* Debug routes - only available in development */}
         {import.meta.env.MODE === 'development' && (
           <>
-            <Route path="/dashboard-test" element={<DashboardTest />} />
             <Route path="/user-role-check" element={<UserRoleCheck />} />
-            <Route path="/dashboard-debug" element={<DashboardDebug />} />
-            <Route path="/dashboard-simple" element={<DashboardSimple />} />
-            <Route path="/dashboard-minimal" element={<DashboardMinimal />} />
-            <Route path="/dashboard-test-simple" element={<DashboardTestSimple />} />
             <Route path="/login-debug" element={<LoginDebug />} />
           </>
         )}
         
-        <Route path="/dashboard-fixed" element={<DashboardFixed />} />
         <Route path="/artisan/:id" element={<ArtisanShop />} />
         <Route path="/shop/:id" element={<ArtisanShop />} />
         <Route path="/find-artisans" element={<Artisans />} />

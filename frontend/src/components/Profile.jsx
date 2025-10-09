@@ -811,14 +811,14 @@ export default function Profile() {
         </div>
       )}
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Enhanced Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
-            <UserIcon className="w-10 h-10 text-white" />
+        <div className="mb-6 sm:mb-8 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-4 sm:mb-6 shadow-lg">
+            <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">My Profile</h1>
-          <p className="text-lg text-stone-600 max-w-2xl mx-auto">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-800 mb-2 sm:mb-3 font-display">My Profile</h1>
+          <p className="text-sm sm:text-base lg:text-lg text-stone-600 max-w-2xl mx-auto px-4">
             {isArtisan 
               ? "Manage your artisan business profile, operations, and customer information"
               : "Manage your account settings, preferences, and personal information"
@@ -827,14 +827,14 @@ export default function Profile() {
         </div>
 
         {/* Enhanced Profile Header */}
-        <div className="card p-8 mb-8 transform hover:scale-[1.02] transition-transform duration-300">
-          <div className="flex items-center space-x-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg">
-              <UserIcon className="w-10 h-10 text-white" />
+        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 transform hover:scale-[1.02] transition-transform duration-300">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+              <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <div>
+            <div className="flex-1 text-center sm:text-left w-full">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start sm:justify-between mb-2 gap-2">
+                <div className="w-full sm:w-auto">
                   {isArtisan && artisanProfile?.artisanName ? (
                     <h2 className="text-2xl font-bold text-amber-600 font-display">
                       🏪 {artisanProfile.artisanName}

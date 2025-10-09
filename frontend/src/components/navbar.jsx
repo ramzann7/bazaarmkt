@@ -612,7 +612,7 @@ export default function Navbar() {
                     {isGuest ? t('nav.guestCheckout') : t('nav.myAccount')}
                   </span>
                 </button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                   {!isGuest && (
                     <>
                       {/* Admin Dashboard Link */}
@@ -628,26 +628,26 @@ export default function Navbar() {
                         <>
                           {(user?.role === 'artisan' || user?.userType === 'artisan') && (
                             <>
-                              <Link to="/dashboard" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
+                              <Link to="/dashboard" className="block pl-6 pr-4 py-2 text-sm text-secondary hover:bg-gray-50 border-l-2 border-transparent hover:border-amber-500">
                                 {t('nav.dashboard')}
                               </Link>
-                              <Link to="/profile" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
+                              <Link to="/profile" className="block pl-6 pr-4 py-2 text-sm text-secondary hover:bg-gray-50 border-l-2 border-transparent hover:border-amber-500">
                                 {t('common.profile')}
                               </Link>
-                              <Link to="/my-products" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
+                              <Link to="/my-products" className="block pl-6 pr-4 py-2 text-sm text-secondary hover:bg-gray-50 border-l-2 border-transparent hover:border-amber-500">
                                 {t('nav.myProducts')}
                               </Link>
-                              <Link to="/orders" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
+                              <Link to="/orders" className="block pl-6 pr-4 py-2 text-sm text-secondary hover:bg-gray-50 border-l-2 border-transparent hover:border-amber-500">
                                 {t('nav.myOrders')}
                               </Link>
                             </>
                           )}
                           {(user?.role !== 'artisan' && user?.userType !== 'artisan') && (
                             <>
-                              <Link to="/profile" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
+                              <Link to="/profile" className="block pl-6 pr-4 py-2 text-sm text-secondary hover:bg-gray-50 border-l-2 border-transparent hover:border-amber-500">
                                 {t('common.profile')}
                               </Link>
-                              <Link to="/orders" className="block px-4 py-2 text-sm text-secondary hover:bg-gray-50">
+                              <Link to="/orders" className="block pl-6 pr-4 py-2 text-sm text-secondary hover:bg-gray-50 border-l-2 border-transparent hover:border-amber-500">
                                 {t('nav.myOrders')}
                               </Link>
                             </>
@@ -809,7 +809,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-[#D77A61]/20">
+        <div className="md:hidden bg-white border-t border-[#D77A61]/20 absolute top-full left-0 right-0 shadow-lg z-40">
           <div className="px-2 pt-2 pb-3 space-y-1">
             {/* Language Switcher in mobile menu */}
             <div className="px-3 py-2 border-b border-gray-200 mb-2">
@@ -854,39 +854,40 @@ export default function Navbar() {
                 )}
                                   {(user?.role !== 'admin' && user?.userType !== 'admin') && (
                       <>
+                        <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">My Account</div>
                         {(user?.role === 'artisan' || user?.userType === 'artisan') && (
                           <>
                           <Link
                             to="/dashboard"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('nav.dashboard')}
                           </Link>
                           <Link
                             to="/profile"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('common.profile')}
                           </Link>
                           <Link
                             to="/my-products"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('nav.myProducts')}
                           </Link>
                           <Link
                             to="/orders"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('nav.myOrders')}
                           </Link>
                           <Link
                             to="/my-wallet"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('nav.myWallet')}
@@ -897,14 +898,14 @@ export default function Navbar() {
                         <>
                           <Link
                             to="/profile"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('common.profile')}
                           </Link>
                           <Link
                             to="/orders"
-                            className="block px-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300"
+                            className="block pl-8 pr-3 py-2 text-base font-medium text-[#2E2E2E] hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-lg transition-colors duration-300 border-l-2 border-transparent hover:border-[#D77A61]"
                             onClick={toggleMobileMenu}
                           >
                             {t('nav.myOrders')}

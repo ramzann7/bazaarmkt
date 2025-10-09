@@ -382,18 +382,18 @@ export default function DashboardFixed() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Artisan Dashboard</h1>
-              <p className="text-gray-600 mt-2">Welcome back, {user.firstName}! Here's your business overview.</p>
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Artisan Dashboard</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Welcome back, {user.firstName}! Here's your business overview.</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
+                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm sm:text-base"
               >
                 Refresh
               </button>

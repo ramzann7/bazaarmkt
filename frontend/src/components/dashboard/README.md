@@ -1,18 +1,21 @@
 # Dashboard Components
 
-This directory contains all dashboard-related components for the food finder application.
+This directory contains all dashboard-related components for the BazaarMkt application.
 
 ## Main Components
 
 ### 🎯 **DashboardFixed.jsx**
 - **Purpose**: Main artisan dashboard component
 - **Features**: 
-  - Revenue and earnings display
-  - Order statistics
+  - Revenue and earnings display with accurate fee calculations
+  - Order statistics and recent orders
   - Platform costs breakdown
   - Pending orders widget
+  - Wallet integration
+  - Spotlight subscription management
   - Performance metrics
 - **Usage**: Primary dashboard for authenticated artisans
+- **Mobile Responsive**: ✅ Optimized for all screen sizes
 
 ### 📋 **PendingOrdersWidget.jsx**
 - **Purpose**: Widget to display pending orders for artisans
@@ -22,32 +25,23 @@ This directory contains all dashboard-related components for the food finder app
   - Quick action buttons
 - **Usage**: Embedded in the main dashboard
 
+### 💰 **WalletCard.jsx**
+- **Purpose**: Display wallet balance and quick actions
+- **Features**:
+  - Current balance display
+  - Quick top-up actions
+  - Transaction history preview
+- **Usage**: Embedded in the main dashboard
+
+### 📦 **DeliveryRevenueDashboard.jsx**
+- **Purpose**: Detailed revenue breakdown for delivery services
+- **Features**:
+  - Product vs delivery revenue tracking
+  - Fee calculations
+  - Revenue trends
+- **Usage**: Specialized revenue analytics
+
 ## Debug & Test Components
-
-### 🧪 **DashboardTest.jsx**
-- **Purpose**: Comprehensive testing component for dashboard functionality
-- **Features**: Tests authentication, profile loading, orders, revenue, and navigation
-- **Usage**: Development and debugging only
-
-### 🔍 **DashboardDebug.jsx**
-- **Purpose**: Step-by-step debug logging for dashboard data loading
-- **Features**: Detailed console logs for troubleshooting
-- **Usage**: Development and debugging only
-
-### 📊 **DashboardSimple.jsx**
-- **Purpose**: Simplified dashboard for basic testing
-- **Features**: Minimal UI with core functionality
-- **Usage**: Development and debugging only
-
-### 🎯 **DashboardTestSimple.jsx**
-- **Purpose**: Very minimal dashboard test component
-- **Features**: Basic user data loading and rendering
-- **Usage**: Development and debugging only
-
-### 📱 **DashboardMinimal.jsx**
-- **Purpose**: Minimal dashboard with essential features only
-- **Features**: Basic statistics display
-- **Usage**: Development and debugging only
 
 ### 👤 **UserRoleCheck.jsx**
 - **Purpose**: Display current user role and onboarding status
@@ -59,28 +53,17 @@ This directory contains all dashboard-related components for the food finder app
 - **Features**: Pre-filled artisan credentials and detailed logs
 - **Usage**: Development and debugging only
 
-## Legacy Components
-
-### 📜 **dashboard.jsx**
-- **Purpose**: Original dashboard component (legacy)
-- **Status**: Kept for reference only
-- **Usage**: Not used in production
-
 ## Directory Structure
 
 ```
 dashboard/
-├── README.md                    # This file
-├── DashboardFixed.jsx          # Main dashboard component
-├── PendingOrdersWidget.jsx     # Pending orders widget
-├── DashboardTest.jsx           # Comprehensive test component
-├── DashboardDebug.jsx          # Debug logging component
-├── DashboardSimple.jsx         # Simplified dashboard
-├── DashboardTestSimple.jsx     # Minimal test component
-├── DashboardMinimal.jsx        # Minimal dashboard
-├── UserRoleCheck.jsx           # User role verification
-├── LoginDebug.jsx              # Login debugging
-└── dashboard.jsx               # Legacy dashboard (reference)
+├── README.md                      # This file
+├── DashboardFixed.jsx             # ✅ Main dashboard component (PRODUCTION)
+├── PendingOrdersWidget.jsx        # Pending orders widget
+├── WalletCard.jsx                 # Wallet balance display
+├── DeliveryRevenueDashboard.jsx   # Revenue analytics
+├── UserRoleCheck.jsx              # User role verification (dev only)
+└── LoginDebug.jsx                 # Login debugging (dev only)
 ```
 
 ## Usage
@@ -88,25 +71,51 @@ dashboard/
 ### Production
 - Use `DashboardFixed.jsx` as the main dashboard component
 - Import from `./components/dashboard/DashboardFixed.jsx`
+- All features are integrated and mobile-responsive
 
 ### Development
 - Use debug components for troubleshooting
-- Access via routes like `/dashboard-test`, `/dashboard-debug`, etc.
+- Access via routes like `/user-role-check`, `/login-debug`
 
 ## Import Example
 
 ```jsx
-// Main dashboard
-import Dashboard from './components/dashboard/DashboardFixed.jsx';
+// Main dashboard (lazy loaded in app.jsx)
+const Dashboard = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
 
-// Debug components
-import DashboardTest from './components/dashboard/DashboardTest.jsx';
-import DashboardDebug from './components/dashboard/DashboardDebug.jsx';
+// Debug components (development only)
+const UserRoleCheck = import.meta.env.MODE === 'development' 
+  ? lazy(() => import("./components/dashboard/UserRoleCheck.jsx"))
+  : null;
 ```
+
+## Recent Changes
+
+### ✅ Cleanup (Current)
+- Removed unused debug dashboard components:
+  - ❌ dashboard.jsx (legacy)
+  - ❌ DashboardTest.jsx
+  - ❌ DashboardDebug.jsx
+  - ❌ DashboardSimple.jsx
+  - ❌ DashboardMinimal.jsx
+  - ❌ DashboardTestSimple.jsx
+- Kept only DashboardFixed.jsx as the main production component
+- Streamlined app.jsx routes
+- Updated mobile responsiveness for all pages
+
+## Mobile Responsiveness
+
+All dashboard components have been optimized for mobile devices:
+- Responsive headers with flexible layouts
+- Touch-friendly buttons and controls
+- Adaptive font sizes (text-sm sm:text-base lg:text-lg)
+- Flexible spacing (px-4 sm:px-6 lg:px-8)
+- Stack layout on mobile, side-by-side on desktop
 
 ## Notes
 
-- All debug and test components should be removed before production deployment
+- Debug components are only loaded in development mode
 - The main dashboard component (`DashboardFixed.jsx`) is optimized for performance
 - Pending orders widget is embedded in the main dashboard
-- Legacy dashboard is kept for reference but not used in production
+- All components follow mobile-first responsive design principles
+- Wallet integration allows artisans to manage their balance directly from the dashboard

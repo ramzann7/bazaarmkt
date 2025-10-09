@@ -13,10 +13,9 @@
   ],
   "scripts": {
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "build": "npm run build:frontend",
-    "build:frontend": "cd frontend && npm install && npm run build",
-    "build:backend": "cd backend && npm install",
-    "vercel-build": "npm run build:backend && npm run build:frontend",
+    "build": "cd frontend && npm install && npm run build",
+    "postinstall": "npm install --prefix frontend && npm install --prefix backend && npm install --prefix api",
+    "vercel-build": "npm run build",
     "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",

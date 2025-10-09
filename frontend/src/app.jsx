@@ -10,6 +10,7 @@ import "./styles/mobile-improvements.css";
 import { performanceService } from "./services/performanceService";
 import { LazyRoute, LoadingSpinner } from "./components/LazyLoader.jsx";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
+import { lazyWithRetry } from "./utils/chunkLoadHandler";
 // Remove debug utilities in production
 if (import.meta.env.MODE === 'development') {
   import('./utils/authDebug');

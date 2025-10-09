@@ -3,6 +3,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { Toaster } from "react-hot-toast";
+import { setupChunkLoadErrorHandler, isChunkLoadError, showReloadPrompt } from "./utils/chunkLoadHandler";
+
+// Initialize chunk load error handler
+setupChunkLoadErrorHandler();
 
 // Error boundary component
 class ErrorBoundary extends React.Component {
@@ -18,6 +22,13 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('App Error:', error);
     console.error('Error Info:', errorInfo);
+    
+    // Check if it's a chunk loading error
+    if (isChunkLoadError(error)) {
+      showReloadPrompt(error);
+      return;
+    }
+    
     this.setState({
       error: error,
       errorInfo: errorInfo
@@ -65,6 +76,13 @@ function AppLoader() {
         setApp(() => AppComponent);
       } catch (err) {
         console.error('Failed to load App component:', err);
+        
+        // Check if it's a chunk loading error
+        if (isChunkLoadError(err)) {
+          showReloadPrompt(err);
+          return;
+        }
+        
         setError(err.message);
       } finally {
         setLoading(false);

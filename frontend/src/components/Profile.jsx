@@ -549,19 +549,27 @@ export default function Profile() {
       console.log('🔄 User role:', profile?.role);
       setIsSaving(true);
       
-      let updatedArtisanProfile;
+      let response;
       if (artisanProfile) {
         // Update existing artisan profile
         console.log('🔄 Updating existing artisan profile...');
-        updatedArtisanProfile = await profileService.updateArtisanProfile(data);
+        response = await profileService.updateArtisanProfile(data);
       } else {
         // Create new artisan profile
         console.log('🔄 Creating new artisan profile...');
-        updatedArtisanProfile = await profileService.createArtisanProfile(data);
+        response = await profileService.createArtisanProfile(data);
       }
       
-      console.log('✅ Artisan profile updated:', updatedArtisanProfile);
+      console.log('✅ Artisan profile updated:', response);
+      
+      // Extract the artisan profile from the response
+      const updatedArtisanProfile = response?.data?.user?.artisan || response?.data || response;
       setArtisanProfile(updatedArtisanProfile);
+      
+      // Update the full user profile if it's in the response
+      if (response?.data?.user) {
+        await updateUser(response.data.user);
+      }
       
       // Mark onboarding as completed for new users
       if (profile && onboardingService.isNewUser(profile._id)) {
@@ -589,9 +597,17 @@ export default function Profile() {
     try {
       console.log('🔄 Updating artisan hours:', hoursData);
       setIsSaving(true);
-      const updatedArtisanProfile = await profileService.updateArtisanHours(hoursData);
-      console.log('✅ Artisan hours updated:', updatedArtisanProfile);
+      const response = await profileService.updateArtisanHours(hoursData);
+      console.log('✅ Artisan hours updated:', response);
+      
+      // Extract the artisan profile from the response
+      const updatedArtisanProfile = response?.data?.user?.artisan || response?.data || response;
       setArtisanProfile(updatedArtisanProfile);
+      
+      // Update the full user profile if it's in the response
+      if (response?.data?.user) {
+        await updateUser(response.data.user);
+      }
       
       // Clear any cached artisan profile data to ensure fresh data on next load
       clearProfileCache();
@@ -612,9 +628,17 @@ export default function Profile() {
       console.log('🔄 Operations data type:', typeof operationsData);
       console.log('🔄 Operations data keys:', Object.keys(operationsData || {}));
       setIsSaving(true);
-      const updatedArtisanProfile = await profileService.updateArtisanOperations(operationsData);
-      console.log('✅ Artisan operations updated:', updatedArtisanProfile);
+      const response = await profileService.updateArtisanOperations(operationsData);
+      console.log('✅ Artisan operations updated:', response);
+      
+      // Extract the artisan profile from the response
+      const updatedArtisanProfile = response?.data?.user?.artisan || response?.data || response;
       setArtisanProfile(updatedArtisanProfile);
+      
+      // Update the full user profile if it's in the response
+      if (response?.data?.user) {
+        await updateUser(response.data.user);
+      }
       
       // Clear any cached artisan profile data to ensure fresh data on next load
       clearProfileCache();
@@ -637,9 +661,17 @@ export default function Profile() {
       console.log('🔄 Delivery data type:', typeof deliveryData);
       console.log('🔄 Delivery data keys:', Object.keys(deliveryData || {}));
       setIsSaving(true);
-      const updatedArtisanProfile = await profileService.updateArtisanDelivery(deliveryData);
-      console.log('✅ Artisan delivery options updated:', updatedArtisanProfile);
+      const response = await profileService.updateArtisanDelivery(deliveryData);
+      console.log('✅ Artisan delivery options updated:', response);
+      
+      // Extract the artisan profile from the response
+      const updatedArtisanProfile = response?.data?.user?.artisan || response?.data || response;
       setArtisanProfile(updatedArtisanProfile);
+      
+      // Update the full user profile if it's in the response
+      if (response?.data?.user) {
+        await updateUser(response.data.user);
+      }
       
       // Clear any cached artisan profile data to ensure fresh data on next load
       clearProfileCache();

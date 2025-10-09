@@ -957,10 +957,38 @@ const updateArtisanProfile = async (req, res) => {
     // Get the updated artisan record
     const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
     
+    // Get the updated user record to return full profile data
+    const updatedUser = await usersCollection.findOne({ _id: user._id });
+    
+    // Build response similar to getProfile endpoint
+    const userProfile = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profilePicture: updatedUser.profilePicture,
+      bio: updatedUser.bio,
+      userType: updatedUser.role,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      isVerified: updatedUser.isVerified,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      addresses: updatedUser.addresses || [],
+      notificationPreferences: updatedUser.notificationPreferences || {},
+      accountSettings: updatedUser.accountSettings || {},
+      paymentMethods: updatedUser.paymentMethods || [],
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      coordinates: updatedUser.coordinates,
+      artisan: updatedArtisan,
+      artisanId: updatedArtisan._id
+    };
+    
     res.json({
       success: true,
       message: 'Artisan profile updated successfully',
-      data: updatedArtisan
+      data: { user: userProfile }
     });
   } catch (error) {
     console.error('Update artisan profile error:', error);
@@ -1083,9 +1111,42 @@ const updateArtisanOperations = async (req, res) => {
       { $set: updateData }
     );
 
+    // Get the updated artisan record
+    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
+    
+    // Get the updated user record to return full profile data
+    const usersCollection = db.collection('users');
+    const updatedUser = await usersCollection.findOne({ user: new ObjectId(decoded.userId) });
+    
+    // Build response similar to getProfile endpoint
+    const userProfile = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profilePicture: updatedUser.profilePicture,
+      bio: updatedUser.bio,
+      userType: updatedUser.role,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      isVerified: updatedUser.isVerified,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      addresses: updatedUser.addresses || [],
+      notificationPreferences: updatedUser.notificationPreferences || {},
+      accountSettings: updatedUser.accountSettings || {},
+      paymentMethods: updatedUser.paymentMethods || [],
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      coordinates: updatedUser.coordinates,
+      artisan: updatedArtisan,
+      artisanId: updatedArtisan._id
+    };
+
     res.json({
       success: true,
-      message: 'Artisan operations updated successfully'
+      message: 'Artisan operations updated successfully',
+      data: { user: userProfile }
     });
   } catch (error) {
     console.error('Error updating artisan operations:', error);
@@ -1134,9 +1195,42 @@ const updateArtisanHours = async (req, res) => {
       { $set: updateData }
     );
 
+    // Get the updated artisan record
+    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
+    
+    // Get the updated user record to return full profile data
+    const usersCollection = db.collection('users');
+    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    
+    // Build response similar to getProfile endpoint
+    const userProfile = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profilePicture: updatedUser.profilePicture,
+      bio: updatedUser.bio,
+      userType: updatedUser.role,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      isVerified: updatedUser.isVerified,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      addresses: updatedUser.addresses || [],
+      notificationPreferences: updatedUser.notificationPreferences || {},
+      accountSettings: updatedUser.accountSettings || {},
+      paymentMethods: updatedUser.paymentMethods || [],
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      coordinates: updatedUser.coordinates,
+      artisan: updatedArtisan,
+      artisanId: updatedArtisan._id
+    };
+
     res.json({
       success: true,
-      message: 'Artisan hours updated successfully'
+      message: 'Artisan hours updated successfully',
+      data: { user: userProfile }
     });
   } catch (error) {
     console.error('Error updating artisan hours:', error);
@@ -1185,9 +1279,42 @@ const updateArtisanDelivery = async (req, res) => {
       { $set: updateData }
     );
 
+    // Get the updated artisan record
+    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
+    
+    // Get the updated user record to return full profile data
+    const usersCollection = db.collection('users');
+    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    
+    // Build response similar to getProfile endpoint
+    const userProfile = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profilePicture: updatedUser.profilePicture,
+      bio: updatedUser.bio,
+      userType: updatedUser.role,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      isVerified: updatedUser.isVerified,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      addresses: updatedUser.addresses || [],
+      notificationPreferences: updatedUser.notificationPreferences || {},
+      accountSettings: updatedUser.accountSettings || {},
+      paymentMethods: updatedUser.paymentMethods || [],
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      coordinates: updatedUser.coordinates,
+      artisan: updatedArtisan,
+      artisanId: updatedArtisan._id
+    };
+
     res.json({
       success: true,
-      message: 'Artisan delivery options updated successfully'
+      message: 'Artisan delivery options updated successfully',
+      data: { user: userProfile }
     });
   } catch (error) {
     console.error('Error updating artisan delivery options:', error);
@@ -1251,9 +1378,42 @@ const updateArtisanPhotosContact = async (req, res) => {
       { $set: updateData }
     );
 
+    // Get the updated artisan record
+    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
+    
+    // Get the updated user record to return full profile data
+    const usersCollection = db.collection('users');
+    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
+    
+    // Build response similar to getProfile endpoint
+    const userProfile = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profilePicture: updatedUser.profilePicture,
+      bio: updatedUser.bio,
+      userType: updatedUser.role,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      isVerified: updatedUser.isVerified,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt,
+      addresses: updatedUser.addresses || [],
+      notificationPreferences: updatedUser.notificationPreferences || {},
+      accountSettings: updatedUser.accountSettings || {},
+      paymentMethods: updatedUser.paymentMethods || [],
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      coordinates: updatedUser.coordinates,
+      artisan: updatedArtisan,
+      artisanId: updatedArtisan._id
+    };
+
     res.json({
       success: true,
-      message: 'Artisan photos and contact updated successfully'
+      message: 'Artisan photos and contact updated successfully',
+      data: { user: userProfile }
     });
   } catch (error) {
     console.error('Error updating artisan photos and contact:', error);

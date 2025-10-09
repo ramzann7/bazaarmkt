@@ -27,10 +27,10 @@ const environment = {
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',
     NODE_ENV: import.meta.env.VITE_NODE_ENV || 'production',
     // Vecteezy images from Vercel Blob
-    VECTEEZY_SPINNING_WHEEL: import.meta.env.VITE_VECTEEZY_SPINNING_WHEEL || 'https://blob.vercel-storage.com/vecteezy_a-man-is-spinning-yarn-on-a-spinning-wheel_69187328.jpg',
-    VECTEEZY_CRAFTSMAN: import.meta.env.VITE_VECTEEZY_CRAFTSMAN || 'https://blob.vercel-storage.com/vecteezy_craftsman-meticulously-paints-miniature-soldiers_69823529.jpg',
-    VECTEEZY_WOMAN_WORKSHOP: import.meta.env.VITE_VECTEEZY_WOMAN_WORKSHOP || 'https://blob.vercel-storage.com/vecteezy_a-woman-working-on-a-wooden-box-in-a-workshop_68945818.jpeg',
-    VECTEEZY_ARTISAN_MARKET: import.meta.env.VITE_VECTEEZY_ARTISAN_MARKET || 'https://blob.vercel-storage.com/vecteezy_exploring-a-vibrant-artisan-market-and-selecting-pottery-on_70827611.jpeg'
+    VECTEEZY_SPINNING_WHEEL: import.meta.env.VITE_VECTEEZY_SPINNING_WHEEL || 'https://pkniy0pr3gilfqmd.public.blob.vercel-storage.com/vecteezy_a-man-is-spinning-yarn-on-a-spinning-wheel_69187328.jpg',
+    VECTEEZY_CRAFTSMAN: import.meta.env.VITE_VECTEEZY_CRAFTSMAN || 'https://pkniy0pr3gilfqmd.public.blob.vercel-storage.com/vecteezy_craftsman-meticulously-paints-miniature-soldiers_69823529.jpg',
+    VECTEEZY_WOMAN_WORKSHOP: import.meta.env.VITE_VECTEEZY_WOMAN_WORKSHOP || 'https://pkniy0pr3gilfqmd.public.blob.vercel-storage.com/vecteezy_a-woman-working-on-a-wooden-box-in-a-workshop_68945818.jpeg',
+    VECTEEZY_ARTISAN_MARKET: import.meta.env.VITE_VECTEEZY_ARTISAN_MARKET || 'https://pkniy0pr3gilfqmd.public.blob.vercel-storage.com/vecteezy_exploring-a-vibrant-artisan-market-and-selecting-pottery-on_70827611.jpeg'
   }
 };
 

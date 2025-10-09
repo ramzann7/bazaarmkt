@@ -158,8 +158,9 @@ const connectToDatabase = async () => {
     
     await Promise.race([connectPromise, timeoutPromise]);
     
-    // Get database
-    cachedDb = cachedClient.db('bazarmkt');
+    // Get database (matches MONGODB_URI database name)
+    const dbName = process.env.MONGODB_URI?.split('/').pop()?.split('?')[0] || 'bazaarmkt-prod';
+    cachedDb = cachedClient.db(dbName);
     
     // Verify connection with ping
     await cachedDb.admin().ping();

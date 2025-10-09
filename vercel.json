@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && PATH=$PATH:./node_modules/.bin npm run build",
+  "buildCommand": "cd frontend && npm run build && cd ../api && npm install",
+  "installCommand": "cd frontend && npm install && cd ../api && npm install",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
@@ -11,7 +12,8 @@
   "functions": {
     "api/index.js": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "backend/**"
     }
   },
   "env": {

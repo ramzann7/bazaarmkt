@@ -12,6 +12,7 @@ import {
   ChartPieIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
+import { VECTEEZY_CRAFTSMAN } from '../config/environment';
 
 export default function DashboardHighlights() {
   const dashboardFeatures = [
@@ -108,7 +109,7 @@ export default function DashboardHighlights() {
       <section className="relative py-20 bg-gradient-to-br from-stone-100 via-stone-200 to-stone-300 overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="/vecteezy_craftsman-meticulously-paints-miniature-soldiers_69823529.jpg" 
+            src={VECTEEZY_CRAFTSMAN}
             alt="Craftsman meticulously painting miniature soldiers"
             className="w-full h-full object-cover opacity-15"
           />

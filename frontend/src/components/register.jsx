@@ -32,14 +32,14 @@ export default function Register() {
     city: "",
     state: "",
     zipCode: "",
-    country: "",
+    country: "Canada", // Set to Canada by default and cannot be changed
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   const [fieldTouched, setFieldTouched] = useState({});
-  const [addressConfig, setAddressConfig] = useState(ADDRESS_CONFIG.default);
+  const [addressConfig, setAddressConfig] = useState(ADDRESS_CONFIG.Canada || ADDRESS_CONFIG.default);
 
   const handleChange = (e) => {
     let value = e.target.value;
@@ -556,18 +556,15 @@ export default function Register() {
                     name="country"
                     value={formData.country}
                     onChange={handleChange}
-                    className="form-input focus-luxury"
+                    className="form-input focus-luxury bg-gray-50 cursor-not-allowed"
                     required
+                    disabled
                   >
-                    <option value="">Select Country</option>
                     <option value="Canada">Canada</option>
-                    <option value="United States">United States</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="Australia">Australia</option>
-                    <option value="Germany">Germany</option>
-                    <option value="France">France</option>
-                    <option value="Other">Other</option>
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    🇨🇦 Currently available in Canada only
+                  </p>
                 </div>
               </div>
 

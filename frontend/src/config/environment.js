@@ -7,7 +7,12 @@ const environment = {
     STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
     GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',
-    NODE_ENV: 'development'
+    NODE_ENV: 'development',
+    // Vecteezy images - use local in development, Vercel Blob in production
+    VECTEEZY_SPINNING_WHEEL: '/vecteezy_a-man-is-spinning-yarn-on-a-spinning-wheel_69187328.jpg',
+    VECTEEZY_CRAFTSMAN: '/vecteezy_craftsman-meticulously-paints-miniature-soldiers_69823529.jpg',
+    VECTEEZY_WOMAN_WORKSHOP: '/vecteezy_a-woman-working-on-a-wooden-box-in-a-workshop_68945818.jpeg',
+    VECTEEZY_ARTISAN_MARKET: '/vecteezy_exploring-a-vibrant-artisan-market-and-selecting-pottery-on_70827611.jpeg'
   },
   
   production: {
@@ -20,7 +25,12 @@ const environment = {
     STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
     GOOGLE_MAPS_API_KEY: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
     BREVO_API_KEY: import.meta.env.VITE_BREVO_API_KEY || '',
-    NODE_ENV: import.meta.env.VITE_NODE_ENV || 'production'
+    NODE_ENV: import.meta.env.VITE_NODE_ENV || 'production',
+    // Vecteezy images from Vercel Blob
+    VECTEEZY_SPINNING_WHEEL: import.meta.env.VITE_VECTEEZY_SPINNING_WHEEL || 'https://blob.vercel-storage.com/vecteezy_a-man-is-spinning-yarn-on-a-spinning-wheel_69187328.jpg',
+    VECTEEZY_CRAFTSMAN: import.meta.env.VITE_VECTEEZY_CRAFTSMAN || 'https://blob.vercel-storage.com/vecteezy_craftsman-meticulously-paints-miniature-soldiers_69823529.jpg',
+    VECTEEZY_WOMAN_WORKSHOP: import.meta.env.VITE_VECTEEZY_WOMAN_WORKSHOP || 'https://blob.vercel-storage.com/vecteezy_a-woman-working-on-a-wooden-box-in-a-workshop_68945818.jpeg',
+    VECTEEZY_ARTISAN_MARKET: import.meta.env.VITE_VECTEEZY_ARTISAN_MARKET || 'https://blob.vercel-storage.com/vecteezy_exploring-a-vibrant-artisan-market-and-selecting-pottery-on_70827611.jpeg'
   }
 };
 
@@ -45,7 +55,11 @@ export const {
   STRIPE_PUBLISHABLE_KEY,
   GOOGLE_MAPS_API_KEY,
   BREVO_API_KEY,
-  NODE_ENV
+  NODE_ENV,
+  VECTEEZY_SPINNING_WHEEL,
+  VECTEEZY_CRAFTSMAN,
+  VECTEEZY_WOMAN_WORKSHOP,
+  VECTEEZY_ARTISAN_MARKET
 } = config;
 
 // Helper functions

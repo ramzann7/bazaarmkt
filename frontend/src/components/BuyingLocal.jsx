@@ -11,6 +11,7 @@ import {
   CurrencyDollarIcon,
   ShoppingBagIcon
 } from '@heroicons/react/24/outline';
+import { VECTEEZY_ARTISAN_MARKET, VECTEEZY_SPINNING_WHEEL, VECTEEZY_WOMAN_WORKSHOP } from '../config/environment';
 
 const BuyingLocal = () => {
   const benefits = [
@@ -75,7 +76,7 @@ const BuyingLocal = () => {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="/vecteezy_exploring-a-vibrant-artisan-market-and-selecting-pottery-on_70827611.jpeg" 
+            src={VECTEEZY_ARTISAN_MARKET}
             alt="Vibrant artisan market with pottery"
             className="w-full h-full object-cover opacity-20"
           />
@@ -116,7 +117,7 @@ const BuyingLocal = () => {
           {/* Feature Image - Spinning Wheel Artisan */}
           <div className="mb-12 rounded-2xl overflow-hidden shadow-xl max-w-4xl mx-auto">
             <img 
-              src="/vecteezy_a-man-is-spinning-yarn-on-a-spinning-wheel_69187328.jpg" 
+              src={VECTEEZY_SPINNING_WHEEL}
               alt="Artisan crafting on spinning wheel - traditional craftsmanship"
               className="w-full h-80 object-cover"
             />
@@ -178,7 +179,7 @@ const BuyingLocal = () => {
             {/* Image Section */}
             <div className="lg:col-span-1 rounded-xl overflow-hidden shadow-lg">
               <img 
-                src="/vecteezy_a-woman-working-on-a-wooden-box-in-a-workshop_68945818.jpeg" 
+                src={VECTEEZY_WOMAN_WORKSHOP}
                 alt="Artisan crafting wooden products in workshop"
                 className="w-full h-full object-cover"
               />

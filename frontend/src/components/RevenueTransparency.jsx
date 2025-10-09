@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { revenueService } from '../services/revenueService';
 import { getPlatformSettings } from '../services/adminService';
+import { VECTEEZY_SPINNING_WHEEL } from '../config/environment';
 
 export default function RevenueTransparency() {
   const [isLoading, setIsLoading] = useState(true);
@@ -120,7 +121,7 @@ export default function RevenueTransparency() {
       <section className="relative py-20 bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="/vecteezy_a-man-is-spinning-yarn-on-a-spinning-wheel_69187328.jpg" 
+            src={VECTEEZY_SPINNING_WHEEL}
             alt="Artisan at work"
             className="w-full h-full object-cover opacity-10"
           />

@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd frontend && npm run build && cd ../api && npm install && cd ../backend && npm install --production",
-  "installCommand": "cd frontend && npm install && cd ../api && npm install && cd ../backend && npm install --production",
+  "buildCommand": "cd frontend && npm run build && cd ../api && npm install --production && cd ../backend && npm install --production --ignore-scripts",
+  "installCommand": "cd frontend && npm install --production && cd ../api && npm install --production && cd ../backend && npm install --production --ignore-scripts",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
@@ -42,7 +42,7 @@
     "api/index.js": {
       "memory": 1024,
       "maxDuration": 30,
-      "includeFiles": "{backend/**,backend/node_modules/**}"
+      "includeFiles": "backend/**"
     }
   },
   "env": {

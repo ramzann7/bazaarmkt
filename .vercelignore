@@ -1,0 +1,150 @@
+# Documentation
+docs/**
+documentation/**
+*.md
+README.md
+CHANGELOG.md
+LICENSE
+
+# Development and testing files
+**/__tests__/**
+**/*.test.js
+**/*.test.jsx
+**/*.spec.js
+**/*.spec.jsx
+tests/**
+test/**
+backend/tests/**
+frontend/tests/**
+*.test.*
+*.spec.*
+
+# Development tools and configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.git/
+.gitignore
+.prettierrc
+.prettierignore
+.editorconfig
+.eslintrc*
+.eslintignore
+prettier.config.*
+postcss.config.*
+tailwind.config.js
+
+# Scripts and tools
+scripts/**
+tools/**
+backend/scripts/**
+deployment/docker-compose.yml
+deployment/Dockerfile
+nginx/**
+
+# Monitoring (if not needed in serverless)
+monitoring/**
+
+# Archive and old files
+backend/archive/**
+archive/**
+
+# Config examples (don't deploy example files)
+config/*-example.*
+*.example.js
+*.example.json
+*-example.txt
+
+# Log files
+logs/**
+*.log
+backend/logs/**
+frontend/logs/**
+
+# Test and debug files
+debug-*.js
+test-*.js
+check-*.js
+verify-*.js
+simple-*.js
+create-*.js
+fix-*.js
+reset-*.js
+update-*.js
+mark-*.js
+backend/debug-*.js
+
+# Development images (if these are just for testing)
+backend/*.jpg
+backend/*.jpeg
+backend/*.png
+backend/*.gif
+
+# Public preview files (if not needed)
+public/artisan_preview.html
+public/community_preview.html
+public/home_preview.html
+public/shop_preview.html
+
+# Postman collections and API documentation
+tools/postman-collections/**
+
+# Source maps (optional - include if you need debugging in production)
+**/*.map
+
+# Jest config
+jest.config.js
+**/jest.config.js
+
+# Vitest config
+vitest.config.js
+**/vitest.config.js
+
+# Other build configs not needed in production
+vite.config.js
+**/vite.config.js
+
+# Git files
+.git/**
+.github/**
+.gitattributes
+
+# NPM files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.npmrc
+.yarnrc
+
+# Environment examples
+.env.example
+.env.development
+.env.test
+
+# Temporary and cache files
+tmp/**
+temp/**
+.cache/**
+.parcel-cache/**
+*.tmp
+*.cache
+
+# Editor backup files
+*~
+*.backup
+*.bak
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+

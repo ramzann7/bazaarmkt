@@ -413,9 +413,9 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo + BazaarMkt Text - Smaller on mobile */}
-          <OptimizedLink to="/" className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <OptimizedLink to="/" className="flex items-center gap-2 md:gap-3 flex-shrink-0 h-full">
             <Logo showText={false} className="w-8 h-8 md:w-10 md:h-10" />
-            <span className="text-base md:text-xl font-display font-bold text-amber-600">BazaarMkt</span>
+            <span className="text-base md:text-xl font-display font-bold text-amber-600 leading-none">BazaarMkt</span>
           </OptimizedLink>
 
           {/* Search Bar (Desktop) */}
@@ -571,9 +571,9 @@ export default function Navbar() {
           </div>
 
           {/* Right side CTAs */}
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0 h-full">
             {/* Language Switcher - Desktop only, moved to mobile menu */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:flex items-center">
               <LanguageSwitcher />
             </div>
             
@@ -581,7 +581,7 @@ export default function Navbar() {
             {(!user || (user?.role !== 'artisan' && user?.userType !== 'artisan')) && (
               <button 
                 onClick={() => setShowCartDropdown(!showCartDropdown)}
-                className="relative p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
+                className="relative p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200 flex items-center"
               >
                 <ShoppingBagIcon className="w-5 h-5 md:w-6 md:h-6" />
                 {cartCount > 0 && (
@@ -597,10 +597,10 @@ export default function Navbar() {
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (
               <>
-                <Link to="/login" className="text-secondary/80 hover:text-amber-600 transition-colors text-xs md:text-sm font-semibold whitespace-nowrap px-2 md:px-0">
+                <Link to="/login" className="text-secondary/80 hover:text-amber-600 transition-colors text-xs md:text-sm font-semibold whitespace-nowrap px-1.5 md:px-0 flex items-center leading-none">
                   {t('common.signIn')}
                 </Link>
-                <Link to="/register" className="btn-primary text-xs md:text-sm px-3 py-1.5 md:px-5 md:py-2 whitespace-nowrap">
+                <Link to="/register" className="btn-primary text-xs md:text-sm px-2.5 py-1.5 md:px-5 md:py-2 whitespace-nowrap flex items-center leading-none">
                   {t('auth.joinNow')}
                 </Link>
               </>
@@ -670,7 +670,7 @@ export default function Navbar() {
           {/* Mobile menu button */}
           <button
             onClick={toggleMobileMenu}
-            className="lg:hidden p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200"
+            className="lg:hidden p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200 flex items-center"
           >
             {isMobileMenuOpen ? (
               <XMarkIcon className="w-5 h-5 md:w-6 md:h-6" />

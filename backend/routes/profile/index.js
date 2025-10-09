@@ -7,6 +7,51 @@ const express = require('express');
 const router = express.Router();
 const { MongoClient } = require('mongodb');
 
+/**
+ * Helper function to build full user profile response with artisan data
+ * Ensures consistent response structure across all artisan endpoints
+ */
+const buildArtisanProfileResponse = async (db, userId, artisanId) => {
+  const { ObjectId } = require('mongodb');
+  const usersCollection = db.collection('users');
+  const artisansCollection = db.collection('artisans');
+  
+  // Fetch updated user and artisan records
+  const [updatedUser, updatedArtisan] = await Promise.all([
+    usersCollection.findOne({ _id: new ObjectId(userId) }),
+    artisansCollection.findOne({ _id: artisanId })
+  ]);
+  
+  if (!updatedUser) {
+    throw new Error('User not found');
+  }
+  
+  // Build complete user profile matching getProfile endpoint structure
+  return {
+    _id: updatedUser._id,
+    email: updatedUser.email,
+    firstName: updatedUser.firstName,
+    lastName: updatedUser.lastName,
+    phone: updatedUser.phone,
+    profilePicture: updatedUser.profilePicture,
+    bio: updatedUser.bio,
+    userType: updatedUser.role,
+    role: updatedUser.role,
+    isActive: updatedUser.isActive,
+    isVerified: updatedUser.isVerified,
+    createdAt: updatedUser.createdAt,
+    updatedAt: updatedUser.updatedAt,
+    addresses: updatedUser.addresses || [],
+    notificationPreferences: updatedUser.notificationPreferences || {},
+    accountSettings: updatedUser.accountSettings || {},
+    paymentMethods: updatedUser.paymentMethods || [],
+    stripeCustomerId: updatedUser.stripeCustomerId,
+    coordinates: updatedUser.coordinates,
+    artisan: updatedArtisan,
+    artisanId: updatedArtisan?._id
+  };
+};
+
 // Update profile
 const updateProfile = async (req, res) => {
   try {
@@ -954,36 +999,8 @@ const updateArtisanProfile = async (req, res) => {
       });
     }
     
-    // Get the updated artisan record
-    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
-    
-    // Get the updated user record to return full profile data
-    const updatedUser = await usersCollection.findOne({ _id: user._id });
-    
-    // Build response similar to getProfile endpoint
-    const userProfile = {
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      phone: updatedUser.phone,
-      profilePicture: updatedUser.profilePicture,
-      bio: updatedUser.bio,
-      userType: updatedUser.role,
-      role: updatedUser.role,
-      isActive: updatedUser.isActive,
-      isVerified: updatedUser.isVerified,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-      addresses: updatedUser.addresses || [],
-      notificationPreferences: updatedUser.notificationPreferences || {},
-      accountSettings: updatedUser.accountSettings || {},
-      paymentMethods: updatedUser.paymentMethods || [],
-      stripeCustomerId: updatedUser.stripeCustomerId,
-      coordinates: updatedUser.coordinates,
-      artisan: updatedArtisan,
-      artisanId: updatedArtisan._id
-    };
+    // Build consistent response using helper
+    const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
     
     res.json({
       success: true,
@@ -1111,37 +1128,8 @@ const updateArtisanOperations = async (req, res) => {
       { $set: updateData }
     );
 
-    // Get the updated artisan record
-    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
-    
-    // Get the updated user record to return full profile data
-    const usersCollection = db.collection('users');
-    const updatedUser = await usersCollection.findOne({ user: new ObjectId(decoded.userId) });
-    
-    // Build response similar to getProfile endpoint
-    const userProfile = {
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      phone: updatedUser.phone,
-      profilePicture: updatedUser.profilePicture,
-      bio: updatedUser.bio,
-      userType: updatedUser.role,
-      role: updatedUser.role,
-      isActive: updatedUser.isActive,
-      isVerified: updatedUser.isVerified,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-      addresses: updatedUser.addresses || [],
-      notificationPreferences: updatedUser.notificationPreferences || {},
-      accountSettings: updatedUser.accountSettings || {},
-      paymentMethods: updatedUser.paymentMethods || [],
-      stripeCustomerId: updatedUser.stripeCustomerId,
-      coordinates: updatedUser.coordinates,
-      artisan: updatedArtisan,
-      artisanId: updatedArtisan._id
-    };
+    // Build consistent response using helper
+    const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
 
     res.json({
       success: true,
@@ -1195,37 +1183,8 @@ const updateArtisanHours = async (req, res) => {
       { $set: updateData }
     );
 
-    // Get the updated artisan record
-    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
-    
-    // Get the updated user record to return full profile data
-    const usersCollection = db.collection('users');
-    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    
-    // Build response similar to getProfile endpoint
-    const userProfile = {
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      phone: updatedUser.phone,
-      profilePicture: updatedUser.profilePicture,
-      bio: updatedUser.bio,
-      userType: updatedUser.role,
-      role: updatedUser.role,
-      isActive: updatedUser.isActive,
-      isVerified: updatedUser.isVerified,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-      addresses: updatedUser.addresses || [],
-      notificationPreferences: updatedUser.notificationPreferences || {},
-      accountSettings: updatedUser.accountSettings || {},
-      paymentMethods: updatedUser.paymentMethods || [],
-      stripeCustomerId: updatedUser.stripeCustomerId,
-      coordinates: updatedUser.coordinates,
-      artisan: updatedArtisan,
-      artisanId: updatedArtisan._id
-    };
+    // Build consistent response using helper
+    const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
 
     res.json({
       success: true,
@@ -1279,37 +1238,8 @@ const updateArtisanDelivery = async (req, res) => {
       { $set: updateData }
     );
 
-    // Get the updated artisan record
-    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
-    
-    // Get the updated user record to return full profile data
-    const usersCollection = db.collection('users');
-    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    
-    // Build response similar to getProfile endpoint
-    const userProfile = {
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      phone: updatedUser.phone,
-      profilePicture: updatedUser.profilePicture,
-      bio: updatedUser.bio,
-      userType: updatedUser.role,
-      role: updatedUser.role,
-      isActive: updatedUser.isActive,
-      isVerified: updatedUser.isVerified,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-      addresses: updatedUser.addresses || [],
-      notificationPreferences: updatedUser.notificationPreferences || {},
-      accountSettings: updatedUser.accountSettings || {},
-      paymentMethods: updatedUser.paymentMethods || [],
-      stripeCustomerId: updatedUser.stripeCustomerId,
-      coordinates: updatedUser.coordinates,
-      artisan: updatedArtisan,
-      artisanId: updatedArtisan._id
-    };
+    // Build consistent response using helper
+    const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
 
     res.json({
       success: true,
@@ -1378,37 +1308,8 @@ const updateArtisanPhotosContact = async (req, res) => {
       { $set: updateData }
     );
 
-    // Get the updated artisan record
-    const updatedArtisan = await artisansCollection.findOne({ _id: artisan._id });
-    
-    // Get the updated user record to return full profile data
-    const usersCollection = db.collection('users');
-    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    
-    // Build response similar to getProfile endpoint
-    const userProfile = {
-      _id: updatedUser._id,
-      email: updatedUser.email,
-      firstName: updatedUser.firstName,
-      lastName: updatedUser.lastName,
-      phone: updatedUser.phone,
-      profilePicture: updatedUser.profilePicture,
-      bio: updatedUser.bio,
-      userType: updatedUser.role,
-      role: updatedUser.role,
-      isActive: updatedUser.isActive,
-      isVerified: updatedUser.isVerified,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
-      addresses: updatedUser.addresses || [],
-      notificationPreferences: updatedUser.notificationPreferences || {},
-      accountSettings: updatedUser.accountSettings || {},
-      paymentMethods: updatedUser.paymentMethods || [],
-      stripeCustomerId: updatedUser.stripeCustomerId,
-      coordinates: updatedUser.coordinates,
-      artisan: updatedArtisan,
-      artisanId: updatedArtisan._id
-    };
+    // Build consistent response using helper
+    const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
 
     res.json({
       success: true,

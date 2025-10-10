@@ -239,25 +239,25 @@ const Cart = () => {
         setUberDirectQuotes(prev => ({
           ...prev,
           [artisanId]: {
-            fee: quote.quote.fee,
-            duration: quote.quote.duration,
-            pickup_eta: quote.quote.pickup_eta,
-            dropoff_eta: quote.quote.dropoff_eta,
-            quote_id: quote.quote.id
+            fee: parseFloat(quote.fee),
+            duration: quote.duration,
+            pickup_eta: quote.pickup_eta,
+            dropoff_eta: quote.dropoff_eta,
+            quote_id: quote.quoteId
           }
         }));
-        return quote.quote.fee;
+        return parseFloat(quote.fee);
       } else if (quote.fallback) {
         setUberDirectQuotes(prev => ({
           ...prev,
           [artisanId]: {
-            fee: quote.fallback.fee,
+            fee: parseFloat(quote.fallback.fee),
             duration: quote.fallback.duration,
             pickup_eta: quote.fallback.pickup_eta,
             estimated: true
           }
         }));
-        return quote.fallback.fee;
+        return parseFloat(quote.fallback.fee);
       }
 
       return 15; // Final fallback

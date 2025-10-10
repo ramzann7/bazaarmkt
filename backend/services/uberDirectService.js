@@ -24,6 +24,10 @@ class UberDirectService {
         return this.serverToken;
       }
 
+      if (!this.clientId || !this.clientSecret) {
+        throw new Error('Uber Direct credentials not configured');
+      }
+
       const response = await axios.post(`${this.baseURL}/oauth/v2/token`, {
         client_id: this.clientId,
         client_secret: this.clientSecret,
@@ -42,6 +46,12 @@ class UberDirectService {
    * Get delivery quote from Uber Direct
    */
   async getDeliveryQuote(pickupLocation, dropoffLocation, packageDetails = {}) {
+    // Check if required credentials are available
+    if (!this.clientId || !this.clientSecret || (!this.customerId && !this.serverToken)) {
+      console.log('⚠️ Uber Direct credentials not configured, using fallback pricing');
+      return this.getFallbackQuote(pickupLocation, dropoffLocation, packageDetails);
+    }
+
     try {
       const token = await this.getAccessToken();
 

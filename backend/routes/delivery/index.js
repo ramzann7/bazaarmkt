@@ -24,53 +24,82 @@ router.post('/uber-direct/quote', async (req, res) => {
       });
     }
 
-    // Geocode addresses if coordinates are missing
-    let pickup = pickupLocation;
-    let dropoff = dropoffLocation;
+    console.log('🚛 Received Uber Direct quote request:', {
+      pickup: pickupLocation.address,
+      dropoff: dropoffLocation.address,
+      hasPickupCoords: !!(pickupLocation.latitude && pickupLocation.longitude),
+      hasDropoffCoords: !!(dropoffLocation.latitude && dropoffLocation.longitude)
+    });
 
+    // Use provided coordinates if available, otherwise try geocoding
+    let pickup = { ...pickupLocation };
+    let dropoff = { ...dropoffLocation };
+
+    // Only geocode if coordinates are missing
     if (!pickup.latitude || !pickup.longitude) {
       console.log('📍 Geocoding pickup address:', pickup.address);
-      const pickupCoords = await geocodingService.geocodeAddress(pickup.address);
-      if (pickupCoords) {
-        pickup.latitude = pickupCoords.lat;
-        pickup.longitude = pickupCoords.lng;
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Could not geocode pickup address'
-        });
+      try {
+        const pickupCoords = await geocodingService.geocodeAddress(pickup.address);
+        if (pickupCoords && pickupCoords.latitude && pickupCoords.longitude) {
+          pickup.latitude = pickupCoords.latitude;
+          pickup.longitude = pickupCoords.longitude;
+        } else {
+          console.warn('⚠️ Could not geocode pickup address, using fallback');
+          // For fallback, we'll still try to get a quote with just the address
+        }
+      } catch (geocodeError) {
+        console.warn('⚠️ Geocoding pickup failed:', geocodeError.message);
       }
     }
 
     if (!dropoff.latitude || !dropoff.longitude) {
       console.log('📍 Geocoding dropoff address:', dropoff.address);
-      const dropoffCoords = await geocodingService.geocodeAddress(dropoff.address);
-      if (dropoffCoords) {
-        dropoff.latitude = dropoffCoords.lat;
-        dropoff.longitude = dropoffCoords.lng;
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: 'Could not geocode dropoff address'
-        });
+      try {
+        const dropoffCoords = await geocodingService.geocodeAddress(dropoff.address);
+        if (dropoffCoords && dropoffCoords.latitude && dropoffCoords.longitude) {
+          dropoff.latitude = dropoffCoords.latitude;
+          dropoff.longitude = dropoffCoords.longitude;
+        } else {
+          console.warn('⚠️ Could not geocode dropoff address, using fallback');
+        }
+      } catch (geocodeError) {
+        console.warn('⚠️ Geocoding dropoff failed:', geocodeError.message);
       }
     }
 
-    // Get quote from Uber Direct
+    // Get quote from Uber Direct (or fallback)
     const quote = await uberDirectService.getDeliveryQuote(
       pickup,
       dropoff,
       packageDetails || {}
     );
 
+    console.log('✅ Uber Direct quote response:', {
+      success: quote.success,
+      fee: quote.fee || quote.fallback?.fee,
+      fallback: quote.fallback || false
+    });
+
     res.json(quote);
   } catch (error) {
     console.error('❌ Error getting delivery quote:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get delivery quote',
-      error: error.message
-    });
+    
+    // Return fallback quote on any error
+    try {
+      const fallbackQuote = uberDirectService.getFallbackQuote(
+        pickupLocation,
+        dropoffLocation,
+        packageDetails || {}
+      );
+      res.json(fallbackQuote);
+    } catch (fallbackError) {
+      console.error('❌ Fallback quote also failed:', fallbackError);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get delivery quote',
+        error: error.message
+      });
+    }
   }
 });
 

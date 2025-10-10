@@ -67,9 +67,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   // Update state when profile changes (e.g., when artisan profile is loaded)
   React.useEffect(() => {
     if (profile) {
-      console.log('🔍 [OverviewTab] Profile updated, businessImage:', profile.businessImage);
-      console.log('🔍 [OverviewTab] Profile keys:', Object.keys(profile));
-      
       setOverview({
         artisanName: profile.artisanName || '',
         businessImage: profile.businessImage || null,
@@ -207,11 +204,12 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        setOverview({
-          ...overview,
-          businessImage: file,
-          businessImagePreview: e.target.result
-        });
+        const base64String = e.target.result;
+        setOverview(prev => ({
+          ...prev,
+          businessImage: base64String,
+          businessImagePreview: base64String
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -234,11 +232,12 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
       const reader = new FileReader();
       reader.onload = (e) => {
-        setOverview({
-          ...overview,
-          businessImage: file,
-          businessImagePreview: e.target.result
-        });
+        const base64String = e.target.result;
+        setOverview(prev => ({
+          ...prev,
+          businessImage: base64String,
+          businessImagePreview: base64String
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -257,23 +256,9 @@ export function OverviewTab({ profile, onSave, isSaving }) {
     e.preventDefault();
     
     try {
-      // Convert business image to base64 if it's a File object
-      let businessImageData = null;
-      if (overview.businessImage instanceof File) {
-        const reader = new FileReader();
-        businessImageData = await new Promise((resolve) => {
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(overview.businessImage);
-        });
-      } else if (overview.businessImage && typeof overview.businessImage === 'string') {
-        // If it's already a string (existing image), use it as is
-        businessImageData = overview.businessImage;
-      }
-
-      // Prepare the data to send
+      // Prepare the data to send (businessImage is already base64 string from upload)
       const overviewData = {
-        ...overview,
-        businessImage: businessImageData
+        ...overview
       };
 
       // Remove artisanName if it's empty to prevent backend validation errors
@@ -282,9 +267,12 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       }
 
       // Remove businessImage if it's null or empty to avoid validation errors
-      if (!businessImageData) {
+      if (!overviewData.businessImage) {
         delete overviewData.businessImage;
       }
+      
+      // Remove businessImagePreview (we only send businessImage to backend)
+      delete overviewData.businessImagePreview;
 
       await onSave(overviewData);
     } catch (error) {

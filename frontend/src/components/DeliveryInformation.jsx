@@ -53,10 +53,162 @@ const DeliveryInformation = ({
   const [showAddressOptions, setShowAddressOptions] = useState(false);
   const [useSavedAddress, setUseSavedAddress] = useState(true);
   const [showAllPickupTimes, setShowAllPickupTimes] = useState({}); // Track expanded state per artisan
+  // Uber Direct quote management
+  const [uberQuotes, setUberQuotes] = useState({});
+  const [loadingUberQuotes, setLoadingUberQuotes] = useState(new Set());
+  const [uberQuoteErrors, setUberQuoteErrors] = useState({});
 
   // Get the current artisan (assuming single artisan for now)
   const currentArtisanId = Object.keys(cartByArtisan)[0];
   const currentArtisan = cartByArtisan[currentArtisanId];
+
+  // Function to get Uber Direct quote
+  const getUberQuote = async (artisanId) => {
+    // Only get quote if professional delivery is selected and address is available
+    if (selectedDeliveryMethods[artisanId] !== 'professionalDelivery') {
+      return;
+    }
+
+    // Check if we have a valid delivery address
+    let deliveryAddress = null;
+    
+    // Both guests and authenticated users use deliveryForm.deliveryAddress
+    if (deliveryForm.deliveryAddress?.street && deliveryForm.deliveryAddress?.city && 
+        deliveryForm.deliveryAddress?.state && deliveryForm.deliveryAddress?.zipCode) {
+      const addr = deliveryForm.deliveryAddress;
+      deliveryAddress = {
+        street: addr.street,
+        city: addr.city,
+        state: addr.state,
+        zipCode: addr.zipCode,
+        fullAddress: `${addr.street}, ${addr.city}, ${addr.state} ${addr.zipCode}`
+      };
+    }
+
+    // Return early if no valid address
+    if (!deliveryAddress) {
+      return;
+    }
+
+    // Check if address has valid coordinates from validation
+    if (!addressValidation.coordinates?.latitude || !addressValidation.coordinates?.longitude) {
+      return;
+    }
+
+    try {
+      setLoadingUberQuotes(prev => new Set([...prev, artisanId]));
+      setUberQuoteErrors(prev => ({ ...prev, [artisanId]: null }));
+
+      // Get artisan location
+      const artisanLocation = currentArtisan?.artisan?.coordinates || 
+                            currentArtisan?.artisan?.address || 
+                            deliveryOptions[artisanId]?.pickup?.address;
+
+      if (!artisanLocation) {
+        throw new Error('Artisan location not available');
+      }
+
+      // Prepare pickup location
+      const pickupLocation = {
+        address: typeof artisanLocation === 'string' ? artisanLocation : 
+                `${artisanLocation.street || ''}, ${artisanLocation.city || ''}, ${artisanLocation.state || ''} ${artisanLocation.zipCode || ''}`,
+        contactName: currentArtisan?.artisan?.artisanName || 'Artisan',
+        phone: currentArtisan?.artisan?.phone || '',
+        latitude: artisanLocation.latitude || (currentArtisan?.artisan?.coordinates?.latitude),
+        longitude: artisanLocation.longitude || (currentArtisan?.artisan?.coordinates?.longitude)
+      };
+
+      // Prepare dropoff location
+      const dropoffLocation = {
+        address: deliveryAddress.fullAddress,
+        contactName: deliveryForm.firstName && deliveryForm.lastName ? 
+                    `${deliveryForm.firstName} ${deliveryForm.lastName}` : 
+                    (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Customer'),
+        phone: deliveryForm.phone || user?.phone || '',
+        latitude: addressValidation.coordinates.latitude,
+        longitude: addressValidation.coordinates.longitude
+      };
+
+      // Calculate package details
+      const subtotal = currentArtisan.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const packageDetails = {
+        price: subtotal,
+        size: 'medium', // Default to medium for now
+        weight: currentArtisan.items.length // Simple weight estimation
+      };
+
+      console.log('🚛 Requesting Uber quote for:', {
+        pickup: pickupLocation.address,
+        dropoff: dropoffLocation.address
+      });
+
+      // Make API call to get quote
+      const response = await fetch('/api/delivery/uber-direct/quote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          pickupLocation,
+          dropoffLocation,
+          packageDetails
+        })
+      });
+
+      const quoteData = await response.json();
+
+      if (quoteData.success || quoteData.fallback) {
+        setUberQuotes(prev => ({
+          ...prev,
+          [artisanId]: {
+            fee: parseFloat(quoteData.fee),
+            currency: quoteData.currency || 'CAD',
+            duration: quoteData.duration || 45,
+            pickup_eta: quoteData.pickup_eta || 15,
+            estimated: quoteData.fallback || quoteData.estimated || false,
+            expires_at: quoteData.expires_at,
+            quoteId: quoteData.quoteId
+          }
+        }));
+
+        console.log('✅ Uber quote received:', {
+          fee: quoteData.fee,
+          estimated: quoteData.fallback || quoteData.estimated
+        });
+      } else {
+        throw new Error(quoteData.message || 'Failed to get quote');
+      }
+
+    } catch (error) {
+      console.error('❌ Error getting Uber quote:', error);
+      setUberQuoteErrors(prev => ({
+        ...prev,
+        [artisanId]: error.message || 'Failed to get delivery quote'
+      }));
+      
+      // Set fallback estimate based on distance if available
+      if (addressValidation.distance) {
+        const estimatedFee = 8 + (addressValidation.distance * 1.5);
+        setUberQuotes(prev => ({
+          ...prev,
+          [artisanId]: {
+            fee: estimatedFee,
+            currency: 'CAD',
+            duration: Math.max(30, addressValidation.distance * 3),
+            pickup_eta: 15,
+            estimated: true,
+            error: 'Estimate only - unable to get live quote'
+          }
+        }));
+      }
+    } finally {
+      setLoadingUberQuotes(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(artisanId);
+        return newSet;
+      });
+    }
+  };
 
   // Validate and geocode address - MUST BE BEFORE validateSavedAddress
   const validateAddress = async (address) => {
@@ -141,6 +293,19 @@ const DeliveryInformation = ({
       validateSavedAddress();
     }
   }, [useSavedAddress, selectedDeliveryMethods[currentArtisanId]]);
+
+  // Get Uber quote when address validation is complete and professional delivery is selected
+  useEffect(() => {
+    if (addressValidation.isValid && 
+        addressValidation.coordinates && 
+        selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery') {
+      // Delay the quote request slightly to ensure all address data is ready
+      const timer = setTimeout(() => {
+        getUberQuote(currentArtisanId);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [addressValidation.isValid, addressValidation.coordinates, selectedDeliveryMethods[currentArtisanId], deliveryForm, useSavedAddress]);
 
   // Calculate distance for pickup (only for authenticated users)
   useEffect(() => {
@@ -310,7 +475,13 @@ const DeliveryInformation = ({
         deliveryFee = 0;
       }
     } else if (method === 'professionalDelivery') {
-      deliveryFee = deliveryOptions[currentArtisanId]?.professionalDelivery?.fee || 0;
+      // Use Uber quote if available, otherwise use default fee
+      const uberQuote = uberQuotes[currentArtisanId];
+      if (uberQuote && uberQuote.fee) {
+        deliveryFee = uberQuote.fee;
+      } else {
+        deliveryFee = deliveryOptions[currentArtisanId]?.professionalDelivery?.fee || 0;
+      }
     }
 
     return {
@@ -616,13 +787,47 @@ const DeliveryInformation = ({
                         className="sr-only"
                       />
                       <h4 className="text-xl font-bold text-gray-900 mb-3">Professional Delivery</h4>
-                      <p className="text-gray-600 mb-4">Courier service</p>
+                      <p className="text-gray-600 mb-4">
+                        <span className="font-semibold text-blue-800">Uber</span> courier service
+                      </p>
                       <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full inline-block font-bold text-lg">
-                        {formatPrice(deliveryOptions[currentArtisanId]?.professionalDelivery?.fee || 0)}
+                        {(() => {
+                          // Check if we have a valid address with coordinates
+                          const hasValidAddress = addressValidation.isValid && addressValidation.coordinates;
+                          
+                          if (!hasValidAddress) {
+                            return "Enter address for quote";
+                          }
+                          
+                          // Show loading state
+                          if (loadingUberQuotes.has(currentArtisanId)) {
+                            return "Getting quote...";
+                          }
+                          
+                          // Show quote if available
+                          const uberQuote = uberQuotes[currentArtisanId];
+                          if (uberQuote && uberQuote.fee) {
+                            const estimatedText = uberQuote.estimated ? ' (est.)' : '';
+                            return `${formatPrice(uberQuote.fee)}${estimatedText}`;
+                          }
+                          
+                          // Show error if quote failed
+                          if (uberQuoteErrors[currentArtisanId]) {
+                            return "Quote unavailable";
+                          }
+                          
+                          return "Quote pending";
+                        })()}
                       </div>
                       <div className="mt-4 text-sm text-blue-600 font-medium">
-                        ✓ Professional handling<br/>
-                        ✓ 20-40 min delivery<br/>
+                        ✓ Professional courier service<br/>
+                        ✓ {(() => {
+                          const uberQuote = uberQuotes[currentArtisanId];
+                          if (uberQuote && uberQuote.duration) {
+                            return `${uberQuote.duration} min delivery`;
+                          }
+                          return '20-40 min delivery';
+                        })()}<br/>
                         ✓ Within {deliveryOptions[currentArtisanId]?.professionalDelivery?.radius || 25}km radius
                       </div>
                     </div>

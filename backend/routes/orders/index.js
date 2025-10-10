@@ -28,6 +28,84 @@ const sendNotificationDirect = async (notificationData, db) => {
     
         // Send email notification if user has email and it's an order status update
         const patronEmailStatuses = ['pending', 'confirmed', 'declined', 'out_for_delivery', 'ready_for_pickup', 'ready_for_delivery', 'delivered', 'picked_up', 'completed'];
+
+/**
+ * Unified Order Schema Function
+ * Creates a standardized order object for all order creation methods
+ */
+const createUnifiedOrderSchema = (orderParams) => {
+  const {
+    userId,
+    items,
+    totalAmount,
+    subtotal,
+    deliveryFee = 0,
+    status = 'pending',
+    paymentStatus = 'pending',
+    paymentMethod = 'stripe',
+    paymentIntentId = null,
+    deliveryAddress = {},
+    deliveryInstructions = '',
+    deliveryMethod = 'pickup',
+    pickupTimeWindows = {},
+    deliveryMethodDetails = [],
+    paymentDetails = {},
+    notes = '',
+    artisan = null,
+    isGuestOrder = false,
+    guestInfo = {},
+    // Legacy support
+    shippingAddress = null
+  } = orderParams;
+
+  // Standardize item schema with both new and legacy fields for compatibility
+  const standardizedItems = items.map(item => ({
+    productId: item.productId,
+    product: item.product || {},
+    name: item.name || item.productName || 'Unknown Product',
+    productName: item.productName || item.name || 'Unknown Product', // Legacy support
+    price: item.price || item.unitPrice || item.productPrice || 0,
+    unitPrice: item.unitPrice || item.price || item.productPrice || 0,
+    productPrice: item.productPrice || item.price || item.unitPrice || 0, // Legacy support
+    quantity: item.quantity || 0,
+    totalPrice: item.totalPrice || item.itemTotal || (item.quantity * (item.price || item.unitPrice || 0)),
+    itemTotal: item.itemTotal || item.totalPrice || (item.quantity * (item.price || item.unitPrice || 0)), // Legacy support
+    productType: item.productType || 'ready_to_ship',
+    artisanId: item.artisanId || item.artisan
+  }));
+
+  // Use deliveryAddress if provided, fallback to shippingAddress for legacy compatibility
+  const finalDeliveryAddress = deliveryAddress && Object.keys(deliveryAddress).length > 0 
+    ? deliveryAddress 
+    : shippingAddress || {};
+
+  // Calculate subtotal if not provided
+  const finalSubtotal = subtotal !== undefined ? subtotal : (totalAmount - deliveryFee);
+
+  return {
+    userId: userId ? new (require('mongodb')).ObjectId(userId) : null,
+    items: standardizedItems,
+    totalAmount: totalAmount || 0,
+    subtotal: finalSubtotal,
+    deliveryFee: deliveryFee,
+    status: status,
+    paymentStatus: paymentStatus,
+    paymentMethod: paymentMethod,
+    paymentIntentId: paymentIntentId,
+    deliveryAddress: finalDeliveryAddress,
+    deliveryInstructions: deliveryInstructions,
+    deliveryMethod: deliveryMethod,
+    pickupTimeWindows: pickupTimeWindows,
+    deliveryMethodDetails: deliveryMethodDetails,
+    paymentDetails: paymentDetails,
+    notes: notes,
+    artisan: artisan,
+    isGuestOrder: isGuestOrder,
+    guestInfo: isGuestOrder ? guestInfo : {},
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+};
         const patronEmailTypes = ['order_placed', 'order_completion', 'order_confirmed', 'order_declined', 'order_ready', 'order_completed', 'order_ready_for_pickup', 'order_ready_for_delivery', 'order_out_for_delivery'];
         
         const isPatronEmailAllowed = notificationData.userInfo?.isGuest || 
@@ -664,33 +742,33 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
 
     const subtotal = totalAmount - deliveryFee;
 
-    const order = {
-      userId: userId ? new (require('mongodb')).ObjectId(userId) : null,
+    // Use unified order schema
+    const order = createUnifiedOrderSchema({
+      userId: userId,
       items: enrichedItems,
       totalAmount: totalAmount,
-      subtotal: subtotal, // Store subtotal without delivery fee
-      deliveryFee: deliveryFee, // Store delivery fee separately
-      status: 'pending', // Orders start as pending confirmation by artisan
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      status: 'pending',
       paymentStatus: !userId ? 'captured' : 'authorized', // Guest orders are captured immediately, authenticated orders are authorized
       paymentMethod: 'stripe',
       paymentIntentId: paymentIntentId,
-      deliveryAddress: orderData.deliveryAddress || {},
-      deliveryInstructions: orderData.deliveryInstructions || '',
-      deliveryMethod: orderData.deliveryMethod || 'pickup',
-      pickupTimeWindows: orderData.pickupTimeWindows || {},
-      deliveryMethodDetails: orderData.deliveryMethodDetails || [],
-      isGuestOrder: !userId,
-      guestInfo: orderData.guestInfo || {},
-      artisan: enrichedItems.length > 0 ? enrichedItems[0].artisanId : null, // Set artisan from first item
+      deliveryAddress: orderData.deliveryAddress,
+      deliveryInstructions: orderData.deliveryInstructions,
+      deliveryMethod: orderData.deliveryMethod,
+      pickupTimeWindows: orderData.pickupTimeWindows,
+      deliveryMethodDetails: orderData.deliveryMethodDetails,
       paymentDetails: {
         stripePaymentIntentId: paymentIntentId,
         stripeAmount: paymentIntent.amount,
         stripeCurrency: paymentIntent.currency,
         paymentMethod: paymentIntent.payment_method
       },
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      notes: orderData.notes,
+      artisan: enrichedItems.length > 0 ? enrichedItems[0].artisanId : null,
+      isGuestOrder: !userId,
+      guestInfo: orderData.guestInfo
+    });
 
     const result = await ordersCollection.insertOne(order);
 
@@ -1103,19 +1181,30 @@ const createOrder = async (req, res) => {
       });
     }
     
-    // Create order
-    const order = {
-      userId: new (require('mongodb')).ObjectId(decoded.userId),
+    // Create order using unified schema
+    const order = createUnifiedOrderSchema({
+      userId: decoded.userId,
       items: validatedItems,
-      totalAmount,
+      totalAmount: totalAmount,
+      subtotal: totalAmount, // No delivery fee in regular orders by default
+      deliveryFee: 0,
       status: 'pending',
-      shippingAddress: shippingAddress || {},
+      paymentStatus: 'pending',
       paymentMethod: paymentMethod || 'cash',
+      paymentIntentId: null,
+      deliveryAddress: {},
+      deliveryInstructions: '',
+      deliveryMethod: 'pickup',
+      pickupTimeWindows: {},
+      deliveryMethodDetails: [],
+      paymentDetails: {},
       notes: notes || '',
-      artisan: validatedItems[0]?.artisanId, // Set artisan from first item
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      artisan: validatedItems[0]?.artisanId,
+      isGuestOrder: false,
+      guestInfo: {},
+      // Legacy support
+      shippingAddress: shippingAddress
+    });
     
     const result = await ordersCollection.insertOne(order);
     const orderId = result.insertedId;
@@ -2584,28 +2673,28 @@ const createGuestOrder = async (req, res) => {
 
     const finalAmount = totalAmount + deliveryFee;
 
-    // Create guest order
-    const order = {
-      userId: null, // Guest order
-      guestInfo: guestInfo || {},
+    // Create guest order using unified schema
+    const order = createUnifiedOrderSchema({
+      userId: null,
       items: validatedItems,
       totalAmount: finalAmount,
-      subtotal: totalAmount, // Store subtotal without delivery fee
-      deliveryFee: deliveryFee, // Store delivery fee separately
+      subtotal: totalAmount,
+      deliveryFee: deliveryFee,
       status: 'pending',
-      deliveryAddress: deliveryAddress || {},
-      deliveryMethod: deliveryMethod,
-      deliveryInstructions: req.body.deliveryInstructions || '',
-      pickupTimeWindows: req.body.pickupTimeWindows || {},
-      deliveryMethodDetails: req.body.deliveryMethodDetails || [],
+      paymentStatus: 'pending',
       paymentMethod: paymentMethod || 'credit_card',
-      paymentDetails: paymentDetails || {},
-      notes: notes || '',
-      artisan: validatedItems[0]?.artisanId, // Set artisan from first item
+      paymentIntentId: null,
+      deliveryAddress: deliveryAddress,
+      deliveryInstructions: req.body.deliveryInstructions,
+      deliveryMethod: deliveryMethod,
+      pickupTimeWindows: req.body.pickupTimeWindows,
+      deliveryMethodDetails: req.body.deliveryMethodDetails,
+      paymentDetails: paymentDetails,
+      notes: notes,
+      artisan: validatedItems[0]?.artisanId,
       isGuestOrder: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+      guestInfo: guestInfo
+    });
     
     const result = await ordersCollection.insertOne(order);
     const orderId = result.insertedId;

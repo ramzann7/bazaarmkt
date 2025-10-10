@@ -36,6 +36,7 @@ app.use(helmet({
         'https://api.brevo.com',
         'https://maps.googleapis.com',
         'https://geocoding-api.open-cage.com',
+        'https://api.uber.com',
         'https://*.vercel-storage.com'
       ],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
@@ -211,6 +212,7 @@ const spotlightRoutes = require('./routes/spotlight');
 const geocodingRoutes = require('./routes/geocoding');
 const platformSettingsRoutes = require('./routes/platform-settings');
 const geographicSettingsRoutes = require('./routes/geographic-settings');
+const deliveryRoutes = require('./routes/delivery');
 
 // ============================================================================
 // WALLET TRANSACTION HELPER FUNCTIONS
@@ -278,6 +280,7 @@ app.use('/api/spotlight', spotlightRoutes);
 app.use('/api/geocoding', geocodingRoutes);
 app.use('/api/platform-settings', platformSettingsRoutes);
 app.use('/api/geographic-settings', geographicSettingsRoutes);
+app.use('/api/delivery', deliveryRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS

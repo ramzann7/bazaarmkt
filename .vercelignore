@@ -34,8 +34,8 @@ frontend/tests/**
 .eslintrc*
 .eslintignore
 prettier.config.*
-postcss.config.*
-tailwind.config.js
+# NOTE: postcss.config.* and tailwind.config.js are REQUIRED for build!
+# Do NOT ignore them or CSS won't be generated!
 
 # Scripts and tools
 scripts/**

@@ -16,7 +16,6 @@ export const getImageUrl = (imagePath, options = {}) => {
   
   // Ensure imagePath is a string
   if (typeof imagePath !== 'string') {
-    console.warn('⚠️ getImageUrl: imagePath is not a string:', imagePath);
     return null;
   }
   
@@ -47,13 +46,6 @@ export const getImageUrl = (imagePath, options = {}) => {
      (window.location.hostname.includes('bazaarmkt.ca') || 
       window.location.hostname.includes('vercel.app')));
   
-  // Always log in development, optionally in production
-  const shouldLog = !isProduction || (typeof window !== 'undefined' && window.location.search.includes('debug=true'));
-  
-  if (shouldLog) {
-    console.log(isProduction ? '🌐 Production mode - processing image:' : '💻 Development mode - processing image:', imagePath);
-  }
-  
   if (isProduction) {
     return getProductionImageUrl(imagePath, options);
   } else {
@@ -72,7 +64,6 @@ const getDevelopmentImageUrl = (imagePath, options = {}) => {
   
   // Ensure imagePath is a string
   if (typeof imagePath !== 'string') {
-    console.warn('getDevelopmentImageUrl: imagePath is not a string:', imagePath);
     return null;
   }
   
@@ -100,46 +91,32 @@ const getDevelopmentImageUrl = (imagePath, options = {}) => {
 const getProductionImageUrl = (imagePath, options = {}) => {
   // Ensure imagePath is a string
   if (typeof imagePath !== 'string') {
-    console.warn('⚠️ getProductionImageUrl: imagePath is not a string:', imagePath);
     return null;
-  }
-  
-  // Debug logging (can be enabled with ?debug=true)
-  const shouldLog = typeof window !== 'undefined' && window.location.search.includes('debug=true');
-  if (shouldLog) {
-    console.log('📸 Processing production image path:', imagePath);
   }
   
   // If it's already a Vercel Blob URL, return as is
   if (imagePath.includes('blob.vercel-storage.com') || 
       imagePath.includes('.vercel-storage.com') ||
       imagePath.includes('public.blob.vercel')) {
-    if (shouldLog) console.log('✅ Vercel Blob URL detected:', imagePath);
     return imagePath;
   }
   
-  // CRITICAL: In production, /uploads/ paths don't exist!
-  // These need to be Vercel Blob URLs or base64
+  // Legacy uploads paths - return as-is (should be migrated to Vercel Blob)
   if (imagePath.startsWith('/uploads/')) {
-    if (shouldLog) console.warn('⚠️ Legacy /uploads/ path in production - image may not load:', imagePath);
-    // Return as-is but it probably won't work - images should be in Vercel Blob
     return imagePath;
   }
   
-  // Static assets in public folder (like /images/fallback-product.jpg)
+  // Static assets in public folder
   if (imagePath.startsWith('/images/') || imagePath.startsWith('/public/')) {
-    if (shouldLog) console.log('📁 Static asset path:', imagePath);
     return imagePath;
   }
   
   // Other paths with leading slash - treat as static assets
   if (imagePath.startsWith('/')) {
-    if (shouldLog) console.log('📁 Static path with leading slash:', imagePath);
     return imagePath;
   }
   
   // Relative paths without leading slash - add leading slash for static assets
-  if (shouldLog) console.log('📁 Relative path, adding leading slash:', imagePath);
   return `/${imagePath}`;
 };
 
@@ -237,21 +214,17 @@ export const getResponsiveImageUrls = (imagePath, sizes = ['thumbnail', 'medium'
  */
 export const handleImageError = (event, fallbackType = 'product') => {
   const img = event.target;
-  console.error('❌ Image failed to load:', img.src);
   
   // Only set fallback if it's not already a fallback or placeholder
   if (!img.src.includes('fallback-') && !img.src.includes('placeholder')) {
     const fallbackUrl = getFallbackImageUrl(fallbackType);
-    console.log('🔄 Setting fallback image:', fallbackUrl);
     img.src = fallbackUrl;
   } else {
     // Use a placeholder image from a reliable CDN as last resort
     if (!img.src.includes('placeholder')) {
-      console.log('🔄 Using placeholder image from CDN');
       img.src = `https://placehold.co/400x400/F5F1EA/3C6E47?text=${fallbackType}`;
     } else {
       // Hide image if even placeholder fails
-      console.log('❌ All image loading attempts failed, hiding image');
       img.style.display = 'none';
     }
   }

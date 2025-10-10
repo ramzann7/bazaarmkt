@@ -16,7 +16,7 @@ export const getImageUrl = (imagePath, options = {}) => {
   
   // Ensure imagePath is a string
   if (typeof imagePath !== 'string') {
-    console.warn('getImageUrl: imagePath is not a string:', imagePath);
+    console.warn('⚠️ getImageUrl: imagePath is not a string:', imagePath);
     return null;
   }
   
@@ -25,22 +25,33 @@ export const getImageUrl = (imagePath, options = {}) => {
     return imagePath;
   }
   
-  // Handle HTTP URLs (including Vercel Blob URLs)
+  // Handle HTTP URLs (including Vercel Blob URLs) - return as-is
   if (imagePath.startsWith('http')) {
     return imagePath;
   }
   
-  // Handle Vercel Blob URLs that might be stored as filenames
-  if (imagePath.includes('.public.blob.vercel-storage.com')) {
-    return imagePath;
+  // Handle Vercel Blob URLs that might be stored without protocol
+  if (imagePath.includes('.public.blob.vercel-storage.com') || 
+      imagePath.includes('blob.vercel-storage.com')) {
+    // If missing protocol, add https
+    return imagePath.startsWith('//') ? `https:${imagePath}` : 
+           imagePath.startsWith('http') ? imagePath : 
+           `https://${imagePath}`;
   }
   
-  // Environment-specific handling
-  if (config.NODE_ENV === 'production') {
-    // Production: Use Vercel Blob or CDN URLs
+  // Detect environment - use multiple signals for reliability
+  const isProduction = 
+    import.meta.env.MODE === 'production' ||
+    import.meta.env.PROD === true ||
+    (typeof window !== 'undefined' && 
+     (window.location.hostname.includes('bazaarmkt.ca') || 
+      window.location.hostname.includes('vercel.app')));
+  
+  if (isProduction) {
+    console.log('🌐 Production mode - processing image:', imagePath);
     return getProductionImageUrl(imagePath, options);
   } else {
-    // Development: Use optimized local server URLs
+    console.log('💻 Development mode - processing image:', imagePath);
     return getDevelopmentImageUrl(imagePath, options);
   }
 };
@@ -84,31 +95,43 @@ const getDevelopmentImageUrl = (imagePath, options = {}) => {
 const getProductionImageUrl = (imagePath, options = {}) => {
   // Ensure imagePath is a string
   if (typeof imagePath !== 'string') {
-    console.warn('getProductionImageUrl: imagePath is not a string:', imagePath);
+    console.warn('⚠️ getProductionImageUrl: imagePath is not a string:', imagePath);
     return null;
   }
   
-  // If it's already a Vercel Blob URL (various formats), return as is
+  console.log('📸 Processing production image path:', imagePath);
+  
+  // If it's already a Vercel Blob URL, return as is
   if (imagePath.includes('blob.vercel-storage.com') || 
       imagePath.includes('.vercel-storage.com') ||
       imagePath.includes('public.blob.vercel')) {
+    console.log('✅ Vercel Blob URL detected:', imagePath);
     return imagePath;
   }
   
-  // For paths starting with /, treat as static assets served by Vercel
-  // This includes /images/, /uploads/, and other public assets
+  // CRITICAL: In production, /uploads/ paths don't exist!
+  // These need to be Vercel Blob URLs or base64
+  if (imagePath.startsWith('/uploads/')) {
+    console.warn('⚠️ Legacy /uploads/ path in production - image may not load:', imagePath);
+    // Return as-is but it probably won't work - images should be in Vercel Blob
+    return imagePath;
+  }
+  
+  // Static assets in public folder (like /images/fallback-product.jpg)
+  if (imagePath.startsWith('/images/') || imagePath.startsWith('/public/')) {
+    console.log('📁 Static asset path:', imagePath);
+    return imagePath;
+  }
+  
+  // Other paths with leading slash - treat as static assets
   if (imagePath.startsWith('/')) {
+    console.log('📁 Static path with leading slash:', imagePath);
     return imagePath;
   }
   
-  // For relative paths without leading slash, add leading slash
-  // This handles legacy database entries that might not have the leading slash
-  if (!imagePath.startsWith('http')) {
-    return `/${imagePath}`;
-  }
-  
-  // Handle other paths - assume they're valid URLs
-  return imagePath;
+  // Relative paths without leading slash - add leading slash for static assets
+  console.log('📁 Relative path, adding leading slash:', imagePath);
+  return `/${imagePath}`;
 };
 
 /**
@@ -205,14 +228,23 @@ export const getResponsiveImageUrls = (imagePath, sizes = ['thumbnail', 'medium'
  */
 export const handleImageError = (event, fallbackType = 'product') => {
   const img = event.target;
-  const fallbackUrl = getFallbackImageUrl(fallbackType);
+  console.error('❌ Image failed to load:', img.src);
   
-  // Only set fallback if it's not already a fallback
-  if (!img.src.includes('fallback-')) {
+  // Only set fallback if it's not already a fallback or placeholder
+  if (!img.src.includes('fallback-') && !img.src.includes('placeholder')) {
+    const fallbackUrl = getFallbackImageUrl(fallbackType);
+    console.log('🔄 Setting fallback image:', fallbackUrl);
     img.src = fallbackUrl;
   } else {
-    // Hide image if fallback also fails
-    img.style.display = 'none';
+    // Use a placeholder image from a reliable CDN as last resort
+    if (!img.src.includes('placeholder')) {
+      console.log('🔄 Using placeholder image from CDN');
+      img.src = `https://placehold.co/400x400/F5F1EA/3C6E47?text=${fallbackType}`;
+    } else {
+      // Hide image if even placeholder fails
+      console.log('❌ All image loading attempts failed, hiding image');
+      img.style.display = 'none';
+    }
   }
 };
 

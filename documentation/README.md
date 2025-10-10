@@ -1,179 +1,188 @@
-# Food Finder Frontend
+# bazaarMKT Documentation
 
-A modern, Uber Eats-inspired food delivery application built with React, Vite, and Tailwind CSS.
+Complete documentation for the bazaarMKT artisan marketplace platform.
 
-## Features
+## 📚 Documentation Structure
 
-### 🎨 Modern UI/UX
-- Clean, modern design inspired by Uber Eats
-- Responsive layout that works on all devices
-- Smooth animations and transitions
-- Intuitive navigation and user experience
+This documentation is organized into the following categories:
 
-### 🏠 Home Page
-- Hero section with search functionality
-- Featured restaurant categories
-- Restaurant cards with ratings, delivery times, and specialties
-- Call-to-action sections for user engagement
+### 🏗️ Architecture
+**Directory:** [`architecture/`](./architecture/)  
+System architecture, microservices, and infrastructure documentation.
 
-### 🔍 Restaurant Discovery
-- Advanced search and filtering
-- Category-based browsing
-- Multiple sorting options (rating, delivery time, distance, delivery fee)
-- Restaurant cards with detailed information
+- [Architecture Guide](./architecture/ARCHITECTURE_GUIDE.md)
+- [Serverless Architecture](./architecture/SERVERLESS_ARCHITECTURE.md)
+- [Production Readiness](./architecture/PRODUCTION_READINESS_ASSESSMENT.md)
+- [Microservices Implementation](./architecture/MICROSERVICES_IMPLEMENTATION_PLAN.md)
 
-### 👤 User Authentication
-- Modern login and registration forms
-- Social login options (Google, Facebook)
-- Password visibility toggle
-- Form validation and error handling
+### 🔧 Backend
+**Directory:** [`backend/`](./backend/)  
+Backend API, database, and server-side documentation.
 
-### 📊 Dashboard
-- User profile overview
-- Order statistics and metrics
-- Recent order history
-- Quick action buttons
-- Responsive stats grid
+- [Quick Start & Refactor](./backend/QUICK_START_REFACTOR.md)
+- [Profile Endpoints Review](./backend/PROFILE_ENDPOINTS_REVIEW.md)
+- [Database Connection Analysis](./backend/DATABASE_CONNECTION_ANALYSIS.md)
+- [Performance Fixes](./backend/PERFORMANCE_FIX_SUMMARY.md)
 
-### 🛒 Shopping Cart
-- Local storage-based cart management
-- Add/remove items functionality
-- Quantity management
-- Cart total calculation
+### 🎨 Frontend
+**Directory:** [`frontend/`](./frontend/)  
+Frontend components, UI/UX, and client-side documentation.
 
-### 📱 Responsive Design
-- Mobile-first approach
-- Tablet and desktop optimized
-- Touch-friendly interface
-- Adaptive navigation
+- [UI Redesign Plan](./frontend/UI_REDESIGN_PLAN.md)
+- [Mobile Header Solution](./frontend/MOBILE-HEADER-README.md) ⭐ **NEW**
+- [Mobile Header Implementation Guide](./frontend/MOBILE-HEADER-IMPLEMENTATION-GUIDE.md) ⭐ **NEW**
+- [Guest Order Fixes](./frontend/GUEST_ORDER_COMPLETE_FIX.md)
+- [Profile Picture Upload](./frontend/PROFILE_PICTURE_UPLOAD_FEATURE.md)
 
-## Tech Stack
+### 🚀 Deployment
+**Directory:** [`deployment/`](./deployment/)  
+Deployment guides, Vercel configuration, and production setup.
 
-- **React 19** - Latest React with hooks and modern patterns
-- **Vite** - Fast build tool and development server
-- **Tailwind CSS** - Utility-first CSS framework
-- **React Router** - Client-side routing
-- **Heroicons** - Beautiful SVG icons
-- **React Hot Toast** - Toast notifications
-- **Axios** - HTTP client for API calls
+- [Vercel Deployment Guide](./deployment/VERCEL_DEPLOYMENT_GUIDE.md)
+- [Serverless Database Best Practices](./deployment/SERVERLESS_DATABASE_BEST_PRACTICES.md)
+- [Cold Start Fixes](./deployment/COLD_START_FIX_SUMMARY.md)
+- [Vercel Dashboard Config](./deployment/VERCEL_DASHBOARD_CONFIG.md)
 
-## Getting Started
+### 💻 Development
+**Directory:** [`development/`](./development/)  
+Development workflow, testing, and tooling documentation.
 
-### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
+- [Development Setup](./development/DEVELOPMENT_SETUP.md)
+- [Development Workflow](./development/DEVELOPMENT_WORKFLOW.md)
+- [Testing Strategy](./development/TESTING_STRATEGY.md)
+- [Mobile Header Solution Overview](./development/MOBILE-HEADER-SOLUTION.md) ⭐ **NEW**
+- [Redis Setup](./development/REDIS_SETUP_GUIDE.md)
 
-### Installation
+### 📖 Guides
+**Directory:** [`guides/`](./guides/)  
+Step-by-step guides for common tasks.
 
-1. Install dependencies:
-```bash
-npm install
-```
+- [Start Servers Guide](./guides/START_SERVERS_GUIDE.md)
+- [Merge to Main Guide](./guides/MERGE_TO_MAIN_GUIDE.md)
+- [MongoDB Collections Reference](./guides/MONGODB_COLLECTIONS_REFERENCE.md)
+- [Vercel Setup Review](./guides/VERCEL_SETUP_REVIEW.md)
 
-2. Start the development server:
-```bash
-npm run dev
-```
+### 🔄 Migration
+**Directory:** [`migration/`](./migration/)  
+Database migrations and schema updates.
 
-3. Open your browser and navigate to `http://localhost:5173`
+- [Database Schema Fixes](./migration/DATABASE_SCHEMA_FIXES.md)
+- [Migration Summary](./migration/MIGRATION_SUMMARY.md)
 
-### Build for Production
+### 👤 Profile System
+**Directory:** [`profile-system/`](./profile-system/)  
+Artisan profile and shop management documentation.
 
-```bash
-npm run build
-```
+## 🔍 Quick Find
 
-### Preview Production Build
+### Common Tasks
 
-```bash
-npm run preview
-```
+| Task | Documentation |
+|------|---------------|
+| **Fix mobile headers** | [Mobile Header Solution](./development/MOBILE-HEADER-SOLUTION.md) |
+| **Deploy to Vercel** | [Vercel Deployment Guide](./deployment/VERCEL_DEPLOYMENT_GUIDE.md) |
+| **Start development servers** | [Start Servers Guide](./guides/START_SERVERS_GUIDE.md) |
+| **Setup development environment** | [Development Setup](./development/DEVELOPMENT_SETUP.md) |
+| **Fix cold start issues** | [Cold Start Fixes](./deployment/COLD_START_FIX_SUMMARY.md) |
+| **Database connection issues** | [Database Connection Analysis](./backend/DATABASE_CONNECTION_ANALYSIS.md) |
+| **Testing mobile layouts** | [Mobile Header Implementation](./frontend/MOBILE-HEADER-IMPLEMENTATION-GUIDE.md) |
 
-## Project Structure
+### Recent Updates ⭐
 
-```
-src/
-├── components/          # React components
-│   ├── Home.jsx        # Home page component
-│   ├── Login.jsx       # Login form
-│   ├── Register.jsx    # Registration form
-│   ├── Dashboard.jsx   # User dashboard
-│   ├── Navbar.jsx      # Navigation bar
-│   └── Restaurants.jsx # Restaurant listing page
-├── services/           # API and utility services
-│   ├── authService.js  # Authentication service
-│   └── cartService.js  # Cart management service
-├── App.jsx             # Main app component
-├── main.jsx           # App entry point
-└── index.css          # Global styles and Tailwind imports
-```
+- **Oct 9, 2025:** Added mobile header optimization documentation
+  - [Mobile Header Solution Overview](./development/MOBILE-HEADER-SOLUTION.md)
+  - [Mobile Header Implementation Guide](./frontend/MOBILE-HEADER-IMPLEMENTATION-GUIDE.md)
+  - [Mobile Header README](./frontend/MOBILE-HEADER-README.md)
 
-## Key Components
+## 🎯 Getting Started
 
-### Home Component
-- Hero section with search
-- Category filtering
-- Featured restaurants
-- Call-to-action sections
+### For Developers
 
-### Restaurants Component
-- Search and filtering
-- Category selection
-- Sorting options
-- Restaurant grid layout
+1. **Setup:** [Development Setup](./development/DEVELOPMENT_SETUP.md)
+2. **Workflow:** [Development Workflow](./development/DEVELOPMENT_WORKFLOW.md)
+3. **Testing:** [Testing Strategy](./development/TESTING_STRATEGY.md)
 
-### Dashboard Component
-- User profile card
-- Statistics overview
-- Recent orders
-- Quick actions
+### For Deployment
 
-### Authentication Components
-- Modern form design
-- Validation and error handling
-- Social login integration
-- Responsive layout
+1. **Architecture:** [Serverless Architecture](./architecture/SERVERLESS_ARCHITECTURE.md)
+2. **Deployment:** [Vercel Deployment Guide](./deployment/VERCEL_DEPLOYMENT_GUIDE.md)
+3. **Database:** [Database Best Practices](./deployment/SERVERLESS_DATABASE_BEST_PRACTICES.md)
 
-## Styling
+### For UI/UX Work
 
-The application uses Tailwind CSS with custom components defined in `index.css`:
+1. **Design System:** [UI Redesign Plan](./frontend/UI_REDESIGN_PLAN.md)
+2. **Mobile Optimization:** [Mobile Header Solution](./development/MOBILE-HEADER-SOLUTION.md)
+3. **Component Guide:** [Mobile Header Implementation](./frontend/MOBILE-HEADER-IMPLEMENTATION-GUIDE.md)
 
-- `.btn-primary` - Primary button styling
-- `.btn-secondary` - Secondary button styling
-- `.card` - Card component styling
-- `.input-field` - Form input styling
-- `.search-bar` - Search input styling
-- `.restaurant-card` - Restaurant card styling
-- `.category-chip` - Category filter styling
+## 📋 Documentation Standards
 
-## API Integration
+### File Naming
+- Use `UPPERCASE-WITH-HYPHENS.md` for documentation files
+- Use descriptive names that clearly indicate content
+- Place files in appropriate subdirectories
 
-The frontend is designed to work with the backend API:
+### Content Structure
+- Start with clear problem statement or purpose
+- Include table of contents for long documents
+- Use headers, lists, and code blocks for clarity
+- Include examples and screenshots where helpful
+- End with related documentation links
 
-- Authentication endpoints (`/api/auth`)
-- Restaurant data endpoints
-- Order management endpoints
-- User profile endpoints
+### Organization
+- Keep all documentation in `/documentation` folder
+- Organize by category (architecture, backend, frontend, etc.)
+- Create index files (like this README) for navigation
+- Link related documents together
 
-## Future Enhancements
+## 🔗 External Resources
 
-- Restaurant detail pages
-- Order tracking
-- Payment integration
-- Real-time notifications
-- User reviews and ratings
-- Advanced filtering options
-- Map integration
-- Push notifications
+- [Production Site](https://bazaarmkt.vercel.app)
+- [GitHub Repository](https://github.com/bazaar1/bazaarmkt)
+- [Vercel Dashboard](https://vercel.com/bazaar1/bazaarmkt)
 
-## Contributing
+## 📞 Need Help?
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+### Common Issues
 
-## License
+| Issue | Solution |
+|-------|----------|
+| Can't find documentation | Check this README's Quick Find section |
+| Documentation is outdated | Check the "Last Updated" date at bottom of docs |
+| Missing documentation | Create an issue or add it yourself |
+| Broken links | Report in project issues |
 
-This project is licensed under the ISC License.
+### Contributing to Documentation
+
+1. Follow the documentation standards above
+2. Place files in appropriate directories
+3. Update this README with new content
+4. Use clear, concise language
+5. Include code examples where helpful
+6. Test all code snippets before documenting
+
+## 📊 Documentation Coverage
+
+| Area | Status | Priority |
+|------|--------|----------|
+| Architecture | ✅ Complete | High |
+| Backend | ✅ Complete | High |
+| Frontend | ✅ Complete | High |
+| Deployment | ✅ Complete | High |
+| Development | ✅ Complete | Medium |
+| Testing | ⚠️ Partial | Medium |
+| API Reference | ⚠️ Partial | Medium |
+| User Guides | ❌ Missing | Low |
+
+## 📝 Recent Documentation
+
+- **MOBILE-HEADER-SOLUTION.md** - Mobile header optimization overview
+- **MOBILE-HEADER-IMPLEMENTATION-GUIDE.md** - Detailed implementation guide
+- **MOBILE-HEADER-README.md** - Mobile header documentation index
+
+---
+
+**Last Updated:** October 9, 2025  
+**Version:** 2.0.0  
+**Status:** Active Maintenance
+
+For questions or suggestions about documentation, please open an issue in the project repository.

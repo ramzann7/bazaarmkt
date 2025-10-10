@@ -845,7 +845,7 @@ const DeliveryInformation = ({
                         ✓ {(() => {
                           const uberQuote = uberQuotes[currentArtisanId];
                           if (uberQuote && uberQuote.duration) {
-                            return `${uberQuote.duration} min delivery`;
+                            return `${Math.round(uberQuote.duration)} min delivery`;
                           }
                           return '20-40 min delivery';
                         })()}<br/>

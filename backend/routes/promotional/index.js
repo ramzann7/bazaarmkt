@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { MongoClient, ObjectId } = require('mongodb');
+const { mergeWithInventoryFilter } = require('../../utils/inventoryQueryHelper');
 
 // Get promotional pricing
 router.get('/pricing', async (req, res) => {
@@ -69,8 +70,13 @@ router.get('/products/featured', async (req, res) => {
     
     const { limit = 6 } = req.query;
     
+    const query = mergeWithInventoryFilter({ 
+      isPromotional: true, 
+      isFeatured: true 
+    });
+    
     const products = await db.collection('products')
-      .find({ isPromotional: true, isFeatured: true })
+      .find(query)
       .limit(parseInt(limit))
       .toArray();
     
@@ -102,22 +108,26 @@ router.get('/products/sponsored', async (req, res) => {
     // Get artisan IDs with active spotlights
     const spotlightArtisanIds = activeSpotlights.map(spotlight => spotlight.artisanId);
     
-    // Build product query
-    const productQuery = {
-      artisan: { $in: spotlightArtisanIds },
-      status: 'active'
+    // Build product query with inventory-aware filtering
+    const baseQuery = {
+      artisan: { $in: spotlightArtisanIds }
     };
     
     if (category) {
-      productQuery.category = category;
+      baseQuery.category = category;
     }
     
     if (searchQuery) {
-      productQuery.$or = [
-        { name: { $regex: searchQuery, $options: 'i' } },
-        { description: { $regex: searchQuery, $options: 'i' } }
-      ];
+      baseQuery.$and = baseQuery.$and || [];
+      baseQuery.$and.push({
+        $or: [
+          { name: { $regex: searchQuery, $options: 'i' } },
+          { description: { $regex: searchQuery, $options: 'i' } }
+        ]
+      });
     }
+    
+    const productQuery = mergeWithInventoryFilter(baseQuery);
     
     // Get products with artisan information
     const products = await db.collection('products').aggregate([

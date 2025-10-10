@@ -27,10 +27,7 @@ const sendNotificationDirect = async (notificationData, db) => {
     await sendNotification(mockReq, mockRes);
     
         // Send email notification if user has email and it's an order status update
-        // For patrons, send emails for: order placement (pending), confirmation (confirmed), declined, delivery updates
-        // Note: These are ORDER STATUSES, not notification types
         const patronEmailStatuses = ['pending', 'confirmed', 'declined', 'out_for_delivery', 'ready_for_pickup', 'ready_for_delivery', 'delivered', 'picked_up', 'completed'];
-        // These are NOTIFICATION TYPES
         const patronEmailTypes = ['order_placed', 'order_completion', 'order_confirmed', 'order_declined', 'order_ready', 'order_completed', 'order_ready_for_pickup', 'order_ready_for_delivery', 'order_out_for_delivery'];
         
         const isPatronEmailAllowed = notificationData.userInfo?.isGuest || 
@@ -38,39 +35,11 @@ const sendNotificationDirect = async (notificationData, db) => {
                                    patronEmailStatuses.includes(notificationData.status) ||
                                    patronEmailTypes.includes(notificationData.type);
         
-        // Log email filtering for patrons
-        console.log('📧 Email notification check:', {
-          hasUserEmail: !!notificationData.userEmail,
-          hasType: !!notificationData.type,
-          type: notificationData.type,
-          status: notificationData.status,
-          typeIncludesOrder: notificationData.type?.includes('order'),
-          isPatronEmailAllowed: isPatronEmailAllowed,
-          userEmail: notificationData.userEmail
-        });
-        
-        if (notificationData.userEmail && notificationData.userId && !notificationData.userInfo?.isGuest) {
-          if (!isPatronEmailAllowed) {
-            console.log(`📧 Patron email filtered out - type: ${notificationData.type}, status: ${notificationData.status} (allowed statuses: ${patronEmailStatuses.join(', ')}, allowed types: ${patronEmailTypes.join(', ')})`);
-          } else {
-            console.log(`📧 Patron email allowed - type: ${notificationData.type}, status: ${notificationData.status}`);
-          }
-        }
-        
         // Also allow artisan notification types
-        const artisanEmailTypes = ['new_order_pending', 'order_confirmation_sent', 'order_status_update'];
+        const artisanEmailTypes = ['new_order_pending', 'order_confirmation_sent', 'order_status_update', 'order_cancelled', 'order_receipt_confirmed'];
         const isArtisanEmail = artisanEmailTypes.includes(notificationData.type);
         
         if (notificationData.userEmail && notificationData.type && (isPatronEmailAllowed || isArtisanEmail)) {
-          console.log('📧 Sending email notification for status update:', {
-            to: notificationData.userEmail,
-            status: notificationData.status,
-            type: notificationData.type,
-            orderNumber: notificationData.orderNumber,
-            isPatronEmail: isPatronEmailAllowed,
-            isArtisanEmail: isArtisanEmail
-          });
-          
           try {
             const emailReq = {
               body: {
@@ -100,17 +69,17 @@ const sendNotificationDirect = async (notificationData, db) => {
                   createdAt: notificationData.orderData?.createdAt,
                   updatedAt: notificationData.orderData?.updatedAt
                 }
-              }
+              },
+              db: db
             };
             const emailRes = {
-              json: (data) => console.log('✅ Email notification response:', data),
-              status: (code) => ({ json: (data) => console.log(`❌ Email notification error (${code}):`, data) })
+              json: (data) => {},
+              status: (code) => ({ json: (data) => console.error(`Email notification error (${code}):`, data) })
             };
             
             await sendEmailNotification(emailReq, emailRes);
-            console.log('✅ Email notification sent to:', notificationData.userEmail);
           } catch (emailError) {
-            console.error('❌ Error sending email notification:', emailError);
+            console.error('Error sending email notification:', emailError.message);
             // Don't fail the whole notification if email fails
           }
         }
@@ -841,7 +810,6 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
               lastName: user.lastName,
               phone: user.phone
             };
-            console.log(`✅ Retrieved user email for notifications: ${user.email}`);
           }
         } catch (userFetchError) {
           console.error('❌ Error fetching user for notification:', userFetchError);
@@ -865,6 +833,8 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           deliveryMethod: order.deliveryMethod,
           deliveryInstructions: order.deliveryInstructions,
           pickupTimeWindows: order.pickupTimeWindows,
+          pickupAddress: order.pickupAddress, // Add pickup address
+          pickupTime: order.pickupTime, // Add pickup time
           deliveryMethodDetails: order.deliveryMethodDetails,
           isGuestOrder: order.isGuestOrder,
           guestInfo: order.guestInfo,
@@ -874,6 +844,28 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         userEmail: customerUserInfo.email, // Explicitly set userEmail for backend notification service
         timestamp: new Date().toISOString()
       };
+      
+      // Add artisan information for customer email
+      if (order.artisan) {
+        try {
+          const artisansCollection = db.collection('artisans');
+          const artisan = await artisansCollection.findOne({ _id: order.artisan });
+          if (artisan) {
+            customerNotificationData.orderData.artisanInfo = {
+              id: artisan._id,
+              name: artisan.artisanName || artisan.businessName,
+              email: artisan.email,
+              phone: artisan.phone
+            };
+            // Also add pickup address if available
+            if (artisan.pickupAddress && order.deliveryMethod === 'pickup') {
+              customerNotificationData.orderData.pickupAddress = artisan.pickupAddress;
+            }
+          }
+        } catch (artisanFetchError) {
+          console.error('❌ Error fetching artisan info for customer notification:', artisanFetchError);
+        }
+      }
 
       await sendNotificationDirect(customerNotificationData, db);
       console.log('✅ Customer order placement notification sent');
@@ -906,7 +898,6 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
                 lastName: artisanUser.lastName,
                 phone: artisanUser.phone
               };
-              console.log(`✅ Retrieved artisan email for notifications: ${artisanUser.email}`);
             }
           }
         } catch (artisanFetchError) {
@@ -929,9 +920,22 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
             deliveryMethod: order.deliveryMethod,
             deliveryInstructions: order.deliveryInstructions,
             pickupTimeWindows: order.pickupTimeWindows,
+            pickupAddress: order.pickupAddress, // Add pickup address
+            pickupTime: order.pickupTime, // Add pickup time
             deliveryMethodDetails: order.deliveryMethodDetails,
             isGuestOrder: order.isGuestOrder,
-            guestInfo: order.guestInfo,
+            guestInfo: order.guestOrder ? {
+              firstName: customerUserInfo.firstName,
+              lastName: customerUserInfo.lastName,
+              email: customerUserInfo.email,
+              phone: customerUserInfo.phone
+            } : null,
+            patronInfo: !order.isGuestOrder ? {
+              firstName: customerUserInfo.firstName,
+              lastName: customerUserInfo.lastName,
+              email: customerUserInfo.email,
+              phone: customerUserInfo.phone
+            } : null,
             createdAt: order.createdAt
           },
           userInfo: artisanUserInfo,
@@ -1625,6 +1629,26 @@ const updateOrderStatus = async (req, res) => {
           // Continue with other products even if one fails
         }
       }
+      
+      // Clear product caches after inventory restoration
+      try {
+        console.log(`🗑️ Clearing product caches after ${status} order inventory restoration`);
+        
+        for (const item of order.items) {
+          // Clear individual product cache
+          await redisCacheService.del(`product:${item.productId}`);
+        }
+        
+        // Clear listing caches
+        await redisCacheService.del('products:featured');
+        await redisCacheService.del('products:popular');
+        await redisCacheService.del('products:all');
+        
+        console.log('✅ Product caches cleared after inventory restoration');
+      } catch (cacheError) {
+        console.warn('⚠️ Error clearing product caches:', cacheError);
+        // Don't fail the cancellation if cache clear fails
+      }
     }
     
     let updatedOrder = await ordersCollection.findOne({ 
@@ -1723,6 +1747,77 @@ const updateOrderStatus = async (req, res) => {
         notificationType = 'order_completed';
       }
       
+      // Calculate delivery distance and estimated time for "out for delivery" status
+      let deliveryInfo = null;
+      if (finalStatus === 'out_for_delivery' && updatedOrder.deliveryMethod !== 'pickup') {
+        try {
+          const { createGeocodingService } = require('../../services');
+          const geocodingService = await createGeocodingService();
+          
+          // Get artisan coordinates
+          const artisan = await artisansCollection.findOne({ 
+            _id: updatedOrder.artisan._id || updatedOrder.artisan 
+          });
+          
+          if (artisan && artisan.coordinates && updatedOrder.deliveryAddress) {
+            // Try to get coordinates from delivery address
+            let deliveryCoords = null;
+            
+            // Check if order already has geocoded coordinates
+            if (updatedOrder.deliveryAddress.coordinates) {
+              deliveryCoords = updatedOrder.deliveryAddress.coordinates;
+            } else {
+              // Geocode the delivery address
+              const fullAddress = `${updatedOrder.deliveryAddress.street}, ${updatedOrder.deliveryAddress.city}, ${updatedOrder.deliveryAddress.state} ${updatedOrder.deliveryAddress.zipCode}`;
+              try {
+                const geocoded = await geocodingService.geocodeAddress(fullAddress);
+                deliveryCoords = {
+                  latitude: geocoded.latitude,
+                  longitude: geocoded.longitude
+                };
+              } catch (geocodeError) {
+                console.warn('⚠️ Could not geocode delivery address:', geocodeError.message);
+              }
+            }
+            
+            if (deliveryCoords) {
+              // Calculate distance
+              const distance = geocodingService.calculateDistance(
+                artisan.coordinates.latitude,
+                artisan.coordinates.longitude,
+                deliveryCoords.latitude,
+                deliveryCoords.longitude
+              );
+              
+              // Estimate delivery time based on distance
+              // Assume average speed of 30 km/h in city driving
+              const averageSpeed = 30; // km/h
+              const estimatedTimeHours = distance / averageSpeed;
+              const estimatedTimeMinutes = Math.ceil(estimatedTimeHours * 60);
+              
+              // Calculate estimated arrival time
+              const now = new Date();
+              const estimatedArrival = new Date(now.getTime() + estimatedTimeMinutes * 60000);
+              
+              deliveryInfo = {
+                distance: distance,
+                formattedDistance: geocodingService.formatDistance(distance),
+                estimatedTimeMinutes: estimatedTimeMinutes,
+                estimatedArrivalTime: estimatedArrival,
+                formattedEstimatedTime: estimatedTimeMinutes < 60 
+                  ? `${estimatedTimeMinutes} minutes`
+                  : `${Math.floor(estimatedTimeMinutes / 60)}h ${estimatedTimeMinutes % 60}m`
+              };
+              
+              console.log('📍 Delivery info calculated:', deliveryInfo);
+            }
+          }
+        } catch (deliveryCalcError) {
+          console.error('❌ Error calculating delivery info:', deliveryCalcError);
+          // Continue without delivery info if calculation fails
+        }
+      }
+      
       // Get patron user information for notifications
       const usersCollection = db.collection('users');
       let patronUserInfo = null;
@@ -1730,6 +1825,11 @@ const updateOrderStatus = async (req, res) => {
       if (updatedOrder.userId && !updatedOrder.isGuestOrder) {
         patronUserInfo = await usersCollection.findOne({ _id: updatedOrder.userId });
       }
+      
+      // Get artisan information for email
+      const artisanForEmail = await artisansCollection.findOne({ 
+        _id: updatedOrder.artisan._id || updatedOrder.artisan 
+      });
       
       // Send notification to patron (customer)
       const patronNotificationData = {
@@ -1755,6 +1855,13 @@ const updateOrderStatus = async (req, res) => {
           firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUserInfo?.firstName || null),
           lastName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.lastName : (patronUserInfo?.lastName || null)
         },
+        artisanInfo: artisanForEmail ? {
+          id: artisanForEmail._id,
+          name: artisanForEmail.artisanName || artisanForEmail.businessName,
+          email: artisanForEmail.email,
+          phone: artisanForEmail.phone
+        } : null,
+        deliveryInfo: deliveryInfo,
         timestamp: new Date().toISOString()
       };
 
@@ -2741,46 +2848,133 @@ const cancelOrder = async (req, res) => {
       }
     }
     
+    // Clear product caches after inventory restoration
+    try {
+      console.log('🗑️ Clearing product caches after order cancellation inventory restoration');
+      
+      for (const item of order.items) {
+        // Clear individual product cache
+        await redisCacheService.del(`product:${item.productId}`);
+      }
+      
+      // Clear listing caches
+      await redisCacheService.del('products:featured');
+      await redisCacheService.del('products:popular');
+      await redisCacheService.del('products:all');
+      
+      console.log('✅ Product caches cleared after inventory restoration');
+    } catch (cacheError) {
+      console.warn('⚠️ Error clearing product caches:', cacheError);
+      // Don't fail the cancellation if cache clear fails
+    }
+    
     const updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
     
-    // Send cancellation notification to artisan
+    // Send cancellation notification to customer (platform notification only - NO EMAIL)
     try {
-      const axios = require('axios');
+      const usersCollection = db.collection('users');
+      let customerEmail = null;
+      let customerFirstName = null;
       
+      if (order.userId && !order.isGuestOrder) {
+        const customerUser = await usersCollection.findOne({ _id: order.userId });
+        if (customerUser) {
+          customerEmail = customerUser.email;
+          customerFirstName = customerUser.firstName;
+        }
+      }
+      
+      const customerNotificationData = {
+        type: 'order_cancelled',
+        userId: order.userId,
+        orderId: order._id,
+        orderData: updatedOrder,
+        userEmail: null, // Don't send email to customer
+        orderNumber: order._id.toString().slice(-8),
+        status: 'cancelled',
+        updateType: 'cancellation',
+        updateDetails: {
+          newStatus: 'cancelled',
+          previousStatus: order.status,
+          reason: 'You cancelled this order',
+          statusDisplayText: 'Cancelled'
+        },
+        userInfo: {
+          id: order.userId,
+          isGuest: order.isGuestOrder || false,
+          email: customerEmail,
+          firstName: customerFirstName
+        },
+        message: `Your order #${order._id.toString().slice(-8)} has been cancelled`,
+        title: `Order Cancelled - #${order._id.toString().slice(-8)}`,
+        timestamp: new Date().toISOString()
+      };
+      
+      await sendNotificationDirect(customerNotificationData, db);
+      console.log('✅ Customer cancellation notification sent (platform only)');
+    } catch (notificationError) {
+      console.error('Error sending customer notification:', notificationError);
+    }
+    
+    // Send cancellation notification to artisan (WITH EMAIL)
+    try {
       if (order.artisan) {
-        const artisanNotificationData = {
-          type: 'order_cancelled',
-          userId: order.artisan,
-          orderId: order._id,
-          orderData: updatedOrder,
-          userEmail: null, // Will be fetched from artisan profile
-          orderNumber: order._id.toString().slice(-8),
-          status: 'cancelled',
-          updateType: 'cancellation',
-          updateDetails: {
-            newStatus: 'cancelled',
-            previousStatus: order.status,
-            reason: 'Order cancelled by customer',
-            statusDisplayText: 'Cancelled'
-          },
-          userInfo: {
-            id: order.artisan,
-            isGuest: false,
-            email: null, // Will be fetched from artisan profile
-            firstName: null // Will be fetched from artisan profile
-          },
-          message: `Order #${order._id.toString().slice(-8)} has been cancelled by the customer`,
-          title: `Order Cancelled - #${order._id.toString().slice(-8)}`,
-          timestamp: new Date().toISOString()
-        };
+        const artisansCollection = db.collection('artisans');
+        const usersCollection = db.collection('users');
         
-        await sendNotificationDirect(artisanNotificationData, db);
-        console.log('✅ Artisan order cancellation notification sent');
+        // Fetch artisan details
+        const artisan = await artisansCollection.findOne({ _id: order.artisan });
+        let artisanEmail = null;
+        let artisanFirstName = null;
+        let artisanUserId = null;
+        
+        if (artisan && artisan.user) {
+          artisanUserId = artisan.user;
+          const artisanUser = await usersCollection.findOne({ _id: artisan.user });
+          if (artisanUser) {
+            artisanEmail = artisanUser.email;
+            artisanFirstName = artisanUser.firstName;
+            console.log('📧 Artisan email found for cancellation:', artisanEmail);
+          }
+        }
+        
+        if (artisanUserId) {
+          const artisanNotificationData = {
+            type: 'order_cancelled',
+            userId: artisanUserId,
+            orderId: order._id,
+            orderData: updatedOrder,
+            userEmail: artisanEmail,
+            orderNumber: order._id.toString().slice(-8),
+            status: 'cancelled',
+            updateType: 'cancellation',
+            updateDetails: {
+              newStatus: 'cancelled',
+              previousStatus: order.status,
+              reason: 'Order cancelled by customer',
+              statusDisplayText: 'Cancelled'
+            },
+            userInfo: {
+              id: artisanUserId,
+              isGuest: false,
+              email: artisanEmail,
+              firstName: artisanFirstName
+            },
+            message: `Order #${order._id.toString().slice(-8)} has been cancelled by the customer`,
+            title: `Order Cancelled - #${order._id.toString().slice(-8)}`,
+            timestamp: new Date().toISOString()
+          };
+          
+          await sendNotificationDirect(artisanNotificationData, db);
+          console.log('✅ Artisan cancellation notification sent (with email)');
+        } else {
+          console.warn('⚠️ Artisan user ID not found for notification');
+        }
       }
     } catch (notificationError) {
-      console.error('❌ Error sending cancellation notification:', notificationError);
+      console.error('Error sending artisan cancellation notification:', notificationError);
       // Don't fail the cancellation if notification fails
     }
     
@@ -3252,12 +3446,32 @@ const confirmOrderReceipt = async (req, res) => {
     // Send notification to artisan that order receipt has been confirmed
     try {
       if (updatedOrder.artisan) {
+        // Fetch artisan user email
+        let artisanEmail = null;
+        let artisanFirstName = null;
+        
+        try {
+          const artisansCollection = db.collection('artisans');
+          const usersCollection = db.collection('users');
+          
+          const artisan = await artisansCollection.findOne({ _id: updatedOrder.artisan });
+          if (artisan && artisan.user) {
+            const artisanUser = await usersCollection.findOne({ _id: artisan.user });
+            if (artisanUser) {
+              artisanEmail = artisanUser.email;
+              artisanFirstName = artisanUser.firstName;
+            }
+          }
+        } catch (artisanFetchError) {
+          console.error('❌ Error fetching artisan user for notification:', artisanFetchError);
+        }
+        
         const artisanNotificationData = {
           type: 'order_receipt_confirmed',
           userId: updatedOrder.artisan,
           orderId: updatedOrder._id,
           orderData: updatedOrder,
-          userEmail: null, // Will be fetched from artisan profile
+          userEmail: artisanEmail, // ✅ Now includes actual email
           orderNumber: updatedOrder._id.toString().slice(-8),
           status: 'completed',
           updateType: 'receipt_confirmed',
@@ -3271,8 +3485,8 @@ const confirmOrderReceipt = async (req, res) => {
           userInfo: {
             id: updatedOrder.artisan,
             isGuest: false,
-            email: null, // Will be fetched from artisan profile
-            firstName: null // Will be fetched from artisan profile
+            email: artisanEmail, // ✅ Now includes actual email
+            firstName: artisanFirstName // ✅ Now includes actual name
           },
           message: `Order #${updatedOrder._id.toString().slice(-8)} receipt has been confirmed by the customer`,
           title: `Order Receipt Confirmed - #${updatedOrder._id.toString().slice(-8)}`,

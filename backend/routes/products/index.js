@@ -49,8 +49,26 @@ const getProducts = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
-    // Build query from filters
-    const query = { status: 'active' };
+    // Build query from filters - use inventory-aware filtering
+    const query = { 
+      isActive: { $ne: false },
+      $or: [
+        // ready_to_ship: has stock
+        { productType: 'ready_to_ship', stock: { $gt: 0 } },
+        // made_to_order: has remaining capacity
+        { productType: 'made_to_order', remainingCapacity: { $gt: 0 } },
+        // scheduled_order: has available quantity
+        { productType: 'scheduled_order', availableQuantity: { $gt: 0 } },
+        // Legacy products without productType: check availableQuantity or stock
+        { 
+          productType: { $exists: false },
+          $or: [
+            { availableQuantity: { $gt: 0 } },
+            { stock: { $gt: 0 } }
+          ]
+        }
+      ]
+    };
     
     if (req.query.category) {
       query.category = req.query.category;
@@ -59,10 +77,13 @@ const getProducts = async (req, res) => {
       query.subcategory = req.query.subcategory;
     }
     if (req.query.search) {
-      query.$or = [
-        { name: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { name: { $regex: req.query.search, $options: 'i' } },
+          { description: { $regex: req.query.search, $options: 'i' } }
+        ]
+      });
     }
     if (req.query.artisan) {
       query.artisan = req.query.artisan;
@@ -122,8 +143,29 @@ const getPopularProducts = async (req, res) => {
     const productsCollection = db.collection('products');
     
     // Get popular products with artisan population
+    // Filter based on actual inventory per product type, not just status field
     const popularProducts = await productsCollection.aggregate([
-      { $match: { status: 'active' } },
+      { 
+        $match: { 
+          isActive: { $ne: false },
+          $or: [
+            // ready_to_ship: has stock
+            { productType: 'ready_to_ship', stock: { $gt: 0 } },
+            // made_to_order: has remaining capacity
+            { productType: 'made_to_order', remainingCapacity: { $gt: 0 } },
+            // scheduled_order: has available quantity
+            { productType: 'scheduled_order', availableQuantity: { $gt: 0 } },
+            // Legacy products without productType: check availableQuantity or stock
+            { 
+              productType: { $exists: false },
+              $or: [
+                { availableQuantity: { $gt: 0 } },
+                { stock: { $gt: 0 } }
+              ]
+            }
+          ]
+        } 
+      },
       { $sort: { soldCount: -1, views: -1 } },
       { $limit: 8 },
       {
@@ -174,8 +216,30 @@ const getFeaturedProducts = async (req, res) => {
     const productsCollection = db.collection('products');
     
     // Get featured products with artisan population
+    // Filter based on actual inventory per product type, not just status field
     const featuredProducts = await productsCollection.aggregate([
-      { $match: { status: 'active', isFeatured: true } },
+      { 
+        $match: { 
+          isFeatured: true,
+          isActive: { $ne: false },
+          $or: [
+            // ready_to_ship: has stock
+            { productType: 'ready_to_ship', stock: { $gt: 0 } },
+            // made_to_order: has remaining capacity
+            { productType: 'made_to_order', remainingCapacity: { $gt: 0 } },
+            // scheduled_order: has available quantity
+            { productType: 'scheduled_order', availableQuantity: { $gt: 0 } },
+            // Legacy products without productType: check availableQuantity or stock
+            { 
+              productType: { $exists: false },
+              $or: [
+                { availableQuantity: { $gt: 0 } },
+                { stock: { $gt: 0 } }
+              ]
+            }
+          ]
+        } 
+      },
       { $limit: 6 },
       {
         $lookup: {
@@ -224,17 +288,38 @@ const enhancedSearch = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
-    // Build query
-    const query = { status: 'active' };
+    // Build query - use inventory-aware filtering
+    const query = { 
+      isActive: { $ne: false },
+      $or: [
+        // ready_to_ship: has stock
+        { productType: 'ready_to_ship', stock: { $gt: 0 } },
+        // made_to_order: has remaining capacity
+        { productType: 'made_to_order', remainingCapacity: { $gt: 0 } },
+        // scheduled_order: has available quantity
+        { productType: 'scheduled_order', availableQuantity: { $gt: 0 } },
+        // Legacy products without productType: check availableQuantity or stock
+        { 
+          productType: { $exists: false },
+          $or: [
+            { availableQuantity: { $gt: 0 } },
+            { stock: { $gt: 0 } }
+          ]
+        }
+      ]
+    };
     
     if (req.query.category) {
       query.category = req.query.category;
     }
     if (req.query.search) {
-      query.$or = [
-        { name: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } }
-      ];
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { name: { $regex: req.query.search, $options: 'i' } },
+          { description: { $regex: req.query.search, $options: 'i' } }
+        ]
+      });
     }
     
     // Get products with artisan population using aggregation
@@ -299,9 +384,9 @@ const getProductById = async (req, res) => {
       });
     }
     
-    // Get product with artisan population
+    // Get product with artisan population - don't filter by status for single product view
     const products = await productsCollection.aggregate([
-      { $match: { _id: new ObjectId(req.params.id), status: 'active' } },
+      { $match: { _id: new ObjectId(req.params.id), isActive: { $ne: false } } },
       {
         $lookup: {
           from: 'artisans',

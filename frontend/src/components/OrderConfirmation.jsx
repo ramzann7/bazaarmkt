@@ -840,10 +840,7 @@ export default function OrderConfirmation() {
                         
                         {/* Pickup Address */}
                         <div className="mb-3">
-                          <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Address</p>
-                          <p className="font-medium text-emerald-900 print:text-sm">
-                            {pickupOrder.artisan?.artisanName || pickupOrder.artisan?.businessName || 'Artisan Location'}
-                          </p>
+                          <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Pickup Address</p>
                           <p className="text-sm text-emerald-700 mt-1">
                             {pickupOrder.artisan.pickupAddress.street}<br />
                             {pickupOrder.artisan.pickupAddress.city}, {pickupOrder.artisan.pickupAddress.state} {pickupOrder.artisan.pickupAddress.zipCode}

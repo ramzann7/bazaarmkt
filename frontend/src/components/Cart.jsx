@@ -619,7 +619,7 @@ const Cart = () => {
           const availableSlots = pickupTimeService.generateAvailableTimeSlots(
             artisanData.artisan.pickupSchedule,
             artisanEnhancedProducts,
-            7 // 7 days ahead
+            10 // 10 days ahead to provide more options
           );
           timeWindows[artisanId] = availableSlots;
         }

@@ -2,13 +2,21 @@ import React, { useMemo } from 'react';
 import PriorityOrderCard from './PriorityOrderCard';
 import { getPriorityStatuses, calculatePriorityScore, getUrgencyLevel, groupBy } from '../utils/orderPriority';
 
-const PriorityOrderQueue = ({ orders, onOrderClick, onQuickAction, userRole }) => {
+const PriorityOrderQueue = ({ orders, onOrderClick, onQuickAction, userRole, updatingOrderId }) => {
   // Get appropriate priority statuses based on user role
   const PRIORITY_STATUSES = useMemo(() => getPriorityStatuses(userRole), [userRole]);
   // Calculate priority orders with scores and urgency
   const priorityOrders = useMemo(() => {
+    // Define terminated statuses that should never appear in priority queue
+    const terminatedStatuses = ['cancelled', 'declined', 'completed'];
+    
     return orders
       .filter(order => {
+        // Immediately filter out terminated statuses
+        if (terminatedStatuses.includes(order.status)) {
+          return false;
+        }
+        
         // Filter based on priority statuses
         if (!PRIORITY_STATUSES[order.status]) return false;
         
@@ -103,6 +111,7 @@ const PriorityOrderQueue = ({ orders, onOrderClick, onQuickAction, userRole }) =
             onClick={onOrderClick}
             onQuickAction={onQuickAction}
             userRole={userRole}
+            isUpdating={updatingOrderId === order._id}
           />
         ))}
       </div>

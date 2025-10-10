@@ -52,6 +52,13 @@ export default function Orders() {
     }
   }, [filter, ordersLoaded, userRole]);
 
+  // Re-apply filter when allOrders changes (for optimistic updates)
+  useEffect(() => {
+    if (ordersLoaded && userRole && allOrders.length > 0) {
+      applyFilter();
+    }
+  }, [allOrders]);
+
   // Handle order confirmation from checkout
   useEffect(() => {
     if (location.state?.orders && location.state?.message) {
@@ -197,26 +204,60 @@ export default function Orders() {
 
 
   const handleQuickAction = async (orderId, action) => {
+    // Prevent double-clicks during update
+    if (updatingOrderId === orderId) {
+      console.log('⏸️ Update already in progress for order:', orderId);
+      return;
+    }
+    
+    // Store original order state for potential rollback
+    const originalOrder = orders.find(o => o._id === orderId);
+    if (!originalOrder) {
+      console.error('❌ Order not found:', orderId);
+      return;
+    }
+    
     try {
       setUpdatingOrderId(orderId); // Set the order as being updated
+      
       // Handle patron-specific actions
       if (action === 'Confirm Receipt') {
         const order = orders.find(o => o._id === orderId);
         if (!confirm(`Confirm that you ${order?.deliveryMethod === 'pickup' ? 'picked up' : 'received'} your order?`)) {
+          setUpdatingOrderId(null);
           return;
         }
-        const result = await orderService.confirmOrderReceipt(orderId);
-        toast.success(`✅ Order confirmed successfully!`);
-        await loadUserAndOrders(true); // Force refresh to see completed status
-        setUpdatingOrderId(null); // Clear updating state
+        
+        // OPTIMISTIC UPDATE: Update UI immediately
+        updateOrderStatusInUI(orderId, 'completed');
+        
+        try {
+          await orderService.confirmOrderReceipt(orderId);
+          // Success - keep optimistic update
+          setUpdatingOrderId(null);
+        } catch (error) {
+          // ROLLBACK: Revert to original status on error
+          updateOrderStatusInUI(orderId, originalOrder.status);
+          throw error;
+        }
         return;
       }
       
       if (action === 'Cancel Order') {
         const reason = prompt('Please provide a reason for cancelling this order (optional):');
-        await orderService.cancelOrder(orderId, reason);
-        toast.success('Order cancelled successfully');
-        await loadUserAndOrders(true); // Force refresh after status update
+        
+        // OPTIMISTIC UPDATE: Update UI immediately
+        updateOrderStatusInUI(orderId, 'cancelled');
+        
+        try {
+          await orderService.cancelOrder(orderId, reason);
+          // Success - keep optimistic update
+          setUpdatingOrderId(null);
+        } catch (error) {
+          // ROLLBACK: Revert to original status on error
+          updateOrderStatusInUI(orderId, originalOrder.status);
+          throw error;
+        }
         return;
       }
       
@@ -243,41 +284,77 @@ export default function Orders() {
       console.log('🔍 Frontend status mapping:', {
         action: action,
         newStatus: newStatus,
-        statusMap: statusMap
+        orderId: orderId.toString().slice(-8)
       });
       
       // Check if we have a valid status
       if (!newStatus) {
         console.error('❌ No status mapping found for action:', action);
         toast.error(`Unknown action: ${action}`);
+        setUpdatingOrderId(null);
         return;
       }
       
-      // Handle decline action with reason prompt
-      if (action === 'Decline') {
-        const reason = prompt('Please provide a reason for declining this order:');
-        if (!reason) {
-          toast.error('Decline reason is required');
-          return;
-        }
-        await orderService.declineOrder(orderId, reason);
-        // Note: Toast notification handled by orderNotificationService
-      } else {
-        // Update status for other actions
-        await orderService.updateOrderStatus(orderId, { status: newStatus });
-        // Note: Toast notification handled by orderNotificationService
-      }
+      // OPTIMISTIC UPDATE: Update UI immediately
+      updateOrderStatusInUI(orderId, newStatus);
       
-      // Refresh immediately - backend has already processed the update
-      console.log('🔄 Immediately refreshing orders after quick action...');
-      await loadUserAndOrders(true); // Force refresh after status update
-      setUpdatingOrderId(null); // Clear updating state
+      try {
+        // Handle decline action with reason prompt
+        if (action === 'Decline') {
+          const reason = prompt('Please provide a reason for declining this order:');
+          if (!reason) {
+            // ROLLBACK: Revert to original status if no reason provided
+            updateOrderStatusInUI(orderId, originalOrder.status);
+            toast.error('Decline reason is required');
+            setUpdatingOrderId(null);
+            return;
+          }
+          await orderService.declineOrder(orderId, reason);
+        } else {
+          // Update status for other actions
+          await orderService.updateOrderStatus(orderId, { status: newStatus });
+        }
+        
+        // Success - keep optimistic update
+        console.log('✅ Order status updated successfully:', orderId.toString().slice(-8), '->', newStatus);
+        setUpdatingOrderId(null);
+      } catch (error) {
+        // ROLLBACK: Revert to original status on error
+        console.error('❌ Failed to update order status, rolling back:', error);
+        updateOrderStatusInUI(orderId, originalOrder.status);
+        throw error;
+      }
     } catch (error) {
       console.error('❌ Error processing quick action:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to update order';
       toast.error(errorMessage);
-      setUpdatingOrderId(null); // Clear updating state on error
+      setUpdatingOrderId(null);
     }
+  };
+  
+  // Helper function to update order status in UI (optimistic update)
+  const updateOrderStatusInUI = (orderId, newStatus) => {
+    console.log('🔄 Optimistic UI update:', orderId.toString().slice(-8), '->', newStatus);
+    
+    // Update both allOrders and orders state immediately
+    setAllOrders(prevOrders => 
+      prevOrders.map(order => 
+        order._id === orderId 
+          ? { ...order, status: newStatus, updatedAt: new Date().toISOString() }
+          : order
+      )
+    );
+    
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order._id === orderId 
+          ? { ...order, status: newStatus, updatedAt: new Date().toISOString() }
+          : order
+      )
+    );
+    
+    // Force re-render with new key to ensure Priority Queue updates
+    setRefreshKey(prev => prev + 1);
   };
 
   const formatDate = (dateString) => {
@@ -677,10 +754,12 @@ export default function Orders() {
 
         {/* Priority Queue - For Both Artisans and Patrons */}
         <PriorityOrderQueue
+          key={`priority-queue-${refreshKey}`}
           orders={orders}
           onOrderClick={handleOrderClick}
           onQuickAction={handleQuickAction}
           userRole={userRole}
+          updatingOrderId={updatingOrderId}
         />
 
         {/* Enhanced Filters and View Toggle */}

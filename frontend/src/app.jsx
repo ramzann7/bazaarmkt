@@ -21,6 +21,7 @@ import PerformanceMonitor from "./components/PerformanceMonitor.jsx";
 import { orderNotificationService } from "./services/orderNotificationService";
 import { initializeNotificationService } from './services/notificationService';
 import './i18n'; // Import i18n configuration
+import { useInactivityLogout } from './hooks/useInactivityLogout';
 
 // Artisan-only route component
 const ArtisanOnlyRoute = ({ children }) => {
@@ -90,6 +91,14 @@ const ArtisanRevenueDashboard = lazy(() => import("./components/ArtisanRevenueDa
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
+  
+  // Enable inactivity logout (5 minutes by default)
+  useInactivityLogout({
+    enabled: true, // Enable for all authenticated users
+    inactivityTimeout: 5 * 60 * 1000, // 5 minutes
+    warningTime: 30 * 1000, // 30 seconds warning
+    enableLogging: import.meta.env.MODE === 'development' // Only log in dev mode
+  });
   
 
   

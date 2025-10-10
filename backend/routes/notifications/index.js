@@ -198,19 +198,32 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
     </div>
   ` : '';
   
-  // Generate pickup/delivery info
+  // Generate pickup/delivery info with artisan information and customer information
   const deliveryInfoHTML = orderData.deliveryMethod === 'pickup' ? `
     <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
       <h3 style="color: #047857; margin-top: 0;">📍 Pickup Information</h3>
-      <p style="margin: 5px 0;"><strong>Location:</strong> ${orderData.artisanName || 'Artisan Location'}</p>
       ${orderData.pickupAddress ? `
         <p style="margin: 5px 0; color: #666;">
           ${orderData.pickupAddress.street}<br>
           ${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}
         </p>
-      ` : ''}
+      ` : '<p style="margin: 5px 0;">Pickup location will be confirmed by the artisan</p>'}
       ${orderData.pickupTime ? `
         <p style="margin: 5px 0;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+      ` : ''}
+      ${orderData.artisanInfo ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
+          <p style="margin: 5px 0; color: #047857;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
+        </div>
+      ` : ''}
+      ${orderData.patronInfo || orderData.guestInfo ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
+          <h4 style="color: #047857; margin: 0 0 10px 0;">Customer Information</h4>
+          <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.guestInfo).lastName}</p>
+          ${(orderData.patronInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.guestInfo).email}</p>` : ''}
+          ${(orderData.patronInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.guestInfo).phone}</p>` : ''}
+        </div>
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
@@ -221,8 +234,30 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
         ${orderData.deliveryAddress.street}<br>
         ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
       </p>
-      ${orderData.estimatedDeliveryTime ? `
+      ${orderData.deliveryInfo ? `
+        <div style="margin-top: 15px; padding: 15px; background: #fff7ed; border-radius: 6px;">
+          <p style="margin: 5px 0; color: #d97706;"><strong>📏 Distance:</strong> ${orderData.deliveryInfo.formattedDistance}</p>
+          <p style="margin: 5px 0; color: #d97706;"><strong>⏱️ Estimated Time:</strong> ${orderData.deliveryInfo.formattedEstimatedTime}</p>
+          ${orderData.deliveryInfo.estimatedArrivalTime ? `
+            <p style="margin: 5px 0; color: #d97706;"><strong>🕐 Expected Arrival:</strong> ${new Date(orderData.deliveryInfo.estimatedArrivalTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+          ` : ''}
+        </div>
+      ` : orderData.estimatedDeliveryTime ? `
         <p style="margin: 5px 0;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
+      ` : ''}
+      ${orderData.artisanInfo ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #fde68a;">
+          <p style="margin: 5px 0; color: #d97706;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
+        </div>
+      ` : ''}
+      ${orderData.patronInfo || orderData.guestInfo ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #fde68a;">
+          <h4 style="color: #d97706; margin: 0 0 10px 0;">Customer Information</h4>
+          <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.guestInfo).lastName}</p>
+          ${(orderData.patronInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.guestInfo).email}</p>` : ''}
+          ${(orderData.patronInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.guestInfo).phone}</p>` : ''}
+        </div>
       ` : ''}
     </div>
   ` : '';
@@ -310,7 +345,7 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-          <p style="color: #666; font-size: 14px;">Thank you for choosing bazaar!</p>
+          <p style="color: #666; font-size: 14px;">Thank you for choosing BazaarMkt!</p>
         </div>
       </div>
     </body>
@@ -336,15 +371,22 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
   const deliveryInfo = isPickupOrder ? `
     <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
       <h3 style="color: #047857; margin-top: 0;">📍 Pickup Information</h3>
-      <p style="margin: 5px 0;"><strong>Location:</strong> ${orderData.artisanName || 'Artisan Location'}</p>
       ${orderData.pickupAddress ? `
         <p style="margin: 5px 0; color: #666;">
+          <strong>Pickup Address:</strong><br>
           ${orderData.pickupAddress.street}<br>
           ${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}
         </p>
-      ` : ''}
+      ` : '<p style="margin: 5px 0;">Pickup location will be confirmed by the artisan</p>'}
       ${orderData.pickupTime ? `
-        <p style="margin: 5px 0;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+        <p style="margin: 10px 0 5px 0;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+      ` : ''}
+      ${orderData.artisanInfo ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
+          <p style="margin: 5px 0; color: #047857;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Contact:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
+          ${orderData.artisanInfo.email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${orderData.artisanInfo.email}</p>` : ''}
+        </div>
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
@@ -355,8 +397,23 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
         ${orderData.deliveryAddress.street}<br>
         ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
       </p>
-      ${orderData.estimatedDeliveryTime ? `
-        <p style="margin: 5px 0;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
+      ${orderData.deliveryInfo ? `
+        <div style="margin-top: 15px; padding: 15px; background: #fff7ed; border-radius: 6px;">
+          <p style="margin: 5px 0; color: #d97706;"><strong>📏 Distance:</strong> ${orderData.deliveryInfo.formattedDistance}</p>
+          <p style="margin: 5px 0; color: #d97706;"><strong>⏱️ Estimated Time:</strong> ${orderData.deliveryInfo.formattedEstimatedTime}</p>
+          ${orderData.deliveryInfo.estimatedArrivalTime ? `
+            <p style="margin: 5px 0; color: #d97706;"><strong>🕐 Expected Arrival:</strong> ${new Date(orderData.deliveryInfo.estimatedArrivalTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+          ` : ''}
+        </div>
+      ` : orderData.estimatedDeliveryTime ? `
+        <p style="margin: 10px 0 5px 0;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
+      ` : ''}
+      ${orderData.artisanInfo ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #fde68a;">
+          <p style="margin: 5px 0; color: #d97706;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Contact:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
+          ${orderData.artisanInfo.email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${orderData.artisanInfo.email}</p>` : ''}
+        </div>
       ` : ''}
     </div>
   ` : '';
@@ -450,7 +507,7 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
-          <p style="color: #666; font-size: 14px;">Thank you for choosing bazaar!</p>
+          <p style="color: #666; font-size: 14px;">Thank you for choosing BazaarMkt!</p>
           <p style="color: #666; font-size: 14px;">Contact: bazaar@bazaarmkt.ca</p>
         </div>
       </div>
@@ -478,10 +535,19 @@ const sendBrevoEmail = async (userId, notificationData, db) => {
   
   // Get order details if orderId is provided
   let order = null;
+  let artisan = null;
   if (notificationData.orderId) {
     order = await db.collection('orders').findOne({ 
       _id: new (require('mongodb')).ObjectId(notificationData.orderId) 
     });
+    
+    // Get artisan details for pickup/delivery information
+    if (order && order.artisan) {
+      const artisanId = typeof order.artisan === 'object' ? order.artisan._id : order.artisan;
+      artisan = await db.collection('artisans').findOne({
+        _id: new (require('mongodb')).ObjectId(artisanId)
+      });
+    }
   }
   
   // Connection managed by middleware - no close needed
@@ -493,24 +559,34 @@ const sendBrevoEmail = async (userId, notificationData, db) => {
   const { title, message, orderNumber, updateDetails, type, updateType, status } = notificationData;
   const recipientName = `${user.firstName} ${user.lastName}`;
   
-  // Prepare order data for templates with all necessary information
+  // Prepare comprehensive order data for templates with all necessary information
   const orderData = order ? {
-    orderNumber: orderNumber || order._id.toString().slice(-8).toUpperCase(),
+    orderNumber: orderNumber || order._id.toString(),
     totalAmount: order.totalAmount,
     items: order.items,
     deliveryMethod: order.deliveryMethod,
     deliveryAddress: order.deliveryAddress,
-    artisanName: order.artisan?.artisanName,
-    pickupAddress: order.artisan?.pickupAddress,
+    artisanName: artisan?.businessName || artisan?.artisanName || order.artisanName,
+    pickupAddress: order.pickupAddress, // Use order's pickup address, not artisan's business address
     pickupTime: order.pickupTimeWindow?.timeSlotLabel || order.pickupTime,
     estimatedDeliveryTime: order.estimatedDeliveryTime,
-    status: order.status
+    status: order.status,
+    // Customer/Guest information
+    customerName: order.isGuestOrder 
+      ? `${order.guestInfo?.firstName || ''} ${order.guestInfo?.lastName || ''}`.trim()
+      : recipientName,
+    customerEmail: order.isGuestOrder ? order.guestInfo?.email : user.email,
+    customerPhone: order.isGuestOrder ? order.guestInfo?.phone : user.phone,
+    isGuest: order.isGuestOrder || false
   } : {
     orderNumber: orderNumber,
     totalAmount: updateDetails?.totalAmount || 0,
     items: [],
     deliveryMethod: 'pickup',
-    status: status || updateDetails?.newStatus || 'pending'
+    status: status || updateDetails?.newStatus || 'pending',
+    customerName: recipientName,
+    customerEmail: user.email,
+    isGuest: false
   };
   
   // Use the comprehensive order update email template
@@ -561,7 +637,7 @@ const sendBrevoEmail = async (userId, notificationData, db) => {
   
   const emailData = {
     sender: {
-      name: 'bazaar',
+      name: 'BazaarMkt',
       email: 'bazaar@bazaarmkt.ca'
     },
     to: [{
@@ -599,30 +675,49 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData, db) => {
   
   // Get order details if orderId is provided
   let order = null;
+  let artisan = null;
   if (orderId && db) {
     order = await db.collection('orders').findOne({ 
       _id: new (require('mongodb')).ObjectId(orderId) 
     });
+    
+    // Get artisan details for pickup/delivery information
+    if (order && order.artisan) {
+      const artisanId = typeof order.artisan === 'object' ? order.artisan._id : order.artisan;
+      artisan = await db.collection('artisans').findOne({
+        _id: new (require('mongodb')).ObjectId(artisanId)
+      });
+    }
   }
   
-  // Prepare order data for templates with all necessary information
+  // Prepare comprehensive order data for templates with all necessary information
   const orderData = order ? {
-    orderNumber: orderNumber || order._id.toString().slice(-8).toUpperCase(),
+    orderNumber: orderNumber || order._id.toString(),
     totalAmount: order.totalAmount,
     items: order.items,
     deliveryMethod: order.deliveryMethod,
     deliveryAddress: order.deliveryAddress,
-    artisanName: order.artisan?.artisanName,
-    pickupAddress: order.artisan?.pickupAddress,
+    artisanName: artisan?.businessName || artisan?.artisanName || order.artisanName,
+    pickupAddress: order.pickupAddress, // Use order's pickup address, not artisan's business address
     pickupTime: order.pickupTimeWindow?.timeSlotLabel || order.pickupTime,
     estimatedDeliveryTime: order.estimatedDeliveryTime,
-    status: order.status
+    status: order.status,
+    // Customer/Guest information
+    customerName: order.isGuestOrder 
+      ? `${order.guestInfo?.firstName || ''} ${order.guestInfo?.lastName || ''}`.trim()
+      : guestName,
+    customerEmail: order.isGuestOrder ? order.guestInfo?.email : guestEmail,
+    customerPhone: order.isGuestOrder ? order.guestInfo?.phone : null,
+    isGuest: order.isGuestOrder || true
   } : {
     orderNumber: orderNumber,
     totalAmount: updateDetails?.totalAmount || 0,
     items: [],
     deliveryMethod: 'pickup',
-    status: status || updateDetails?.newStatus || 'pending'
+    status: status || updateDetails?.newStatus || 'pending',
+    customerName: guestName,
+    customerEmail: guestEmail,
+    isGuest: true
   };
   
   // Use the comprehensive order update email template
@@ -673,7 +768,7 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData, db) => {
   
   const emailData = {
     sender: {
-      name: 'bazaar',
+      name: 'BazaarMkt',
       email: 'bazaar@bazaarmkt.ca'
     },
     to: [{
@@ -1401,7 +1496,7 @@ const sendEmailNotification = async (req, res) => {
     
     const emailData = {
       sender: {
-        name: 'bazaar',
+        name: 'BazaarMkt',
         email: 'bazaar@bazaarmkt.ca'
       },
       to: [{
@@ -1409,7 +1504,7 @@ const sendEmailNotification = async (req, res) => {
         name: data.userName || 'Customer'
       }],
       subject: subject,
-      htmlContent: data.htmlContent || `<p>${data.message || 'You have a notification from bazaar'}</p>`,
+      htmlContent: data.htmlContent || `<p>${data.message || 'You have a notification from BazaarMkt'}</p>`,
       textContent: data.message || subject
     };
     

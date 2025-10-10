@@ -3,6 +3,7 @@ const router = express.Router();
 const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const imageUploadService = require('../../services/imageUploadService');
+const { mergeWithInventoryFilter } = require('../../utils/inventoryQueryHelper');
 
 // Get artisan by ID
 router.get('/:id', async (req, res) => {
@@ -18,11 +19,11 @@ router.get('/:id', async (req, res) => {
     
     // Get artisan's products if requested
     if (req.query.includeProducts === 'true') {
+      const query = mergeWithInventoryFilter({ 
+        artisan: new ObjectId(id)
+      });
       const products = await db.collection('products')
-        .find({ 
-          artisan: new ObjectId(id),
-          status: 'active'
-        })
+        .find(query)
         .sort({ createdAt: -1 })
         .toArray();
       artisan.products = products;
@@ -44,11 +45,11 @@ router.get('/', async (req, res) => {
     // Get products for each artisan if requested
     if (req.query.includeProducts === 'true') {
       for (const artisan of artisans) {
+        const query = mergeWithInventoryFilter({ 
+          artisan: artisan._id
+        });
         const products = await db.collection('products')
-          .find({ 
-            artisan: artisan._id,
-            status: 'active'
-          })
+          .find(query)
           .sort({ createdAt: -1 })
           .limit(10) // Limit to 10 products per artisan for performance
           .toArray();

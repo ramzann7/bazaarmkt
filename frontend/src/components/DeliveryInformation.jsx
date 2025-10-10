@@ -51,6 +51,7 @@ const DeliveryInformation = ({
   const [lastValidatedEmail, setLastValidatedEmail] = useState(null);
   const [showAddressOptions, setShowAddressOptions] = useState(false);
   const [useSavedAddress, setUseSavedAddress] = useState(true);
+  const [showAllPickupTimes, setShowAllPickupTimes] = useState({}); // Track expanded state per artisan
 
   // Get the current artisan (assuming single artisan for now)
   const currentArtisanId = Object.keys(cartByArtisan)[0];
@@ -696,21 +697,49 @@ const DeliveryInformation = ({
                 </div>
 
                 {/* Time Selection */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {pickupTimeWindows[currentArtisanId].slice(0, 6).map((timeSlot, index) => (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {(showAllPickupTimes[currentArtisanId] 
+                      ? pickupTimeWindows[currentArtisanId] 
+                      : pickupTimeWindows[currentArtisanId].slice(0, 6)
+                    ).map((timeSlot, index) => (
+                      <button
+                        key={index}
+                        onClick={() => onPickupTimeChange(currentArtisanId, timeSlot)}
+                        className={`p-4 text-sm rounded-xl border-2 transition-all duration-200 ${
+                          selectedPickupTimes[currentArtisanId]?.fullLabel === timeSlot.fullLabel
+                            ? 'border-green-500 bg-green-50 text-green-700 shadow-md'
+                            : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                        }`}
+                      >
+                        <div className="font-bold text-base">{timeSlot.dateLabel}</div>
+                        <div className="text-xs mt-1">{timeSlot.timeSlot.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Expand/Collapse Button */}
+                  {pickupTimeWindows[currentArtisanId] && pickupTimeWindows[currentArtisanId].length > 6 && (
                     <button
-                      key={index}
-                      onClick={() => onPickupTimeChange(currentArtisanId, timeSlot)}
-                      className={`p-4 text-sm rounded-xl border-2 transition-all duration-200 ${
-                        selectedPickupTimes[currentArtisanId]?.fullLabel === timeSlot.fullLabel
-                          ? 'border-green-500 bg-green-50 text-green-700 shadow-md'
-                          : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
-                      }`}
+                      onClick={() => setShowAllPickupTimes(prev => ({
+                        ...prev,
+                        [currentArtisanId]: !prev[currentArtisanId]
+                      }))}
+                      className="w-full mt-4 px-6 py-3 bg-green-50 hover:bg-green-100 text-green-700 font-semibold rounded-xl border-2 border-green-200 transition-all duration-200 flex items-center justify-center gap-2"
                     >
-                      <div className="font-bold text-base">{timeSlot.dateLabel}</div>
-                      <div className="text-xs mt-1">{timeSlot.timeSlot.label}</div>
+                      {showAllPickupTimes[currentArtisanId] ? (
+                        <>
+                          <ChevronDownIcon className="w-5 h-5 rotate-180" />
+                          <span>Show Less Time Slots</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDownIcon className="w-5 h-5" />
+                          <span>View More Time Slots (Next 5 Days - {pickupTimeWindows[currentArtisanId].length - 6} more available)</span>
+                        </>
+                      )}
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
             )}

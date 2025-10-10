@@ -97,7 +97,22 @@ const ProductCard = ({
         {/* Product Image */}
         <div className="relative w-full h-56 overflow-hidden">
           <img
-            src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image, { width: 300, height: 224, quality: 80 })}
+            src={getImageUrl(
+              (() => {
+                // Filter out invalid images (empty objects, nulls, non-strings)
+                const validImages = product.images && Array.isArray(product.images) 
+                  ? product.images.filter(img => typeof img === 'string' && img.length > 0)
+                  : [];
+                
+                // Use first valid image, fallback to product.image if it's valid, or null
+                const imageToUse = validImages.length > 0 
+                  ? validImages[0] 
+                  : (typeof product.image === 'string' && product.image.length > 0 ? product.image : null);
+                
+                return imageToUse;
+              })(),
+              { width: 300, height: 224, quality: 80 }
+            )}
             alt={product.name}
             className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
             loading="lazy"

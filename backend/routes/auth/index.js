@@ -192,12 +192,13 @@ const register = async (req, res) => {
           delivery: false,
           shipping: false
         },
+        // Root-level fields synced from deliveryOptions for backward compatibility
         pickupSchedule: {},
         pickupLocation: null,
         pickupAddress: null,
         pickupInstructions: '',
         pickupUseBusinessAddress: true,
-        professionalDelivery: false,
+        professionalDelivery: { enabled: false }, // Object, not boolean
         deliveryInstructions: '',
         operationDetails: {},
         rating: 0,

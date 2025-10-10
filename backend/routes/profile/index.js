@@ -1047,6 +1047,26 @@ const updateArtisanProfile = async (req, res) => {
       }
     });
     
+    // If deliveryOptions is being updated, sync to root-level fields for backward compatibility
+    if (req.body.deliveryOptions) {
+      const opts = req.body.deliveryOptions;
+      updateData.pickupSchedule = opts.pickupSchedule || {};
+      updateData.pickupLocation = opts.pickupLocation || null;
+      updateData.pickupAddress = opts.pickupAddress || null;
+      updateData.pickupInstructions = opts.pickupInstructions || '';
+      updateData.pickupUseBusinessAddress = opts.pickupUseBusinessAddress !== undefined ? opts.pickupUseBusinessAddress : true;
+      // professionalDelivery is an object, not a boolean - sync the entire object
+      updateData.professionalDelivery = opts.professionalDelivery || { enabled: false };
+      updateData.deliveryInstructions = opts.deliveryInstructions || '';
+      
+      console.log('✅ Synced deliveryOptions to root-level fields for backward compatibility');
+    }
+    // REVERSE SYNC: If root-level pickupSchedule is updated without deliveryOptions, sync it back
+    else if (req.body.pickupSchedule) {
+      updateData['deliveryOptions.pickupSchedule'] = req.body.pickupSchedule;
+      console.log('✅ Reverse synced pickupSchedule to deliveryOptions.pickupSchedule');
+    }
+    
     // Update the artisan record
     const result = await artisansCollection.updateOne(
       { _id: artisan._id },
@@ -1177,11 +1197,22 @@ const updateArtisanOperations = async (req, res) => {
     // Handle operations data
     if (req.body.operations) {
       updateData.operations = req.body.operations;
+      // SYNC: Also update operationDetails to match operations for backward compatibility
+      updateData.operationDetails = req.body.operations;
+      console.log('✅ Synced operations to operationDetails for backward compatibility');
     }
     
     // Handle pickup schedule
     if (req.body.pickupSchedule) {
       updateData.pickupSchedule = req.body.pickupSchedule;
+      
+      // REVERSE SYNC: Update deliveryOptions.pickupSchedule to keep them in sync
+      // First get the existing deliveryOptions to preserve other fields
+      if (!updateData.deliveryOptions) {
+        updateData['deliveryOptions.pickupSchedule'] = req.body.pickupSchedule;
+      }
+      
+      console.log('✅ Reverse synced pickupSchedule to deliveryOptions.pickupSchedule');
     }
 
     await artisansCollection.updateOne(
@@ -1292,6 +1323,20 @@ const updateArtisanDelivery = async (req, res) => {
     // Handle delivery options
     if (req.body.deliveryOptions) {
       updateData.deliveryOptions = req.body.deliveryOptions;
+      
+      // Sync deliveryOptions to root-level fields for backward compatibility
+      // This ensures all existing code that reads from root fields continues to work
+      const opts = req.body.deliveryOptions;
+      updateData.pickupSchedule = opts.pickupSchedule || {};
+      updateData.pickupLocation = opts.pickupLocation || null;
+      updateData.pickupAddress = opts.pickupAddress || null;
+      updateData.pickupInstructions = opts.pickupInstructions || '';
+      updateData.pickupUseBusinessAddress = opts.pickupUseBusinessAddress !== undefined ? opts.pickupUseBusinessAddress : true;
+      // professionalDelivery is an object, not a boolean - sync the entire object
+      updateData.professionalDelivery = opts.professionalDelivery || { enabled: false };
+      updateData.deliveryInstructions = opts.deliveryInstructions || '';
+      
+      console.log('✅ Synced deliveryOptions to root-level fields for backward compatibility');
     }
 
     await artisansCollection.updateOne(
@@ -1801,6 +1846,21 @@ const createArtisanProfile = async (req, res) => {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    
+    // Sync deliveryOptions to root-level fields for backward compatibility
+    if (artisanData.deliveryOptions && Object.keys(artisanData.deliveryOptions).length > 0) {
+      const opts = artisanData.deliveryOptions;
+      artisanData.pickupSchedule = opts.pickupSchedule || {};
+      artisanData.pickupLocation = opts.pickupLocation || null;
+      artisanData.pickupAddress = opts.pickupAddress || null;
+      artisanData.pickupInstructions = opts.pickupInstructions || '';
+      artisanData.pickupUseBusinessAddress = opts.pickupUseBusinessAddress !== undefined ? opts.pickupUseBusinessAddress : true;
+      // professionalDelivery is an object, not a boolean - sync the entire object
+      artisanData.professionalDelivery = opts.professionalDelivery || { enabled: false };
+      artisanData.deliveryInstructions = opts.deliveryInstructions || '';
+      
+      console.log('✅ Synced deliveryOptions to root-level fields for new artisan profile');
+    }
     
     // Process and upload businessImage if present
     if (artisanData.businessImage && typeof artisanData.businessImage === 'string' && artisanData.businessImage.startsWith('data:image')) {

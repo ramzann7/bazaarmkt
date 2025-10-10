@@ -2138,69 +2138,6 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         </div>
       )}
 
-      {/* Dietary Information */}
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
-        <div className="flex items-center mb-6">
-          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center mr-3">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-          </div>
-              <div>
-            <h3 className="text-xl font-bold text-gray-900">Dietary Information & Certifications</h3>
-            <p className="text-sm text-gray-600">Help customers find products that meet their dietary needs</p>
-              </div>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[
-            { key: 'isOrganic', label: 'Organic', icon: '🌱', color: 'bg-green-50 border-green-200 text-green-800' },
-            { key: 'isGlutenFree', label: 'Gluten Free', icon: '🌾', color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
-            { key: 'isVegan', label: 'Vegan', icon: '🥬', color: 'bg-green-50 border-green-200 text-green-800' },
-            { key: 'isDairyFree', label: 'Dairy Free', icon: '🥛', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-            { key: 'isNutFree', label: 'Nut Free', icon: '🥜', color: 'bg-orange-50 border-orange-200 text-orange-800' },
-            { key: 'isKosher', label: 'Kosher', icon: '✡️', color: 'bg-purple-50 border-purple-200 text-purple-800' },
-            { key: 'isHalal', label: 'Halal', icon: '☪️', color: 'bg-indigo-50 border-indigo-200 text-indigo-800' }
-          ].map((item) => (
-            <label
-              key={item.key}
-              className={`flex items-center space-x-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 hover:scale-105 ${
-                formData[item.key]
-                  ? `${item.color} border-current shadow-md`
-                  : 'bg-white border-gray-200 hover:border-[#D77A61] hover:shadow-sm'
-              }`}
-            >
-              <input
-                type="checkbox"
-                name={item.key}
-                checked={formData[item.key]}
-                onChange={(e) => setFormData({...formData, [item.key]: e.target.checked})}
-                className="sr-only"
-              />
-              <span className="text-lg">{item.icon}</span>
-              <span className="text-sm font-semibold">{item.label}</span>
-            </label>
-          ))}
-        </div>
-        
-        <div className="mt-6 p-4 bg-primary-50 rounded-xl border border-primary-200">
-          <div className="flex items-start space-x-3">
-            <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-              <div>
-              <p className="text-sm font-medium text-amber-900">Important Note</p>
-              <p className="text-xs text-primary-dark mt-1">
-                Only select certifications that you can verify. Customers rely on this information for their dietary needs and safety.
-              </p>
-              </div>
-          </div>
-        </div>
-      </div>
-
-
       {/* Form Actions */}
       <div className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-8 border border-gray-200 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">

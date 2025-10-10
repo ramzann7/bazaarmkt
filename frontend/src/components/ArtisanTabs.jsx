@@ -39,7 +39,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
     businessImagePreview: profile.businessImage || null,
     description: profile.description || '',
     category: profile.category || [],
-    specialties: profile.specialties || [],
     address: {
       street: profile.address?.street || '',
       city: profile.address?.city || '',
@@ -81,7 +80,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         businessImagePreview: profile.businessImage || null,
         description: profile.description || '',
         category: profile.category || [],
-        specialties: profile.specialties || [],
         address: {
           street: profile.address?.street || '',
           city: profile.address?.city || '',
@@ -596,24 +594,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         <p className="text-sm text-gray-500 mt-3">
           📍 Your business address helps customers find you and understand your location.
         </p>
-      </div>
-
-      {/* Specialties */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">⭐ Your Specialties</h4>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">What You're Known For</label>
-          <input
-            type="text"
-            value={overview.specialties.join(', ')}
-            onChange={(e) => setOverview({ ...overview, specialties: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            placeholder="e.g., Organic sourdough bread, Gluten-free pastries, Seasonal fruit preserves"
-          />
-          <p className="text-sm text-gray-500 mt-2">
-            💡 Separate multiple specialties with commas. These help customers find your unique offerings.
-          </p>
-        </div>
       </div>
 
       {/* Contact Information */}

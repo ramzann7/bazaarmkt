@@ -1037,7 +1037,7 @@ const updateArtisanProfile = async (req, res) => {
     
     // Handle other artisan profile fields
     const allowedFields = [
-      'artisanName', 'businessName', 'description', 'category', 'specialties',
+      'artisanName', 'businessName', 'description', 'category',
       'address', 'contactInfo', 'photos',
       'type', 'status', 'isActive', 'deliveryOptions', 'pickupSchedule',
       'artisanHours', 'operationDetails', 'operations'
@@ -1790,7 +1790,6 @@ const createArtisanProfile = async (req, res) => {
       businessName: req.body.businessName || '',
       description: req.body.description || '',
       category: req.body.category || '',
-      specialties: req.body.specialties || [],
       address: req.body.address || {},
       contactInfo: req.body.contactInfo || {},
       businessImage: req.body.businessImage || '',

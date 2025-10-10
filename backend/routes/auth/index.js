@@ -144,7 +144,6 @@ const register = async (req, res) => {
         type: type || artisanData?.type || 'food_beverages',
         description: description || artisanData?.description || `Artisan profile for ${firstName} ${lastName}`,
         category: [type || artisanData?.type || 'food_beverages'],
-        specialties: [],
         address: artisanData?.address || (addresses.length > 0 ? addresses[0] : {}),
         isActive: true,
         isVerified: false,

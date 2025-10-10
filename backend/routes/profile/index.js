@@ -9,6 +9,98 @@ const { MongoClient } = require('mongodb');
 const imageUploadService = require('../../services/imageUploadService');
 
 /**
+ * Helper function to normalize artisan hours structure
+ * Fixes double-nested artisanHours if present
+ */
+const normalizeArtisanHours = (artisan) => {
+  if (artisan && artisan.artisanHours) {
+    // Check for double nesting: artisanHours.artisanHours
+    if (artisan.artisanHours.artisanHours && typeof artisan.artisanHours.artisanHours === 'object') {
+      console.log('🔧 Normalizing double-nested artisanHours for artisan:', artisan._id);
+      artisan.artisanHours = artisan.artisanHours.artisanHours;
+    }
+  }
+  return artisan;
+};
+
+/**
+ * Helper function to generate pickup hours string from schedule
+ */
+const formatPickupHours = (schedule) => {
+  if (!schedule) return '';
+  
+  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  
+  let formatted = [];
+  let currentGroup = [];
+  let currentTimes = null;
+  
+  days.forEach((day, index) => {
+    const daySchedule = schedule[day];
+    if (daySchedule?.enabled) {
+      const times = `${daySchedule.open || '09:00'}-${daySchedule.close || '17:00'}`;
+      if (times === currentTimes) {
+        currentGroup.push(dayNames[index]);
+      } else {
+        if (currentGroup.length > 0) {
+          formatted.push(`${currentGroup[0]}-${currentGroup[currentGroup.length - 1]} ${currentTimes}`);
+        }
+        currentGroup = [dayNames[index]];
+        currentTimes = times;
+      }
+    } else {
+      if (currentGroup.length > 0) {
+        formatted.push(`${currentGroup[0]}-${currentGroup[currentGroup.length - 1]} ${currentTimes}`);
+        currentGroup = [];
+        currentTimes = null;
+      }
+    }
+  });
+  
+  if (currentGroup.length > 0) {
+    formatted.push(`${currentGroup[0]}-${currentGroup[currentGroup.length - 1]} ${currentTimes}`);
+  }
+  
+  return formatted.join(', ') || '';
+};
+
+/**
+ * Helper function to normalize artisan structure
+ * Fixes various data structure issues that may exist in production
+ */
+const normalizeArtisanData = (artisan) => {
+  if (!artisan) return artisan;
+
+  // Fix artisan hours double nesting
+  normalizeArtisanHours(artisan);
+  
+  // Ensure operationDetails exists if operations exists (and vice versa)
+  if (artisan.operations && !artisan.operationDetails) {
+    console.log('🔧 Syncing operations to operationDetails for artisan:', artisan._id);
+    artisan.operationDetails = artisan.operations;
+  } else if (artisan.operationDetails && !artisan.operations) {
+    console.log('🔧 Syncing operationDetails to operations for artisan:', artisan._id);
+    artisan.operations = artisan.operationDetails;
+  }
+  
+  // Keep existing pickup hours as-is (they're generated only when pickup schedule is updated)
+  
+  // Decrypt bank information if present
+  if (artisan.bankInfo) {
+    try {
+      const { decryptBankInfo } = require('../../utils/encryption');
+      artisan.bankInfo = decryptBankInfo(artisan.bankInfo);
+    } catch (error) {
+      console.error('⚠️ Failed to decrypt bank info for artisan:', artisan._id, error.message);
+      // Keep encrypted data if decryption fails
+    }
+  }
+  
+  return artisan;
+};
+
+/**
  * Helper function to build full user profile response with artisan data
  * Ensures consistent response structure across all artisan endpoints
  */
@@ -26,6 +118,9 @@ const buildArtisanProfileResponse = async (db, userId, artisanId) => {
   if (!updatedUser) {
     throw new Error('User not found');
   }
+  
+  // Normalize artisan data structure (fix double nesting and sync operations/operationDetails)
+  const normalizedArtisan = normalizeArtisanData(updatedArtisan);
   
   // Build complete user profile matching getProfile endpoint structure
   return {
@@ -48,8 +143,8 @@ const buildArtisanProfileResponse = async (db, userId, artisanId) => {
     paymentMethods: updatedUser.paymentMethods || [],
     stripeCustomerId: updatedUser.stripeCustomerId,
     coordinates: updatedUser.coordinates,
-    artisan: updatedArtisan,
-    artisanId: updatedArtisan?._id
+    artisan: normalizedArtisan,
+    artisanId: normalizedArtisan?._id
   };
 };
 
@@ -1194,11 +1289,22 @@ const updateArtisanOperations = async (req, res) => {
 
     const updateData = { updatedAt: new Date() };
     
-    // Handle operations data
+    // Handle operations data - check if it's wrapped in 'operations' field or sent directly
+    let operationsData = null;
     if (req.body.operations) {
-      updateData.operations = req.body.operations;
+      // Data is wrapped: { operations: { productionMethods: "...", ... } }
+      operationsData = req.body.operations;
+    } else if (req.body.productionMethods !== undefined || req.body.certifications !== undefined || 
+               req.body.yearsInBusiness !== undefined || req.body.productionCapacity !== undefined ||
+               req.body.qualityStandards !== undefined || req.body.ingredients !== undefined) {
+      // Data is sent directly: { productionMethods: "...", certifications: [...], ... }
+      operationsData = req.body;
+    }
+    
+    if (operationsData) {
+      updateData.operations = operationsData;
       // SYNC: Also update operationDetails to match operations for backward compatibility
-      updateData.operationDetails = req.body.operations;
+      updateData.operationDetails = operationsData;
       console.log('✅ Synced operations to operationDetails for backward compatibility');
     }
     
@@ -1267,7 +1373,15 @@ const updateArtisanHours = async (req, res) => {
     
     // Handle artisan hours
     if (req.body.artisanHours) {
-      updateData.artisanHours = req.body.artisanHours;
+      // Fix double nesting issue: check if artisanHours.artisanHours exists
+      let hoursData = req.body.artisanHours;
+      if (hoursData.artisanHours && typeof hoursData.artisanHours === 'object') {
+        console.log('⚠️  Detected double-nested artisanHours, unwrapping...');
+        hoursData = hoursData.artisanHours;
+      }
+      updateData.artisanHours = hoursData;
+      
+      console.log('✅ Updated artisan business hours (pickup schedule remains independent)');
     }
 
     await artisansCollection.updateOne(
@@ -1335,6 +1449,15 @@ const updateArtisanDelivery = async (req, res) => {
       // professionalDelivery is an object, not a boolean - sync the entire object
       updateData.professionalDelivery = opts.professionalDelivery || { enabled: false };
       updateData.deliveryInstructions = opts.deliveryInstructions || '';
+      
+      // Handle pickup hours - use provided value or generate from schedule
+      if (opts.pickupHours) {
+        updateData.pickupHours = opts.pickupHours;
+        updateData['deliveryOptions.pickupHours'] = opts.pickupHours;
+      } else if (opts.pickupSchedule) {
+        updateData.pickupHours = formatPickupHours(opts.pickupSchedule);
+        updateData['deliveryOptions.pickupHours'] = updateData.pickupHours;
+      }
       
       console.log('✅ Synced deliveryOptions to root-level fields for backward compatibility');
     }

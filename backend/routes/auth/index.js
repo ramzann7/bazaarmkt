@@ -12,6 +12,43 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createAuthService } = require('../../services');
 
+/**
+ * Helper function to normalize artisan hours structure
+ * Fixes double-nested artisanHours if present
+ */
+const normalizeArtisanHours = (artisan) => {
+  if (artisan && artisan.artisanHours) {
+    // Check for double nesting: artisanHours.artisanHours
+    if (artisan.artisanHours.artisanHours && typeof artisan.artisanHours.artisanHours === 'object') {
+      console.log('🔧 Normalizing double-nested artisanHours for artisan:', artisan._id);
+      artisan.artisanHours = artisan.artisanHours.artisanHours;
+    }
+  }
+  return artisan;
+};
+
+/**
+ * Helper function to normalize artisan structure
+ * Fixes various data structure issues that may exist in production
+ */
+const normalizeArtisanData = (artisan) => {
+  if (!artisan) return artisan;
+
+  // Fix artisan hours double nesting
+  normalizeArtisanHours(artisan);
+  
+  // Ensure operationDetails exists if operations exists (and vice versa)
+  if (artisan.operations && !artisan.operationDetails) {
+    console.log('🔧 Syncing operations to operationDetails for artisan:', artisan._id);
+    artisan.operationDetails = artisan.operations;
+  } else if (artisan.operationDetails && !artisan.operations) {
+    console.log('🔧 Syncing operationDetails to operations for artisan:', artisan._id);
+    artisan.operations = artisan.operationDetails;
+  }
+  
+  return artisan;
+};
+
 // Rate limiters for different auth operations
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -446,17 +483,20 @@ const getProfile = async (req, res) => {
     if (user.role === 'artisan') {
       const artisan = await artisansCollection.findOne({ user: user._id });
       if (artisan) {
+        // Normalize artisan data structure (fix double nesting and sync operations/operationDetails)
+        const normalizedArtisan = normalizeArtisanData(artisan);
+        
         // Decrypt bank information if present
-        if (artisan.bankInfo) {
+        if (normalizedArtisan.bankInfo) {
           try {
             const { decryptBankInfo } = require('../../utils/encryption');
-            artisan.bankInfo = decryptBankInfo(artisan.bankInfo);
+            normalizedArtisan.bankInfo = decryptBankInfo(normalizedArtisan.bankInfo);
           } catch (error) {
             // Keep encrypted data if decryption fails
           }
         }
-        userProfile.artisan = artisan;
-        userProfile.artisanId = artisan._id;
+        userProfile.artisan = normalizedArtisan;
+        userProfile.artisanId = normalizedArtisan._id;
       }
     }
     
@@ -610,8 +650,10 @@ const updateProfile = async (req, res) => {
       const artisansCollection = db.collection('artisans');
       const artisan = await artisansCollection.findOne({ user: updatedUser._id });
       if (artisan) {
-        userProfile.artisan = artisan;
-        userProfile.artisanId = artisan._id;
+        // Normalize artisan data structure (fix double nesting and sync operations/operationDetails)
+        const normalizedArtisan = normalizeArtisanData(artisan);
+        userProfile.artisan = normalizedArtisan;
+        userProfile.artisanId = normalizedArtisan._id;
       }
     }
     

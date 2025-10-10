@@ -116,7 +116,8 @@ export const profileService = {
   },
 
   updateArtisanHours: async (hoursData) => {
-    const response = await api.put(`${API_URL}/profile/artisan/hours`, { artisanHours: hoursData });
+    // hoursData is already { artisanHours: { monday: ..., tuesday: ... } }, so pass it directly
+    const response = await api.put(`${API_URL}/profile/artisan/hours`, hoursData);
     return response.data;
   },
 

@@ -1075,8 +1075,28 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
     return nearbyCities.slice(0, 8); // Return first 8 cities
   };
 
+  // Helper function to ensure pickup schedule has proper structure
+  const normalizePickupSchedule = (pickupSchedule) => {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const normalizedSchedule = {};
+    
+    days.forEach(day => {
+      const pickupDay = pickupSchedule?.[day];
+      
+      normalizedSchedule[day] = {
+        enabled: pickupDay?.enabled || false,
+        open: pickupDay?.open || '09:00', // Default pickup hours
+        close: pickupDay?.close || '17:00'
+      };
+    });
+    
+    return normalizedSchedule;
+  };
+
   // Helper function to format schedule for display
   const formatScheduleForDisplay = (schedule) => {
+    if (!schedule) return 'No pickup hours set';
+    
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     
@@ -1087,7 +1107,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
     days.forEach((day, index) => {
       const daySchedule = schedule[day];
       if (daySchedule?.enabled) {
-        const times = `${daySchedule.open}-${daySchedule.close}`;
+        const times = `${daySchedule.open || '09:00'}-${daySchedule.close || '17:00'}`;
         if (times === currentTimes) {
           currentGroup.push(dayNames[index]);
         } else {
@@ -1126,15 +1146,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
         state: profile.pickupAddress?.state || '',
         zipCode: profile.pickupAddress?.zipCode || ''
       },
-      schedule: profile.pickupSchedule || {
-        monday: { enabled: false, open: '09:00', close: '17:00' },
-        tuesday: { enabled: false, open: '09:00', close: '17:00' },
-        wednesday: { enabled: false, open: '09:00', close: '17:00' },
-        thursday: { enabled: false, open: '09:00', close: '17:00' },
-        friday: { enabled: false, open: '09:00', close: '17:00' },
-        saturday: { enabled: false, open: '10:00', close: '16:00' },
-        sunday: { enabled: false, open: '10:00', close: '16:00' }
-      }
+      schedule: normalizePickupSchedule(profile.pickupSchedule)
     },
     personalDelivery: {
       enabled: profile.deliveryOptions?.delivery || false,
@@ -1174,15 +1186,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
             state: profile.pickupAddress?.state || '',
             zipCode: profile.pickupAddress?.zipCode || ''
           },
-          schedule: profile.pickupSchedule || {
-            monday: { enabled: false, open: '09:00', close: '17:00' },
-            tuesday: { enabled: false, open: '09:00', close: '17:00' },
-            wednesday: { enabled: false, open: '09:00', close: '17:00' },
-            thursday: { enabled: false, open: '09:00', close: '17:00' },
-            friday: { enabled: false, open: '09:00', close: '17:00' },
-            saturday: { enabled: false, open: '10:00', close: '16:00' },
-            sunday: { enabled: false, open: '10:00', close: '16:00' }
-          }
+          schedule: normalizePickupSchedule(profile.pickupSchedule)
         },
         personalDelivery: {
           enabled: profile.deliveryOptions?.delivery || false,

@@ -234,8 +234,21 @@ const DeliveryInformation = ({
             if (distance !== null) {
               setDeliveryDistance(distance);
               
-              // Check if within delivery radius
-              const radius = currentArtisan?.artisan?.deliveryOptions?.deliveryRadius || 10;
+              // Check if within delivery radius - use appropriate radius based on delivery method
+              let radius = 10; // Default fallback
+              let deliveryMethod = 'delivery';
+              
+              if (selectedDeliveryMethods[currentArtisanId] === 'personalDelivery') {
+                radius = deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10;
+                deliveryMethod = 'personal delivery';
+              } else if (selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery') {
+                radius = deliveryOptions[currentArtisanId]?.professionalDelivery?.serviceRadius || 25;
+                deliveryMethod = 'professional delivery';
+              } else {
+                // Fallback to personal delivery radius if method not yet selected
+                radius = deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10;
+              }
+              
               if (distance <= radius) {
                 setAddressValidation({
                   isValid: true,
@@ -246,7 +259,7 @@ const DeliveryInformation = ({
               } else {
                 setAddressValidation({
                   isValid: false,
-                  message: `Address is outside delivery area (${distance.toFixed(1)}km away, max ${radius}km)`,
+                  message: `Address is outside ${deliveryMethod} area (${distance.toFixed(1)}km away, max ${radius}km)`,
                   coordinates: { latitude, longitude },
                   distance
                 });
@@ -530,6 +543,14 @@ const DeliveryInformation = ({
     // Clear previous validation when changing method
     setDeliveryValidation({});
     
+    // Re-validate address with new method's radius if address already exists
+    if (method !== 'pickup' && deliveryForm.deliveryAddress?.street) {
+      const address = deliveryForm.deliveryAddress;
+      const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
+      // Small delay to ensure state is updated
+      setTimeout(() => validateAddress(fullAddress), 100);
+    }
+    
     // Show relevant sections based on selection
     if (method !== 'pickup') {
       setShowAddressOptions(true);
@@ -788,7 +809,7 @@ const DeliveryInformation = ({
                       />
                       <h4 className="text-xl font-bold text-gray-900 mb-3">Professional Delivery</h4>
                       <p className="text-gray-600 mb-4">
-                        <span className="font-semibold text-blue-800">Uber</span> Uber
+                        <span className="font-semibold text-blue-800">Uber</span>
                       </p>
                       <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full inline-block font-bold text-lg">
                         {(() => {
@@ -828,7 +849,7 @@ const DeliveryInformation = ({
                           }
                           return '20-40 min delivery';
                         })()}<br/>
-                        ✓ Within {deliveryOptions[currentArtisanId]?.professionalDelivery?.radius || 25}km radius
+                        ✓ Within {deliveryOptions[currentArtisanId]?.professionalDelivery?.serviceRadius || 25}km radius
                       </div>
                     </div>
                   </div>

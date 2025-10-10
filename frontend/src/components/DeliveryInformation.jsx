@@ -47,6 +47,7 @@ const DeliveryInformation = ({
   const [isValidatingAddress, setIsValidatingAddress] = useState(false);
   const [isValidatingEmail, setIsValidatingEmail] = useState(false);
   const [pickupDistance, setPickupDistance] = useState(null);
+  const [deliveryDistance, setDeliveryDistance] = useState(null);
   const [emailValidationTimeout, setEmailValidationTimeout] = useState(null);
   const [lastValidatedEmail, setLastValidatedEmail] = useState(null);
   const [showAddressOptions, setShowAddressOptions] = useState(false);

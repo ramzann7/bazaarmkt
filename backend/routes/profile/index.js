@@ -993,10 +993,52 @@ const updateArtisanProfile = async (req, res) => {
       };
     }
     
+    // Handle business image upload with Vercel Blob
+    if (req.body.businessImage) {
+      if (typeof req.body.businessImage === 'string' && req.body.businessImage.startsWith('data:image')) {
+        console.log('📸 Processing businessImage (optimize + upload to Vercel Blob)...');
+        try {
+          updateData.businessImage = await imageUploadService.handleImageUpload(
+            req.body.businessImage,
+            'business',
+            `business-${decoded.userId}-${Date.now()}.jpg`
+          );
+          console.log('✅ businessImage processed:', updateData.businessImage.substring(0, 50) + '...');
+        } catch (uploadError) {
+          console.error('⚠️ Business image upload failed, keeping original:', uploadError.message);
+          updateData.businessImage = req.body.businessImage;
+        }
+      } else {
+        // Already a URL, keep as is
+        updateData.businessImage = req.body.businessImage;
+      }
+    }
+    
+    // Handle profile image upload with Vercel Blob
+    if (req.body.profileImage) {
+      if (typeof req.body.profileImage === 'string' && req.body.profileImage.startsWith('data:image')) {
+        console.log('📸 Processing profileImage (optimize + upload to Vercel Blob)...');
+        try {
+          updateData.profileImage = await imageUploadService.handleImageUpload(
+            req.body.profileImage,
+            'profile',
+            `profile-${decoded.userId}-${Date.now()}.jpg`
+          );
+          console.log('✅ profileImage processed:', updateData.profileImage.substring(0, 50) + '...');
+        } catch (uploadError) {
+          console.error('⚠️ Profile image upload failed, keeping original:', uploadError.message);
+          updateData.profileImage = req.body.profileImage;
+        }
+      } else {
+        // Already a URL, keep as is
+        updateData.profileImage = req.body.profileImage;
+      }
+    }
+    
     // Handle other artisan profile fields
     const allowedFields = [
       'artisanName', 'businessName', 'description', 'category', 'specialties',
-      'address', 'contactInfo', 'businessImage', 'profileImage', 'photos',
+      'address', 'contactInfo', 'photos',
       'type', 'status', 'isActive', 'deliveryOptions', 'pickupSchedule',
       'artisanHours', 'operationDetails', 'operations'
     ];

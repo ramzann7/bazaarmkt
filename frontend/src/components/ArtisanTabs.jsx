@@ -189,6 +189,8 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   // Handle business image upload
   const handleBusinessImageChange = (e) => {
     const file = e.target.files[0];
+    console.log('📸 File selected for business image:', file?.name, file?.size, file?.type);
+    
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
@@ -202,14 +204,20 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         return;
       }
 
+      console.log('✅ File validation passed, converting to base64...');
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64String = e.target.result;
-        setOverview(prev => ({
-          ...prev,
-          businessImage: base64String,
-          businessImagePreview: base64String
-        }));
+        console.log('✅ Image converted to base64, length:', base64String.length);
+        setOverview(prev => {
+          const newState = {
+            ...prev,
+            businessImage: base64String,
+            businessImagePreview: base64String
+          };
+          console.log('✅ Overview state updated with business image');
+          return newState;
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -219,6 +227,8 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   const handleBusinessImageDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
+    console.log('📸 File dropped for business image:', file?.name, file?.size, file?.type);
+    
     if (file) {
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file');
@@ -230,9 +240,11 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         return;
       }
 
+      console.log('✅ Dropped file validation passed, converting to base64...');
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64String = e.target.result;
+        console.log('✅ Dropped image converted to base64, length:', base64String.length);
         setOverview(prev => ({
           ...prev,
           businessImage: base64String,
@@ -254,6 +266,12 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🟢 OverviewTab form submitted!');
+    console.log('🟢 Current overview state:', {
+      ...overview,
+      businessImage: overview.businessImage ? `${overview.businessImage.substring(0, 50)}... (${overview.businessImage.length} chars)` : 'none',
+      businessImagePreview: overview.businessImagePreview ? 'present' : 'none'
+    });
     
     try {
       // Prepare the data to send (businessImage is already base64 string from upload)

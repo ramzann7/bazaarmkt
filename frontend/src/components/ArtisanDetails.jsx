@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import config from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   MapPinIcon, 
@@ -472,27 +473,7 @@ export default function BusinessDetails() {
     }
   };
 
-  // Helper function to get the correct image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // If it's already a full URL, return as is
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    // If it's a local path, prefix with backend URL
-    if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-  };
+  // Use imported getImageUrl from imageUtils.js
 
   // Get available categories and subcategories for this artisan only
   const getAvailableCategories = () => {

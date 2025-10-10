@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   CalendarIcon, 
   MapPinIcon, 
@@ -122,38 +123,7 @@ export default function EventDetails() {
     return diffDays;
   };
 
-  // Helper function to get image URL
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // Handle HTTP URLs (including Vercel Blob URLs)
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    // Handle Vercel Blob URLs that might be stored as filenames
-    if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      return imagePath;
-    }
-    
-    // Handle relative paths (legacy support)
-    if (imagePath.startsWith('/uploads/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    // Handle paths with leading slash (legacy support)
-    if (imagePath.startsWith('/')) {
-      return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}${imagePath}`;
-    }
-    
-    // Handle paths without leading slash (legacy support)
-    return `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/${imagePath}`;
-  };
+  // Use imported getImageUrl from imageUtils.js
 
   if (!event) {
     return (

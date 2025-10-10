@@ -1,6 +1,7 @@
 // src/components/Home.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import config, { VECTEEZY_ARTISAN_MARKET } from '../config/environment.js';
+import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
@@ -860,42 +861,7 @@ export default function Home() {
     setSelectedProduct(null);
   };
 
-  // Helper function to get optimized image URL
-  const getImageUrl = (imagePath, options = {}) => {
-    if (!imagePath) return null;
-    
-    // Handle base64 data URLs
-    if (imagePath.startsWith('data:')) {
-      return imagePath;
-    }
-    
-    // Handle HTTP URLs (including Vercel Blob URLs)
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    
-    // Handle Vercel Blob URLs that might be stored as filenames
-    if (imagePath.includes('.public.blob.vercel-storage.com')) {
-      return imagePath;
-    }
-    
-    // Use optimized image endpoint for local uploads
-    if (imagePath.startsWith('/uploads/')) {
-      const { width = 400, height = 400, quality = 80 } = options;
-      const imagePathWithoutPrefix = imagePath.replace('/uploads/', '');
-      return `${config.BASE_URL}/api/images/optimize/${imagePathWithoutPrefix}?width=${width}&height=${height}&quality=${quality}`;
-    }
-    
-    // Handle paths that need /uploads prefix (legacy support)
-    if (imagePath.startsWith('/')) {
-      const { width = 400, height = 400, quality = 80 } = options;
-      return `${config.BASE_URL}/api/images/optimize/${imagePath.substring(1)}?width=${width}&height=${height}&quality=${quality}`;
-    }
-    
-    // Handle paths without leading slash (legacy support)
-    const { width = 400, height = 400, quality = 80 } = options;
-    return `${config.BASE_URL}/api/images/optimize/${imagePath}?width=${width}&height=${height}&quality=${quality}`;
-  };
+  // Use imported getImageUrl from imageUtils.js
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-CA', {

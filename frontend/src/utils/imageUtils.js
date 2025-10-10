@@ -95,20 +95,19 @@ const getProductionImageUrl = (imagePath, options = {}) => {
     return imagePath;
   }
   
-  // For legacy local uploads paths, these should have been migrated to Vercel Blob
-  // but we'll handle them gracefully by pointing to the API upload endpoint
-  if (imagePath.startsWith('/uploads/')) {
-    console.warn('⚠️ Legacy /uploads/ path detected, should be Vercel Blob URL:', imagePath);
-    return `${config.API_URL}/images/proxy${imagePath}`;
+  // For paths starting with /, treat as static assets served by Vercel
+  // This includes /images/, /uploads/, and other public assets
+  if (imagePath.startsWith('/')) {
+    return imagePath;
   }
   
-  // Handle relative paths without leading slash
-  if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
-    console.warn('⚠️ Relative path detected, should be Vercel Blob URL:', imagePath);
-    return `${config.API_URL}/images/proxy/uploads/${imagePath}`;
+  // For relative paths without leading slash, add leading slash
+  // This handles legacy database entries that might not have the leading slash
+  if (!imagePath.startsWith('http')) {
+    return `/${imagePath}`;
   }
   
-  // Handle other paths - assume they're valid URLs or handle as fallback
+  // Handle other paths - assume they're valid URLs
   return imagePath;
 };
 

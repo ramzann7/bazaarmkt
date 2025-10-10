@@ -274,6 +274,11 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       // Remove businessImagePreview (we only send businessImage to backend)
       delete overviewData.businessImagePreview;
 
+      console.log('📤 Sending overview data to backend:', {
+        ...overviewData,
+        businessImage: overviewData.businessImage ? `${overviewData.businessImage.substring(0, 50)}... (${overviewData.businessImage.length} chars)` : 'none'
+      });
+
       await onSave(overviewData);
     } catch (error) {
       console.error('Error saving overview:', error);

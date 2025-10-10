@@ -994,6 +994,15 @@ const updateArtisanProfile = async (req, res) => {
     }
     
     // Handle business image upload with Vercel Blob
+    console.log('🔍 Business image check:', {
+      hasBusinessImage: !!req.body.businessImage,
+      type: typeof req.body.businessImage,
+      isString: typeof req.body.businessImage === 'string',
+      startsWithDataImage: req.body.businessImage?.startsWith?.('data:image'),
+      length: req.body.businessImage?.length,
+      preview: req.body.businessImage?.substring?.(0, 50)
+    });
+    
     if (req.body.businessImage) {
       if (typeof req.body.businessImage === 'string' && req.body.businessImage.startsWith('data:image')) {
         console.log('📸 Processing businessImage (optimize + upload to Vercel Blob)...');
@@ -1010,8 +1019,11 @@ const updateArtisanProfile = async (req, res) => {
         }
       } else {
         // Already a URL, keep as is
+        console.log('📎 businessImage already a URL, keeping as is');
         updateData.businessImage = req.body.businessImage;
       }
+    } else {
+      console.log('⚠️ No business image in request body');
     }
     
     // Handle profile image upload with Vercel Blob

@@ -8,6 +8,7 @@ const router = express.Router();
 const { auth } = require('../../middleware');
 const handlers = require('./handlers');
 const validation = require('./validation');
+const imageUploadService = require('../../services/imageUploadService');
 
 // ============================================================================
 // COMMUNITY POSTS ENDPOINTS
@@ -199,6 +200,32 @@ const createPost = async (req, res) => {
       user: new ObjectId(decoded.userId)
     });
 
+    // Process and upload images to Vercel Blob
+    const processedImages = [];
+    if (postData.images && Array.isArray(postData.images)) {
+      for (let i = 0; i < postData.images.length; i++) {
+        const image = postData.images[i];
+        if (typeof image === 'string' && image.startsWith('data:image')) {
+          console.log(`📸 Processing community post image ${i + 1}/${postData.images.length}...`);
+          try {
+            const uploadedUrl = await imageUploadService.handleImageUpload(
+              image,
+              'community',
+              `community-${decoded.userId}-${Date.now()}-${i}.jpg`
+            );
+            processedImages.push(uploadedUrl);
+            console.log(`✅ Image ${i + 1} uploaded to Vercel Blob`);
+          } catch (uploadError) {
+            console.error(`⚠️ Image ${i + 1} upload failed:`, uploadError.message);
+            processedImages.push(image); // Fallback to original
+          }
+        } else {
+          // Already a URL, keep as is
+          processedImages.push(image);
+        }
+      }
+    }
+
     const post = {
       author: new ObjectId(decoded.userId),
       artisan: artisan ? artisan._id : null, // Set artisan ID if user is artisan
@@ -207,7 +234,7 @@ const createPost = async (req, res) => {
       type: postData.type || 'story',
       category: postData.category || 'community',
       tags: postData.tags || [],
-      images: postData.images || [],
+      images: processedImages,
       comments: [], // Array of comment ObjectIds
       likes: [], // Embedded likes array
       isPinned: false,

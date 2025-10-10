@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { MongoClient } = require('mongodb');
+const imageUploadService = require('../../services/imageUploadService');
 
 /**
  * Helper function to build full user profile response with artisan data
@@ -76,7 +77,27 @@ const updateProfile = async (req, res) => {
     if (lastName) updateData.lastName = lastName;
     if (phone !== undefined) updateData.phone = phone;
     if (bio !== undefined) updateData.bio = bio;
-    if (profileImage !== undefined) updateData.profileImage = profileImage;
+    
+    // Process and upload profileImage if present (base64 data)
+    if (profileImage !== undefined) {
+      if (typeof profileImage === 'string' && profileImage.startsWith('data:image')) {
+        console.log('📸 Processing profileImage (optimize + upload to Vercel Blob)...');
+        try {
+          updateData.profileImage = await imageUploadService.handleImageUpload(
+            profileImage,
+            'profile',
+            `profile-${decoded.userId}-${Date.now()}.jpg`
+          );
+          console.log('✅ profileImage processed:', updateData.profileImage.substring(0, 50) + '...');
+        } catch (uploadError) {
+          console.error('⚠️ Profile image upload failed, keeping original:', uploadError.message);
+          updateData.profileImage = profileImage;
+        }
+      } else {
+        // Already a URL (Vercel Blob or external), keep as is
+        updateData.profileImage = profileImage;
+      }
+    }
     
     // Validate and ensure complete notification preferences structure
     if (notificationPreferences !== undefined) {
@@ -1295,12 +1316,42 @@ const updateArtisanPhotosContact = async (req, res) => {
     
     // Handle business image
     if (req.body.businessImage) {
-      updateData.businessImage = req.body.businessImage;
+      if (typeof req.body.businessImage === 'string' && req.body.businessImage.startsWith('data:image')) {
+        console.log('📸 Processing businessImage...');
+        try {
+          updateData.businessImage = await imageUploadService.handleImageUpload(
+            req.body.businessImage,
+            'business',
+            `business-${decoded.userId}-${Date.now()}.jpg`
+          );
+          console.log('✅ businessImage processed');
+        } catch (uploadError) {
+          console.error('⚠️ Business image upload failed:', uploadError.message);
+          updateData.businessImage = req.body.businessImage;
+        }
+      } else {
+        updateData.businessImage = req.body.businessImage;
+      }
     }
     
     // Handle profile image
     if (req.body.profileImage) {
-      updateData.profileImage = req.body.profileImage;
+      if (typeof req.body.profileImage === 'string' && req.body.profileImage.startsWith('data:image')) {
+        console.log('📸 Processing profileImage...');
+        try {
+          updateData.profileImage = await imageUploadService.handleImageUpload(
+            req.body.profileImage,
+            'profile',
+            `profile-${decoded.userId}-${Date.now()}.jpg`
+          );
+          console.log('✅ profileImage processed');
+        } catch (uploadError) {
+          console.error('⚠️ Profile image upload failed:', uploadError.message);
+          updateData.profileImage = req.body.profileImage;
+        }
+      } else {
+        updateData.profileImage = req.body.profileImage;
+      }
     }
 
     await artisansCollection.updateOne(
@@ -1711,6 +1762,36 @@ const createArtisanProfile = async (req, res) => {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    
+    // Process and upload businessImage if present
+    if (artisanData.businessImage && typeof artisanData.businessImage === 'string' && artisanData.businessImage.startsWith('data:image')) {
+      console.log('📸 Processing businessImage for new artisan profile...');
+      try {
+        artisanData.businessImage = await imageUploadService.handleImageUpload(
+          artisanData.businessImage,
+          'business',
+          `business-${decoded.userId}-${Date.now()}.jpg`
+        );
+        console.log('✅ businessImage processed');
+      } catch (uploadError) {
+        console.error('⚠️ Business image upload failed:', uploadError.message);
+      }
+    }
+    
+    // Process and upload profileImage if present
+    if (artisanData.profileImage && typeof artisanData.profileImage === 'string' && artisanData.profileImage.startsWith('data:image')) {
+      console.log('📸 Processing profileImage for new artisan profile...');
+      try {
+        artisanData.profileImage = await imageUploadService.handleImageUpload(
+          artisanData.profileImage,
+          'profile',
+          `profile-${decoded.userId}-${Date.now()}.jpg`
+        );
+        console.log('✅ profileImage processed');
+      } catch (uploadError) {
+        console.error('⚠️ Profile image upload failed:', uploadError.message);
+      }
+    }
 
     const result = await artisansCollection.insertOne(artisanData);
     

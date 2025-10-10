@@ -3,10 +3,48 @@
   "buildCommand": "cd frontend && npm run build && cd ../api && npm install --production && cd ../backend && npm install --production --ignore-scripts",
   "installCommand": "cd frontend && npm install --production && cd ../api && npm install --production && cd ../backend && npm install --production --ignore-scripts",
   "outputDirectory": "frontend/dist",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend ./api ./backend ./vercel.json",
+  "ignore": [
+    "docs/**",
+    "documentation/**",
+    "tests/**",
+    "backend/tests/**",
+    "frontend/tests/**",
+    "*.md",
+    "!README.md",
+    "config/**",
+    "deployment/**",
+    "monitoring/**",
+    "nginx/**",
+    "scripts/**",
+    "tools/**",
+    "public/artisan_preview.html",
+    "public/community_preview.html",
+    "public/home_preview.html",
+    "public/shop_preview.html",
+    "backend/archive/**",
+    "backend/logs/**",
+    "backend/scripts/**",
+    ".vscode/**",
+    ".idea/**",
+    "*.log",
+    "*.test.js",
+    "*.test.jsx",
+    "*.spec.js",
+    "*.spec.jsx",
+    "jest.config.js",
+    "vitest.config.js",
+    ".git/**",
+    ".github/**"
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

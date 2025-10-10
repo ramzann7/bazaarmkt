@@ -14,6 +14,12 @@ import config from '../config/environment.js';
 export const getImageUrl = (imagePath, options = {}) => {
   if (!imagePath) return null;
   
+  // Ensure imagePath is a string
+  if (typeof imagePath !== 'string') {
+    console.warn('getImageUrl: imagePath is not a string:', imagePath);
+    return null;
+  }
+  
   // Handle base64 data URLs (already complete)
   if (imagePath.startsWith('data:')) {
     return imagePath;
@@ -48,6 +54,12 @@ export const getImageUrl = (imagePath, options = {}) => {
 const getDevelopmentImageUrl = (imagePath, options = {}) => {
   const { width = 400, height = 400, quality = 80 } = options;
   
+  // Ensure imagePath is a string
+  if (typeof imagePath !== 'string') {
+    console.warn('getDevelopmentImageUrl: imagePath is not a string:', imagePath);
+    return null;
+  }
+  
   // Use optimized image endpoint for local uploads
   if (imagePath.startsWith('/uploads/')) {
     const imagePathWithoutPrefix = imagePath.replace('/uploads/', '');
@@ -70,21 +82,34 @@ const getDevelopmentImageUrl = (imagePath, options = {}) => {
  * @returns {string} - The complete production image URL
  */
 const getProductionImageUrl = (imagePath, options = {}) => {
-  // If it's already a Vercel Blob URL, return as is
-  if (imagePath.includes('.public.blob.vercel-storage.com')) {
+  // Ensure imagePath is a string
+  if (typeof imagePath !== 'string') {
+    console.warn('getProductionImageUrl: imagePath is not a string:', imagePath);
+    return null;
+  }
+  
+  // If it's already a Vercel Blob URL (various formats), return as is
+  if (imagePath.includes('blob.vercel-storage.com') || 
+      imagePath.includes('.vercel-storage.com') ||
+      imagePath.includes('public.blob.vercel')) {
     return imagePath;
   }
   
-  // For production, we'll use Vercel Blob or CDN with optimization
-  // This will be implemented when Vercel Blob is set up
+  // For legacy local uploads paths, these should have been migrated to Vercel Blob
+  // but we'll handle them gracefully by pointing to the API upload endpoint
   if (imagePath.startsWith('/uploads/')) {
-    const { width = 400, height = 400, quality = 80 } = options;
-    // Convert to Vercel Blob URL format with optimization
-    return `https://${process.env.VITE_VERCEL_BLOB_DOMAIN || 'blob.vercel-storage.com'}/uploads${imagePath.replace('/uploads', '')}?w=${width}&h=${height}&q=${quality}`;
+    console.warn('⚠️ Legacy /uploads/ path detected, should be Vercel Blob URL:', imagePath);
+    return `${config.API_URL}/images/proxy${imagePath}`;
   }
   
-  // Handle other paths
-  return `${config.UPLOADS_URL}/${imagePath}`;
+  // Handle relative paths without leading slash
+  if (!imagePath.startsWith('/') && !imagePath.startsWith('http')) {
+    console.warn('⚠️ Relative path detected, should be Vercel Blob URL:', imagePath);
+    return `${config.API_URL}/images/proxy/uploads/${imagePath}`;
+  }
+  
+  // Handle other paths - assume they're valid URLs or handle as fallback
+  return imagePath;
 };
 
 /**

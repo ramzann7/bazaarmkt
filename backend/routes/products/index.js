@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { MongoClient } = require('mongodb');
+const imageUploadService = require('../../services/imageUploadService');
 
 // Helper function to validate inventory values
 const validateInventoryValue = (value, fieldName) => {
@@ -468,6 +469,48 @@ const createProduct = async (req, res) => {
       soldCount: 0
     };
     
+    // Process and upload product images to Vercel Blob
+    if (productData.images && Array.isArray(productData.images)) {
+      const processedImages = [];
+      for (let i = 0; i < productData.images.length; i++) {
+        const image = productData.images[i];
+        if (typeof image === 'string' && image.startsWith('data:image')) {
+          console.log(`📸 Processing product image ${i + 1}/${productData.images.length}...`);
+          try {
+            const uploadedUrl = await imageUploadService.handleImageUpload(
+              image,
+              'product',
+              `product-${artisan._id}-${Date.now()}-${i}.jpg`
+            );
+            processedImages.push(uploadedUrl);
+            console.log(`✅ Product image ${i + 1} uploaded to Vercel Blob`);
+          } catch (uploadError) {
+            console.error(`⚠️ Product image ${i + 1} upload failed:`, uploadError.message);
+            processedImages.push(image); // Fallback to original
+          }
+        } else {
+          // Already a URL, keep as is
+          processedImages.push(image);
+        }
+      }
+      productData.images = processedImages;
+    }
+    
+    // Also handle single 'image' field if present
+    if (productData.image && typeof productData.image === 'string' && productData.image.startsWith('data:image')) {
+      console.log('📸 Processing single product image...');
+      try {
+        productData.image = await imageUploadService.handleImageUpload(
+          productData.image,
+          'product',
+          `product-${artisan._id}-${Date.now()}.jpg`
+        );
+        console.log('✅ Single product image uploaded to Vercel Blob');
+      } catch (uploadError) {
+        console.error('⚠️ Single product image upload failed:', uploadError.message);
+      }
+    }
+    
     const result = await productsCollection.insertOne(productData);
     
     res.status(201).json({
@@ -529,6 +572,48 @@ const updateProduct = async (req, res) => {
       ...req.body,
       updatedAt: new Date()
     };
+    
+    // Process and upload product images to Vercel Blob
+    if (updateData.images && Array.isArray(updateData.images)) {
+      const processedImages = [];
+      for (let i = 0; i < updateData.images.length; i++) {
+        const image = updateData.images[i];
+        if (typeof image === 'string' && image.startsWith('data:image')) {
+          console.log(`📸 Processing product image ${i + 1}/${updateData.images.length}...`);
+          try {
+            const uploadedUrl = await imageUploadService.handleImageUpload(
+              image,
+              'product',
+              `product-${artisan._id}-${Date.now()}-${i}.jpg`
+            );
+            processedImages.push(uploadedUrl);
+            console.log(`✅ Product image ${i + 1} uploaded to Vercel Blob`);
+          } catch (uploadError) {
+            console.error(`⚠️ Product image ${i + 1} upload failed:`, uploadError.message);
+            processedImages.push(image); // Fallback to original
+          }
+        } else {
+          // Already a URL, keep as is
+          processedImages.push(image);
+        }
+      }
+      updateData.images = processedImages;
+    }
+    
+    // Also handle single 'image' field if present
+    if (updateData.image && typeof updateData.image === 'string' && updateData.image.startsWith('data:image')) {
+      console.log('📸 Processing single product image...');
+      try {
+        updateData.image = await imageUploadService.handleImageUpload(
+          updateData.image,
+          'product',
+          `product-${artisan._id}-${Date.now()}.jpg`
+        );
+        console.log('✅ Single product image uploaded to Vercel Blob');
+      } catch (uploadError) {
+        console.error('⚠️ Single product image upload failed:', uploadError.message);
+      }
+    }
     
     const result = await productsCollection.updateOne(
       { 

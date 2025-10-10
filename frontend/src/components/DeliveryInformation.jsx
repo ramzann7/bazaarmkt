@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   MapPinIcon, 
   TruckIcon, 
@@ -62,8 +62,8 @@ const DeliveryInformation = ({
   const currentArtisanId = Object.keys(cartByArtisan)[0];
   const currentArtisan = cartByArtisan[currentArtisanId];
 
-  // Function to get Uber Direct quote
-  const getUberQuote = async (artisanId) => {
+  // Function to get Uber Direct quote - wrapped in useCallback to prevent infinite re-renders
+  const getUberQuote = useCallback(async (artisanId) => {
     // Only get quote if professional delivery is selected and address is available
     if (selectedDeliveryMethods[artisanId] !== 'professionalDelivery') {
       return;
@@ -208,7 +208,7 @@ const DeliveryInformation = ({
         return newSet;
       });
     }
-  };
+  }, [selectedDeliveryMethods, deliveryForm.deliveryAddress, addressValidation.coordinates, addressValidation.distance, currentArtisan, deliveryOptions, deliveryForm.firstName, deliveryForm.lastName, deliveryForm.phone, user]);
 
   // Validate and geocode address - MUST BE BEFORE validateSavedAddress
   const validateAddress = async (address) => {
@@ -305,7 +305,7 @@ const DeliveryInformation = ({
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [addressValidation.isValid, addressValidation.coordinates, selectedDeliveryMethods[currentArtisanId], deliveryForm, useSavedAddress]);
+  }, [addressValidation.isValid, addressValidation.coordinates, selectedDeliveryMethods, currentArtisanId, getUberQuote]);
 
   // Calculate distance for pickup (only for authenticated users)
   useEffect(() => {
@@ -788,7 +788,7 @@ const DeliveryInformation = ({
                       />
                       <h4 className="text-xl font-bold text-gray-900 mb-3">Professional Delivery</h4>
                       <p className="text-gray-600 mb-4">
-                        <span className="font-semibold text-blue-800">Uber</span> courier service
+                        <span className="font-semibold text-blue-800">Uber</span> Uber
                       </p>
                       <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full inline-block font-bold text-lg">
                         {(() => {

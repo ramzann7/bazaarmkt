@@ -460,13 +460,16 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
 };
 
 // Send email via Brevo (for registered users)
-const sendBrevoEmail = async (userId, notificationData) => {
+const sendBrevoEmail = async (userId, notificationData, db) => {
   if (!BREVO_API_KEY) {
     console.warn('⚠️ BREVO_API_KEY not configured, skipping email');
     return;
   }
 
-  const db = req.db; // Use shared connection from middleware
+  if (!db) {
+    console.error('❌ Database connection not provided to sendBrevoEmail');
+    throw new Error('Database connection required');
+  }
   
   // Get user email
   const user = await db.collection('users').findOne({ 
@@ -586,7 +589,7 @@ const sendBrevoEmail = async (userId, notificationData) => {
 };
 
 // Send email to guest (no user account) - uses same templates as registered users
-const sendGuestEmail = async (guestEmail, guestName, notificationData) => {
+const sendGuestEmail = async (guestEmail, guestName, notificationData, db) => {
   if (!BREVO_API_KEY) {
     console.warn('⚠️ BREVO_API_KEY not configured, skipping guest email');
     return;
@@ -596,12 +599,10 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData) => {
   
   // Get order details if orderId is provided
   let order = null;
-  if (orderId) {
-    const db = req.db; // Use shared connection from middleware
+  if (orderId && db) {
     order = await db.collection('orders').findOne({ 
       _id: new (require('mongodb')).ObjectId(orderId) 
     });
-    // Connection managed by middleware - no close needed
   }
   
   // Prepare order data for templates with all necessary information
@@ -1036,9 +1037,12 @@ const getNotificationPreferences = async (req, res) => {
 };
 
 // Check if user wants to receive a specific type of notification
-const checkNotificationPreference = async (userId, notificationType, channel = 'email') => {
+const checkNotificationPreference = async (userId, notificationType, channel = 'email', db) => {
   try {
-    const db = req.db; // Use shared connection from middleware
+    if (!db) {
+      console.warn('⚠️ Database not provided to checkNotificationPreference, skipping check');
+      return true; // Default to allowing notification
+    }
     const usersCollection = db.collection('users');
     
     const user = await usersCollection.findOne({ 
@@ -1075,12 +1079,16 @@ const checkNotificationPreference = async (userId, notificationType, channel = '
 };
 
 // Send notification based on user preferences
-const sendPreferenceBasedNotification = async (userId, notificationData) => {
+const sendPreferenceBasedNotification = async (userId, notificationData, db) => {
   try {
     const { type, title, message, orderId, orderNumber, status, updateType, updateDetails } = notificationData;
     
+    if (!db) {
+      console.error('❌ Database connection not provided to sendPreferenceBasedNotification');
+      throw new Error('Database connection required');
+    }
+    
     // Get user to check role
-    const db = req.db; // Use shared connection from middleware
     const user = await db.collection('users').findOne({ 
       _id: new (require('mongodb')).ObjectId(userId) 
     });
@@ -1125,13 +1133,13 @@ const sendPreferenceBasedNotification = async (userId, notificationData) => {
       console.log(`📧 Patron notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else {
       // For other types, check preferences
-      shouldSendEmail = await checkNotificationPreference(userId, preferenceType, 'email');
+      shouldSendEmail = await checkNotificationPreference(userId, preferenceType, 'email', db);
     }
     
     if (shouldSendEmail) {
       // Send email notification via Brevo
       try {
-        await sendBrevoEmail(userId, notificationData);
+        await sendBrevoEmail(userId, notificationData, db);
         console.log(`✅ Email sent to user ${userId} (${userRole}): ${title}`);
       } catch (error) {
         console.error(`❌ Failed to send email to user ${userId}:`, error.message);
@@ -1141,11 +1149,10 @@ const sendPreferenceBasedNotification = async (userId, notificationData) => {
     }
     
     // Check push preferences for in-app notifications
-    const pushAllowed = await checkNotificationPreference(userId, preferenceType, 'push');
+    const pushAllowed = await checkNotificationPreference(userId, preferenceType, 'push', db);
     
     if (pushAllowed) {
       // Send platform notification
-      const db = req.db; // Use shared connection from middleware
       const notificationsCollection = db.collection('notifications');
       
       const notification = {
@@ -1247,7 +1254,7 @@ const sendPreferenceBasedNotificationEndpoint = async (req, res) => {
       });
     }
     
-    const result = await sendPreferenceBasedNotification(userId, notificationData);
+    const result = await sendPreferenceBasedNotification(userId, notificationData, req.db);
     
     res.json({
       success: true,
@@ -1300,7 +1307,7 @@ const sendGuestEmailEndpoint = async (req, res) => {
       });
     }
     
-    await sendGuestEmail(guestEmail, guestName || 'Customer', notificationData);
+    await sendGuestEmail(guestEmail, guestName || 'Customer', notificationData, req.db);
     
     res.json({
       success: true,
@@ -1370,10 +1377,10 @@ const sendEmailNotification = async (req, res) => {
       
       if (isGuest) {
         // Send guest email
-        await sendGuestEmail(to, userName, notificationData);
+        await sendGuestEmail(to, userName, notificationData, req.db);
       } else if (data.userId) {
         // Send registered user email
-        await sendBrevoEmail(data.userId, notificationData);
+        await sendBrevoEmail(data.userId, notificationData, req.db);
       }
       
       return res.json({

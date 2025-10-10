@@ -1598,6 +1598,16 @@ const updateOrderStatus = async (req, res) => {
               updateFields.availableQuantity = (product.availableQuantity || 0) + item.quantity;
             }
             
+            // Update product status back to active if it has inventory
+            const restoredStock = product.productType === 'ready_to_ship' ? updateFields.stock : 
+                                 product.productType === 'made_to_order' ? updateFields.remainingCapacity :
+                                 product.productType === 'scheduled_order' ? updateFields.availableQuantity : 
+                                 updateFields.availableQuantity || 0;
+            
+            if (restoredStock > 0 && product.status === 'out_of_stock') {
+              updateFields.status = 'active';
+            }
+            
             await productsCollection.updateOne(
               { _id: new (require('mongodb')).ObjectId(item.productId) },
               { $set: updateFields }

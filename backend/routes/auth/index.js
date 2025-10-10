@@ -123,8 +123,27 @@ const register = async (req, res) => {
       firstName,
       lastName,
       phone: phone || '',
+      profilePicture: null,
+      bio: '',
       role: role, // Database uses 'role' field
       addresses: addresses || [],
+      notificationPreferences: {
+        email: {
+          marketing: true,
+          orderUpdates: true,
+          promotions: true,
+          security: true
+        },
+        push: {
+          orderUpdates: true,
+          promotions: true,
+          newArtisans: true,
+          nearbyOffers: true
+        }
+      },
+      accountSettings: {},
+      paymentMethods: [],
+      coordinates: null,
       isActive: true,
       isVerified: false,
       createdAt: new Date(),
@@ -144,7 +163,44 @@ const register = async (req, res) => {
         type: type || artisanData?.type || 'food_beverages',
         description: description || artisanData?.description || `Artisan profile for ${firstName} ${lastName}`,
         category: [type || artisanData?.type || 'food_beverages'],
+        specialties: [],
         address: artisanData?.address || (addresses.length > 0 ? addresses[0] : {}),
+        contactInfo: {
+          phone: phone || '',
+          email: email.toLowerCase(),
+          website: '',
+          socialMedia: {
+            instagram: '',
+            facebook: '',
+            twitter: ''
+          }
+        },
+        businessImage: null,
+        profileImage: null,
+        photos: [],
+        artisanHours: {
+          monday: { open: '09:00', close: '17:00', closed: false },
+          tuesday: { open: '09:00', close: '17:00', closed: false },
+          wednesday: { open: '09:00', close: '17:00', closed: false },
+          thursday: { open: '09:00', close: '17:00', closed: false },
+          friday: { open: '09:00', close: '17:00', closed: false },
+          saturday: { open: '09:00', close: '17:00', closed: false },
+          sunday: { open: '09:00', close: '17:00', closed: true }
+        },
+        deliveryOptions: {
+          pickup: false,
+          delivery: false,
+          shipping: false
+        },
+        pickupSchedule: {},
+        pickupLocation: null,
+        pickupAddress: null,
+        pickupInstructions: '',
+        pickupUseBusinessAddress: true,
+        professionalDelivery: false,
+        deliveryInstructions: '',
+        operationDetails: {},
+        rating: 0,
         isActive: true,
         isVerified: false,
         createdAt: new Date(),
@@ -444,6 +500,7 @@ const updateProfile = async (req, res) => {
       lastName, 
       phone, 
       profilePicture, 
+      profileImage, // Also accept profileImage for consistency
       bio,
       notificationPreferences,
       accountSettings 
@@ -451,6 +508,7 @@ const updateProfile = async (req, res) => {
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
+    const imageUploadService = require('../../services/imageUploadService');
     
     const updateData = {
       updatedAt: new Date()
@@ -459,8 +517,30 @@ const updateProfile = async (req, res) => {
     if (firstName) updateData.firstName = firstName;
     if (lastName) updateData.lastName = lastName;
     if (phone !== undefined) updateData.phone = phone;
-    if (profilePicture) updateData.profilePicture = profilePicture;
     if (bio !== undefined) updateData.bio = bio;
+    
+    // Handle profile picture/image upload with Vercel Blob
+    const imageData = profileImage || profilePicture;
+    if (imageData !== undefined) {
+      if (typeof imageData === 'string' && imageData.startsWith('data:image')) {
+        try {
+          updateData.profilePicture = await imageUploadService.handleImageUpload(
+            imageData,
+            'profile',
+            `profile-${decoded.userId}-${Date.now()}.jpg`
+          );
+        } catch (uploadError) {
+          console.error('⚠️ Profile picture upload failed, keeping original:', uploadError.message);
+          updateData.profilePicture = imageData;
+        }
+      } else if (imageData) {
+        // Already a URL (Vercel Blob or external), keep as is
+        updateData.profilePicture = imageData;
+      } else {
+        // Explicitly set to null if provided as null
+        updateData.profilePicture = null;
+      }
+    }
     
     // Handle notification preferences with proper structure
     if (notificationPreferences !== undefined) {
@@ -500,33 +580,47 @@ const updateProfile = async (req, res) => {
     }
     
     const updatedUser = await usersCollection.findOne({ _id: new (require('mongodb')).ObjectId(decoded.userId) });
+    
+    // Build complete user profile with artisan data if applicable
+    const userProfile = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      phone: updatedUser.phone,
+      profilePicture: updatedUser.profilePicture,
+      bio: updatedUser.bio,
+      userType: updatedUser.role,
+      role: updatedUser.role,
+      isActive: updatedUser.isActive,
+      isVerified: updatedUser.isVerified,
+      addresses: updatedUser.addresses || [],
+      notificationPreferences: updatedUser.notificationPreferences || {},
+      accountSettings: updatedUser.accountSettings || {},
+      paymentMethods: updatedUser.paymentMethods || [],
+      stripeCustomerId: updatedUser.stripeCustomerId,
+      coordinates: updatedUser.coordinates,
+      createdAt: updatedUser.createdAt,
+      updatedAt: updatedUser.updatedAt
+    };
+    
+    // If user is an artisan, fetch artisan data
+    if (updatedUser.role === 'artisan') {
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ user: updatedUser._id });
+      if (artisan) {
+        userProfile.artisan = artisan;
+        userProfile.artisanId = artisan._id;
+      }
+    }
+    
     // Connection managed by middleware - no close needed
     
     res.json({
       success: true,
       message: 'Profile updated successfully',
       data: {
-        user: {
-          _id: updatedUser._id,
-          email: updatedUser.email,
-          firstName: updatedUser.firstName,
-          lastName: updatedUser.lastName,
-          phone: updatedUser.phone,
-          profilePicture: updatedUser.profilePicture,
-          bio: updatedUser.bio,
-          userType: updatedUser.role,
-          role: updatedUser.role,
-          isActive: updatedUser.isActive,
-          isVerified: updatedUser.isVerified,
-          addresses: updatedUser.addresses || [],
-          notificationPreferences: updatedUser.notificationPreferences || {},
-          accountSettings: updatedUser.accountSettings || {},
-          paymentMethods: updatedUser.paymentMethods || [],
-          stripeCustomerId: updatedUser.stripeCustomerId,
-          coordinates: updatedUser.coordinates,
-          createdAt: updatedUser.createdAt,
-          updatedAt: updatedUser.updatedAt
-        }
+        user: userProfile
       }
     });
   } catch (error) {

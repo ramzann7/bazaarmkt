@@ -56,6 +56,74 @@ const DeliveryInformation = ({
   const currentArtisanId = Object.keys(cartByArtisan)[0];
   const currentArtisan = cartByArtisan[currentArtisanId];
 
+  // Validate and geocode address - MUST BE BEFORE validateSavedAddress
+  const validateAddress = async (address) => {
+    if (!address || address.length < 10) return;
+    
+    setIsValidatingAddress(true);
+    try {
+      // Geocode the address using the geocoding service
+      const geocodeResult = await geocodingService.geocodeAddress(address);
+      
+      if (geocodeResult && geocodeResult.latitude && geocodeResult.longitude) {
+        const { latitude, longitude, confidence } = geocodeResult;
+        
+        // Check if address is within delivery radius
+        if (selectedDeliveryMethods[currentArtisanId] && selectedDeliveryMethods[currentArtisanId] !== 'pickup') {
+          const artisanLocation = currentArtisan?.artisan?.coordinates;
+          if (artisanLocation) {
+            const distance = geocodingService.calculateDistanceBetween(
+              artisanLocation,
+              { latitude, longitude }
+            );
+            
+            if (distance !== null) {
+              setDeliveryDistance(distance);
+              
+              // Check if within delivery radius
+              const radius = currentArtisan?.artisan?.deliveryOptions?.deliveryRadius || 10;
+              if (distance <= radius) {
+                setAddressValidation({
+                  isValid: true,
+                  message: `✓ Address verified (${distance.toFixed(1)}km away)`,
+                  coordinates: { latitude, longitude },
+                  distance
+                });
+              } else {
+                setAddressValidation({
+                  isValid: false,
+                  message: `Address is outside delivery area (${distance.toFixed(1)}km away, max ${radius}km)`,
+                  coordinates: { latitude, longitude },
+                  distance
+                });
+              }
+            }
+          }
+        } else {
+          // Just validate geocoding for pickup
+          setAddressValidation({
+            isValid: true,
+            message: '✓ Address verified',
+            coordinates: { latitude, longitude }
+          });
+        }
+      } else {
+        setAddressValidation({
+          isValid: false,
+          message: 'Address could not be verified. Please check and try again.'
+        });
+      }
+    } catch (error) {
+      console.error('Address validation error:', error);
+      setAddressValidation({
+        isValid: false,
+        message: 'Error validating address. Please try again.'
+      });
+    } finally {
+      setIsValidatingAddress(false);
+    }
+  };
+
   // Validate saved address when selected
   const validateSavedAddress = async () => {
     if (useSavedAddress && deliveryForm.deliveryAddress?.street) {
@@ -221,75 +289,6 @@ const DeliveryInformation = ({
     if (address?.street && address?.city && address?.state && address?.zipCode) {
       const fullAddress = `${address.street}, ${address.city}, ${address.state} ${address.zipCode}`;
       await validateAddress(fullAddress);
-    }
-  };
-
-  // Validate and geocode address
-  const validateAddress = async (address) => {
-    if (!address || address.length < 10) return;
-    
-    setIsValidatingAddress(true);
-    try {
-      // Geocode the address using the geocoding service
-      const geocodeResult = await geocodingService.geocodeAddress(address);
-      
-      if (geocodeResult && geocodeResult.latitude && geocodeResult.longitude) {
-        const { latitude, longitude, confidence } = geocodeResult;
-        
-        // Check if address is within delivery radius
-        if (selectedDeliveryMethods[currentArtisanId] && selectedDeliveryMethods[currentArtisanId] !== 'pickup') {
-          const artisanLocation = currentArtisan.artisan?.coordinates;
-          if (artisanLocation) {
-            const distance = geocodingService.calculateDistanceBetween(
-              artisanLocation,
-              { latitude, longitude }
-            );
-            
-            if (distance !== null) {
-              const method = selectedDeliveryMethods[currentArtisanId];
-              let maxRadius = 0;
-              
-              if (method === 'personalDelivery') {
-                maxRadius = deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10;
-              } else if (method === 'professionalDelivery') {
-                maxRadius = deliveryOptions[currentArtisanId]?.professionalDelivery?.radius || 25;
-              }
-              
-              setDeliveryValidation({
-                distance: distance,
-                withinRadius: distance <= maxRadius,
-                maxRadius: maxRadius,
-                method: method
-              });
-            }
-          }
-        }
-        
-        setAddressValidation({
-          isValid: confidence > 0.5,
-          confidence: confidence,
-          coordinates: { latitude, longitude },
-          message: confidence > 0.5 ? 'Address verified' : 'Address may be incorrect. Please verify.',
-          geocoded: true
-        });
-      } else {
-        setAddressValidation({
-          isValid: false,
-          confidence: 0,
-          message: 'Address not recognized. Please check and try again.',
-          geocoded: false
-        });
-      }
-    } catch (error) {
-      console.error('Address validation error:', error);
-      setAddressValidation({
-        isValid: false,
-        confidence: 0,
-        message: 'Unable to validate address. Please check and try again.',
-        geocoded: false
-      });
-    } finally {
-      setIsValidatingAddress(false);
     }
   };
 

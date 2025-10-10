@@ -83,19 +83,19 @@ const updateProfile = async (req, res) => {
       if (typeof profileImage === 'string' && profileImage.startsWith('data:image')) {
         console.log('📸 Processing profileImage (optimize + upload to Vercel Blob)...');
         try {
-          updateData.profileImage = await imageUploadService.handleImageUpload(
+          updateData.profilePicture = await imageUploadService.handleImageUpload(
             profileImage,
             'profile',
             `profile-${decoded.userId}-${Date.now()}.jpg`
           );
-          console.log('✅ profileImage processed:', updateData.profileImage.substring(0, 50) + '...');
+          console.log('✅ profileImage processed:', updateData.profilePicture.substring(0, 50) + '...');
         } catch (uploadError) {
           console.error('⚠️ Profile image upload failed, keeping original:', uploadError.message);
-          updateData.profileImage = profileImage;
+          updateData.profilePicture = profileImage;
         }
       } else {
         // Already a URL (Vercel Blob or external), keep as is
-        updateData.profileImage = profileImage;
+        updateData.profilePicture = profileImage;
       }
     }
     

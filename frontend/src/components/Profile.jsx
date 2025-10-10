@@ -121,6 +121,7 @@ export default function Profile() {
   const [favoriteArtisans, setFavoriteArtisans] = useState([]);
   const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
   const isMountedRef = useRef(true);
+  const [isUploadingProfilePic, setIsUploadingProfilePic] = useState(false);
 
   // Use user from AuthContext as profile
   const profile = user;
@@ -177,6 +178,57 @@ export default function Profile() {
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  // Handle profile picture upload
+  const handleProfilePictureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setIsUploadingProfilePic(true);
+      
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          // Save to backend (will be uploaded to Vercel Blob)
+          await handleSave({ profileImage: e.target.result });
+          // Force refresh to get the new profile picture URL from server
+          await refreshUser();
+          toast.success('Profile picture updated successfully!');
+        } catch (error) {
+          console.error('❌ Error uploading profile picture:', error);
+          toast.error('Failed to upload profile picture');
+        } finally {
+          setIsUploadingProfilePic(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error reading file:', error);
+      toast.error('Failed to read image file');
+      setIsUploadingProfilePic(false);
+    }
+  };
+
+  // Generate initials for avatar
+  const getInitials = () => {
+    const first = profile?.firstName?.charAt(0) || '';
+    const last = profile?.lastName?.charAt(0) || '';
+    return `${first}${last}`.toUpperCase();
   };
 
   // Load artisan profile data - now using the enhanced profile endpoint
@@ -415,9 +467,7 @@ export default function Profile() {
     return async (data) => {
       setIsSaving(true);
       try {
-        console.log('🔄 Updating profile with data:', data);
         const updatedProfile = await profileService.updateProfile(data);
-        console.log('✅ Profile updated successfully:', updatedProfile);
         
         // Clear profile cache to ensure fresh data
         const token = localStorage.getItem('token');
@@ -425,7 +475,6 @@ export default function Profile() {
           const userId = getUserIdFromToken(token);
           const cacheKey = `${CACHE_KEYS.USER_PROFILE}_${userId || 'unknown'}`;
           cacheService.delete(cacheKey);
-          console.log('🧹 Cleared profile cache');
         }
         
         // Update the user in AuthContext with the returned profile data
@@ -544,23 +593,16 @@ export default function Profile() {
   // Handle artisan profile updates
   const handleArtisanSave = async (data) => {
     try {
-      console.log('🔄 Updating artisan profile:', data);
-      console.log('🔄 Current artisan profile exists:', !!artisanProfile);
-      console.log('🔄 User role:', profile?.role);
       setIsSaving(true);
       
       let response;
       if (artisanProfile) {
         // Update existing artisan profile
-        console.log('🔄 Updating existing artisan profile...');
         response = await profileService.updateArtisanProfile(data);
       } else {
         // Create new artisan profile
-        console.log('🔄 Creating new artisan profile...');
         response = await profileService.createArtisanProfile(data);
       }
-      
-      console.log('✅ Artisan profile updated:', response);
       
       // Extract the artisan profile from the response
       const updatedArtisanProfile = response?.data?.user?.artisan || response?.data || response;
@@ -829,8 +871,63 @@ export default function Profile() {
         {/* Enhanced Profile Header */}
         <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 transform hover:scale-[1.02] transition-transform duration-300">
           <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
-              <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+            {/* Editable Profile Picture */}
+            <div className="relative group">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePictureUpload}
+                className="hidden"
+                id="header-profile-picture-upload"
+                disabled={isUploadingProfilePic}
+              />
+              <label
+                htmlFor="header-profile-picture-upload"
+                className="cursor-pointer block relative"
+                title={isUploadingProfilePic ? "Uploading..." : profile?.profilePicture ? "Click to change profile picture" : "Click to upload profile picture"}
+              >
+                {profile?.profilePicture ? (
+                  <img
+                    src={profile.profilePicture}
+                    alt="Profile"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shadow-lg border-4 border-white"
+                  />
+                ) : (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0 border-4 border-white relative">
+                    <span className="text-2xl sm:text-3xl font-bold text-white">
+                      {getInitials() || <UserIcon className="w-8 h-8 sm:w-10 sm:h-10" />}
+                    </span>
+                    {/* Always visible camera icon badge when no picture */}
+                    {!isUploadingProfilePic && (
+                      <div className="absolute bottom-0 right-0 bg-white rounded-full p-1.5 shadow-lg ring-2 ring-amber-400">
+                        <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Upload Overlay */}
+                {profile?.profilePicture && (
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-full transition-all duration-200 flex items-center justify-center">
+                    {isUploadingProfilePic ? (
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    ) : (
+                      <svg className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    )}
+                  </div>
+                )}
+                {/* Loading spinner when uploading */}
+                {isUploadingProfilePic && (
+                  <div className="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                  </div>
+                )}
+              </label>
             </div>
             <div className="flex-1 text-center sm:text-left w-full">
               <div className="flex flex-col sm:flex-row items-center sm:items-start sm:justify-between mb-2 gap-2">

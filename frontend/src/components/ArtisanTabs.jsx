@@ -29,9 +29,6 @@ const getGroupedSubcategories = () => {
 
 // Artisan-specific tab components
 export function OverviewTab({ profile, onSave, isSaving }) {
-  console.log('🔄 OverviewTab profile data:', profile);
-  console.log('🔄 Profile artisanName:', profile.artisanName);
-  console.log('🔄 Profile businessImage:', profile.businessImage);
   
   const [overview, setOverview] = useState({
     artisanName: profile.artisanName || '',
@@ -70,9 +67,8 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   // Update state when profile changes (e.g., when artisan profile is loaded)
   React.useEffect(() => {
     if (profile) {
-      console.log('🔄 OverviewTab: Profile updated, refreshing overview state');
-      console.log('🔄 Profile artisanName:', profile.artisanName);
-      console.log('🔄 Profile description:', profile.description);
+      console.log('🔍 [OverviewTab] Profile updated, businessImage:', profile.businessImage);
+      console.log('🔍 [OverviewTab] Profile keys:', Object.keys(profile));
       
       setOverview({
         artisanName: profile.artisanName || '',
@@ -289,11 +285,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       if (!businessImageData) {
         delete overviewData.businessImage;
       }
-
-      console.log('🔄 Sending overview data:', {
-        ...overviewData,
-        businessImage: businessImageData ? `${businessImageData.substring(0, 50)}...` : null
-      });
 
       await onSave(overviewData);
     } catch (error) {

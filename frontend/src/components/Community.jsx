@@ -931,19 +931,20 @@ export default function Community() {
       {/* Post Header */}
       <div className="flex items-center gap-3 p-4">
         <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500">
-          {(post.artisan?.profileImage || post.artisan?.businessImage) ? (
+          {(post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage || post.authorData?.profilePicture) ? (
             <img 
-              src={post.artisan.profileImage || post.artisan.businessImage} 
-              alt={post.artisan.artisanName}
+              src={post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage || post.authorData?.profilePicture} 
+              alt={post.artisan?.artisanName || `${post.authorData?.firstName} ${post.authorData?.lastName}`}
               className="w-full h-full object-cover"
               onError={(e) => {
                 e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = `<span class="text-white font-bold text-sm">${post.artisan?.artisanName?.charAt(0) || 'A'}</span>`;
+                const initials = post.artisan?.artisanName?.charAt(0) || post.authorData?.firstName?.charAt(0) || 'A';
+                e.target.parentElement.innerHTML = `<span class="text-white font-bold text-sm">${initials}</span>`;
               }}
             />
           ) : (
             <span className="text-white font-bold text-sm">
-              {post.artisan?.artisanName?.charAt(0) || 'A'}
+              {post.artisan?.artisanName?.charAt(0) || post.authorData?.firstName?.charAt(0) || 'A'}
             </span>
           )}
         </div>
@@ -1334,10 +1335,10 @@ export default function Community() {
               {post.comments.map((comment) => (
                 <div key={comment._id} className="flex items-start space-x-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500 ring-2 ring-orange-100">
-                    {(comment.artisan?.profileImage || comment.artisan?.businessImage || comment.author?.profileImage) ? (
+                    {(comment.author?.profilePicture || comment.artisan?.userInfo?.profilePicture || comment.artisan?.profileImage || comment.artisan?.businessImage) ? (
                       <img 
-                        src={comment.artisan?.profileImage || comment.artisan?.businessImage || comment.author?.profileImage} 
-                        alt={comment.artisan?.artisanName || comment.author?.firstName || 'User'}
+                        src={comment.author?.profilePicture || comment.artisan?.userInfo?.profilePicture || comment.artisan?.profileImage || comment.artisan?.businessImage} 
+                        alt={comment.author?.firstName || comment.artisan?.artisanName || 'User'}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.style.display = 'none';

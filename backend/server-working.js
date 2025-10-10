@@ -74,6 +74,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// Stripe Webhook - Must use raw body, so handle it before express.json()
+app.post('/api/webhooks/stripe', 
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    // Manually add database to request
+    try {
+      req.db = await getDB();
+      const { handleStripeWebhook } = require('./routes/webhooks/stripe');
+      await handleStripeWebhook(req, res);
+    } catch (error) {
+      console.error('❌ Webhook error:', error);
+      res.status(500).json({ success: false, message: 'Webhook processing failed' });
+    }
+  }
+);
+
 // Middleware
 app.use(express.json({ limit: '4.5mb' }));
 

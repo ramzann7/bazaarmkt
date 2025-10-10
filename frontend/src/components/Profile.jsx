@@ -592,22 +592,15 @@ export default function Profile() {
 
   // Handle artisan profile updates
   const handleArtisanSave = async (data) => {
-    console.log('🔵 handleArtisanSave called with data:', {
-      ...data,
-      businessImage: data.businessImage ? `${data.businessImage.substring(0, 50)}... (${data.businessImage.length} chars)` : 'none'
-    });
-    
     try {
       setIsSaving(true);
       
       let response;
       if (artisanProfile) {
         // Update existing artisan profile
-        console.log('📝 Updating existing artisan profile...');
         response = await profileService.updateArtisanProfile(data);
       } else {
         // Create new artisan profile
-        console.log('🆕 Creating new artisan profile...');
         response = await profileService.createArtisanProfile(data);
       }
       

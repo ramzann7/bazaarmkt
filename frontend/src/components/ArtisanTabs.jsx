@@ -64,13 +64,18 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
   // Artisan name is now read-only and cannot be changed
 
+  // Track if user has uploaded a new image (to prevent profile refresh from overwriting it)
+  const [hasNewImage, setHasNewImage] = React.useState(false);
+  
   // Update state when profile changes (e.g., when artisan profile is loaded)
+  // But don't overwrite user's uploaded image
   React.useEffect(() => {
     if (profile) {
-      setOverview({
+      setOverview(prev => ({
         artisanName: profile.artisanName || '',
-        businessImage: profile.businessImage || null,
-        businessImagePreview: profile.businessImage || null,
+        // Keep user's uploaded image if they have one, otherwise use profile image
+        businessImage: hasNewImage ? prev.businessImage : (profile.businessImage || null),
+        businessImagePreview: hasNewImage ? prev.businessImagePreview : (profile.businessImage || null),
         description: profile.description || '',
         category: profile.category || [],
         address: {
@@ -89,9 +94,9 @@ export function OverviewTab({ profile, onSave, isSaving }) {
             twitter: profile.contactInfo?.socialMedia?.twitter || ''
           }
         }
-      });
+      }));
     }
-  }, [profile]);
+  }, [profile, hasNewImage]);
 
   // Format phone number as user types
   const formatPhoneNumber = (value) => {
@@ -189,7 +194,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   // Handle business image upload
   const handleBusinessImageChange = (e) => {
     const file = e.target.files[0];
-    console.log('📸 File selected for business image:', file?.name, file?.size, file?.type);
     
     if (file) {
       // Validate file type
@@ -204,20 +208,15 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         return;
       }
 
-      console.log('✅ File validation passed, converting to base64...');
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64String = e.target.result;
-        console.log('✅ Image converted to base64, length:', base64String.length);
-        setOverview(prev => {
-          const newState = {
-            ...prev,
-            businessImage: base64String,
-            businessImagePreview: base64String
-          };
-          console.log('✅ Overview state updated with business image');
-          return newState;
-        });
+        setHasNewImage(true); // Mark that user has uploaded a new image
+        setOverview(prev => ({
+          ...prev,
+          businessImage: base64String,
+          businessImagePreview: base64String
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -227,7 +226,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   const handleBusinessImageDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    console.log('📸 File dropped for business image:', file?.name, file?.size, file?.type);
     
     if (file) {
       if (!file.type.startsWith('image/')) {
@@ -240,11 +238,10 @@ export function OverviewTab({ profile, onSave, isSaving }) {
         return;
       }
 
-      console.log('✅ Dropped file validation passed, converting to base64...');
       const reader = new FileReader();
       reader.onload = (e) => {
         const base64String = e.target.result;
-        console.log('✅ Dropped image converted to base64, length:', base64String.length);
+        setHasNewImage(true); // Mark that user has uploaded a new image
         setOverview(prev => ({
           ...prev,
           businessImage: base64String,
@@ -257,6 +254,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
   // Remove business image
   const removeBusinessImage = () => {
+    setHasNewImage(false); // Reset flag when image is removed
     setOverview({
       ...overview,
       businessImage: null,
@@ -266,12 +264,6 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('🟢 OverviewTab form submitted!');
-    console.log('🟢 Current overview state:', {
-      ...overview,
-      businessImage: overview.businessImage ? `${overview.businessImage.substring(0, 50)}... (${overview.businessImage.length} chars)` : 'none',
-      businessImagePreview: overview.businessImagePreview ? 'present' : 'none'
-    });
     
     try {
       // Prepare the data to send (businessImage is already base64 string from upload)
@@ -292,12 +284,10 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       // Remove businessImagePreview (we only send businessImage to backend)
       delete overviewData.businessImagePreview;
 
-      console.log('📤 Sending overview data to backend:', {
-        ...overviewData,
-        businessImage: overviewData.businessImage ? `${overviewData.businessImage.substring(0, 50)}... (${overviewData.businessImage.length} chars)` : 'none'
-      });
-
       await onSave(overviewData);
+      
+      // Reset the flag after successful save so profile can update normally
+      setHasNewImage(false);
     } catch (error) {
       console.error('Error saving overview:', error);
     }

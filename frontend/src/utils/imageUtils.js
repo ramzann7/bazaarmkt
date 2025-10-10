@@ -47,11 +47,16 @@ export const getImageUrl = (imagePath, options = {}) => {
      (window.location.hostname.includes('bazaarmkt.ca') || 
       window.location.hostname.includes('vercel.app')));
   
+  // Always log in development, optionally in production
+  const shouldLog = !isProduction || (typeof window !== 'undefined' && window.location.search.includes('debug=true'));
+  
+  if (shouldLog) {
+    console.log(isProduction ? '🌐 Production mode - processing image:' : '💻 Development mode - processing image:', imagePath);
+  }
+  
   if (isProduction) {
-    console.log('🌐 Production mode - processing image:', imagePath);
     return getProductionImageUrl(imagePath, options);
   } else {
-    console.log('💻 Development mode - processing image:', imagePath);
     return getDevelopmentImageUrl(imagePath, options);
   }
 };
@@ -99,38 +104,42 @@ const getProductionImageUrl = (imagePath, options = {}) => {
     return null;
   }
   
-  console.log('📸 Processing production image path:', imagePath);
+  // Debug logging (can be enabled with ?debug=true)
+  const shouldLog = typeof window !== 'undefined' && window.location.search.includes('debug=true');
+  if (shouldLog) {
+    console.log('📸 Processing production image path:', imagePath);
+  }
   
   // If it's already a Vercel Blob URL, return as is
   if (imagePath.includes('blob.vercel-storage.com') || 
       imagePath.includes('.vercel-storage.com') ||
       imagePath.includes('public.blob.vercel')) {
-    console.log('✅ Vercel Blob URL detected:', imagePath);
+    if (shouldLog) console.log('✅ Vercel Blob URL detected:', imagePath);
     return imagePath;
   }
   
   // CRITICAL: In production, /uploads/ paths don't exist!
   // These need to be Vercel Blob URLs or base64
   if (imagePath.startsWith('/uploads/')) {
-    console.warn('⚠️ Legacy /uploads/ path in production - image may not load:', imagePath);
+    if (shouldLog) console.warn('⚠️ Legacy /uploads/ path in production - image may not load:', imagePath);
     // Return as-is but it probably won't work - images should be in Vercel Blob
     return imagePath;
   }
   
   // Static assets in public folder (like /images/fallback-product.jpg)
   if (imagePath.startsWith('/images/') || imagePath.startsWith('/public/')) {
-    console.log('📁 Static asset path:', imagePath);
+    if (shouldLog) console.log('📁 Static asset path:', imagePath);
     return imagePath;
   }
   
   // Other paths with leading slash - treat as static assets
   if (imagePath.startsWith('/')) {
-    console.log('📁 Static path with leading slash:', imagePath);
+    if (shouldLog) console.log('📁 Static path with leading slash:', imagePath);
     return imagePath;
   }
   
   // Relative paths without leading slash - add leading slash for static assets
-  console.log('📁 Relative path, adding leading slash:', imagePath);
+  if (shouldLog) console.log('📁 Relative path, adding leading slash:', imagePath);
   return `/${imagePath}`;
 };
 

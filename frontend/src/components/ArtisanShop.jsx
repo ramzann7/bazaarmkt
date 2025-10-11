@@ -102,6 +102,12 @@ export default function ArtisanShop() {
       const slug = generateUniqueSlug(artisanData.artisanName || artisanData.businessName, artisanData._id);
       setArtisanSlug(slug);
       
+      // If user visited with ObjectId, replace URL with friendly slug
+      if (isObjectId(slugOrId)) {
+        console.log('🔄 Replacing ObjectId URL with friendly slug:', slug);
+        navigate(`/artisan/${slug}`, { replace: true });
+      }
+      
       // Handle products - check different possible structures
       let productsData = [];
       console.log('🔍 Artisan data received:', artisanData);
@@ -791,16 +797,6 @@ export default function ArtisanShop() {
         </div>
       </section>
 
-      {/* Floating Share Button */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <SocialShare
-          artisan={artisan}
-          shareUrl={artisanSlug ? `${window.location.origin}/artisan/${artisanSlug}` : window.location.href}
-          shareTitle={`Check out ${artisan?.artisanName || artisan?.businessName || 'this amazing artisan shop'}!`}
-          shareDescription={`Discover unique handmade products from ${artisan?.artisanName || artisan?.businessName || 'this talented artisan'}. ${artisan?.tagline || artisan?.bio || 'Support local artisans and find one-of-a-kind items!'}`}
-          className="shadow-lg hover:shadow-xl transform hover:scale-105"
-        />
-      </div>
 
       {/* Authentication Popup */}
       <AuthPopup

@@ -424,14 +424,36 @@ class UberDirectService {
     try {
       console.log('🚛 Processing ready for delivery for order:', order._id.toString());
       
+      // Fetch full artisan details if order.artisan is just an ObjectId
+      let fullOrder = { ...order };
+      if (order.artisan && !order.artisan.address && !order.artisan.artisanName) {
+        console.log('📦 Fetching full artisan details for pickup location');
+        const ObjectId = require('mongodb').ObjectId;
+        const artisanId = order.artisan._id || order.artisan;
+        const artisan = await db.collection('artisans').findOne({ _id: artisanId });
+        
+        if (artisan) {
+          fullOrder.artisan = artisan;
+          console.log('✅ Artisan details fetched:', {
+            name: artisan.artisanName,
+            hasAddress: !!artisan.address,
+            hasPickupAddress: !!artisan.pickupAddress
+          });
+        } else {
+          console.warn('⚠️ Could not find artisan:', artisanId);
+        }
+      }
+      
       // Get fresh Uber quote
-      const pickupLocation = this.extractPickupLocation(order);
-      const dropoffLocation = this.extractDropoffLocation(order);
-      const packageDetails = this.extractPackageDetails(order);
+      const pickupLocation = this.extractPickupLocation(fullOrder);
+      const dropoffLocation = this.extractDropoffLocation(fullOrder);
+      const packageDetails = this.extractPackageDetails(fullOrder);
       
       console.log('📍 Extracted locations:', {
         pickup: pickupLocation.address,
-        dropoff: dropoffLocation.address
+        dropoff: dropoffLocation.address,
+        hasPickupCoords: !!(pickupLocation.latitude && pickupLocation.longitude),
+        hasDropoffCoords: !!(dropoffLocation.latitude && dropoffLocation.longitude)
       });
 
       const freshQuote = await this.getDeliveryQuote(pickupLocation, dropoffLocation, packageDetails);
@@ -786,12 +808,15 @@ class UberDirectService {
    */
   extractPickupLocation(order) {
     const artisan = order.artisan || {};
+    // Try address first, then pickupAddress, then fall back to empty
+    const addr = artisan.address || artisan.pickupAddress || {};
+    
     return {
-      address: `${artisan.address?.street || ''}, ${artisan.address?.city || ''}, ${artisan.address?.state || ''}, ${artisan.address?.country || 'Canada'}`.trim(),
-      latitude: artisan.address?.latitude || artisan.coordinates?.latitude,
-      longitude: artisan.address?.longitude || artisan.coordinates?.longitude,
+      address: `${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''}, ${addr.country || 'Canada'}`.trim(),
+      latitude: addr.latitude || artisan.coordinates?.latitude,
+      longitude: addr.longitude || artisan.coordinates?.longitude,
       phone: artisan.phone || '',
-      contactName: artisan.artisanName || 'Artisan'
+      contactName: artisan.artisanName || artisan.businessName || 'Artisan'
     };
   }
 

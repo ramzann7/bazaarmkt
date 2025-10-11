@@ -1873,6 +1873,12 @@ const updateOrderStatus = async (req, res) => {
       }
       
       // Handle Uber Direct professional delivery when order is marked ready_for_delivery
+      console.log('🔍 Checking Uber Direct trigger:', {
+        finalStatus,
+        deliveryMethod: updatedOrder.deliveryMethod,
+        shouldTriggerUber: finalStatus === 'ready_for_delivery' && updatedOrder.deliveryMethod === 'professionalDelivery'
+      });
+      
       if (finalStatus === 'ready_for_delivery' && updatedOrder.deliveryMethod === 'professionalDelivery') {
         console.log('🚛 Order ready for delivery - processing Uber Direct request');
         

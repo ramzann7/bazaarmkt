@@ -578,43 +578,12 @@ const Cart = () => {
         // Set the selected address
         setSelectedAddress(defaultAddress);
         
-        toast.success('Saved address loaded', { duration: 2000 });
+        console.log('✅ Saved address loaded and ready:', {
+          street: defaultAddress.street,
+          city: defaultAddress.city
+        });
         
-        // Fetch quotes and validate for delivery methods with saved address
-        // Pass the address directly to avoid state update timing issues
-        setTimeout(async () => {
-          // Handle professional delivery quotes
-          const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
-            method === 'professionalDelivery'
-          );
-          
-          if (hasProfessionalDeliverySelected) {
-            console.log('🚛 Professional delivery selected with saved address - fetching Uber quotes');
-            
-            // Fetch Uber quote for each artisan with professional delivery
-            for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
-              if (method === 'professionalDelivery' && !uberDirectQuotes[artisanId]) {
-                console.log('🚛 Getting Uber Direct quote for artisan:', artisanId, 'with saved address');
-                await calculateUberDirectFee(artisanId, defaultAddress);
-              }
-            }
-          }
-          
-          // Handle personal delivery validation
-          const hasPersonalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
-            method === 'personalDelivery'
-          );
-          
-          if (hasPersonalDeliverySelected) {
-            console.log('🚚 Personal delivery selected with saved address - validating delivery options');
-            
-            // Validate for each artisan with personal delivery
-            const validation = await validateDeliveryAddress(defaultAddress);
-            if (validation.results) {
-              setDeliveryValidationResults(validation.results);
-            }
-          }
-        }, 500); // Reduced timeout since state should be ready
+        toast.success('Saved address loaded', { duration: 2000 });
       }
     } catch (error) {
       console.error('❌ Error loading saved addresses:', error);
@@ -1859,16 +1828,14 @@ const Cart = () => {
   // Track if addresses have been loaded to prevent multiple loads
   const [addressesLoaded, setAddressesLoaded] = useState(false);
 
-  // Load saved addresses and pre-populate delivery form when user profile is loaded
+  // Load saved addresses immediately when cart loads and user profile is available
   useEffect(() => {
     if (userProfile && !isGuest && !addressesLoaded && userProfile.addresses && userProfile.addresses.length > 0) {
-      console.log('🔄 Triggering loadSavedAddresses once');
+      console.log('🏠 Loading saved addresses on cart load');
       loadSavedAddresses();
       setAddressesLoaded(true);
     }
   }, [userProfile, isGuest, addressesLoaded]);
-
-
 
   // Cleanup timeout on component unmount
   useEffect(() => {

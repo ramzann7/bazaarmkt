@@ -68,6 +68,7 @@ const formatPickupHours = (schedule) => {
 /**
  * Helper function to normalize artisan structure
  * Fixes various data structure issues that may exist in production
+ * Uses unified schema - operationDetails only
  */
 const normalizeArtisanData = (artisan) => {
   if (!artisan) return artisan;
@@ -75,16 +76,11 @@ const normalizeArtisanData = (artisan) => {
   // Fix artisan hours double nesting
   normalizeArtisanHours(artisan);
   
-  // Ensure operationDetails exists if operations exists (and vice versa)
+  // Migrate operations to operationDetails if exists (one-time migration)
   if (artisan.operations && !artisan.operationDetails) {
-    console.log('🔧 Syncing operations to operationDetails for artisan:', artisan._id);
+    console.log('🔧 Migrating operations to operationDetails for artisan:', artisan._id);
     artisan.operationDetails = artisan.operations;
-  } else if (artisan.operationDetails && !artisan.operations) {
-    console.log('🔧 Syncing operationDetails to operations for artisan:', artisan._id);
-    artisan.operations = artisan.operationDetails;
   }
-  
-  // Keep existing pickup hours as-is (they're generated only when pickup schedule is updated)
   
   // Decrypt bank information if present
   if (artisan.bankInfo) {
@@ -1052,6 +1048,7 @@ const updateArtisanProfile = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
+    const { updateUnifiedArtisanProfile, invalidateArtisanCache } = require('../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db; // Use shared connection from middleware
@@ -1076,13 +1073,13 @@ const updateArtisanProfile = async (req, res) => {
       });
     }
     
-    // Prepare update data
-    const updateData = { updatedAt: new Date() };
+    // Prepare raw update data
+    const rawUpdateData = { ...req.body };
     
     // Handle bank information with encryption
     if (req.body.bankInfo) {
       const { encryptBankInfo } = require('../../utils/encryption');
-      updateData.bankInfo = {
+      rawUpdateData.bankInfo = {
         ...encryptBankInfo(req.body.bankInfo),
         lastUpdated: new Date()
       };
@@ -1092,18 +1089,18 @@ const updateArtisanProfile = async (req, res) => {
     if (req.body.businessImage) {
       if (typeof req.body.businessImage === 'string' && req.body.businessImage.startsWith('data:image')) {
         try {
-          updateData.businessImage = await imageUploadService.handleImageUpload(
+          rawUpdateData.businessImage = await imageUploadService.handleImageUpload(
             req.body.businessImage,
             'business',
             `business-${decoded.userId}-${Date.now()}.jpg`
           );
         } catch (uploadError) {
           console.error('⚠️ Business image upload failed, keeping original:', uploadError.message);
-          updateData.businessImage = req.body.businessImage;
+          rawUpdateData.businessImage = req.body.businessImage;
         }
       } else {
         // Already a URL, keep as is
-        updateData.businessImage = req.body.businessImage;
+        rawUpdateData.businessImage = req.body.businessImage;
       }
     }
     
@@ -1112,55 +1109,26 @@ const updateArtisanProfile = async (req, res) => {
       if (typeof req.body.profileImage === 'string' && req.body.profileImage.startsWith('data:image')) {
         console.log('📸 Processing profileImage (optimize + upload to Vercel Blob)...');
         try {
-          updateData.profileImage = await imageUploadService.handleImageUpload(
+          rawUpdateData.profileImage = await imageUploadService.handleImageUpload(
             req.body.profileImage,
             'profile',
             `profile-${decoded.userId}-${Date.now()}.jpg`
           );
-          console.log('✅ profileImage processed:', updateData.profileImage.substring(0, 50) + '...');
+          console.log('✅ profileImage processed:', rawUpdateData.profileImage.substring(0, 50) + '...');
         } catch (uploadError) {
           console.error('⚠️ Profile image upload failed, keeping original:', uploadError.message);
-          updateData.profileImage = req.body.profileImage;
+          rawUpdateData.profileImage = req.body.profileImage;
         }
       } else {
         // Already a URL, keep as is
-        updateData.profileImage = req.body.profileImage;
+        rawUpdateData.profileImage = req.body.profileImage;
       }
     }
     
-    // Handle other artisan profile fields
-    const allowedFields = [
-      'artisanName', 'businessName', 'description', 'category',
-      'address', 'contactInfo', 'photos',
-      'type', 'status', 'isActive', 'deliveryOptions', 'pickupSchedule',
-      'artisanHours', 'operationDetails', 'operations'
-    ];
+    // Use unified schema update function to handle field synchronization
+    const updateData = updateUnifiedArtisanProfile(artisan, rawUpdateData);
     
-    allowedFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        updateData[field] = req.body[field];
-      }
-    });
-    
-    // If deliveryOptions is being updated, sync to root-level fields for backward compatibility
-    if (req.body.deliveryOptions) {
-      const opts = req.body.deliveryOptions;
-      updateData.pickupSchedule = opts.pickupSchedule || {};
-      updateData.pickupLocation = opts.pickupLocation || null;
-      updateData.pickupAddress = opts.pickupAddress || null;
-      updateData.pickupInstructions = opts.pickupInstructions || '';
-      updateData.pickupUseBusinessAddress = opts.pickupUseBusinessAddress !== undefined ? opts.pickupUseBusinessAddress : true;
-      // professionalDelivery is an object, not a boolean - sync the entire object
-      updateData.professionalDelivery = opts.professionalDelivery || { enabled: false };
-      updateData.deliveryInstructions = opts.deliveryInstructions || '';
-      
-      console.log('✅ Synced deliveryOptions to root-level fields for backward compatibility');
-    }
-    // REVERSE SYNC: If root-level pickupSchedule is updated without deliveryOptions, sync it back
-    else if (req.body.pickupSchedule) {
-      updateData['deliveryOptions.pickupSchedule'] = req.body.pickupSchedule;
-      console.log('✅ Reverse synced pickupSchedule to deliveryOptions.pickupSchedule');
-    }
+    console.log('✅ Using unified schema update with automatic field synchronization');
     
     // Update the artisan record
     const result = await artisansCollection.updateOne(
@@ -1174,6 +1142,9 @@ const updateArtisanProfile = async (req, res) => {
         message: 'Artisan profile not found'
       });
     }
+    
+    // Invalidate cache for this artisan
+    await invalidateArtisanCache(artisan._id.toString());
     
     // Build consistent response using helper
     const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
@@ -1289,10 +1260,13 @@ const updateArtisanOperations = async (req, res) => {
 
     const updateData = { updatedAt: new Date() };
     
-    // Handle operations data - check if it's wrapped in 'operations' field or sent directly
+    // Handle operationDetails data - unified schema uses operationDetails only
     let operationsData = null;
-    if (req.body.operations) {
-      // Data is wrapped: { operations: { productionMethods: "...", ... } }
+    if (req.body.operationDetails) {
+      // Data is wrapped: { operationDetails: { productionMethods: "...", ... } }
+      operationsData = req.body.operationDetails;
+    } else if (req.body.operations) {
+      // Legacy: { operations: { ... } } - migrate to operationDetails
       operationsData = req.body.operations;
     } else if (req.body.productionMethods !== undefined || req.body.certifications !== undefined || 
                req.body.yearsInBusiness !== undefined || req.body.productionCapacity !== undefined ||
@@ -1302,23 +1276,8 @@ const updateArtisanOperations = async (req, res) => {
     }
     
     if (operationsData) {
-      updateData.operations = operationsData;
-      // SYNC: Also update operationDetails to match operations for backward compatibility
       updateData.operationDetails = operationsData;
-      console.log('✅ Synced operations to operationDetails for backward compatibility');
-    }
-    
-    // Handle pickup schedule
-    if (req.body.pickupSchedule) {
-      updateData.pickupSchedule = req.body.pickupSchedule;
-      
-      // REVERSE SYNC: Update deliveryOptions.pickupSchedule to keep them in sync
-      // First get the existing deliveryOptions to preserve other fields
-      if (!updateData.deliveryOptions) {
-        updateData['deliveryOptions.pickupSchedule'] = req.body.pickupSchedule;
-      }
-      
-      console.log('✅ Reverse synced pickupSchedule to deliveryOptions.pickupSchedule');
+      console.log('✅ Updated operationDetails with unified schema');
     }
 
     await artisansCollection.updateOne(
@@ -1934,6 +1893,7 @@ const createArtisanProfile = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
+    const { createUnifiedArtisanProfile } = require('../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db;
@@ -1949,73 +1909,66 @@ const createArtisanProfile = async (req, res) => {
       });
     }
 
-    // Create new artisan profile
-    const artisanData = {
-      user: new ObjectId(decoded.userId),
-      artisanName: req.body.artisanName || '',
-      businessName: req.body.businessName || '',
-      description: req.body.description || '',
-      category: req.body.category || '',
-      address: req.body.address || {},
-      contactInfo: req.body.contactInfo || {},
-      businessImage: req.body.businessImage || '',
-      profileImage: req.body.profileImage || '',
-      photos: req.body.photos || [],
-      artisanHours: req.body.artisanHours || {},
-      deliveryOptions: req.body.deliveryOptions || {},
-      pickupSchedule: req.body.pickupSchedule || {},
-      operations: req.body.operations || {},
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
-    // Sync deliveryOptions to root-level fields for backward compatibility
-    if (artisanData.deliveryOptions && Object.keys(artisanData.deliveryOptions).length > 0) {
-      const opts = artisanData.deliveryOptions;
-      artisanData.pickupSchedule = opts.pickupSchedule || {};
-      artisanData.pickupLocation = opts.pickupLocation || null;
-      artisanData.pickupAddress = opts.pickupAddress || null;
-      artisanData.pickupInstructions = opts.pickupInstructions || '';
-      artisanData.pickupUseBusinessAddress = opts.pickupUseBusinessAddress !== undefined ? opts.pickupUseBusinessAddress : true;
-      // professionalDelivery is an object, not a boolean - sync the entire object
-      artisanData.professionalDelivery = opts.professionalDelivery || { enabled: false };
-      artisanData.deliveryInstructions = opts.deliveryInstructions || '';
-      
-      console.log('✅ Synced deliveryOptions to root-level fields for new artisan profile');
-    }
+    // Process images before creating profile
+    let processedBusinessImage = req.body.businessImage || null;
+    let processedProfileImage = req.body.profileImage || null;
     
     // Process and upload businessImage if present
-    if (artisanData.businessImage && typeof artisanData.businessImage === 'string' && artisanData.businessImage.startsWith('data:image')) {
+    if (processedBusinessImage && typeof processedBusinessImage === 'string' && processedBusinessImage.startsWith('data:image')) {
       console.log('📸 Processing businessImage for new artisan profile...');
       try {
-        artisanData.businessImage = await imageUploadService.handleImageUpload(
-          artisanData.businessImage,
+        processedBusinessImage = await imageUploadService.handleImageUpload(
+          processedBusinessImage,
           'business',
           `business-${decoded.userId}-${Date.now()}.jpg`
         );
         console.log('✅ businessImage processed');
       } catch (uploadError) {
         console.error('⚠️ Business image upload failed:', uploadError.message);
+        processedBusinessImage = null;
       }
     }
     
     // Process and upload profileImage if present
-    if (artisanData.profileImage && typeof artisanData.profileImage === 'string' && artisanData.profileImage.startsWith('data:image')) {
+    if (processedProfileImage && typeof processedProfileImage === 'string' && processedProfileImage.startsWith('data:image')) {
       console.log('📸 Processing profileImage for new artisan profile...');
       try {
-        artisanData.profileImage = await imageUploadService.handleImageUpload(
-          artisanData.profileImage,
+        processedProfileImage = await imageUploadService.handleImageUpload(
+          processedProfileImage,
           'profile',
           `profile-${decoded.userId}-${Date.now()}.jpg`
         );
         console.log('✅ profileImage processed');
       } catch (uploadError) {
         console.error('⚠️ Profile image upload failed:', uploadError.message);
+        processedProfileImage = null;
       }
     }
 
-    const result = await artisansCollection.insertOne(artisanData);
+    // Create new artisan profile using unified schema
+    const artisanProfile = await createUnifiedArtisanProfile({
+      userId: decoded.userId,
+      artisanName: req.body.artisanName || '',
+      businessName: req.body.businessName || req.body.artisanName || '',
+      type: req.body.type || 'general',
+      description: req.body.description || '',
+      category: req.body.category || [],
+      address: req.body.address || {},
+      contactInfo: req.body.contactInfo || {},
+      businessImage: processedBusinessImage,
+      profileImage: processedProfileImage,
+      photos: req.body.photos || [],
+      artisanHours: req.body.artisanHours || {},
+      deliveryOptions: req.body.deliveryOptions || {},
+      operationDetails: req.body.operationDetails || req.body.operations || {},
+      creationMethod: 'manual',
+      isActive: true,
+      isVerified: true  // Manual creation is considered verified
+    }, db);
+    
+    console.log('✅ Created unified artisan profile with platform commission rate');
+
+    const result = await artisansCollection.insertOne(artisanProfile);
     
     // Update user role to artisan
     await usersCollection.updateOne(

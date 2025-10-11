@@ -194,13 +194,14 @@ const register = async (req, res) => {
     
     // Create artisan profile if user is registering as artisan
     if (role === 'artisan') {
-      const artisanProfile = {
-        user: userId,
+      const { createUnifiedArtisanProfile } = require('../utils/artisanSchemaUtils');
+      
+      const artisanProfile = await createUnifiedArtisanProfile({
+        userId: userId,
         artisanName: artisanName || artisanData?.artisanName || `${firstName} ${lastName}`,
         type: type || artisanData?.type || 'food_beverages',
         description: description || artisanData?.description || `Artisan profile for ${firstName} ${lastName}`,
         category: [type || artisanData?.type || 'food_beverages'],
-        specialties: [],
         address: artisanData?.address || (addresses.length > 0 ? addresses[0] : {}),
         contactInfo: {
           phone: phone || '',
@@ -212,38 +213,19 @@ const register = async (req, res) => {
             twitter: ''
           }
         },
-        businessImage: null,
         profileImage: null,
+        businessImage: null,
         photos: [],
-        artisanHours: {
-          monday: { open: '09:00', close: '17:00', closed: false },
-          tuesday: { open: '09:00', close: '17:00', closed: false },
-          wednesday: { open: '09:00', close: '17:00', closed: false },
-          thursday: { open: '09:00', close: '17:00', closed: false },
-          friday: { open: '09:00', close: '17:00', closed: false },
-          saturday: { open: '09:00', close: '17:00', closed: false },
-          sunday: { open: '09:00', close: '17:00', closed: true }
-        },
         deliveryOptions: {
           pickup: false,
           delivery: false,
           shipping: false
         },
-        // Root-level fields synced from deliveryOptions for backward compatibility
-        pickupSchedule: {},
-        pickupLocation: null,
-        pickupAddress: null,
-        pickupInstructions: '',
-        pickupUseBusinessAddress: true,
-        professionalDelivery: { enabled: false }, // Object, not boolean
-        deliveryInstructions: '',
         operationDetails: {},
-        rating: 0,
+        creationMethod: 'registration',
         isActive: true,
-        isVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
+        isVerified: false
+      }, db);
       
       const artisanResult = await artisansCollection.insertOne(artisanProfile);
       artisan = {

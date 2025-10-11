@@ -194,7 +194,7 @@ const register = async (req, res) => {
     
     // Create artisan profile if user is registering as artisan
     if (role === 'artisan') {
-      const { createUnifiedArtisanProfile } = require('../utils/artisanSchemaUtils');
+      const { createUnifiedArtisanProfile } = require('../../utils/artisanSchemaUtils');
       
       const artisanProfile = await createUnifiedArtisanProfile({
         userId: userId,

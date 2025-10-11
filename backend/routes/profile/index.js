@@ -1048,7 +1048,7 @@ const updateArtisanProfile = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
-    const { updateUnifiedArtisanProfile, invalidateArtisanCache } = require('../utils/artisanSchemaUtils');
+    const { updateUnifiedArtisanProfile, invalidateArtisanCache } = require('../../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db; // Use shared connection from middleware
@@ -1893,7 +1893,7 @@ const createArtisanProfile = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
-    const { createUnifiedArtisanProfile } = require('../utils/artisanSchemaUtils');
+    const { createUnifiedArtisanProfile } = require('../../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db;

@@ -547,8 +547,8 @@ class EnhancedSearchService {
     let score = 0;
     
     // Seller rating
-    if (product.artisan?.rating?.average) {
-      score += product.artisan.rating.average * 30; // 5-star = 150 points
+    if (product.artisan?.metrics?.rating) {
+      score += product.artisan.metrics.rating * 30; // 5-star = 150 points
     }
     
     // On-time delivery rate (if available)

@@ -228,12 +228,26 @@ class OrderNotificationService {
       let ordersToNotify = [];
       
       if (isLoginTriggered && trackableOrders.length > 0) {
-        // For login-triggered notifications, show orders that need action or are recently updated
-        const actionRequiredOrders = trackableOrders.filter(order => 
-          ['ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
-        );
+        // For login-triggered notifications, show orders that REQUIRE patron action
+        const actionRequiredOrders = trackableOrders.filter(order => {
+          // Cost absorption requires response
+          if (order.costAbsorption?.required) return true;
+          
+          // Delivered/Picked up orders that haven't been confirmed yet
+          if ((order.status === 'delivered' || order.status === 'picked_up') && 
+              !order.walletCredit?.patronConfirmedAt) return true;
+          
+          // Ready for pickup (patron needs to know)
+          if (order.status === 'ready_for_pickup') return true;
+          
+          // Declined or cancelled orders (patron should be aware)
+          if (['declined', 'cancelled'].includes(order.status)) return true;
+          
+          return false;
+        });
         
         if (actionRequiredOrders.length > 0) {
+          console.log(`🔔 Found ${actionRequiredOrders.length} orders requiring patron attention on login`);
           ordersToNotify = actionRequiredOrders;
         }
       } else if (updatedOrders.length > 0) {
@@ -291,75 +305,83 @@ class OrderNotificationService {
 
   // Notify about order updates (for patrons)
   notifyOrderUpdates(updatedOrders) {
-    // Play notification sound
-    if (this.notificationSound) {
+    // Filter for critical notifications only (action required or negative outcomes)
+    const criticalStatuses = ['ready_for_pickup', 'delivered', 'picked_up', 'cancelled', 'declined'];
+    const criticalOrders = updatedOrders.filter(order => criticalStatuses.includes(order.status) || order.costAbsorption?.required);
+    
+    // Play notification sound only for critical updates
+    if (criticalOrders.length > 0 && this.notificationSound) {
       this.notificationSound();
     }
 
-    // DISABLED: Toast notifications for patrons (they see in-app notifications instead)
-    // In-app notifications are more detailed and persistent in the notification bell
-    // Keeping this code for reference but toast notifications are now disabled for registered users
-    
-    /* TOAST NOTIFICATIONS DISABLED FOR PATRONS
+    // Show toast notifications ONLY for critical actions that require patron attention
     import('react-hot-toast').then(({ default: toast }) => {
-      updatedOrders.forEach(order => {
+      criticalOrders.forEach(order => {
         const statusMessages = {
-          'confirmed': '✅ Order confirmed by artisan!',
-          'preparing': '👨‍🍳 Your order is being prepared!',
-          'ready_for_pickup': '🎉 Your order is ready for pickup! Click to view details.',
-          'ready_for_delivery': '🚚 Your order is ready for delivery!',
-          'out_for_delivery': '📦 Your order is out for delivery! Should arrive soon.',
-          'delivered': '📬 Your order has been delivered! Please confirm receipt.',
+          'ready_for_pickup': '🎉 Your order is ready for pickup!',
+          'delivered': '📬 Your order has been delivered!',
           'picked_up': '✅ Your order has been picked up!',
-          'completed': '🎊 Your order has been completed! Thank you for your business.',
           'cancelled': '❌ Your order has been cancelled.',
-          'declined': '⚠️ Your order has been declined by the artisan.'
+          'declined': '⚠️ Your order was declined by the artisan.'
         };
 
         const actionRequiredMessages = {
-          'ready_for_pickup': 'Action Required: Your order is ready for pickup!',
-          'delivered': 'Action Required: Please confirm receipt of your delivered order.',
-          'picked_up': 'Action Required: Please confirm you picked up your order.'
+          'ready_for_pickup': '⚡ ACTION REQUIRED: Pickup your order!',
+          'delivered': '⚡ ACTION REQUIRED: Confirm receipt of delivery!',
+          'picked_up': '⚡ ACTION REQUIRED: Confirm you picked up the order!'
         };
 
-        const message = statusMessages[order.status] || `Order status updated to: ${order.status}`;
+        // Check for cost absorption notification
+        if (order.costAbsorption?.required) {
+          toast.error(`⚡ Delivery cost increased by $${order.costAbsorption.amount.toFixed(2)}. Order #${order._id.slice(-6)} needs your response!`, {
+            duration: 10000,
+            style: {
+              background: '#ef4444',
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '16px'
+            },
+            onClick: () => {
+              window.location.href = '/orders';
+            }
+          });
+          return;
+        }
+
+        const message = statusMessages[order.status];
         const actionMessage = actionRequiredMessages[order.status];
-        const isPositive = !['cancelled', 'declined'].includes(order.status);
         const requiresAction = ['ready_for_pickup', 'delivered', 'picked_up'].includes(order.status);
+        const isNegative = ['cancelled', 'declined'].includes(order.status);
         
         // Use longer duration for action-required notifications
-        const duration = requiresAction ? 8000 : 5000;
+        const duration = requiresAction ? 10000 : 8000;
         
         if (requiresAction) {
-          // Special handling for action-required notifications
-          const finalMessage = actionMessage ? `${actionMessage} Order #${order._id.slice(-6)}` : `${message} Order #${order._id.slice(-6)}`;
+          // Critical action-required notifications with prominent styling
+          const finalMessage = `${actionMessage} Order #${order._id.slice(-6)}`;
           toast.success(finalMessage, {
             duration: duration,
             style: {
               background: '#10b981',
               color: '#ffffff',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              fontSize: '16px',
+              border: '2px solid #047857'
             },
+            icon: '⚡',
             onClick: () => {
-              // Navigate to orders page
               window.location.href = '/orders';
             }
           });
-        } else if (isPositive) {
-          const finalMessage = `${message} Order #${order._id.slice(-6)}`;
-          toast.success(finalMessage, {
-            duration: duration,
-            onClick: () => {
-              // Navigate to orders page
-              window.location.href = '/orders';
-            }
-          });
-        } else {
+        } else if (isNegative) {
+          // Negative outcome notifications
           const finalMessage = `${message} Order #${order._id.slice(-6)}`;
           toast.error(finalMessage, {
             duration: duration,
+            style: {
+              fontSize: '15px'
+            },
             onClick: () => {
-              // Navigate to orders page
               window.location.href = '/orders';
             }
           });
@@ -368,9 +390,8 @@ class OrderNotificationService {
     }).catch(error => {
       console.error('Could not show order update toast notification:', error);
     });
-    */
 
-    // Dispatch custom event for components to listen to (still active for in-app notifications)
+    // Dispatch custom event for components to listen to
     window.dispatchEvent(new CustomEvent('orderUpdatesReceived', {
       detail: { orders: updatedOrders, count: updatedOrders.length }
     }));

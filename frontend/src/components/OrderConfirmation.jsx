@@ -580,14 +580,32 @@ export default function OrderConfirmation() {
               ) && (() => {
                 // Calculate delivery fee: If not provided, calculate from totalAmount - subtotal
                 const calculatedDeliveryFee = orders.reduce((sum, order) => {
+                  console.log('💰 Calculating delivery fee for order:', {
+                    orderId: order._id,
+                    deliveryMethod: order.deliveryMethod,
+                    deliveryFee: order.deliveryFee,
+                    totalAmount: order.totalAmount,
+                    subtotal: order.subtotal,
+                    itemsTotal: order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0)
+                  });
+                  
                   if (order.deliveryFee !== undefined && order.deliveryFee !== null) {
+                    console.log('✅ Using order.deliveryFee:', order.deliveryFee);
                     return sum + order.deliveryFee;
                   }
                   // Calculate from total - subtotal
                   const orderSubtotal = order.subtotal || order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0) || 0;
                   const orderTotal = order.totalAmount || 0;
-                  return sum + Math.max(0, orderTotal - orderSubtotal);
+                  const calculatedFee = Math.max(0, orderTotal - orderSubtotal);
+                  console.log('🔢 Calculated delivery fee:', {
+                    orderTotal,
+                    orderSubtotal,
+                    calculatedFee
+                  });
+                  return sum + calculatedFee;
                 }, 0);
+                
+                console.log('📊 Final delivery fee display:', calculatedDeliveryFee);
                 
                 return (
                   <div className="flex justify-between items-center">

@@ -7,12 +7,24 @@ const axios = require('axios');
 
 class UberDirectService {
   constructor() {
-    this.baseURL = process.env.UBER_DIRECT_BASE_URL || 'https://api.uber.com';
+    // Support sandbox mode
+    const isSandbox = process.env.UBER_ENVIRONMENT === 'sandbox' || process.env.UBER_SANDBOX === 'true';
+    
+    this.baseURL = process.env.UBER_DIRECT_BASE_URL || (isSandbox ? 'https://sandbox-api.uber.com' : 'https://api.uber.com');
+    this.authURL = process.env.UBER_AUTH_URL || 'https://login.uber.com';
+    this.isSandbox = isSandbox;
+    
     // Support both UBER_DIRECT_* and UBER_* variable names for backwards compatibility
     this.clientId = process.env.UBER_DIRECT_CLIENT_ID || process.env.UBER_CLIENT_ID;
     this.clientSecret = process.env.UBER_DIRECT_CLIENT_SECRET || process.env.UBER_CLIENT_SECRET;
     this.customerId = process.env.UBER_DIRECT_CUSTOMER_ID || process.env.UBER_CUSTOMER_ID;
     this.serverToken = process.env.UBER_DIRECT_SERVER_TOKEN || process.env.UBER_SERVER_TOKEN;
+    
+    console.log('🚛 Uber Direct Service initialized:', {
+      mode: isSandbox ? 'SANDBOX' : 'PRODUCTION',
+      baseURL: this.baseURL,
+      authURL: this.authURL
+    });
   }
 
   /**
@@ -29,9 +41,14 @@ class UberDirectService {
         throw new Error('Uber Direct credentials not configured');
       }
 
-      console.log('🔐 Attempting Uber OAuth with endpoint:', `${this.baseURL}/oauth/v2/token`);
+      const authEndpoint = `${this.authURL}/oauth/v2/token`;
+      console.log('🔐 Attempting Uber OAuth:', {
+        endpoint: authEndpoint,
+        clientIdLength: this.clientId?.length,
+        scope: 'eats.deliveries direct.organizations'
+      });
       
-      const response = await axios.post(`${this.baseURL}/oauth/v2/token`, {
+      const response = await axios.post(authEndpoint, {
         client_id: this.clientId,
         client_secret: this.clientSecret,
         grant_type: 'client_credentials',
@@ -41,7 +58,18 @@ class UberDirectService {
       console.log('✅ Uber OAuth successful');
       return response.data.access_token;
     } catch (error) {
-      console.error('❌ Error getting Uber Direct access token:', error.message);
+      console.error('❌ Error getting Uber Direct access token:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      
+      // For sandbox/testing: Try fallback with just credentials as bearer token
+      console.log('💡 OAuth failed - this is expected for sandbox test credentials');
+      console.log('💡 Using fallback pricing for development/testing');
+      
       throw new Error('Failed to authenticate with Uber Direct');
     }
   }

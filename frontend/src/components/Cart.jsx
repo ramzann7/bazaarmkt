@@ -86,6 +86,13 @@ const Cart = () => {
   });
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [useSavedAddress, setUseSavedAddress] = useState(true); // Track if user wants to use saved address
+  const [newAddressForm, setNewAddressForm] = useState({
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'Canada'
+  }); // Separate state for new address entry
   
   // Loading states
   const [cartLoading, setCartLoading] = useState(false);
@@ -202,13 +209,12 @@ const Cart = () => {
       let deliveryAddr = addressOverride;
       
       if (!deliveryAddr || !deliveryAddr.street) {
-        // If user chose saved address, use selectedAddress; otherwise use deliveryForm
-        if (useSavedAddress && selectedAddress && selectedAddress.street) {
-          deliveryAddr = selectedAddress;
-        } else if (deliveryForm.deliveryAddress && deliveryForm.deliveryAddress.street) {
-          deliveryAddr = deliveryForm.deliveryAddress;
-        } else if (deliveryForm.street) {
-          deliveryAddr = deliveryForm;
+        if (useSavedAddress) {
+          // Use saved address: selectedAddress or deliveryForm.deliveryAddress
+          deliveryAddr = selectedAddress || deliveryForm.deliveryAddress || deliveryForm;
+        } else {
+          // Use new address form (separate from saved address)
+          deliveryAddr = newAddressForm.street ? newAddressForm : (deliveryForm.deliveryAddress || deliveryForm);
         }
       }
       
@@ -525,8 +531,11 @@ const Cart = () => {
   };
 
   // Load user profile
-  const loadUserProfile = async () => {
-    if (!currentUserId || isGuest) {
+  const loadUserProfile = async (userIdOverride = null, isGuestOverride = null) => {
+    const userId = userIdOverride || currentUserId;
+    const guestStatus = isGuestOverride !== null ? isGuestOverride : isGuest;
+    
+    if (!userId || guestStatus) {
       return;
     }
     
@@ -553,10 +562,7 @@ const Cart = () => {
       const defaultAddress = userProfile.addresses.find(addr => addr.isDefault) || userProfile.addresses[0];
       
       if (defaultAddress) {
-        console.log('🏠 Loading saved address:', defaultAddress);
-        
         // Populate deliveryForm with saved address for DISPLAY purposes
-        // This shows the address in the form but doesn't overwrite the saved address in database
         setDeliveryForm(prev => ({
           ...prev,
           firstName: userProfile.firstName || prev.firstName,
@@ -577,12 +583,6 @@ const Cart = () => {
 
         // Set the selected address
         setSelectedAddress(defaultAddress);
-        
-        console.log('✅ Saved address loaded and ready:', {
-          street: defaultAddress.street,
-          city: defaultAddress.city
-        });
-        
         toast.success('Saved address loaded', { duration: 2000 });
       }
     } catch (error) {
@@ -599,11 +599,16 @@ const Cart = () => {
       setCurrentUserId(tokenData.userId);
       setIsGuest(tokenData.isGuest);
       
-      if (!tokenData.isGuest && !profileLoadingInitiatedRef.current) {
-        // Load profile for better performance (only once)
-        console.log('🔄 Loading profile from checkAuth');
+      // Reset stale ref: if ref says "initiated" but there's no profile and not currently loading, reset it
+      if (profileLoadingInitiatedRef.current && !userProfile && !profileLoading) {
+        profileLoadingInitiatedRef.current = false;
+      }
+      
+      // Load profile if not guest and not already loaded/loading
+      if (!tokenData.isGuest && !userProfile && !profileLoadingInitiatedRef.current) {
         profileLoadingInitiatedRef.current = true;
-        loadUserProfile().catch(error => {
+        // Pass userId and isGuest directly since state hasn't updated yet
+        loadUserProfile(tokenData.userId, tokenData.isGuest).catch(error => {
           console.error('❌ Error loading profile:', error);
           profileLoadingInitiatedRef.current = false; // Reset on error to allow retry
         });
@@ -702,11 +707,11 @@ const Cart = () => {
       if (isGuest) {
         addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
       } else if (useSavedAddress) {
-        // Use selectedAddress if available, otherwise fall back to deliveryForm.deliveryAddress
+        // Use saved address
         addressToValidate = selectedAddress || deliveryForm.deliveryAddress || deliveryForm;
       } else {
-        // User wants to enter new address
-        addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
+        // User wants to enter new address - use newAddressForm
+        addressToValidate = newAddressForm.street ? newAddressForm : (deliveryForm.deliveryAddress || deliveryForm);
       }
       
       const hasCompleteAddress = addressToValidate && 
@@ -716,16 +721,7 @@ const Cart = () => {
         addressToValidate.zipCode && 
         addressToValidate.country;
       
-      console.log('🔍 Checking address for personal delivery:', {
-        useSavedAddress,
-        hasSelectedAddress: !!selectedAddress,
-        hasDeliveryFormAddress: !!(deliveryForm.deliveryAddress?.street),
-        addressStreet: addressToValidate?.street,
-        hasCompleteAddress
-      });
-      
       if (hasCompleteAddress) {
-        console.log('✅ Complete address found - validating personal delivery for artisan:', artisanId);
         const validation = await validateDeliveryAddress(addressToValidate);
         setDeliveryValidationResults(prev => ({
           ...prev,
@@ -799,11 +795,11 @@ const Cart = () => {
       if (isGuest) {
         addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
       } else if (useSavedAddress) {
-        // Use selectedAddress if available, otherwise fall back to deliveryForm.deliveryAddress
+        // Use saved address
         addressToValidate = selectedAddress || deliveryForm.deliveryAddress || deliveryForm;
       } else {
-        // User wants to enter new address
-        addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
+        // User wants to enter new address - use newAddressForm
+        addressToValidate = newAddressForm.street ? newAddressForm : (deliveryForm.deliveryAddress || deliveryForm);
       }
       
       // Check if we have a complete address
@@ -812,23 +808,9 @@ const Cart = () => {
         (addressToValidate.deliveryAddress && addressToValidate.deliveryAddress.street)
       );
       
-      console.log('🔍 Checking address for professional delivery:', {
-        useSavedAddress,
-        hasSelectedAddress: !!selectedAddress,
-        hasDeliveryFormAddress: !!(deliveryForm.deliveryAddress?.street),
-        addressToValidate: addressToValidate ? {
-          street: addressToValidate.street,
-          hasDeliveryAddress: !!addressToValidate.deliveryAddress
-        } : null,
-        hasCompleteAddress
-      });
-      
       if (hasCompleteAddress) {
-        console.log('✅ Complete address found - fetching Uber Direct quote for artisan:', artisanId);
         // Fetch quote immediately with the address
         await calculateUberDirectFee(artisanId, addressToValidate);
-      } else {
-        console.log('⏳ No complete address yet - quote will be fetched when address is entered');
       }
     } else {
       // Clear validation results for this artisan if switching away from personal delivery
@@ -1231,10 +1213,17 @@ const Cart = () => {
     setUseSavedAddress(useSaved);
     
     if (!useSaved) {
-      // User wants to enter new address - clear selected address
+      // User wants to enter new address - clear selected address and quotes
       setSelectedAddress(null);
-      // Clear quotes since we'll need new address
       setUberDirectQuotes({});
+      // Reset new address form
+      setNewAddressForm({
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: 'Canada'
+      });
     } else {
       // User switched back to saved address - fetch quotes for professional delivery
       const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
@@ -1242,8 +1231,6 @@ const Cart = () => {
       );
       
       if (hasProfessionalDeliverySelected) {
-        console.log('🔄 Switched to saved address - fetching Uber quotes');
-        
         // Get the address to use (selectedAddress or deliveryForm.deliveryAddress)
         const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
         
@@ -1254,7 +1241,6 @@ const Cart = () => {
           // Fetch quote for each artisan with professional delivery
           for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
             if (method === 'professionalDelivery') {
-              console.log('🚛 Getting Uber Direct quote for artisan:', artisanId, 'with saved address');
               await calculateUberDirectFee(artisanId, addressToUse);
             }
           }
@@ -1267,7 +1253,6 @@ const Cart = () => {
       );
       
       if (hasPersonalDeliverySelected) {
-        console.log('🔄 Switched to saved address - validating personal delivery');
         const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
         
         if (addressToUse && addressToUse.street) {
@@ -1378,10 +1363,10 @@ const Cart = () => {
       // Validate delivery address for both guests and patrons
       if (isAddressRequired()) {
         // For guests, check deliveryForm.deliveryAddress (nested object from DeliveryInformation)
-        // For authenticated users, use selectedAddress or deliveryForm
+        // For authenticated users, use selectedAddress (saved) or newAddressForm (new)
         const addressToValidate = isGuest 
           ? (deliveryForm.deliveryAddress || deliveryForm)
-          : ((useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm);
+          : (useSavedAddress ? (selectedAddress || deliveryForm) : (newAddressForm.street ? newAddressForm : deliveryForm));
         
         const hasCompleteAddress = addressToValidate && 
           addressToValidate.street && 
@@ -1502,7 +1487,7 @@ const Cart = () => {
             productType: item.productType || 'ready_to_ship'
           };
         }),
-        deliveryAddress: (useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm,
+        deliveryAddress: useSavedAddress ? (selectedAddress || deliveryForm) : (newAddressForm.street ? newAddressForm : deliveryForm),
         deliveryInstructions: deliveryForm.instructions || '',
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
         deliveryFee: totalDeliveryFee, // EXPLICITLY include the calculated delivery fee
@@ -1775,7 +1760,10 @@ const Cart = () => {
 
   // Load data on component mount
   useEffect(() => {
-    checkAuth();
+    if (!checkAuthCalledRef.current) {
+      checkAuthCalledRef.current = true;
+      checkAuth();
+    }
   }, []);
 
   // Don't automatically load user location - only when needed for delivery validation
@@ -1790,6 +1778,9 @@ const Cart = () => {
   
   // Track if profile loading has been initiated to prevent duplicate loads
   const profileLoadingInitiatedRef = React.useRef(false);
+  
+  // Track if checkAuth has been called to prevent duplicate cart loads
+  const checkAuthCalledRef = React.useRef(false);
 
   // Load delivery options when cart data or user location changes
   useEffect(() => {
@@ -1797,7 +1788,6 @@ const Cart = () => {
       // For logged-in users, wait for profile to load before loading delivery options
       // For guests, load immediately since there's no profile to wait for
       if (!isGuest && !userProfile) {
-        console.log('⏳ Waiting for user profile to load before loading delivery options');
         return;
       }
       
@@ -1810,15 +1800,9 @@ const Cart = () => {
       
       // Only load if we haven't loaded for this exact cart state
       if (loadedOptionsRef.current !== cartKey) {
-        console.log('🔄 Loading delivery options for new cart state', {
-          isGuest,
-          hasProfile: !!userProfile
-        });
         loadedOptionsRef.current = cartKey;
         loadDeliveryOptions();
         loadPickupTimeWindows();
-      } else {
-        console.log('🔄 Skipping delivery options load - already loaded for this cart state');
       }
     }
   }, [cartByArtisan, userLocation, userProfile, isGuest]);
@@ -1826,10 +1810,9 @@ const Cart = () => {
   // Load user profile immediately when user is authenticated
   useEffect(() => {
     if (currentUserId && !isGuest && !userProfile && !profileLoadingInitiatedRef.current) {
-      // Load profile for better performance (only once)
-      console.log('🔄 Initiating profile load');
       profileLoadingInitiatedRef.current = true;
-      loadUserProfile().catch(error => {
+      // Pass userId directly to avoid timing issues
+      loadUserProfile(currentUserId).catch(error => {
         console.error('❌ Error loading user data:', error);
         profileLoadingInitiatedRef.current = false; // Reset on error to allow retry
       });
@@ -1842,11 +1825,44 @@ const Cart = () => {
   // Load saved addresses immediately when cart loads and user profile is available
   useEffect(() => {
     if (userProfile && !isGuest && !addressesLoaded && userProfile.addresses && userProfile.addresses.length > 0) {
-      console.log('🏠 Loading saved addresses on cart load');
       loadSavedAddresses();
       setAddressesLoaded(true);
     }
   }, [userProfile, isGuest, addressesLoaded]);
+  
+  // Watch for new address completion and fetch quotes
+  useEffect(() => {
+    const checkNewAddressComplete = async () => {
+      // Only process if user chose to enter new address
+      if (useSavedAddress) return;
+      
+      // Check if new address is complete
+      const isComplete = newAddressForm.street && 
+                        newAddressForm.city && 
+                        newAddressForm.state && 
+                        newAddressForm.zipCode;
+      
+      if (!isComplete) return;
+      
+      // Fetch quote for professional delivery
+      const professionalDeliveryArtisans = Object.entries(selectedDeliveryMethods)
+        .filter(([_, method]) => method === 'professionalDelivery')
+        .map(([artisanId]) => artisanId);
+      
+      if (professionalDeliveryArtisans.length > 0) {
+        for (const artisanId of professionalDeliveryArtisans) {
+          // Only fetch if we don't have a quote yet or quote is stale
+          if (!uberDirectQuotes[artisanId]) {
+            await calculateUberDirectFee(artisanId, newAddressForm);
+          }
+        }
+      }
+    };
+    
+    // Debounce the check
+    const timeout = setTimeout(checkNewAddressComplete, 1000);
+    return () => clearTimeout(timeout);
+  }, [newAddressForm, useSavedAddress, selectedDeliveryMethods]);
 
   // Cleanup timeout on component unmount
   useEffect(() => {
@@ -1917,6 +1933,8 @@ const Cart = () => {
         onAddressSelect={handleAddressSelect}
         useSavedAddress={useSavedAddress}
         onUseSavedAddressChange={handleUseSavedAddressChange}
+        newAddressForm={newAddressForm}
+        onNewAddressChange={setNewAddressForm}
         userProfile={userProfile}
         uberDirectQuotes={uberDirectQuotes}
         loadingUberQuotes={loadingUberQuotes}
@@ -1992,7 +2010,7 @@ const Cart = () => {
                       productType: item.productType || 'ready_to_ship'
                     };
                   }),
-                  deliveryAddress: (useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm,
+                  deliveryAddress: useSavedAddress ? (selectedAddress || deliveryForm) : (newAddressForm.street ? newAddressForm : deliveryForm),
                   deliveryInstructions: deliveryForm.instructions || '',
                   deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
                   pickupTimeWindows: selectedPickupTimes,

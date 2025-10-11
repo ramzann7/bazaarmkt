@@ -32,6 +32,8 @@ const DeliveryInformation = ({
   onAddressSelect,
   useSavedAddress,
   onUseSavedAddressChange,
+  newAddressForm,
+  onNewAddressChange,
   userProfile,
   uberDirectQuotes = {},
   loadingUberQuotes = new Set(),
@@ -948,13 +950,22 @@ const DeliveryInformation = ({
                     </label>
                     <input
                       type="text"
-                      value={deliveryForm.deliveryAddress?.street || ''}
+                      value={useSavedAddress ? (deliveryForm.deliveryAddress?.street || '') : (newAddressForm?.street || '')}
                       onChange={(e) => {
                         const value = e.target.value;
-                        onDeliveryFormChange('deliveryAddress', {
-                          ...deliveryForm.deliveryAddress,
-                          street: value
-                        });
+                        if (useSavedAddress) {
+                          // Updating saved address fields (shouldn't normally happen)
+                          onDeliveryFormChange('deliveryAddress', {
+                            ...deliveryForm.deliveryAddress,
+                            street: value
+                          });
+                        } else {
+                          // Updating new address form (separate state)
+                          onNewAddressChange({
+                            ...newAddressForm,
+                            street: value
+                          });
+                        }
                         // Validate address when user stops typing
                         if (value.length > 10) {
                           setTimeout(() => validateAddress(value), 500);
@@ -1019,11 +1030,20 @@ const DeliveryInformation = ({
                       </label>
                       <input
                         type="text"
-                        value={deliveryForm.deliveryAddress?.city || ''}
-                        onChange={(e) => onDeliveryFormChange('deliveryAddress', {
-                          ...deliveryForm.deliveryAddress,
-                          city: e.target.value
-                        })}
+                        value={useSavedAddress ? (deliveryForm.deliveryAddress?.city || '') : (newAddressForm?.city || '')}
+                        onChange={(e) => {
+                          if (useSavedAddress) {
+                            onDeliveryFormChange('deliveryAddress', {
+                              ...deliveryForm.deliveryAddress,
+                              city: e.target.value
+                            });
+                          } else {
+                            onNewAddressChange({
+                              ...newAddressForm,
+                              city: e.target.value
+                            });
+                          }
+                        }}
                         className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
                         placeholder="City"
                       />
@@ -1035,11 +1055,20 @@ const DeliveryInformation = ({
                       </label>
                       <input
                         type="text"
-                        value={deliveryForm.deliveryAddress?.state || ''}
-                        onChange={(e) => onDeliveryFormChange('deliveryAddress', {
-                          ...deliveryForm.deliveryAddress,
-                          state: e.target.value
-                        })}
+                        value={useSavedAddress ? (deliveryForm.deliveryAddress?.state || '') : (newAddressForm?.state || '')}
+                        onChange={(e) => {
+                          if (useSavedAddress) {
+                            onDeliveryFormChange('deliveryAddress', {
+                              ...deliveryForm.deliveryAddress,
+                              state: e.target.value
+                            });
+                          } else {
+                            onNewAddressChange({
+                              ...newAddressForm,
+                              state: e.target.value
+                            });
+                          }
+                        }}
                         className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
                         placeholder="State"
                       />
@@ -1051,11 +1080,20 @@ const DeliveryInformation = ({
                       </label>
                       <input
                         type="text"
-                        value={deliveryForm.deliveryAddress?.zipCode || ''}
-                        onChange={(e) => onDeliveryFormChange('deliveryAddress', {
-                          ...deliveryForm.deliveryAddress,
-                          zipCode: e.target.value
-                        })}
+                        value={useSavedAddress ? (deliveryForm.deliveryAddress?.zipCode || '') : (newAddressForm?.zipCode || '')}
+                        onChange={(e) => {
+                          if (useSavedAddress) {
+                            onDeliveryFormChange('deliveryAddress', {
+                              ...deliveryForm.deliveryAddress,
+                              zipCode: e.target.value
+                            });
+                          } else {
+                            onNewAddressChange({
+                              ...newAddressForm,
+                              zipCode: e.target.value
+                            });
+                          }
+                        }}
                         onBlur={validateCompleteAddress}
                         className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
                         placeholder="ZIP code"
@@ -1068,11 +1106,20 @@ const DeliveryInformation = ({
                       Delivery Instructions (Optional)
                     </label>
                     <textarea
-                      value={deliveryForm.deliveryAddress?.instructions || ''}
-                      onChange={(e) => onDeliveryFormChange('deliveryAddress', {
-                        ...deliveryForm.deliveryAddress,
-                        instructions: e.target.value
-                      })}
+                      value={useSavedAddress ? (deliveryForm.deliveryAddress?.instructions || '') : (newAddressForm?.instructions || '')}
+                      onChange={(e) => {
+                        if (useSavedAddress) {
+                          onDeliveryFormChange('deliveryAddress', {
+                            ...deliveryForm.deliveryAddress,
+                            instructions: e.target.value
+                          });
+                        } else {
+                          onNewAddressChange({
+                            ...newAddressForm,
+                            instructions: e.target.value
+                          });
+                        }
+                      }}
                       rows={4}
                       className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
                       placeholder="Any special delivery instructions..."

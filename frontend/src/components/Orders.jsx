@@ -932,6 +932,21 @@ export default function Orders() {
                     <p className="text-xl font-bold text-orange-600">
                       ${(order.totalAmount || 0).toFixed(2)}
                     </p>
+                    {/* Delivery Fee Badge - Calculate if not provided */}
+                    {(order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery') && (() => {
+                      const deliveryFee = order.deliveryFee !== undefined && order.deliveryFee !== null 
+                        ? order.deliveryFee 
+                        : Math.max(0, (order.totalAmount || 0) - (order.subtotal || 0));
+                      
+                      if (deliveryFee > 0) {
+                        return (
+                          <p className="text-xs text-gray-600 mt-1">
+                            Includes ${deliveryFee.toFixed(2)} delivery
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
                     <div className="flex gap-2 mt-2">
                       <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.status, order.deliveryMethod)}`}>
                         {getStatusDisplayText(order.status, order.deliveryMethod)}
@@ -1185,6 +1200,21 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
                     <div className="text-right">
                       <p className="font-bold text-gray-900">${(order.totalAmount || 0).toFixed(2)}</p>
                       <p className="text-xs text-gray-500">{order.items.length} items</p>
+                      {/* Calculate delivery fee if not provided */}
+                      {(order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery') && (() => {
+                        const deliveryFee = order.deliveryFee !== undefined && order.deliveryFee !== null 
+                          ? order.deliveryFee 
+                          : Math.max(0, (order.totalAmount || 0) - (order.subtotal || 0));
+                        
+                        if (deliveryFee > 0) {
+                          return (
+                            <p className="text-xs text-gray-600 mt-1">
+                              +${deliveryFee.toFixed(2)} delivery
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
@@ -2095,19 +2125,36 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="space-y-2">
-                {/* Delivery Fee */}
-                {(order.deliveryFee !== undefined && order.deliveryFee !== null && order.deliveryFee > 0) && (
+                {/* Subtotal */}
+                {order.subtotal && (
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">
-                      Delivery Fee
-                      {order.deliveryMethod === 'personalDelivery' && ' (Personal Delivery)'}
-                      {order.deliveryMethod === 'professionalDelivery' && ' (Professional Delivery)'}
-                    </span>
+                    <span className="text-sm text-gray-600">Subtotal</span>
                     <span className="text-sm font-medium text-gray-800">
-                      ${order.deliveryFee.toFixed(2)}
+                      ${order.subtotal.toFixed(2)}
                     </span>
                   </div>
                 )}
+                
+                {/* Delivery Fee - Calculate if not provided */}
+                {(order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery') && (() => {
+                  const deliveryFee = order.deliveryFee !== undefined && order.deliveryFee !== null 
+                    ? order.deliveryFee 
+                    : Math.max(0, (order.totalAmount || 0) - (order.subtotal || 0));
+                  
+                  return (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">
+                        Delivery Fee
+                        {order.deliveryMethod === 'personalDelivery' && ' (Personal)'}
+                        {order.deliveryMethod === 'professionalDelivery' && ' (Professional)'}
+                      </span>
+                      <span className="text-sm font-medium text-gray-800">
+                        ${deliveryFee.toFixed(2)}
+                      </span>
+                    </div>
+                  );
+                })()}
+                
                 {/* Total */}
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-lg font-semibold text-gray-900">Total</span>

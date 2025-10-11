@@ -191,6 +191,14 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
           <div class="product-price" style="font-weight: 600; color: #f59e0b; white-space: nowrap;">$${((item.unitPrice || 0) * (item.quantity || 0)).toFixed(2)}</div>
         </div>
       `).join('')}
+      ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+      <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 10px 0; margin-top: 10px; border-top: 1px solid #e5e5e5;">
+        <div style="font-size: 14px; color: #666;">
+          Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
+        </div>
+        <div style="font-size: 14px; color: #666;">$${orderData.deliveryFee.toFixed(2)}</div>
+      </div>
+      ` : ''}
       <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #333;">
         <div style="font-weight: bold; font-size: 16px;">Total</div>
         <div style="font-weight: bold; font-size: 16px; color: #f59e0b;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
@@ -515,6 +523,9 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
         <div class="order-summary" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
           <p style="margin: 5px 0;"><strong>Order Number:</strong> #${orderData.orderNumber}</p>
           <p style="margin: 5px 0;"><strong>Order Date:</strong> ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+          <p style="margin: 5px 0;"><strong>Delivery Fee:</strong> $${orderData.deliveryFee.toFixed(2)} ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}</p>
+          ` : ''}
           <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: #f59e0b; font-size: 18px; font-weight: bold;">$${(orderData.totalAmount || 0).toFixed(2)}</span></p>
         </div>
         
@@ -523,6 +534,14 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
         <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="color: #333; margin-top: 0;">Order Items</h3>
           ${orderItems}
+          ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+          <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 10px 0; margin-top: 10px; border-top: 1px solid #e5e5e5;">
+            <div style="font-size: 14px; color: #666;">
+              Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
+            </div>
+            <div style="font-size: 14px; color: #666;">$${orderData.deliveryFee.toFixed(2)}</div>
+          </div>
+          ` : ''}
           <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #333;">
             <div style="font-weight: bold; font-size: 16px;">Total</div>
             <div style="font-weight: bold; font-size: 16px; color: #f59e0b;">$${(orderData.totalAmount || 0).toFixed(2)}</div>

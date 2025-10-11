@@ -574,19 +574,34 @@ export default function OrderConfirmation() {
                 </span>
               </div>
               
-              {/* Delivery Fee */}
-              {orders.some(order => order.deliveryFee && order.deliveryFee > 0) && (
-                <div className="flex justify-between items-center">
-                  <span className="text-lg text-stone-700 print:text-base">
-                    Delivery Fee
-                    {orders[0]?.deliveryMethod === 'personalDelivery' && ' (Personal Delivery)'}
-                    {orders[0]?.deliveryMethod === 'professionalDelivery' && ' (Professional Delivery)'}
-                  </span>
-                  <span className="text-lg font-semibold text-stone-800 print:text-base">
-                    ${orders.reduce((sum, order) => sum + (order.deliveryFee || 0), 0).toFixed(2)}
-                  </span>
-                </div>
-              )}
+              {/* Delivery Fee - Show for any delivery method */}
+              {orders.some(order => 
+                (order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery')
+              ) && (() => {
+                // Calculate delivery fee: If not provided, calculate from totalAmount - subtotal
+                const calculatedDeliveryFee = orders.reduce((sum, order) => {
+                  if (order.deliveryFee !== undefined && order.deliveryFee !== null) {
+                    return sum + order.deliveryFee;
+                  }
+                  // Calculate from total - subtotal
+                  const orderSubtotal = order.subtotal || order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0) || 0;
+                  const orderTotal = order.totalAmount || 0;
+                  return sum + Math.max(0, orderTotal - orderSubtotal);
+                }, 0);
+                
+                return (
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg text-stone-700 print:text-base">
+                      Delivery Fee
+                      {orders[0]?.deliveryMethod === 'personalDelivery' && ' (Personal)'}
+                      {orders[0]?.deliveryMethod === 'professionalDelivery' && ' (Professional)'}
+                    </span>
+                    <span className="text-lg font-semibold text-stone-800 print:text-base">
+                      ${calculatedDeliveryFee.toFixed(2)}
+                    </span>
+                  </div>
+                );
+              })()}
               
               {/* Total Amount */}
               <div className="flex justify-between items-center pt-3 border-t border-stone-200 print:border-gray-300">

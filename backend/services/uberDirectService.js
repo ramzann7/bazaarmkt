@@ -42,19 +42,30 @@ class UberDirectService {
       }
 
       const authEndpoint = `${this.authURL}/oauth/v2/token`;
+      
+      // Try different scopes based on environment
+      const possibleScopes = [
+        'delivery',           // Most common for Uber Direct
+        'delivery.sandbox',   // Sandbox version
+        'eats.deliveries',    // Uber Eats deliveries
+        'direct_delivery'     // Alternative naming
+      ];
+      
+      const scopeToTry = this.isSandbox ? 'delivery.sandbox' : 'delivery';
+      
       console.log('🔐 Attempting Uber OAuth:', {
         endpoint: authEndpoint,
         clientIdLength: this.clientId?.length,
-        note: 'Trying without scope for client_credentials'
+        scope: scopeToTry,
+        mode: this.isSandbox ? 'sandbox' : 'production'
       });
       
       // Uber OAuth requires form-urlencoded, not JSON
-      // For client_credentials grant type, scope may not be required
       const params = new URLSearchParams({
         client_id: this.clientId,
         client_secret: this.clientSecret,
-        grant_type: 'client_credentials'
-        // Omit scope - may not be needed for client_credentials
+        grant_type: 'client_credentials',
+        scope: scopeToTry
       });
       
       const response = await axios.post(authEndpoint, params.toString(), {

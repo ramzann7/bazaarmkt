@@ -693,6 +693,7 @@ export default function SearchResults() {
                 showDistance={!!product.formattedDistance}
                 showRating={true}
                 showImagePreview={true}
+                compact={true}
               />
             ))}
           </div>

@@ -18,9 +18,11 @@ const ProductCard = ({
   showDistance = false, 
   showImagePreview = true,
   showRating = true,
-  showVisitShop = true, // Control visibility of Visit Shop link
+  showVisitShop = true, // Control visibility of Visit Shop button
+  showAddToCart = false, // Control visibility of Add to Cart button (for artisan shop)
   onProductClick,
-  className = ''
+  className = '',
+  compact = false // Compact mode for smaller cards
 }) => {
   const [showCartPopup, setShowCartPopup] = useState(false);
   
@@ -70,7 +72,7 @@ const ProductCard = ({
 
   const outOfStockStatus = getOutOfStockStatus();
 
-  // Handle product click
+  // Handle product click - Open Add to Cart popup
   const handleProductClick = () => {
     if (outOfStockStatus.isOutOfStock) {
       return; // Don't allow clicking on out of stock products
@@ -78,6 +80,7 @@ const ProductCard = ({
     if (onProductClick) {
       onProductClick(product);
     } else {
+      // Open cart popup when card is clicked
       setShowCartPopup(true);
     }
   };
@@ -90,12 +93,12 @@ const ProductCard = ({
   return (
     <>
       <div 
-        className={`card product-card group relative bg-surface ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${className}`}
+        className={`card product-card group relative bg-surface ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${compact ? 'p-3' : ''} ${className}`}
         onClick={handleProductClick}
-        title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : "Select this artisan product"}
+        title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : "Click to add to cart"}
       >
         {/* Product Image */}
-        <div className="relative w-full h-56 overflow-hidden">
+        <div className={`relative w-full ${compact ? 'h-40' : 'h-56'} overflow-hidden`}>
           <img
             src={getImageUrl(
               (() => {
@@ -132,54 +135,59 @@ const ProductCard = ({
         </div>
 
         {/* Product details */}
-        <div className="p-3 sm:p-4">
+        <div className={`${compact ? 'p-2' : 'p-3 sm:p-4'}`}>
           {/* Product name */}
-          <h3 className={`font-semibold text-secondary line-clamp-2 text-sm sm:text-base leading-snug mb-1 ${outOfStockStatus.isOutOfStock ? 'text-secondary/50' : 'group-hover:text-primary transition-colors'}`}>
+          <h3 className={`font-semibold text-secondary line-clamp-2 ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} leading-snug mb-1 ${outOfStockStatus.isOutOfStock ? 'text-secondary/50' : 'group-hover:text-primary transition-colors'}`}>
             {product.name}
           </h3>
           
-          {/* Artisan name with Visit Shop link */}
+          {/* Artisan name */}
           {product.artisan && (product.artisan.artisanName || product.artisan.businessName) ? (
-            <div className="flex items-center justify-between mb-2 gap-2">
-              <p className="text-xs sm:text-sm text-secondary/60 line-clamp-1 flex-1">
-                by {product.artisan.artisanName || product.artisan.businessName}
-              </p>
-              {showVisitShop && product.artisan._id && (
-                <Link
-                  to={`/artisan/${product.artisan._id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-xs font-medium text-primary hover:text-primary-dark hover:underline whitespace-nowrap flex-shrink-0"
-                >
-                  Visit Shop →
-                </Link>
-              )}
-            </div>
+            <p className={`${compact ? 'text-[10px] mb-1' : 'text-xs sm:text-sm mb-2'} text-secondary/60 line-clamp-1`}>
+              by {product.artisan.artisanName || product.artisan.businessName}
+            </p>
           ) : (
-            <div className="h-4 w-24 bg-gray-200 animate-pulse rounded mb-2"></div>
+            <div className={`h-4 w-24 bg-gray-200 animate-pulse rounded ${compact ? 'mb-1' : 'mb-2'}`}></div>
           )}
           
           {/* Rating */}
           {showRating && (
-            <div className="flex items-center space-x-1 mb-3">
+            <div className={`flex items-center space-x-1 ${compact ? 'mb-2' : 'mb-3'}`}>
               {renderStars(product.artisan?.rating?.average || product.rating || 0)}
-              <span className="text-xs text-gray-500">
+              <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
                 ({(product.artisan?.rating?.average || product.rating || 0).toFixed(1)})
               </span>
             </div>
           )}
           
-          {/* Price and Add to Cart */}
-          <div className="flex items-center justify-between">
-            <span className={`font-bold text-base sm:text-lg ${outOfStockStatus.isOutOfStock ? 'text-secondary/40 line-through' : 'text-primary'}`}>
-              {outOfStockStatus.isOutOfStock ? 'Sold Out' : formatPrice(product.price)}
-            </span>
-            {!outOfStockStatus.isOutOfStock && (
+          {/* Price and CTAs Row */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Price */}
+            <div className="flex-1">
+              <span className={`font-bold ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} ${outOfStockStatus.isOutOfStock ? 'text-secondary/40 line-through' : 'text-primary'}`}>
+                {outOfStockStatus.isOutOfStock ? 'Sold Out' : formatPrice(product.price)}
+              </span>
+            </div>
+            
+            {/* Visit Shop Button - Bottom Right */}
+            {showVisitShop && product.artisan?._id && !outOfStockStatus.isOutOfStock && (
+              <Link
+                to={`/artisan/${product.artisan._id}`}
+                onClick={(e) => e.stopPropagation()}
+                className={`btn-primary whitespace-nowrap flex-shrink-0 ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'}`}
+              >
+                Visit Shop →
+              </Link>
+            )}
+            
+            {/* Add to Cart Button (for artisan shop) - Bottom Right */}
+            {showAddToCart && !outOfStockStatus.isOutOfStock && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowCartPopup(true);
                 }}
-                className="btn-primary px-4 py-2 text-sm"
+                className={`btn-primary whitespace-nowrap flex-shrink-0 ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'}`}
               >
                 Add to Cart
               </button>

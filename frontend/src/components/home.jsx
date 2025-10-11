@@ -67,6 +67,8 @@ export default function Home() {
   const [nearbyProducts, setNearbyProducts] = useState([]);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
   const [isLoadingPopular, setIsLoadingPopular] = useState(true);
+  const [showAllFeatured, setShowAllFeatured] = useState(false);
+  const [showAllPopular, setShowAllPopular] = useState(false);
 
   // Helper function to filter out out-of-stock products
   const filterInStockProducts = (products) => {
@@ -1001,50 +1003,96 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products - Horizontal Scroll */}
+      {/* Featured Products - Grid */}
       <section className="py-6 sm:py-8 lg:py-10 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary">Featured Products</h2>
+            {availableFeaturedProducts.length > 8 && (
+              <button
+                onClick={() => setShowAllFeatured(!showAllFeatured)}
+                className="text-orange-600 hover:text-orange-700 font-medium text-sm flex items-center gap-2 transition-all"
+              >
+                {showAllFeatured ? (
+                  <>
+                    Show Less
+                    <MinusIcon className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    View All ({availableFeaturedProducts.length})
+                    <PlusIcon className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Products Grid */}
           {isLoadingFeatured ? (
-            <>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary mb-4">Featured Products</h2>
-              <div className="flex gap-6 overflow-hidden">
-                {[...Array(4)].map((_, index) => (
-                  <div key={index} className="w-[280px] flex-shrink-0">
-                    <ProductSkeleton />
-                  </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {[...Array(8)].map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          ) : availableFeaturedProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {availableFeaturedProducts
+                .slice(0, showAllFeatured ? 12 : 8)
+                .map((product) => (
+                  <ProductCard key={product._id} product={product} compact />
                 ))}
-              </div>
-            </>
+            </div>
           ) : (
-            <HorizontalProductScroll
-              title="Featured Products"
-              products={availableFeaturedProducts}
-              backgroundColor="#FCFBF8"
-            />
+            <p className="text-gray-500 text-center py-8">No featured products available</p>
           )}
         </div>
       </section>
 
-      {/* Popular Products - Horizontal Scroll */}
+      {/* Popular Products - Grid */}
       <section className="py-4 sm:py-6 lg:py-8 bg-white">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary">Popular Products</h2>
+            {availablePopularProducts.length > 8 && (
+              <button
+                onClick={() => setShowAllPopular(!showAllPopular)}
+                className="text-orange-600 hover:text-orange-700 font-medium text-sm flex items-center gap-2 transition-all"
+              >
+                {showAllPopular ? (
+                  <>
+                    Show Less
+                    <MinusIcon className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    View All ({availablePopularProducts.length})
+                    <PlusIcon className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          {/* Products Grid */}
           {isLoadingPopular ? (
-            <>
-              <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary mb-4">Popular Products</h2>
-              <div className="flex gap-6 overflow-hidden">
-                {[...Array(4)].map((_, index) => (
-                  <div key={index} className="w-[280px] flex-shrink-0">
-                    <ProductSkeleton />
-                  </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {[...Array(8)].map((_, index) => (
+                <ProductSkeleton key={index} />
+              ))}
+            </div>
+          ) : availablePopularProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+              {availablePopularProducts
+                .slice(0, showAllPopular ? 12 : 8)
+                .map((product) => (
+                  <ProductCard key={product._id} product={product} compact />
                 ))}
-              </div>
-            </>
+            </div>
           ) : (
-            <HorizontalProductScroll
-              title="Popular Products"
-              products={availablePopularProducts}
-              backgroundColor="#ffffff"
-            />
+            <p className="text-gray-500 text-center py-8">No popular products available</p>
           )}
         </div>
       </section>

@@ -610,6 +610,8 @@ export default function ArtisanShop() {
                       showImagePreview={true}
                       showRating={false}
                       showVisitShop={false}
+                      showAddToCart={true}
+                      compact={true}
                     />
                   ))}
                 </div>

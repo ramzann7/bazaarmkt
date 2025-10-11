@@ -1794,23 +1794,34 @@ const Cart = () => {
   // Load delivery options when cart data or user location changes
   useEffect(() => {
     if (Object.keys(cartByArtisan).length > 0) {
+      // For logged-in users, wait for profile to load before loading delivery options
+      // For guests, load immediately since there's no profile to wait for
+      if (!isGuest && !userProfile) {
+        console.log('⏳ Waiting for user profile to load before loading delivery options');
+        return;
+      }
+      
       // Create a key to track if we've already loaded for this cart state
       const cartKey = JSON.stringify({
         artisanIds: Object.keys(cartByArtisan),
-        userLocation: userLocation ? `${userLocation.latitude},${userLocation.longitude}` : 'no-location'
+        userLocation: userLocation ? `${userLocation.latitude},${userLocation.longitude}` : 'no-location',
+        hasProfile: !!userProfile
       });
       
       // Only load if we haven't loaded for this exact cart state
       if (loadedOptionsRef.current !== cartKey) {
-        console.log('🔄 Loading delivery options for new cart state');
+        console.log('🔄 Loading delivery options for new cart state', {
+          isGuest,
+          hasProfile: !!userProfile
+        });
         loadedOptionsRef.current = cartKey;
-      loadDeliveryOptions();
-      loadPickupTimeWindows();
+        loadDeliveryOptions();
+        loadPickupTimeWindows();
       } else {
         console.log('🔄 Skipping delivery options load - already loaded for this cart state');
       }
     }
-  }, [cartByArtisan, userLocation]);
+  }, [cartByArtisan, userLocation, userProfile, isGuest]);
 
   // Load user profile immediately when user is authenticated
   useEffect(() => {

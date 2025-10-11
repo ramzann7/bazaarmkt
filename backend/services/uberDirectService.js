@@ -45,14 +45,22 @@ class UberDirectService {
       console.log('🔐 Attempting Uber OAuth:', {
         endpoint: authEndpoint,
         clientIdLength: this.clientId?.length,
-        scope: 'eats.deliveries direct.organizations'
+        note: 'Trying without scope for client_credentials'
       });
       
-      const response = await axios.post(authEndpoint, {
+      // Uber OAuth requires form-urlencoded, not JSON
+      // For client_credentials grant type, scope may not be required
+      const params = new URLSearchParams({
         client_id: this.clientId,
         client_secret: this.clientSecret,
-        grant_type: 'client_credentials',
-        scope: 'eats.deliveries direct.organizations'
+        grant_type: 'client_credentials'
+        // Omit scope - may not be needed for client_credentials
+      });
+      
+      const response = await axios.post(authEndpoint, params.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       });
 
       console.log('✅ Uber OAuth successful');

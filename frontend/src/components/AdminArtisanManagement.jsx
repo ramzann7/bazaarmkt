@@ -425,11 +425,11 @@ export default function AdminArtisanManagement() {
                     {/* Status */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => handleStatusChange(artisan._id, artisan.isActive ? 'inactive' : 'active')}
-                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full hover:opacity-80 transition-all duration-200 cursor-pointer ${getStatusBadge(artisan.isActive ? 'active' : 'inactive')}`}
-                        title={`Click to ${artisan.isActive ? 'deactivate' : 'activate'} this artisan`}
+                        onClick={() => handleStatusChange(artisan._id, artisan.status?.isActive ? 'inactive' : 'active')}
+                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full hover:opacity-80 transition-all duration-200 cursor-pointer ${getStatusBadge(artisan.status?.isActive ? 'active' : 'inactive')}`}
+                        title={`Click to ${artisan.status?.isActive ? 'deactivate' : 'activate'} this artisan`}
                       >
-                        {artisan.isActive ? (
+                        {artisan.status?.isActive ? (
                           <>
                             <CheckIcon className="w-3 h-3 mr-1" />
                             Active
@@ -446,11 +446,11 @@ export default function AdminArtisanManagement() {
                     {/* Verification */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => handleVerificationToggle(artisan._id, artisan.isVerified)}
-                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full hover:opacity-80 transition-all duration-200 cursor-pointer ${getVerificationBadge(artisan.isVerified)}`}
-                        title={`Click to ${artisan.isVerified ? 'unverify' : 'verify'} this artisan`}
+                        onClick={() => handleVerificationToggle(artisan._id, artisan.status?.isVerified)}
+                        className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full hover:opacity-80 transition-all duration-200 cursor-pointer ${getVerificationBadge(artisan.status?.isVerified)}`}
+                        title={`Click to ${artisan.status?.isVerified ? 'unverify' : 'verify'} this artisan`}
                       >
-                        {artisan.isVerified ? (
+                        {artisan.status?.isVerified ? (
                           <>
                             <CheckIcon className="w-3 h-3 mr-1" />
                             Verified

@@ -404,7 +404,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
                   <p className="text-xs text-stone-500 capitalize">{artisan.type.replace('_', ' ')}</p>
                   <div className="flex items-center space-x-2 mt-1">
                     <StarIcon className="w-3 h-3 text-primary-400" />
-                    <span className="text-xs text-gray-600">{artisan.rating}</span>
+                    <span className="text-xs text-gray-600">{artisan.metrics?.rating || 0}</span>
                     <span className="text-xs text-stone-500">•</span>
                     <span className="text-xs text-stone-500">{artisan.products} products</span>
                   </div>
@@ -728,7 +728,7 @@ function FavoritesTab({ favoriteArtisans }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <StarIcon className="w-4 h-4 text-primary-400" />
-                  <span className="text-sm text-gray-600">{artisan.rating}</span>
+                  <span className="text-sm text-gray-600">{artisan.metrics?.rating || 0}</span>
                   <span className="text-sm text-stone-500">•</span>
                   <span className="text-sm text-stone-500">{artisan.products} products</span>
                 </div>

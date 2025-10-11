@@ -96,7 +96,7 @@ const SpotlightArtisans = () => {
               <div 
                 className="h-28 bg-cover bg-center"
                 style={{
-                  backgroundImage: `url(${getImageUrl(artisan.photos?.main || artisan.businessImage, { width: 260, height: 112, quality: 80 })})`
+                  backgroundImage: `url(${getImageUrl(artisan.images?.business, { width: 260, height: 112, quality: 80 })})`
                 }}
               >
                 <div className="w-full h-full bg-gradient-to-t from-black/20 to-transparent"></div>
@@ -108,7 +108,7 @@ const SpotlightArtisans = () => {
                   {/* Avatar */}
                   <div className="w-12 h-12 rounded-lg overflow-hidden bg-white shadow-sm">
                     <img
-                      src={getImageUrl(artisan.photos?.avatar || artisan.profileImage, { width: 48, height: 48, quality: 80 })}
+                      src={getImageUrl(artisan.images?.profile, { width: 48, height: 48, quality: 80 })}
                       alt={artisan.artisanName}
                       className="w-full h-full object-cover"
                     />

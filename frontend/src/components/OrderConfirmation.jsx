@@ -390,9 +390,7 @@ export default function OrderConfirmation() {
                               <div className="flex items-center gap-1">
                                 <span className="text-yellow-500 print:text-gray-600">⭐</span>
                                 <span className="text-xs text-stone-600">
-                                  {typeof order.artisan.rating === 'object' 
-                                    ? (order.artisan.rating.average || 0).toFixed(1)
-                                    : (order.artisan.rating || 0).toFixed(1)}/5
+                                  {(order.artisan.metrics?.rating || 0).toFixed(1)}/5
                                 </span>
                               </div>
                             )}

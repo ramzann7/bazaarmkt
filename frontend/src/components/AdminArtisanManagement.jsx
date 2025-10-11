@@ -103,12 +103,12 @@ export default function AdminArtisanManagement() {
     // Apply status filter
     if (selectedStatus !== 'all') {
       if (selectedStatus === 'verified') {
-        filtered = filtered.filter(artisan => artisan.isVerified === true);
+        filtered = filtered.filter(artisan => artisan.status?.isVerified === true);
       } else if (selectedStatus === 'unverified') {
-        filtered = filtered.filter(artisan => artisan.isVerified === false);
+        filtered = filtered.filter(artisan => artisan.status?.isVerified === false);
       } else {
         filtered = filtered.filter(artisan => 
-          (artisan.isActive ? 'active' : 'inactive') === selectedStatus
+          (artisan.status?.isActive ? 'active' : 'inactive') === selectedStatus
         );
       }
     }
@@ -345,10 +345,10 @@ export default function AdminArtisanManagement() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          {artisan.photos && artisan.photos.length > 0 ? (
+                          {artisan.images?.gallery && artisan.images.gallery.length > 0 ? (
                             <img
                               className="h-10 w-10 rounded-full object-cover"
-                              src={artisan.photos[0]}
+                              src={artisan.images.gallery[0]}
                               alt={artisan.artisanName}
                             />
                           ) : (
@@ -362,13 +362,13 @@ export default function AdminArtisanManagement() {
                             <div className="text-sm font-medium text-gray-900">
                               {artisan.artisanName}
                             </div>
-                            {artisan.isVerified && (
+                            {artisan.status?.isVerified && (
                               <div className="flex items-center bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                 <CheckIcon className="w-3 h-3 mr-1" />
                                 Verified
                               </div>
                             )}
-                            {!artisan.isActive && (
+                            {!artisan.status?.isActive && (
                               <div className="flex items-center bg-red-100 text-red-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
                                 <XMarkIcon className="w-3 h-3 mr-1" />
                                 Inactive

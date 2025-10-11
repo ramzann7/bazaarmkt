@@ -245,8 +245,8 @@ export default function Community() {
         if (response.data[0]?.artisan) {
           console.log('📥 FRONTEND RECEIVED - First post artisan:', {
             artisanName: response.data[0].artisan.artisanName,
-            hasBusinessImage: !!response.data[0].artisan.businessImage,
-            businessImageLength: response.data[0].artisan.businessImage?.length || 0,
+            hasBusinessImage: !!response.data[0].artisan.images?.business,
+            businessImageLength: response.data[0].artisan.images?.business?.length || 0,
             artisanKeys: Object.keys(response.data[0].artisan)
           });
         }
@@ -1499,7 +1499,7 @@ export default function Community() {
                             <span className="font-medium text-gray-900 group-hover:text-primary-dark transition-colors truncate">
                               {artisan.artisanName}
                             </span>
-                            {artisan.isVerified && (
+                            {artisan.status?.isVerified && (
                               <CheckCircleIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
                             )}
                           </div>

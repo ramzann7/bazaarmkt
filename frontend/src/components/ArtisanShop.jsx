@@ -417,7 +417,7 @@ export default function ArtisanShop() {
         <SocialMetaTags
           title={`${artisan.artisanName || artisan.businessName || 'Artisan Shop'} - Handmade Products`}
           description={`Discover unique handmade products from ${artisan.artisanName || artisan.businessName || 'this talented artisan'}. ${artisan.tagline || artisan.bio || 'Support local artisans and find one-of-a-kind items!'}`}
-          image={artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner || '/default-artisan-banner.jpg'}
+          image={artisan.images?.business || artisan.bannerImage || artisan.banner || artisan.shopBanner || '/default-artisan-banner.jpg'}
           url={window.location.href}
           type="website"
           siteName="Artisan Marketplace"
@@ -441,7 +441,7 @@ export default function ArtisanShop() {
                   <h1 className="text-3xl font-bold text-text font-display">
                     {artisan.artisanName || artisan.name || artisan.shopName || 'Artisan Shop'}
                   </h1>
-                  {artisan.isVerified && (
+                  {artisan.status?.isVerified && (
                     <div className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
                       <CheckCircleIcon className="w-4 h-4 mr-1" />
                       Verified
@@ -504,15 +504,15 @@ export default function ArtisanShop() {
             {/* Business Image Banner - Right Side */}
             <div className="w-full lg:w-2/3">
               <div className="h-64 md:h-80 bg-gradient-to-r from-accent/20 to-accent/10 rounded-2xl relative overflow-hidden">
-                {artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? (
+                {artisan.images?.business || artisan.bannerImage || artisan.banner || artisan.shopBanner ? (
                   <img 
-                    src={getImageUrl(artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner, { width: 800, height: 300, quality: 85 })} 
+                    src={getImageUrl(artisan.images?.business || artisan.bannerImage || artisan.banner || artisan.shopBanner, { width: 800, height: 300, quality: 85 })} 
                     alt={`${artisan.artisanName} business`}
                     className="w-full h-full object-cover"
                     onError={(e) => handleImageError(e, 'artisan-banner')}
                   />
                 ) : null}
-                <div className={`w-full h-full bg-gradient-to-br from-accent/30 to-accent/20 flex items-center justify-center ${artisan.businessImage || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
+                <div className={`w-full h-full bg-gradient-to-br from-accent/30 to-accent/20 flex items-center justify-center ${artisan.images?.business || artisan.bannerImage || artisan.banner || artisan.shopBanner ? 'hidden' : ''}`}>
                   <CameraIcon className="w-16 h-16 text-accent opacity-50" />
                 </div>
                 

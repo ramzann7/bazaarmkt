@@ -449,7 +449,7 @@ const Cart = () => {
       
       // Process each artisan's delivery options
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
-        if (artisanData.artisan?.deliveryOptions || artisanData.artisan?.professionalDelivery) {
+        if (artisanData.artisan?.fulfillment?.methods) {
           // Use the delivery service to structure options with user location and artisan data
           const processedOptions = deliveryService.getDeliveryOptions(
             artisanData.artisan,
@@ -579,7 +579,7 @@ const Cart = () => {
       
       // Process each artisan's cart items
       for (const [artisanId, artisanData] of Object.entries(cartByArtisan)) {
-        if (artisanData.artisan?.pickupSchedule) {
+        if (artisanData.artisan?.fulfillment?.methods?.pickup?.schedule || artisanData.artisan?.hours?.schedule) {
           // Fetch full product details for each item to get accurate availability
           const artisanEnhancedProducts = [];
           
@@ -617,7 +617,7 @@ const Cart = () => {
           }));
           
           const availableSlots = pickupTimeService.generateAvailableTimeSlots(
-            artisanData.artisan.pickupSchedule,
+            artisanData.artisan.fulfillment?.methods?.pickup?.schedule || artisanData.artisan.hours?.schedule || {},
             artisanEnhancedProducts,
             10 // 10 days ahead to provide more options
           );
@@ -821,7 +821,7 @@ const Cart = () => {
             
             console.log(`🔍 Calculated distance:`, distance, typeof distance);
             
-            const deliveryRadius = artisanData.artisan.deliveryOptions?.deliveryRadius || 0;
+            const deliveryRadius = artisanData.artisan.fulfillment?.methods?.delivery?.radius || 0;
             
             // Check if distance calculation failed
             if (isNaN(distance)) {
@@ -887,7 +887,7 @@ const Cart = () => {
             validationResults[artisanId] = {
               valid: false,
               distance: 0,
-              radius: artisanData.artisan.deliveryOptions?.deliveryRadius || 0,
+              radius: artisanData.artisan.fulfillment?.methods?.delivery?.radius || 0,
               artisanName: artisanData.artisan.artisanName,
               error: 'Invalid coordinates'
             };

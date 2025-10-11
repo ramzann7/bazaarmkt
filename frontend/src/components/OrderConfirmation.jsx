@@ -827,11 +827,13 @@ export default function OrderConfirmation() {
                         <h4 className="text-sm font-medium text-emerald-800 mb-2">📍 Pickup Location</h4>
                         
                         {/* Pickup Location Description */}
-                        {pickupOrder.artisan?.pickupLocation && (
+                        {pickupOrder.artisan?.fulfillment?.methods?.pickup?.location && (
                           <div className="mb-3">
                             <p className="text-sm font-medium text-emerald-800 mb-1">Location Details</p>
                             <p className="text-sm text-emerald-700">
-                              {pickupOrder.artisan.pickupLocation}
+                              {typeof pickupOrder.artisan.fulfillment.methods.pickup.location === 'string' 
+                                ? pickupOrder.artisan.fulfillment.methods.pickup.location
+                                : `${pickupOrder.artisan.fulfillment.methods.pickup.location.street}, ${pickupOrder.artisan.fulfillment.methods.pickup.location.city}`}
                             </p>
                           </div>
                         )}

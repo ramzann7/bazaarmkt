@@ -86,23 +86,26 @@ export const deliveryService = {
   // Get delivery options for an artisan
   getDeliveryOptions: (artisan, userLocation = null, isGuestUser = false, isPatronUser = false, hasDeliveryAddress = false) => {
     console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan);
-    console.log('🔄 Artisan deliveryOptions:', artisan.deliveryOptions);
+    console.log('🔄 Artisan fulfillment:', artisan.fulfillment);
     console.log('🔄 User location:', userLocation);
     console.log('🔄 Is guest user:', isGuestUser);
     console.log('🔄 Is patron user:', isPatronUser);
     console.log('🔄 Has delivery address:', hasDeliveryAddress);
     
-    const options = artisan.deliveryOptions || {
-      pickup: true,
-      delivery: false,
-      deliveryRadius: 0,
-      deliveryFee: 0,
-      freeDeliveryThreshold: 0,
+    // Extract delivery settings from new unified schema: fulfillment.methods
+    const fulfillmentMethods = artisan.fulfillment?.methods || {};
+    
+    const options = {
+      pickup: fulfillmentMethods.pickup?.enabled ?? true,
+      delivery: fulfillmentMethods.delivery?.enabled ?? false,
+      deliveryRadius: fulfillmentMethods.delivery?.radius ?? 0,
+      deliveryFee: fulfillmentMethods.delivery?.fee ?? 0,
+      freeDeliveryThreshold: 0, // Can be added to schema later
       professionalDelivery: {
-        enabled: false,
-        uberDirectEnabled: false,
+        enabled: fulfillmentMethods.professionalDelivery?.enabled ?? false,
+        uberDirectEnabled: false, // Can be added to schema later
         serviceRadius: 25,
-        regions: [],
+        regions: fulfillmentMethods.professionalDelivery?.regions || [],
         packaging: '',
         restrictions: ''
       }
@@ -119,18 +122,23 @@ export const deliveryService = {
       willBeAvailable: options.delivery || (options.deliveryRadius > 0 && options.deliveryFee >= 0)
     });
 
-    // Determine pickup address
-    let pickupAddress = artisan.pickupLocation || '';
+    // Determine pickup address from new unified schema
+    let pickupAddress = '';
     let pickupAddressDetails = null;
     
-    if (artisan.pickupUseBusinessAddress && artisan.address) {
+    const pickupLocation = fulfillmentMethods.pickup?.location;
+    const useBusinessAddress = fulfillmentMethods.pickup?.useBusinessAddress ?? true;
+    
+    if (useBusinessAddress && artisan.address) {
       // Use business address from overview
       pickupAddress = `${artisan.address.street}, ${artisan.address.city}, ${artisan.address.state} ${artisan.address.zipCode}`;
       pickupAddressDetails = artisan.address;
-    } else if (artisan.pickupAddress) {
+    } else if (pickupLocation) {
       // Use custom pickup address
-      pickupAddress = `${artisan.pickupAddress.street}, ${artisan.pickupAddress.city}, ${artisan.pickupAddress.state} ${artisan.pickupAddress.zipCode}`;
-      pickupAddressDetails = artisan.pickupAddress;
+      pickupAddress = typeof pickupLocation === 'string' 
+        ? pickupLocation 
+        : `${pickupLocation.street}, ${pickupLocation.city}, ${pickupLocation.state} ${pickupLocation.zipCode}`;
+      pickupAddressDetails = typeof pickupLocation === 'string' ? null : pickupLocation;
     }
 
     // Check if personal delivery is configured and show availability status
@@ -155,10 +163,10 @@ export const deliveryService = {
         icon: '🏪',
         location: pickupAddress,
         address: pickupAddressDetails,
-        instructions: artisan.pickupInstructions || '',
-        hours: artisan.pickupHours || '',
-        schedule: artisan.pickupSchedule || null,
-        useBusinessAddress: artisan.pickupUseBusinessAddress || false
+        instructions: fulfillmentMethods.pickup?.instructions || '',
+        hours: artisan.pickupHours || '', // Legacy field, can be removed later
+        schedule: fulfillmentMethods.pickup?.schedule || null,
+        useBusinessAddress: useBusinessAddress
       },
       personalDelivery: {
         available: personalDeliveryAvailable,
@@ -170,20 +178,20 @@ export const deliveryService = {
         radius: options.deliveryRadius || 0,
         freeThreshold: options.freeDeliveryThreshold || 0,
         icon: '🚚',
-        instructions: artisan.deliveryInstructions || '',
+        instructions: fulfillmentMethods.delivery?.instructions || '',
         properlyConfigured: options.delivery && options.deliveryRadius > 0 && options.deliveryFee >= 0,
         reason: personalDeliveryReason
       },
       professionalDelivery: {
-        available: artisan.professionalDelivery?.enabled || false,
+        available: options.professionalDelivery?.enabled || false,
         label: 'Professional Delivery',
         description: 'Professional delivery via Uber Direct',
         icon: '🚛',
-        uberDirectEnabled: artisan.professionalDelivery?.uberDirectEnabled || false,
-        serviceRadius: artisan.professionalDelivery?.serviceRadius || 25,
-        regions: artisan.professionalDelivery?.regions || [],
-        packaging: artisan.professionalDelivery?.packaging || '',
-        restrictions: artisan.professionalDelivery?.restrictions || ''
+        uberDirectEnabled: options.professionalDelivery?.uberDirectEnabled || false,
+        serviceRadius: options.professionalDelivery?.serviceRadius || 25,
+        regions: options.professionalDelivery?.regions || [],
+        packaging: options.professionalDelivery?.packaging || '',
+        restrictions: options.professionalDelivery?.restrictions || ''
       }
     };
   },

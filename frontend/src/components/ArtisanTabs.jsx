@@ -1135,32 +1135,32 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
 
   const [delivery, setDelivery] = useState({
     pickup: {
-      enabled: profile.deliveryOptions?.pickup !== false,
-      location: profile.pickupLocation || '',
-      instructions: profile.pickupInstructions || '',
+      enabled: profile.fulfillment?.methods?.pickup?.enabled !== false,
+      location: profile.fulfillment?.methods?.pickup?.location || '',
+      instructions: profile.fulfillment?.methods?.pickup?.instructions || '',
       hours: profile.pickupHours || '',
-      useBusinessAddress: profile.pickupUseBusinessAddress !== false, // Default to true if not set
+      useBusinessAddress: profile.fulfillment?.methods?.pickup?.useBusinessAddress !== false, // Default to true if not set
       address: {
-        street: profile.pickupAddress?.street || '',
-        city: profile.pickupAddress?.city || '',
-        state: profile.pickupAddress?.state || '',
-        zipCode: profile.pickupAddress?.zipCode || ''
+        street: profile.fulfillment?.methods?.pickup?.location?.street || '',
+        city: profile.fulfillment?.methods?.pickup?.location?.city || '',
+        state: profile.fulfillment?.methods?.pickup?.location?.state || '',
+        zipCode: profile.fulfillment?.methods?.pickup?.location?.zipCode || ''
       },
-      schedule: normalizePickupSchedule(profile.pickupSchedule)
+      schedule: normalizePickupSchedule(profile.fulfillment?.methods?.pickup?.schedule)
     },
     personalDelivery: {
-      enabled: profile.deliveryOptions?.delivery || false,
-      radius: profile.deliveryOptions?.deliveryRadius || 10,
-      fee: profile.deliveryOptions?.deliveryFee || 5,
+      enabled: profile.fulfillment?.methods?.delivery?.enabled || false,
+      radius: profile.fulfillment?.methods?.delivery?.radius || 10,
+      fee: profile.fulfillment?.methods?.delivery?.fee || 5,
       freeThreshold: profile.deliveryOptions?.freeDeliveryThreshold || 50,
       timeSlots: profile.deliveryTimeSlots || [],
-      instructions: profile.deliveryInstructions || ''
+      instructions: profile.fulfillment?.methods?.delivery?.instructions || ''
     },
     professionalDelivery: {
-      enabled: profile.professionalDelivery?.enabled || false,
+      enabled: profile.fulfillment?.methods?.professionalDelivery?.enabled || false,
       uberDirectEnabled: profile.professionalDelivery?.uberDirectEnabled || false,
-      serviceRadius: profile.professionalDelivery?.serviceRadius || 25,
-      regions: profile.professionalDelivery?.regions || [],
+      serviceRadius: profile.fulfillment?.methods?.professionalDelivery?.serviceRadius || 25,
+      regions: profile.fulfillment?.methods?.professionalDelivery?.regions || [],
       packaging: profile.professionalDelivery?.packaging || '',
       restrictions: profile.professionalDelivery?.restrictions || ''
     }
@@ -1170,37 +1170,36 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
   React.useEffect(() => {
     if (profile) {
       console.log('🔄 DeliveryTab: Profile updated, refreshing delivery state');
-      console.log('🔄 Profile pickupSchedule:', profile.pickupSchedule);
-      console.log('🔄 Profile deliveryOptions:', profile.deliveryOptions);
+      console.log('🔄 Profile fulfillment:', profile.fulfillment);
       
       setDelivery({
         pickup: {
-          enabled: profile.deliveryOptions?.pickup !== false,
-          location: profile.pickupLocation || '',
-          instructions: profile.pickupInstructions || '',
+          enabled: profile.fulfillment?.methods?.pickup?.enabled !== false,
+          location: profile.fulfillment?.methods?.pickup?.location || '',
+          instructions: profile.fulfillment?.methods?.pickup?.instructions || '',
           hours: profile.pickupHours || '',
-          useBusinessAddress: profile.pickupUseBusinessAddress !== false,
+          useBusinessAddress: profile.fulfillment?.methods?.pickup?.useBusinessAddress !== false,
           address: {
-            street: profile.pickupAddress?.street || '',
-            city: profile.pickupAddress?.city || '',
-            state: profile.pickupAddress?.state || '',
-            zipCode: profile.pickupAddress?.zipCode || ''
+            street: profile.fulfillment?.methods?.pickup?.location?.street || '',
+            city: profile.fulfillment?.methods?.pickup?.location?.city || '',
+            state: profile.fulfillment?.methods?.pickup?.location?.state || '',
+            zipCode: profile.fulfillment?.methods?.pickup?.location?.zipCode || ''
           },
-          schedule: normalizePickupSchedule(profile.pickupSchedule)
+          schedule: normalizePickupSchedule(profile.fulfillment?.methods?.pickup?.schedule)
         },
         personalDelivery: {
-          enabled: profile.deliveryOptions?.delivery || false,
-          radius: profile.deliveryOptions?.deliveryRadius || 10,
-          fee: profile.deliveryOptions?.deliveryFee || 5,
+          enabled: profile.fulfillment?.methods?.delivery?.enabled || false,
+          radius: profile.fulfillment?.methods?.delivery?.radius || 10,
+          fee: profile.fulfillment?.methods?.delivery?.fee || 5,
           freeThreshold: profile.deliveryOptions?.freeDeliveryThreshold || 50,
           timeSlots: profile.deliveryTimeSlots || [],
-          instructions: profile.deliveryInstructions || ''
+          instructions: profile.fulfillment?.methods?.delivery?.instructions || ''
         },
         professionalDelivery: {
-          enabled: profile.professionalDelivery?.enabled || false,
+          enabled: profile.fulfillment?.methods?.professionalDelivery?.enabled || false,
           uberDirectEnabled: profile.professionalDelivery?.uberDirectEnabled || false,
-          serviceRadius: profile.professionalDelivery?.serviceRadius || 25,
-          regions: profile.professionalDelivery?.regions || [],
+          serviceRadius: profile.fulfillment?.methods?.professionalDelivery?.serviceRadius || 25,
+          regions: profile.fulfillment?.methods?.professionalDelivery?.regions || [],
           packaging: profile.professionalDelivery?.packaging || '',
           restrictions: profile.professionalDelivery?.restrictions || ''
         }

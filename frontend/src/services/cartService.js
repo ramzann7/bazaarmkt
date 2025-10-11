@@ -242,15 +242,9 @@ export const cartService = {
           artisan: typeof product.artisan === 'string' 
             ? product.artisan  // Keep as string ID
             : product.artisan ? {
-                ...product.artisan,  // Keep all original artisan fields including _id
+                ...product.artisan,  // Keep all original artisan fields including _id (with new unified schema)
                 artisanName: product.artisan.artisanName || product.artisan.businessName || 'Unknown Artisan',
-                type: product.artisan.type || 'other',
-                deliveryOptions: product.artisan.deliveryOptions || {
-                  pickup: true,
-                  delivery: false,
-                  deliveryRadius: 0,
-                  deliveryFee: 0
-                }
+                type: product.artisan.type || 'other'
               } : 'unknown'
         };
         
@@ -711,11 +705,13 @@ export const cartService = {
         };
       }
       
-      return artisanData.artisan.deliveryOptions || {
-        pickup: true,
-        delivery: false,
-        deliveryRadius: 0,
-        deliveryFee: 0
+      // Extract from new unified schema: fulfillment.methods
+      const fulfillment = artisanData.artisan.fulfillment?.methods || {};
+      return {
+        pickup: fulfillment.pickup?.enabled ?? true,
+        delivery: fulfillment.delivery?.enabled ?? false,
+        deliveryRadius: fulfillment.delivery?.radius ?? 0,
+        deliveryFee: fulfillment.delivery?.fee ?? 0
       };
     } catch (error) {
       console.error('Error getting artisan delivery options:', error);

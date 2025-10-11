@@ -14,7 +14,7 @@ export const ARTISAN_PRIORITY_STATUSES = {
     color: 'blue',
     icon: '✅',
     label: 'Ready to Prepare',
-    actions: ['Start Preparing', 'Decline']
+    actions: ['Start Preparing']
   },
   'preparing': {
     priority: 80,

@@ -580,9 +580,10 @@ const Cart = () => {
         
         toast.success('Saved address loaded', { duration: 2000 });
         
-        // NEW: Fetch Uber quotes if professional delivery is selected with saved address
+        // Fetch quotes and validate for delivery methods with saved address
         // Pass the address directly to avoid state update timing issues
         setTimeout(async () => {
+          // Handle professional delivery quotes
           const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
             method === 'professionalDelivery'
           );
@@ -591,7 +592,6 @@ const Cart = () => {
             console.log('🚛 Professional delivery selected with saved address - fetching Uber quotes');
             
             // Fetch Uber quote for each artisan with professional delivery
-            // Pass the saved address directly to avoid state timing issues
             for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
               if (method === 'professionalDelivery' && !uberDirectQuotes[artisanId]) {
                 console.log('🚛 Getting Uber Direct quote for artisan:', artisanId, 'with saved address');
@@ -599,7 +599,22 @@ const Cart = () => {
               }
             }
           }
-        }, 1000); // Increased to 1 second to ensure state is updated
+          
+          // Handle personal delivery validation
+          const hasPersonalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+            method === 'personalDelivery'
+          );
+          
+          if (hasPersonalDeliverySelected) {
+            console.log('🚚 Personal delivery selected with saved address - validating delivery options');
+            
+            // Validate for each artisan with personal delivery
+            const validation = await validateDeliveryAddress(defaultAddress);
+            if (validation.results) {
+              setDeliveryValidationResults(validation.results);
+            }
+          }
+        }, 500); // Reduced timeout since state should be ready
       }
     } catch (error) {
       console.error('❌ Error loading saved addresses:', error);
@@ -713,10 +728,35 @@ const Cart = () => {
     
     // Validate delivery address if personal delivery is selected
     if (method === 'personalDelivery') {
-      const addressToValidate = isGuest ? deliveryForm : ((useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm);
-      const hasCompleteAddress = addressToValidate && addressToValidate.street && addressToValidate.city && addressToValidate.state && addressToValidate.zipCode && addressToValidate.country;
+      // Determine which address to use based on user choice
+      let addressToValidate;
+      if (isGuest) {
+        addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
+      } else if (useSavedAddress) {
+        // Use selectedAddress if available, otherwise fall back to deliveryForm.deliveryAddress
+        addressToValidate = selectedAddress || deliveryForm.deliveryAddress || deliveryForm;
+      } else {
+        // User wants to enter new address
+        addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
+      }
+      
+      const hasCompleteAddress = addressToValidate && 
+        addressToValidate.street && 
+        addressToValidate.city && 
+        addressToValidate.state && 
+        addressToValidate.zipCode && 
+        addressToValidate.country;
+      
+      console.log('🔍 Checking address for personal delivery:', {
+        useSavedAddress,
+        hasSelectedAddress: !!selectedAddress,
+        hasDeliveryFormAddress: !!(deliveryForm.deliveryAddress?.street),
+        addressStreet: addressToValidate?.street,
+        hasCompleteAddress
+      });
       
       if (hasCompleteAddress) {
+        console.log('✅ Complete address found - validating personal delivery for artisan:', artisanId);
         const validation = await validateDeliveryAddress(addressToValidate);
         setDeliveryValidationResults(prev => ({
           ...prev,
@@ -785,17 +825,41 @@ const Cart = () => {
         return updated;
       });
       
-      const addressToValidate = isGuest ? deliveryForm : ((useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm);
+      // Determine which address to use based on user choice
+      let addressToValidate;
+      if (isGuest) {
+        addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
+      } else if (useSavedAddress) {
+        // Use selectedAddress if available, otherwise fall back to deliveryForm.deliveryAddress
+        addressToValidate = selectedAddress || deliveryForm.deliveryAddress || deliveryForm;
+      } else {
+        // User wants to enter new address
+        addressToValidate = deliveryForm.deliveryAddress || deliveryForm;
+      }
+      
+      // Check if we have a complete address
       const hasCompleteAddress = addressToValidate && (
         addressToValidate.street || 
         (addressToValidate.deliveryAddress && addressToValidate.deliveryAddress.street)
       );
       
+      console.log('🔍 Checking address for professional delivery:', {
+        useSavedAddress,
+        hasSelectedAddress: !!selectedAddress,
+        hasDeliveryFormAddress: !!(deliveryForm.deliveryAddress?.street),
+        addressToValidate: addressToValidate ? {
+          street: addressToValidate.street,
+          hasDeliveryAddress: !!addressToValidate.deliveryAddress
+        } : null,
+        hasCompleteAddress
+      });
+      
       if (hasCompleteAddress) {
-        console.log('🚛 Professional delivery selected - fetching Uber Direct quote for artisan:', artisanId);
-        await calculateUberDirectFee(artisanId);
+        console.log('✅ Complete address found - fetching Uber Direct quote for artisan:', artisanId);
+        // Fetch quote immediately with the address
+        await calculateUberDirectFee(artisanId, addressToValidate);
       } else {
-        console.log('⏳ Professional delivery selected but no complete address yet - quote will be fetched when address is entered');
+        console.log('⏳ No complete address yet - quote will be fetched when address is entered');
       }
     } else {
       // Clear validation results for this artisan if switching away from personal delivery
@@ -1194,12 +1258,56 @@ const Cart = () => {
 
 
   // Handle switching between saved address and new address
-  const handleUseSavedAddressChange = (useSaved) => {
+  const handleUseSavedAddressChange = async (useSaved) => {
     setUseSavedAddress(useSaved);
     
     if (!useSaved) {
       // User wants to enter new address - clear selected address
       setSelectedAddress(null);
+      // Clear quotes since we'll need new address
+      setUberDirectQuotes({});
+    } else {
+      // User switched back to saved address - fetch quotes for professional delivery
+      const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+        method === 'professionalDelivery'
+      );
+      
+      if (hasProfessionalDeliverySelected) {
+        console.log('🔄 Switched to saved address - fetching Uber quotes');
+        
+        // Get the address to use (selectedAddress or deliveryForm.deliveryAddress)
+        const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
+        
+        if (addressToUse && addressToUse.street) {
+          // Clear existing quotes
+          setUberDirectQuotes({});
+          
+          // Fetch quote for each artisan with professional delivery
+          for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
+            if (method === 'professionalDelivery') {
+              console.log('🚛 Getting Uber Direct quote for artisan:', artisanId, 'with saved address');
+              await calculateUberDirectFee(artisanId, addressToUse);
+            }
+          }
+        }
+      }
+      
+      // Also validate for personal delivery
+      const hasPersonalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+        method === 'personalDelivery'
+      );
+      
+      if (hasPersonalDeliverySelected) {
+        console.log('🔄 Switched to saved address - validating personal delivery');
+        const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
+        
+        if (addressToUse && addressToUse.street) {
+          const validation = await validateDeliveryAddress(addressToUse);
+          if (validation.results) {
+            setDeliveryValidationResults(validation.results);
+          }
+        }
+      }
     }
   };
 

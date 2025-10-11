@@ -832,7 +832,7 @@ const DeliveryInformation = ({
                 </div>
 
                 {/* Address Selection Options */}
-                {!isGuest && deliveryForm.deliveryAddress?.street ? (
+                {!isGuest && (selectedAddress?.street || deliveryForm.deliveryAddress?.street) ? (
                   <div className="space-y-4">
                     <p className="text-stone-600 mb-4">Choose how you'd like to provide your delivery address:</p>
                     
@@ -863,8 +863,17 @@ const DeliveryInformation = ({
                           <h4 className="font-semibold text-stone-800">Use Saved Address</h4>
                         </div>
                         <div className="text-sm text-stone-600">
-                          <p className="font-medium">{deliveryForm.deliveryAddress.street}</p>
-                          <p>{deliveryForm.deliveryAddress.city}, {deliveryForm.deliveryAddress.state} {deliveryForm.deliveryAddress.zipCode}</p>
+                          {selectedAddress ? (
+                            <>
+                              <p className="font-medium">{selectedAddress.street}</p>
+                              <p>{selectedAddress.city}, {selectedAddress.state} {selectedAddress.zipCode}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium">{deliveryForm.deliveryAddress.street}</p>
+                              <p>{deliveryForm.deliveryAddress.city}, {deliveryForm.deliveryAddress.state} {deliveryForm.deliveryAddress.zipCode}</p>
+                            </>
+                          )}
                         </div>
                       </div>
 

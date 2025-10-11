@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useParams, useNavigate } from 'react-router-dom';
+import { generateUniqueSlug, extractIdFromSlug, isObjectId } from '../utils/slugUtils';
 import { 
   MapPinIcon, 
   StarIcon,
@@ -41,9 +42,10 @@ import AuthPopup from './AuthPopup';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
-  const { id } = useParams();
+  const { id: slugOrId } = useParams();
   const navigate = useNavigate();
   const [artisan, setArtisan] = useState(null);
+  const [artisanSlug, setArtisanSlug] = useState(null);
   const [products, setProducts] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,13 +76,31 @@ export default function ArtisanShop() {
       loadUserProfile();
     }
     updateCartCount();
-  }, [id]);
+  }, [slugOrId]);
 
   const loadArtisanShop = async () => {
     try {
       setIsLoading(true);
-      const artisanData = await artisanService.getArtisanById(id);
+      
+      // Extract ID from slug or use as-is if it's already an ID
+      let artisanId = slugOrId;
+      if (!isObjectId(slugOrId)) {
+        // Try to extract ID from slug (format: artisan-name-3e2e8948)
+        const extractedId = extractIdFromSlug(slugOrId);
+        if (extractedId) {
+          artisanId = extractedId;
+        } else {
+          // If no ID in slug, the backend will try to find by slug field
+          artisanId = slugOrId;
+        }
+      }
+      
+      const artisanData = await artisanService.getArtisanById(artisanId);
       setArtisan(artisanData);
+      
+      // Generate slug for this artisan for friendly URLs
+      const slug = generateUniqueSlug(artisanData.artisanName || artisanData.businessName, artisanData._id);
+      setArtisanSlug(slug);
       
       // Handle products - check different possible structures
       let productsData = [];
@@ -156,7 +176,7 @@ export default function ArtisanShop() {
       
       // Load reviews
       try {
-        const reviewsData = await reviewService.getArtisanReviews(id);
+        const reviewsData = await reviewService.getArtisanReviews(artisanData._id);
         console.log('🔍 Reviews data received:', reviewsData);
         
         // Handle different review data structures
@@ -492,7 +512,7 @@ export default function ArtisanShop() {
                   
                   <SocialShare
                     artisan={artisan}
-                    shareUrl={window.location.href}
+                    shareUrl={artisanSlug ? `${window.location.origin}/artisan/${artisanSlug}` : window.location.href}
                     shareTitle={`Check out ${artisan?.artisanName || artisan?.businessName || 'this amazing artisan shop'}!`}
                     shareDescription={`Discover unique handmade products from ${artisan?.artisanName || artisan?.businessName || 'this talented artisan'}. ${artisan?.tagline || artisan?.bio || 'Support local artisans and find one-of-a-kind items!'}`}
                     className="btn-small btn-secondary flex items-center gap-2"
@@ -775,7 +795,7 @@ export default function ArtisanShop() {
       <div className="fixed bottom-6 right-6 z-40">
         <SocialShare
           artisan={artisan}
-          shareUrl={window.location.href}
+          shareUrl={artisanSlug ? `${window.location.origin}/artisan/${artisanSlug}` : window.location.href}
           shareTitle={`Check out ${artisan?.artisanName || artisan?.businessName || 'this amazing artisan shop'}!`}
           shareDescription={`Discover unique handmade products from ${artisan?.artisanName || artisan?.businessName || 'this talented artisan'}. ${artisan?.tagline || artisan?.bio || 'Support local artisans and find one-of-a-kind items!'}`}
           className="shadow-lg hover:shadow-xl transform hover:scale-105"

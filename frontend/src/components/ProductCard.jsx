@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
+import { generateUniqueSlug } from '../utils/slugUtils';
 import { 
   BuildingStorefrontIcon, 
   HeartIcon,
@@ -170,15 +171,21 @@ const ProductCard = ({
             </div>
             
             {/* Visit Shop Button - Bottom Right */}
-            {showVisitShop && product.artisan?._id && !outOfStockStatus.isOutOfStock && (
-              <Link
-                to={`/artisan/${product.artisan._id}`}
-                onClick={(e) => e.stopPropagation()}
-                className={`btn-primary whitespace-nowrap flex-shrink-0 ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'}`}
-              >
-                Visit Shop →
-              </Link>
-            )}
+            {showVisitShop && product.artisan?._id && !outOfStockStatus.isOutOfStock && (() => {
+              const artisanSlug = generateUniqueSlug(
+                product.artisan.artisanName || product.artisan.businessName, 
+                product.artisan._id
+              );
+              return (
+                <Link
+                  to={`/artisan/${artisanSlug}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`btn-primary whitespace-nowrap flex-shrink-0 ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'}`}
+                >
+                  Visit Shop →
+                </Link>
+              );
+            })()}
             
             {/* Add to Cart Button (for artisan shop) - Bottom Right */}
             {showAddToCart && !outOfStockStatus.isOutOfStock && (

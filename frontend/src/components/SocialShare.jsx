@@ -23,19 +23,13 @@ const SocialShare = ({
     const encodedUrl = encodeURIComponent(shareUrl);
     const encodedTitle = encodeURIComponent(shareTitle);
     const encodedDescription = encodeURIComponent(shareDescription);
-    const hashtags = encodeURIComponent('#ArtisanShop #LocalArtisans #Handmade #SupportLocal');
+    const shareText = `${shareTitle} - ${shareDescription}`;
 
     return {
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-      twitter: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}&hashtags=ArtisanShop,LocalArtisans,Handmade,SupportLocal`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-      pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&description=${encodedDescription}`,
-      whatsapp: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`,
-      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
-      reddit: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`,
-      email: `mailto:?subject=${encodedTitle}&body=${encodedDescription}%0A%0A${shareUrl}`,
-      sms: `sms:?body=${encodedTitle}%20${shareUrl}`,
-      instagram: `https://www.instagram.com/`, // Instagram doesn't support direct URL sharing, will open Instagram app
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodeURIComponent(shareText)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodedUrl}&hashtags=ArtisanShop,LocalArtisans,Handmade`,
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`,
+      email: `mailto:?subject=${encodedTitle}&body=${encodeURIComponent(shareDescription + '\n\nVisit: ' + shareUrl)}`,
       copy: shareUrl
     };
   };
@@ -55,17 +49,22 @@ const SocialShare = ({
     }
 
     if (platform === 'instagram') {
-      // Instagram doesn't support direct URL sharing, so we'll copy the link and open Instagram
+      // Instagram doesn't support direct URL sharing, so we'll copy the link for users to paste
       navigator.clipboard.writeText(shareUrl).then(() => {
-        toast.success('Link copied! Open Instagram to share.');
-        window.open(url, '_blank');
+        toast.success('Link copied! Paste in Instagram bio or DMs.', { duration: 4000 });
       });
       return;
     }
 
-    // Open sharing window
+    if (platform === 'email') {
+      // Email links don't need a popup window
+      window.location.href = url;
+      return;
+    }
+
+    // Open sharing window for other platforms
     const width = 600;
-    const height = 400;
+    const height = 500;
     const left = (window.innerWidth - width) / 2;
     const top = (window.innerHeight - height) / 2;
 
@@ -75,6 +74,7 @@ const SocialShare = ({
       `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
     );
 
+    setShowShareModal(false);
     toast.success(`Opening ${platform} to share!`);
   };
 
@@ -83,61 +83,36 @@ const SocialShare = ({
       name: 'Facebook',
       icon: '📘',
       color: 'bg-blue-600 hover:bg-blue-700',
-      platform: 'facebook'
-    },
-    {
-      name: 'Twitter',
-      icon: '🐦',
-      color: 'bg-sky-500 hover:bg-sky-600',
-      platform: 'twitter'
+      platform: 'facebook',
+      description: 'Share on your timeline with rich preview'
     },
     {
       name: 'Instagram',
       icon: '📷',
       color: 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600',
-      platform: 'instagram'
+      platform: 'instagram',
+      description: 'Copy link to share in bio or DMs'
     },
     {
-      name: 'LinkedIn',
-      icon: '💼',
-      color: 'bg-blue-700 hover:bg-blue-800',
-      platform: 'linkedin'
-    },
-    {
-      name: 'Pinterest',
-      icon: '📌',
-      color: 'bg-red-600 hover:bg-red-700',
-      platform: 'pinterest'
+      name: 'Twitter',
+      icon: '🐦',
+      color: 'bg-sky-500 hover:bg-sky-600',
+      platform: 'twitter',
+      description: 'Tweet with hashtags & link'
     },
     {
       name: 'WhatsApp',
       icon: '💬',
       color: 'bg-green-500 hover:bg-green-600',
-      platform: 'whatsapp'
-    },
-    {
-      name: 'Telegram',
-      icon: '✈️',
-      color: 'bg-blue-500 hover:bg-blue-600',
-      platform: 'telegram'
-    },
-    {
-      name: 'Reddit',
-      icon: '🤖',
-      color: 'bg-orange-600 hover:bg-orange-700',
-      platform: 'reddit'
+      platform: 'whatsapp',
+      description: 'Send to contacts or groups'
     },
     {
       name: 'Email',
       icon: '📧',
       color: 'bg-gray-600 hover:bg-gray-700',
-      platform: 'email'
-    },
-    {
-      name: 'SMS',
-      icon: '📱',
-      color: 'bg-green-600 hover:bg-green-700',
-      platform: 'sms'
+      platform: 'email',
+      description: 'Send via your email client'
     }
   ];
 
@@ -223,16 +198,17 @@ const SocialShare = ({
             {/* Social Media Buttons */}
             <div className="p-6">
               <h4 className="font-semibold text-gray-900 mb-4">Share on social media:</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 {shareButtons.map((button) => (
                   <button
                     key={button.platform}
                     onClick={() => handleShare(button.platform, shareUrls[button.platform])}
-                    className={`flex flex-col items-center p-4 rounded-lg text-white font-medium transition-all duration-200 hover:scale-105 ${button.color}`}
-                    title={`Share on ${button.name}`}
+                    className={`flex flex-col items-center justify-center p-4 rounded-lg text-white font-medium transition-all duration-200 hover:scale-105 ${button.color}`}
+                    title={button.description}
                   >
-                    <span className="text-2xl mb-2">{button.icon}</span>
-                    <span className="text-xs">{button.name}</span>
+                    <span className="text-3xl mb-2">{button.icon}</span>
+                    <span className="text-sm font-semibold">{button.name}</span>
+                    <span className="text-[10px] mt-1 opacity-90 text-center">{button.description}</span>
                   </button>
                 ))}
               </div>

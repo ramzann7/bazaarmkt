@@ -459,10 +459,10 @@ export default function OrderConfirmation() {
                                 </div>
                                 <div className="text-right ml-4 print:ml-2">
                                   <p className="font-bold text-stone-800 print:text-sm">
-                                    ${((item.unitPrice || item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                    ${((parseFloat(item.unitPrice) || parseFloat(item.price) || 0) * (parseInt(item.quantity) || 1)).toFixed(2)}
                                   </p>
                                   <p className="text-xs text-stone-500 print:text-xs">
-                                    {item.quantity}x ${(item.unitPrice || item.price || 0).toFixed(2)} each
+                                    {item.quantity}x ${(parseFloat(item.unitPrice) || parseFloat(item.price) || 0).toFixed(2)} each
                                   </p>
                                 </div>
                               </div>
@@ -598,7 +598,7 @@ export default function OrderConfirmation() {
         </div>
 
         {/* Delivery Information Card - Always show for delivery orders */}
-        {(orders[0]?.deliveryMethod === 'personalDelivery' || orders[0]?.deliveryMethod === 'delivery') && (
+        {(orders[0]?.deliveryMethod === 'personalDelivery' || orders[0]?.deliveryMethod === 'delivery' || orders[0]?.deliveryMethod === 'professionalDelivery') && (
           <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
             <div className="flex items-center gap-3 mb-6 print:mb-4">
               <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center print:hidden">
@@ -654,8 +654,19 @@ export default function OrderConfirmation() {
                     })()}
                     {orders[0]?.deliveryMethod === 'professionalDelivery' && (
                       <div className="space-y-1 text-sm text-amber-700 print:text-gray-600">
-                        <p>• <strong>Professional Delivery:</strong> Delivered by certified courier</p>
-                        <p>• <strong>Tracking:</strong> You'll receive tracking information via email</p>
+                        <p>• <strong>Professional Delivery:</strong> Delivered by certified courier (Uber Direct)</p>
+                        <p>• <strong>Tracking:</strong> You'll receive tracking information via email once the order is ready</p>
+                        {orders[0]?.deliveryPricing?.chargedAmount && (
+                          <>
+                            <p>• <strong>Delivery Fee:</strong> ${parseFloat(orders[0].deliveryPricing.chargedAmount).toFixed(2)} (includes 20% buffer for surge protection)</p>
+                            {orders[0].deliveryPricing.estimatedFee && (
+                              <p className="text-xs text-amber-600">
+                                Estimated: ${parseFloat(orders[0].deliveryPricing.estimatedFee).toFixed(2)} + ${parseFloat(orders[0].deliveryPricing.buffer || 0).toFixed(2)} buffer. Any unused amount will be refunded.
+                              </p>
+                            )}
+                          </>
+                        )}
+                        <p>• <strong>Delivery Time:</strong> Typically 20-40 minutes after order is ready</p>
                       </div>
                     )}
                     {orders[0]?.deliveryMethod === 'delivery' && (

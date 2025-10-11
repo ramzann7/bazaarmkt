@@ -34,10 +34,65 @@ export const uberDirectService = {
     }
   },
 
+  // Get delivery quote with buffer for surge protection
+  async getDeliveryQuoteWithBuffer(pickupLocation, dropoffLocation, packageDetails = {}, bufferPercentage = 20) {
+    try {
+      console.log('🚛 Requesting Uber Direct quote with buffer:', { bufferPercentage });
+      
+      const response = await api.post(`${API_URL}/delivery/uber-direct/quote-with-buffer`, {
+        pickupLocation,
+        dropoffLocation,
+        packageDetails,
+        bufferPercentage
+      });
+      
+      console.log('✅ Received buffered quote:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error getting Uber Direct quote with buffer:', error);
+      
+      // Fallback calculation with buffer
+      const distance = uberDirectService.calculateDistance(pickupLocation, dropoffLocation);
+      const baseFee = uberDirectService.calculateFallbackFee(distance, packageDetails);
+      const buffer = baseFee * (bufferPercentage / 100);
+      
+      // Safety check for NaN
+      const safeEstimatedFee = isNaN(baseFee) || baseFee === 0 ? 15.00 : baseFee;
+      const safeBuffer = isNaN(buffer) ? safeEstimatedFee * 0.20 : buffer;
+      const safeChargedAmount = safeEstimatedFee + safeBuffer;
+      
+      console.log('💰 Fallback calculation:', {
+        distance,
+        baseFee,
+        safeEstimatedFee,
+        safeBuffer,
+        safeChargedAmount
+      });
+      
+      return {
+        success: false,
+        fallback: true,
+        estimatedFee: safeEstimatedFee.toFixed(2),
+        buffer: safeBuffer.toFixed(2),
+        bufferPercentage: bufferPercentage,
+        chargedAmount: safeChargedAmount.toFixed(2),
+        currency: 'CAD',
+        duration: Math.max(30, distance * 3) || 45,
+        pickupEta: 15,
+        estimated: true,
+        explanation: `Delivery fee includes ${bufferPercentage}% buffer for surge protection. Any unused amount will be refunded.`,
+        error: 'Unable to connect to delivery service - using estimated pricing'
+      };
+    }
+  },
+
   // Calculate delivery fee (fallback when API is unavailable)
   calculateFallbackFee: (distance, packageDetails = {}) => {
     const baseFee = 8; // Base delivery fee
     const perKmFee = 1.5; // Per kilometer fee
+    
+    // If distance is 0 or NaN, use a default estimate
+    const safeDistance = (distance && !isNaN(distance) && distance > 0) ? distance : 10; // Default 10km if unknown
     
     // Add package size/weight surcharge
     let surcharge = 0;
@@ -48,21 +103,32 @@ export const uberDirectService = {
       surcharge += 2;
     }
     
-    return Math.round((baseFee + (distance * perKmFee) + surcharge) * 100) / 100;
+    const totalFee = baseFee + (safeDistance * perKmFee) + surcharge;
+    return Math.round(totalFee * 100) / 100;
   },
 
   // Calculate distance between two coordinates
   calculateDistance: (origin, destination) => {
-    if (!origin || !destination || !origin.lat || !origin.lng || !destination.lat || !destination.lng) {
+    // Support both lat/lng and latitude/longitude property names
+    const originLat = origin?.lat || origin?.latitude;
+    const originLng = origin?.lng || origin?.longitude;
+    const destLat = destination?.lat || destination?.latitude;
+    const destLng = destination?.lng || destination?.longitude;
+    
+    if (!originLat || !originLng || !destLat || !destLng) {
+      console.warn('⚠️ Missing coordinates for distance calculation:', {
+        origin: { lat: originLat, lng: originLng },
+        destination: { lat: destLat, lng: destLng }
+      });
       return 0;
     }
 
     const R = 6371; // Earth's radius in kilometers
-    const dLat = (destination.lat - origin.lat) * Math.PI / 180;
-    const dLon = (destination.lng - origin.lng) * Math.PI / 180;
+    const dLat = (destLat - originLat) * Math.PI / 180;
+    const dLon = (destLng - originLng) * Math.PI / 180;
     const a = 
       Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(origin.lat * Math.PI / 180) * Math.cos(destination.lat * Math.PI / 180) * 
+      Math.cos(originLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) * 
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distance = R * c; // Distance in kilometers

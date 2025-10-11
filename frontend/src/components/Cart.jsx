@@ -85,6 +85,7 @@ const Cart = () => {
     instructions: ''
   });
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [useSavedAddress, setUseSavedAddress] = useState(true); // Track if user wants to use saved address
   
   // Loading states
   const [cartLoading, setCartLoading] = useState(false);
@@ -180,7 +181,7 @@ const Cart = () => {
   const [uberDirectQuotes, setUberDirectQuotes] = useState({});
   const [loadingUberQuotes, setLoadingUberQuotes] = useState(new Set());
 
-  const calculateUberDirectFee = async (artisanId) => {
+  const calculateUberDirectFee = async (artisanId, addressOverride = null) => {
     // Check if we already have a quote for this artisan
     if (uberDirectQuotes[artisanId]) {
       return uberDirectQuotes[artisanId].fee;
@@ -197,9 +198,36 @@ const Cart = () => {
       const artisanData = cartByArtisan[artisanId];
       if (!artisanData) return 15;
 
-      // Get delivery address
-      const deliveryAddr = selectedAddress || deliveryForm;
-      if (!deliveryAddr.street) return 15;
+      // Get delivery address based on user choice
+      let deliveryAddr = addressOverride;
+      
+      if (!deliveryAddr || !deliveryAddr.street) {
+        // If user chose saved address, use selectedAddress; otherwise use deliveryForm
+        if (useSavedAddress && selectedAddress && selectedAddress.street) {
+          deliveryAddr = selectedAddress;
+        } else if (deliveryForm.deliveryAddress && deliveryForm.deliveryAddress.street) {
+          deliveryAddr = deliveryForm.deliveryAddress;
+        } else if (deliveryForm.street) {
+          deliveryAddr = deliveryForm;
+        }
+      }
+      
+      // Verify we have a complete address
+      if (!deliveryAddr || !deliveryAddr.street) {
+        console.log('⏳ No complete address available for Uber quote', {
+          addressOverride: !!addressOverride,
+          selectedAddress: !!selectedAddress,
+          deliveryFormDeliveryAddress: !!deliveryForm.deliveryAddress,
+          deliveryFormStreet: !!deliveryForm.street
+        });
+        return 15;
+      }
+
+      console.log('🚛 Using address for Uber quote:', {
+        street: deliveryAddr.street,
+        city: deliveryAddr.city,
+        source: addressOverride ? 'parameter' : (selectedAddress ? 'selectedAddress' : 'deliveryForm')
+      });
 
       // Prepare locations for Uber Direct API
       const pickupLocation = {
@@ -212,10 +240,10 @@ const Cart = () => {
 
       const dropoffLocation = {
         address: `${deliveryAddr.street}, ${deliveryAddr.city}, ${deliveryAddr.state}, ${deliveryAddr.country || 'Canada'}`,
-        latitude: null, // Will be geocoded by backend
-        longitude: null,
-        phone: deliveryAddr.phone || '',
-        contactName: `${deliveryAddr.firstName} ${deliveryAddr.lastName}`
+        latitude: deliveryAddr.latitude || null, // Use if available
+        longitude: deliveryAddr.longitude || null,
+        phone: deliveryAddr.phone || deliveryForm.phone || '',
+        contactName: `${deliveryForm.firstName || deliveryAddr.firstName || ''} ${deliveryForm.lastName || deliveryAddr.lastName || ''}`.trim()
       };
 
       // Calculate package details
@@ -228,36 +256,46 @@ const Cart = () => {
         size: totalWeight > 5 ? 'large' : totalWeight > 2 ? 'medium' : 'small'
       };
 
-      // Get quote from Uber Direct
-      const quote = await uberDirectService.getDeliveryQuote(
+      // Get quote from Uber Direct with 20% buffer for surge protection
+      const quote = await uberDirectService.getDeliveryQuoteWithBuffer(
         pickupLocation,
         dropoffLocation,
-        packageDetails
+        packageDetails,
+        20 // 20% buffer
       );
 
       if (quote.success) {
         setUberDirectQuotes(prev => ({
           ...prev,
           [artisanId]: {
-            fee: parseFloat(quote.fee),
+            estimatedFee: parseFloat(quote.estimatedFee),
+            buffer: parseFloat(quote.buffer),
+            bufferPercentage: quote.bufferPercentage,
+            fee: parseFloat(quote.chargedAmount), // This is what user pays (estimate + buffer)
             duration: quote.duration,
-            pickup_eta: quote.pickup_eta,
-            dropoff_eta: quote.dropoff_eta,
-            quote_id: quote.quoteId
+            pickup_eta: quote.pickupEta,
+            dropoff_eta: quote.dropoffEta,
+            quote_id: quote.quoteId,
+            expires_at: quote.expiresAt,
+            explanation: quote.explanation
           }
         }));
-        return parseFloat(quote.fee);
+        return parseFloat(quote.chargedAmount); // Return charged amount (with buffer)
       } else if (quote.fallback) {
         setUberDirectQuotes(prev => ({
           ...prev,
           [artisanId]: {
-            fee: parseFloat(quote.fallback.fee),
-            duration: quote.fallback.duration,
-            pickup_eta: quote.fallback.pickup_eta,
-            estimated: true
+            estimatedFee: parseFloat(quote.estimatedFee),
+            buffer: parseFloat(quote.buffer),
+            bufferPercentage: quote.bufferPercentage,
+            fee: parseFloat(quote.chargedAmount),
+            duration: quote.duration,
+            pickup_eta: quote.pickupEta,
+            estimated: true,
+            explanation: quote.explanation
           }
         }));
-        return parseFloat(quote.fallback.fee);
+        return parseFloat(quote.chargedAmount); // Return charged amount (with buffer)
       }
 
       return 15; // Final fallback
@@ -341,11 +379,11 @@ const Cart = () => {
         guestStatus = tokenData.isGuest;
         
         
-        // Only set currentUserId if it's not already set to avoid race conditions
-        if (!currentUserId) {
+        // Only set if values have changed to avoid unnecessary re-renders
+        if (currentUserId !== userId) {
           setCurrentUserId(userId);
         }
-        if (!isGuest) {
+        if (isGuest !== guestStatus) {
           setIsGuest(guestStatus);
         }
       } else {
@@ -517,20 +555,23 @@ const Cart = () => {
       if (defaultAddress) {
         console.log('🏠 Loading saved address:', defaultAddress);
         
-        // Pre-populate delivery form with saved address
+        // Populate deliveryForm with saved address for DISPLAY purposes
+        // This shows the address in the form but doesn't overwrite the saved address in database
         setDeliveryForm(prev => ({
           ...prev,
           firstName: userProfile.firstName || prev.firstName,
           lastName: userProfile.lastName || prev.lastName,
           email: userProfile.email || prev.email,
           phone: userProfile.phone || prev.phone,
-          // Set address in the nested structure that DeliveryInformation expects
+          // Populate deliveryAddress structure for DeliveryInformation component
           deliveryAddress: {
             street: defaultAddress.street || '',
             city: defaultAddress.city || '',
             state: defaultAddress.state || '',
             zipCode: defaultAddress.zipCode || defaultAddress.postalCode || '',
-            country: defaultAddress.country || 'Canada'
+            country: defaultAddress.country || 'Canada',
+            latitude: defaultAddress.latitude,
+            longitude: defaultAddress.longitude
           }
         }));
 
@@ -538,6 +579,27 @@ const Cart = () => {
         setSelectedAddress(defaultAddress);
         
         toast.success('Saved address loaded', { duration: 2000 });
+        
+        // NEW: Fetch Uber quotes if professional delivery is selected with saved address
+        // Pass the address directly to avoid state update timing issues
+        setTimeout(async () => {
+          const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+            method === 'professionalDelivery'
+          );
+          
+          if (hasProfessionalDeliverySelected) {
+            console.log('🚛 Professional delivery selected with saved address - fetching Uber quotes');
+            
+            // Fetch Uber quote for each artisan with professional delivery
+            // Pass the saved address directly to avoid state timing issues
+            for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
+              if (method === 'professionalDelivery' && !uberDirectQuotes[artisanId]) {
+                console.log('🚛 Getting Uber Direct quote for artisan:', artisanId, 'with saved address');
+                await calculateUberDirectFee(artisanId, defaultAddress);
+              }
+            }
+          }
+        }, 1000); // Increased to 1 second to ensure state is updated
       }
     } catch (error) {
       console.error('❌ Error loading saved addresses:', error);
@@ -553,10 +615,13 @@ const Cart = () => {
       setCurrentUserId(tokenData.userId);
       setIsGuest(tokenData.isGuest);
       
-      if (!tokenData.isGuest) {
-        // Load profile for better performance
+      if (!tokenData.isGuest && !profileLoadingInitiatedRef.current) {
+        // Load profile for better performance (only once)
+        console.log('🔄 Loading profile from checkAuth');
+        profileLoadingInitiatedRef.current = true;
         loadUserProfile().catch(error => {
           console.error('❌ Error loading profile:', error);
+          profileLoadingInitiatedRef.current = false; // Reset on error to allow retry
         });
       }
     } else {
@@ -648,7 +713,7 @@ const Cart = () => {
     
     // Validate delivery address if personal delivery is selected
     if (method === 'personalDelivery') {
-      const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
+      const addressToValidate = isGuest ? deliveryForm : ((useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm);
       const hasCompleteAddress = addressToValidate && addressToValidate.street && addressToValidate.city && addressToValidate.state && addressToValidate.zipCode && addressToValidate.country;
       
       if (hasCompleteAddress) {
@@ -712,11 +777,25 @@ const Cart = () => {
     }
     
     // Get Uber Direct quote if professional delivery is selected
-    if (method === 'professionalDelivery' && !uberDirectQuotes[artisanId]) {
-      const addressToValidate = isGuest ? deliveryForm : (selectedAddress || deliveryForm);
-      if (addressToValidate && addressToValidate.street) {
-        console.log('🚛 Getting Uber Direct quote for artisan:', artisanId);
+    if (method === 'professionalDelivery') {
+      // Clear existing quote to force re-fetch
+      setUberDirectQuotes(prev => {
+        const updated = { ...prev };
+        delete updated[artisanId];
+        return updated;
+      });
+      
+      const addressToValidate = isGuest ? deliveryForm : ((useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm);
+      const hasCompleteAddress = addressToValidate && (
+        addressToValidate.street || 
+        (addressToValidate.deliveryAddress && addressToValidate.deliveryAddress.street)
+      );
+      
+      if (hasCompleteAddress) {
+        console.log('🚛 Professional delivery selected - fetching Uber Direct quote for artisan:', artisanId);
         await calculateUberDirectFee(artisanId);
+      } else {
+        console.log('⏳ Professional delivery selected but no complete address yet - quote will be fetched when address is entered');
       }
     } else {
       // Clear validation results for this artisan if switching away from personal delivery
@@ -725,6 +804,15 @@ const Cart = () => {
         delete newResults[artisanId];
         return newResults;
       });
+      
+      // Clear Uber quote if switching away from professional delivery
+      if (uberDirectQuotes[artisanId]) {
+        setUberDirectQuotes(prev => {
+          const updated = { ...prev };
+          delete updated[artisanId];
+          return updated;
+        });
+      }
     }
   };
 
@@ -918,6 +1006,12 @@ const Cart = () => {
 
   // Handle delivery form changes
   const handleDeliveryFormChange = async (field, value) => {
+    // When user edits address fields, they're using new address (not saved address)
+    if (['street', 'city', 'state', 'zipCode', 'country'].includes(field)) {
+      setUseSavedAddress(false);
+      setSelectedAddress(null);
+    }
+    
     setDeliveryForm(prev => ({
       ...prev,
       [field]: value
@@ -1006,7 +1100,7 @@ const Cart = () => {
       window.addressValidationTimeout = setTimeout(async () => {
         const updatedForm = { ...deliveryForm, [field]: value };
         
-        // Only validate if we have complete address information and personal delivery is selected
+        // Only validate if we have complete address information
         const hasCompleteAddress = updatedForm.street && updatedForm.city && updatedForm.state && updatedForm.zipCode && updatedForm.country;
         
         if (hasCompleteAddress) {
@@ -1069,6 +1163,27 @@ const Cart = () => {
                 }
               }
             }
+            
+            // NEW: Check if any artisan has professional delivery selected and fetch Uber quote
+            const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+              method === 'professionalDelivery'
+            );
+            
+            if (hasProfessionalDeliverySelected) {
+              console.log('🚛 Professional delivery selected - fetching Uber quotes for complete address');
+              
+              // Clear existing quotes to force re-fetch with new address
+              setUberDirectQuotes({});
+              
+              // Fetch Uber quote for each artisan with professional delivery
+              // Pass the updated address directly
+              for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
+                if (method === 'professionalDelivery') {
+                  console.log('🚛 Getting Uber Direct quote for artisan:', artisanId);
+                  await calculateUberDirectFee(artisanId, updatedForm);
+                }
+              }
+            }
           } catch (error) {
             console.error('❌ Error validating address:', error);
           }
@@ -1078,26 +1193,62 @@ const Cart = () => {
   };
 
 
+  // Handle switching between saved address and new address
+  const handleUseSavedAddressChange = (useSaved) => {
+    setUseSavedAddress(useSaved);
+    
+    if (!useSaved) {
+      // User wants to enter new address - clear selected address
+      setSelectedAddress(null);
+    }
+  };
+
   // Handle address selection
   const handleAddressSelect = async (address) => {
     setSelectedAddress(address);
+    setUseSavedAddress(true); // User is choosing to use saved address
+    
     if (address) {
-      setDeliveryForm({
-        street: address.street || '',
-        city: address.city || '',
-        state: address.state || '',
-        zipCode: address.zipCode || '',
-        country: address.country || ''
-      });
+      // DON'T populate deliveryForm - keep saved address and new address separate
+      // Only update user info if not already set
+      setDeliveryForm(prev => ({
+        ...prev,
+        firstName: prev.firstName || userProfile?.firstName || '',
+        lastName: prev.lastName || userProfile?.lastName || '',
+        email: prev.email || userProfile?.email || '',
+        phone: prev.phone || userProfile?.phone || ''
+        // NOTE: Don't copy address fields - keep them independent
+      }));
       
       // Clear previous validation results
       setDeliveryValidationResults({});
+      
+      // Clear any existing Uber quotes since address changed
+      setUberDirectQuotes({});
       
       // Always validate delivery address to update delivery options
       try {
         console.log('🔍 Validating selected address for delivery options update:', address);
         const validation = await validateDeliveryAddress(address);
         setDeliveryValidationResults(validation.results || {});
+        
+        // NEW: If professional delivery is selected, fetch Uber quote with new address
+        const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
+          method === 'professionalDelivery'
+        );
+        
+        if (hasProfessionalDeliverySelected) {
+          console.log('🚛 Professional delivery selected - fetching Uber quotes for selected address');
+          
+          // Fetch Uber quote for each artisan with professional delivery
+          // Pass the address directly to ensure we use the correct address
+          for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
+            if (method === 'professionalDelivery') {
+              console.log('🚛 Getting Uber Direct quote for artisan:', artisanId);
+              await calculateUberDirectFee(artisanId, address);
+            }
+          }
+        }
       } catch (error) {
         console.error('❌ Error validating selected address:', error);
       }
@@ -1153,7 +1304,7 @@ const Cart = () => {
         // For authenticated users, use selectedAddress or deliveryForm
         const addressToValidate = isGuest 
           ? (deliveryForm.deliveryAddress || deliveryForm)
-          : (selectedAddress || deliveryForm);
+          : ((useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm);
         
         const hasCompleteAddress = addressToValidate && 
           addressToValidate.street && 
@@ -1246,6 +1397,15 @@ const Cart = () => {
     try {
       setIsCreatingPaymentIntent(true);
 
+      // Calculate total delivery fee with buffered quotes
+      const totalDeliveryFee = await getTotalDeliveryFees();
+      
+      console.log('💰 Creating payment intent with delivery fee:', {
+        totalDeliveryFee,
+        uberDirectQuotes,
+        selectedDeliveryMethods
+      });
+
       // Prepare order data
       const orderData = {
         items: cart.map(item => {
@@ -1265,13 +1425,19 @@ const Cart = () => {
             productType: item.productType || 'ready_to_ship'
           };
         }),
-        deliveryAddress: selectedAddress || deliveryForm,
+        deliveryAddress: (useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm,
         deliveryInstructions: deliveryForm.instructions || '',
         deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+        deliveryFee: totalDeliveryFee, // EXPLICITLY include the calculated delivery fee
         pickupTimeWindows: selectedPickupTimes,
         deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
           artisanId,
           method,
+          fee: method === 'professionalDelivery' 
+            ? (uberDirectQuotes[artisanId]?.fee || 0)
+            : method === 'personalDelivery'
+            ? (deliveryOptions[artisanId]?.personalDelivery?.fee || 0)
+            : 0,
           instructions: method === 'pickup' 
             ? deliveryOptions[artisanId]?.pickup?.instructions || ''
             : method === 'personalDelivery'
@@ -1279,7 +1445,29 @@ const Cart = () => {
             : method === 'professionalDelivery'
             ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
             : ''
-        }))
+        })),
+        // Include delivery pricing data from buffered quotes (for professional delivery)
+        deliveryPricing: (() => {
+          const professionalDeliveryArtisan = Object.entries(selectedDeliveryMethods)
+            .find(([artisanId, method]) => method === 'professionalDelivery');
+          
+          if (professionalDeliveryArtisan) {
+            const [artisanId] = professionalDeliveryArtisan;
+            const quote = uberDirectQuotes[artisanId];
+            
+            if (quote) {
+              return {
+                estimatedFee: quote.estimatedFee || 0,
+                buffer: quote.buffer || 0,
+                bufferPercentage: quote.bufferPercentage || 20,
+                chargedAmount: quote.fee || 0,
+                uberQuoteId: quote.quote_id,
+                uberQuoteExpiry: quote.expires_at
+              };
+            }
+          }
+          return null;
+        })()
       };
 
       let response;
@@ -1522,6 +1710,9 @@ const Cart = () => {
 
   // Track if we've already loaded options for current cart state
   const loadedOptionsRef = React.useRef(null);
+  
+  // Track if profile loading has been initiated to prevent duplicate loads
+  const profileLoadingInitiatedRef = React.useRef(false);
 
   // Load delivery options when cart data or user location changes
   useEffect(() => {
@@ -1546,20 +1737,28 @@ const Cart = () => {
 
   // Load user profile immediately when user is authenticated
   useEffect(() => {
-    if (currentUserId && !isGuest && !userProfile) {
-      // Load profile for better performance
+    if (currentUserId && !isGuest && !userProfile && !profileLoadingInitiatedRef.current) {
+      // Load profile for better performance (only once)
+      console.log('🔄 Initiating profile load');
+      profileLoadingInitiatedRef.current = true;
       loadUserProfile().catch(error => {
         console.error('❌ Error loading user data:', error);
+        profileLoadingInitiatedRef.current = false; // Reset on error to allow retry
       });
     }
   }, [currentUserId, isGuest, userProfile]);
 
+  // Track if addresses have been loaded to prevent multiple loads
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
+
   // Load saved addresses and pre-populate delivery form when user profile is loaded
   useEffect(() => {
-    if (userProfile && !isGuest) {
+    if (userProfile && !isGuest && !addressesLoaded && userProfile.addresses && userProfile.addresses.length > 0) {
+      console.log('🔄 Triggering loadSavedAddresses once');
       loadSavedAddresses();
+      setAddressesLoaded(true);
     }
-  }, [userProfile, isGuest]);
+  }, [userProfile, isGuest, addressesLoaded]);
 
 
 
@@ -1628,6 +1827,13 @@ const Cart = () => {
         onDeliveryMethodChange={handleDeliveryMethodChange}
         deliveryForm={deliveryForm}
         onDeliveryFormChange={handleDeliveryFormChange}
+        selectedAddress={selectedAddress}
+        onAddressSelect={handleAddressSelect}
+        useSavedAddress={useSavedAddress}
+        onUseSavedAddressChange={handleUseSavedAddressChange}
+        userProfile={userProfile}
+        uberDirectQuotes={uberDirectQuotes}
+        loadingUberQuotes={loadingUberQuotes}
         onContinue={handleNextStep}
         onBack={handlePreviousStep}
         isGuest={isGuest}
@@ -1700,7 +1906,7 @@ const Cart = () => {
                       productType: item.productType || 'ready_to_ship'
                     };
                   }),
-                  deliveryAddress: selectedAddress || deliveryForm,
+                  deliveryAddress: (useSavedAddress && selectedAddress) ? selectedAddress : deliveryForm,
                   deliveryInstructions: deliveryForm.instructions || '',
                   deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
                   pickupTimeWindows: selectedPickupTimes,
@@ -1715,6 +1921,28 @@ const Cart = () => {
                       ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
                       : ''
                   })),
+                  // Include delivery pricing data from buffered quotes (for professional delivery)
+                  deliveryPricing: (() => {
+                    const professionalDeliveryArtisan = Object.entries(selectedDeliveryMethods)
+                      .find(([artisanId, method]) => method === 'professionalDelivery');
+                    
+                    if (professionalDeliveryArtisan) {
+                      const [artisanId] = professionalDeliveryArtisan;
+                      const quote = uberDirectQuotes[artisanId];
+                      
+                      if (quote) {
+                        return {
+                          estimatedFee: quote.estimatedFee || 0,
+                          buffer: quote.buffer || 0,
+                          bufferPercentage: quote.bufferPercentage || 20,
+                          chargedAmount: quote.fee || 0,
+                          uberQuoteId: quote.quote_id,
+                          uberQuoteExpiry: quote.expires_at
+                        };
+                      }
+                    }
+                    return null;
+                  })(),
                   guestInfo: isGuest ? {
                     firstName: deliveryForm.firstName || 'Guest',
                     lastName: deliveryForm.lastName || 'User',

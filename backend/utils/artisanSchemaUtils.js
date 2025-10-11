@@ -439,30 +439,58 @@ const getArtisanFulfillmentOptions = (artisan) => {
     shipping: { enabled: false }
   };
   
+  // Support both new unified schema and old schema with intelligent fallback
   return {
     pickup: artisan.fulfillment?.methods?.pickup || {
-      enabled: false,
-      location: artisan.address,
-      instructions: '',
+      enabled: artisan.deliveryOptions?.pickup ?? false,
+      location: artisan.pickupLocation || artisan.address,
+      instructions: artisan.pickupInstructions || '',
       useBusinessAddress: true,
-      schedule: {}
+      schedule: artisan.pickupSchedule || {}
     },
     delivery: artisan.fulfillment?.methods?.delivery || {
-      enabled: false,
-      fee: 0,
-      radius: 10,
-      instructions: ''
+      enabled: artisan.deliveryOptions?.delivery ?? false,
+      fee: artisan.deliveryOptions?.deliveryFee ?? 0,
+      radius: artisan.deliveryOptions?.deliveryRadius ?? 10,
+      freeThreshold: artisan.deliveryOptions?.freeDeliveryThreshold ?? 0,
+      instructions: artisan.deliveryInstructions || ''
     },
     professionalDelivery: artisan.fulfillment?.methods?.professionalDelivery || {
-      enabled: false,
-      fee: 0,
-      providers: []
+      enabled: artisan.professionalDelivery?.enabled ?? artisan.deliveryOptions?.professionalDelivery?.enabled ?? false,
+      fee: artisan.deliveryOptions?.professionalDeliveryFee ?? artisan.professionalDelivery?.fee ?? 0,
+      serviceRadius: artisan.professionalDelivery?.serviceRadius ?? 25,
+      uberDirectEnabled: artisan.professionalDelivery?.uberDirectEnabled ?? false,
+      regions: artisan.professionalDelivery?.regions ?? [],
+      packaging: artisan.professionalDelivery?.packaging ?? '',
+      restrictions: artisan.professionalDelivery?.restrictions ?? '',
+      providers: artisan.professionalDelivery?.providers ?? []
     },
     shipping: artisan.fulfillment?.methods?.shipping || {
-      enabled: false,
-      regions: []
+      enabled: artisan.deliveryOptions?.shipping ?? false,
+      regions: artisan.shippingRegions || []
     }
   };
+};
+
+/**
+ * Get delivery fee for a specific delivery method
+ * Handles both old and new schema
+ * @param {Object} artisan - Artisan document
+ * @param {String} deliveryMethod - 'personalDelivery' or 'professionalDelivery'
+ * @returns {Number} Delivery fee
+ */
+const getDeliveryFee = (artisan, deliveryMethod) => {
+  if (!artisan || !deliveryMethod) return 0;
+  
+  const fulfillmentOptions = getArtisanFulfillmentOptions(artisan);
+  
+  if (deliveryMethod === 'personalDelivery') {
+    return fulfillmentOptions.delivery.fee || 0;
+  } else if (deliveryMethod === 'professionalDelivery') {
+    return fulfillmentOptions.professionalDelivery.fee || 0;
+  }
+  
+  return 0;
 };
 
 /**
@@ -621,6 +649,7 @@ module.exports = {
   // Consumer helpers
   getArtisanDisplayInfo,
   getArtisanFulfillmentOptions,
+  getDeliveryFee,
   
   // Caching utilities
   getCachedArtisanById,

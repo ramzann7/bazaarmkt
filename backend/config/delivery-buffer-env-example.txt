@@ -1,0 +1,44 @@
+# Uber Direct Delivery Buffer Configuration
+# Add these variables to your .env file
+
+# Buffer Percentage (default: 20)
+# The percentage added to delivery quotes for surge protection
+DELIVERY_BUFFER_PERCENTAGE=20
+
+# Minimum Buffer Amount in CAD (default: 2.00)
+# Minimum buffer amount regardless of percentage
+DELIVERY_MIN_BUFFER=2.00
+
+# Maximum Buffer Amount in CAD (default: 10.00)
+# Maximum buffer amount to cap the buffer
+DELIVERY_MAX_BUFFER=10.00
+
+# Artisan Absorption Limit in CAD (default: 5.00)
+# Maximum amount an artisan can be asked to absorb
+# If excess is higher, order is auto-cancelled
+ARTISAN_ABSORPTION_LIMIT=5.00
+
+# Auto-Approve Threshold in CAD (default: 0.50)
+# Cost increases under this amount are automatically approved
+# and deducted from artisan without asking
+AUTO_APPROVE_THRESHOLD=0.50
+
+# Refund Threshold in CAD (default: 0.25)
+# Refunds under this amount are not processed
+# (to avoid transaction fees on tiny amounts)
+REFUND_THRESHOLD=0.25
+
+# Artisan Response Timeout in seconds (default: 7200 = 2 hours)
+# How long to wait for artisan response before auto-declining
+ARTISAN_RESPONSE_TIMEOUT=7200
+
+# Quote Validity Period in seconds (default: 900 = 15 minutes)
+# How long Uber Direct quotes are valid
+QUOTE_VALIDITY_PERIOD=900
+
+# Example values for different scenarios:
+# Conservative (higher buffer): DELIVERY_BUFFER_PERCENTAGE=25
+# Aggressive (lower buffer): DELIVERY_BUFFER_PERCENTAGE=15
+# High-value orders: DELIVERY_MAX_BUFFER=20.00
+# Quick response needed: ARTISAN_RESPONSE_TIMEOUT=3600
+

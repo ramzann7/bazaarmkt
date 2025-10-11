@@ -227,14 +227,51 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
-    <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-      <h3 style="color: #d97706; margin-top: 0;">🚚 Delivery Information</h3>
+    <div style="background: ${orderData.deliveryMethod === 'professionalDelivery' ? '#dbeafe' : '#fef3c7'}; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${orderData.deliveryMethod === 'professionalDelivery' ? '#2563eb' : '#f59e0b'};">
+      <h3 style="color: ${orderData.deliveryMethod === 'professionalDelivery' ? '#1e40af' : '#d97706'}; margin-top: 0;">
+        ${orderData.deliveryMethod === 'professionalDelivery' ? '🚚 Professional Courier Delivery' : '🚚 Delivery Information'}
+      </h3>
+      
+      ${orderData.deliveryMethod === 'professionalDelivery' && orderData.deliveryInfo?.trackingUrl ? `
+        <!-- Uber Tracking Section -->
+        <div style="background: #3b82f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center;">
+          <a href="${orderData.deliveryInfo.trackingUrl}" 
+             style="display: inline-block; background: white; color: #1e40af; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            🗺️ Track Your Delivery Live
+          </a>
+        </div>
+        
+        ${orderData.deliveryInfo.dropoffEta ? `
+          <div style="background: #bfdbfe; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+            <p style="margin: 0; color: #1e40af; font-size: 14px;">
+              <strong>⏰ Estimated Arrival:</strong> <span style="font-size: 18px; font-weight: bold;">${orderData.deliveryInfo.dropoffEta} minutes</span>
+            </p>
+          </div>
+        ` : ''}
+        
+        ${orderData.deliveryInfo.courier ? `
+          <div style="background: #eff6ff; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+            <p style="margin: 0 0 8px 0; color: #1e40af; font-weight: bold;">Courier Details:</p>
+            ${orderData.deliveryInfo.courier.name ? `<p style="margin: 3px 0; color: #1e3a8a;">👤 <strong>Name:</strong> ${orderData.deliveryInfo.courier.name}</p>` : ''}
+            ${orderData.deliveryInfo.courier.phone ? `<p style="margin: 3px 0; color: #1e3a8a;">📱 <strong>Phone:</strong> ${orderData.deliveryInfo.courier.phone}</p>` : ''}
+            ${orderData.deliveryInfo.courier.vehicle ? `<p style="margin: 3px 0; color: #1e3a8a;">🚗 <strong>Vehicle:</strong> ${orderData.deliveryInfo.courier.vehicle}</p>` : ''}
+          </div>
+        ` : ''}
+        
+        ${orderData.deliveryInfo.deliveryId ? `
+          <p style="margin: 5px 0; color: #64748b; font-size: 12px; text-align: center;">
+            Delivery ID: ${orderData.deliveryInfo.deliveryId}
+          </p>
+        ` : ''}
+      ` : ''}
+      
       <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
       <p style="margin: 5px 0; color: #666;">
         ${orderData.deliveryAddress.street}<br>
         ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
       </p>
-      ${orderData.deliveryInfo ? `
+      
+      ${!orderData.deliveryInfo?.trackingUrl && orderData.deliveryInfo ? `
         <div style="margin-top: 15px; padding: 15px; background: #fff7ed; border-radius: 6px;">
           <p style="margin: 5px 0; color: #d97706;"><strong>📏 Distance:</strong> ${orderData.deliveryInfo.formattedDistance}</p>
           <p style="margin: 5px 0; color: #d97706;"><strong>⏱️ Estimated Time:</strong> ${orderData.deliveryInfo.formattedEstimatedTime}</p>
@@ -242,18 +279,19 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
             <p style="margin: 5px 0; color: #d97706;"><strong>🕐 Expected Arrival:</strong> ${new Date(orderData.deliveryInfo.estimatedArrivalTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
           ` : ''}
         </div>
-      ` : orderData.estimatedDeliveryTime ? `
+      ` : !orderData.deliveryInfo?.trackingUrl && orderData.estimatedDeliveryTime ? `
         <p style="margin: 5px 0;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
       ` : ''}
+      
       ${orderData.artisanInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #fde68a;">
-          <p style="margin: 5px 0; color: #d97706;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${orderData.deliveryMethod === 'professionalDelivery' ? '#bfdbfe' : '#fde68a'};">
+          <p style="margin: 5px 0; color: ${orderData.deliveryMethod === 'professionalDelivery' ? '#1e40af' : '#d97706'};"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
           ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
         </div>
       ` : ''}
       ${orderData.patronInfo || orderData.guestInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #fde68a;">
-          <h4 style="color: #d97706; margin: 0 0 10px 0;">Customer Information</h4>
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${orderData.deliveryMethod === 'professionalDelivery' ? '#bfdbfe' : '#fde68a'};">
+          <h4 style="color: ${orderData.deliveryMethod === 'professionalDelivery' ? '#1e40af' : '#d97706'}; margin: 0 0 10px 0;">Customer Information</h4>
           <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.guestInfo).lastName}</p>
           ${(orderData.patronInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.guestInfo).email}</p>` : ''}
           ${(orderData.patronInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.guestInfo).phone}</p>` : ''}
@@ -1195,6 +1233,11 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
     
     const userRole = user.role || user.userType;
     
+    // Check if this is a guest order (from notification data)
+    const isGuestOrder = notificationData.userInfo?.isGuest || 
+                        notificationData.orderData?.isGuestOrder || 
+                        false;
+    
     // Determine notification type for preference checking
     let preferenceType = 'promotions'; // default
     if (type === 'order_update' || type === 'order_completion' || type === 'order_placed' || type === 'new_order_pending' || 
@@ -1217,15 +1260,26 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
     let shouldSendEmail = false;
     
     if (userRole === 'artisan') {
-      // ARTISANS: Send email for NEW orders and pending orders
-      shouldSendEmail = type === 'new_order' || type === 'new_order_pending';
+      // ARTISANS: Send email for NEW orders, courier tracking, cost increases, and payment releases
+      shouldSendEmail = type === 'new_order' || 
+                       type === 'new_order_pending' || 
+                       type === 'courier_on_way' ||
+                       type === 'delivery_cost_increase' ||
+                       type === 'order_completed';
       console.log(`📧 Artisan notification: type=${type}, sendEmail=${shouldSendEmail}`);
+    } else if (isGuestOrder) {
+      // GUESTS: Send email for ALL status changes (they can't see in-app notifications)
+      shouldSendEmail = true;
+      console.log(`📧 Guest order notification: type=${type}, sendEmail=true (guest gets all emails)`);
     } else if (userRole === 'patron' || userRole === 'customer' || userRole === 'buyer') {
-      // PATRONS: Send email for all order status updates
-      shouldSendEmail = type === 'order_completion' || type === 'order_placed' || type === 'order_declined' || 
-                       type === 'order_confirmed' || type === 'order_preparing' || type === 'order_ready' || 
-                       type === 'order_completed' || type === 'order_update';
-      console.log(`📧 Patron notification: type=${type}, sendEmail=${shouldSendEmail}`);
+      // PATRONS (REGISTERED): Send email ONLY for key events
+      // They get in-app notifications for everything else (notification bell)
+      shouldSendEmail = type === 'order_placed' ||           // Initial confirmation
+                       type === 'order_confirmed' ||         // Artisan accepted
+                       type === 'order_out_for_delivery' ||  // With tracking info
+                       type === 'delivery_refund' ||         // Refund processed
+                       type === 'order_declined';            // Order rejected
+      console.log(`📧 Patron (registered) notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else {
       // For other types, check preferences
       shouldSendEmail = await checkNotificationPreference(userId, preferenceType, 'email', db);
@@ -1551,3 +1605,4 @@ router.put('/preferences', verifyJWT, updateNotificationPreferences);
 module.exports = router;
 module.exports.sendNotification = sendNotification;
 module.exports.sendEmailNotification = sendEmailNotification;
+module.exports.sendPreferenceBasedNotification = sendPreferenceBasedNotification;

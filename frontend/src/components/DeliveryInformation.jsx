@@ -28,6 +28,13 @@ const DeliveryInformation = ({
   onDeliveryMethodChange,
   deliveryForm,
   onDeliveryFormChange,
+  selectedAddress,
+  onAddressSelect,
+  useSavedAddress,
+  onUseSavedAddressChange,
+  userProfile,
+  uberDirectQuotes = {},
+  loadingUberQuotes = new Set(),
   onContinue,
   onBack,
   isGuest,
@@ -51,164 +58,19 @@ const DeliveryInformation = ({
   const [emailValidationTimeout, setEmailValidationTimeout] = useState(null);
   const [lastValidatedEmail, setLastValidatedEmail] = useState(null);
   const [showAddressOptions, setShowAddressOptions] = useState(false);
-  const [useSavedAddress, setUseSavedAddress] = useState(true);
   const [showAllPickupTimes, setShowAllPickupTimes] = useState({}); // Track expanded state per artisan
-  // Uber Direct quote management
-  const [uberQuotes, setUberQuotes] = useState({});
-  const [loadingUberQuotes, setLoadingUberQuotes] = useState(new Set());
-  const [uberQuoteErrors, setUberQuoteErrors] = useState({});
+  // Use Uber quotes from parent Cart component (passed as props)
+  // This eliminates duplicate state and ensures consistency
+  const uberQuotes = uberDirectQuotes;
+  const isLoadingUberQuote = (artisanId) => loadingUberQuotes.has(artisanId);
 
   // Get the current artisan (assuming single artisan for now)
   const currentArtisanId = Object.keys(cartByArtisan)[0];
   const currentArtisan = cartByArtisan[currentArtisanId];
 
-  // Function to get Uber Direct quote - wrapped in useCallback to prevent infinite re-renders
-  const getUberQuote = useCallback(async (artisanId) => {
-    // Only get quote if professional delivery is selected and address is available
-    if (selectedDeliveryMethods[artisanId] !== 'professionalDelivery') {
-      return;
-    }
-
-    // Check if we have a valid delivery address
-    let deliveryAddress = null;
-    
-    // Both guests and authenticated users use deliveryForm.deliveryAddress
-    if (deliveryForm.deliveryAddress?.street && deliveryForm.deliveryAddress?.city && 
-        deliveryForm.deliveryAddress?.state && deliveryForm.deliveryAddress?.zipCode) {
-      const addr = deliveryForm.deliveryAddress;
-      deliveryAddress = {
-        street: addr.street,
-        city: addr.city,
-        state: addr.state,
-        zipCode: addr.zipCode,
-        fullAddress: `${addr.street}, ${addr.city}, ${addr.state} ${addr.zipCode}`
-      };
-    }
-
-    // Return early if no valid address
-    if (!deliveryAddress) {
-      return;
-    }
-
-    // Check if address has valid coordinates from validation
-    if (!addressValidation.coordinates?.latitude || !addressValidation.coordinates?.longitude) {
-      return;
-    }
-
-    try {
-      setLoadingUberQuotes(prev => new Set([...prev, artisanId]));
-      setUberQuoteErrors(prev => ({ ...prev, [artisanId]: null }));
-
-      // Get artisan location
-      const artisanLocation = currentArtisan?.artisan?.coordinates || 
-                            currentArtisan?.artisan?.address || 
-                            deliveryOptions[artisanId]?.pickup?.address;
-
-      if (!artisanLocation) {
-        throw new Error('Artisan location not available');
-      }
-
-      // Prepare pickup location
-      const pickupLocation = {
-        address: typeof artisanLocation === 'string' ? artisanLocation : 
-                `${artisanLocation.street || ''}, ${artisanLocation.city || ''}, ${artisanLocation.state || ''} ${artisanLocation.zipCode || ''}`,
-        contactName: currentArtisan?.artisan?.artisanName || 'Artisan',
-        phone: currentArtisan?.artisan?.phone || '',
-        latitude: artisanLocation.latitude || (currentArtisan?.artisan?.coordinates?.latitude),
-        longitude: artisanLocation.longitude || (currentArtisan?.artisan?.coordinates?.longitude)
-      };
-
-      // Prepare dropoff location
-      const dropoffLocation = {
-        address: deliveryAddress.fullAddress,
-        contactName: deliveryForm.firstName && deliveryForm.lastName ? 
-                    `${deliveryForm.firstName} ${deliveryForm.lastName}` : 
-                    (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Customer'),
-        phone: deliveryForm.phone || user?.phone || '',
-        latitude: addressValidation.coordinates.latitude,
-        longitude: addressValidation.coordinates.longitude
-      };
-
-      // Calculate package details
-      const subtotal = currentArtisan.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const packageDetails = {
-        price: subtotal,
-        size: 'medium', // Default to medium for now
-        weight: currentArtisan.items.length // Simple weight estimation
-      };
-
-      console.log('🚛 Requesting Uber quote for:', {
-        pickup: pickupLocation.address,
-        dropoff: dropoffLocation.address
-      });
-
-      // Make API call to get quote
-      const response = await fetch('/api/delivery/uber-direct/quote', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          pickupLocation,
-          dropoffLocation,
-          packageDetails
-        })
-      });
-
-      const quoteData = await response.json();
-
-      if (quoteData.success || quoteData.fallback) {
-        setUberQuotes(prev => ({
-          ...prev,
-          [artisanId]: {
-            fee: parseFloat(quoteData.fee),
-            currency: quoteData.currency || 'CAD',
-            duration: quoteData.duration || 45,
-            pickup_eta: quoteData.pickup_eta || 15,
-            estimated: quoteData.fallback || quoteData.estimated || false,
-            expires_at: quoteData.expires_at,
-            quoteId: quoteData.quoteId
-          }
-        }));
-
-        console.log('✅ Uber quote received:', {
-          fee: quoteData.fee,
-          estimated: quoteData.fallback || quoteData.estimated
-        });
-      } else {
-        throw new Error(quoteData.message || 'Failed to get quote');
-      }
-
-    } catch (error) {
-      console.error('❌ Error getting Uber quote:', error);
-      setUberQuoteErrors(prev => ({
-        ...prev,
-        [artisanId]: error.message || 'Failed to get delivery quote'
-      }));
-      
-      // Set fallback estimate based on distance if available
-      if (addressValidation.distance) {
-        const estimatedFee = 8 + (addressValidation.distance * 1.5);
-        setUberQuotes(prev => ({
-          ...prev,
-          [artisanId]: {
-            fee: estimatedFee,
-            currency: 'CAD',
-            duration: Math.max(30, addressValidation.distance * 3),
-            pickup_eta: 15,
-            estimated: true,
-            error: 'Estimate only - unable to get live quote'
-          }
-        }));
-      }
-    } finally {
-      setLoadingUberQuotes(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(artisanId);
-        return newSet;
-      });
-    }
-  }, [selectedDeliveryMethods, deliveryForm.deliveryAddress, addressValidation.coordinates, addressValidation.distance, currentArtisan, deliveryOptions, deliveryForm.firstName, deliveryForm.lastName, deliveryForm.phone, user]);
+  // NOTE: Uber quote fetching is now handled by parent Cart component
+  // DeliveryInformation receives quotes via uberDirectQuotes prop
+  // No duplicate fetching logic needed here
 
   // Validate and geocode address - MUST BE BEFORE validateSavedAddress
   const validateAddress = async (address) => {
@@ -307,18 +169,11 @@ const DeliveryInformation = ({
     }
   }, [useSavedAddress, selectedDeliveryMethods[currentArtisanId]]);
 
-  // Get Uber quote when address validation is complete and professional delivery is selected
-  useEffect(() => {
-    if (addressValidation.isValid && 
-        addressValidation.coordinates && 
-        selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery') {
-      // Delay the quote request slightly to ensure all address data is ready
-      const timer = setTimeout(() => {
-        getUberQuote(currentArtisanId);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [addressValidation.isValid, addressValidation.coordinates, selectedDeliveryMethods, currentArtisanId, getUberQuote]);
+  // NOTE: Uber quote fetching removed from here - now handled by parent Cart component
+  // Cart.jsx handles quote fetching when:
+  // 1. User selects professional delivery
+  // 2. User enters/selects an address
+  // 3. Saved address is loaded
 
   // Calculate distance for pickup (only for authenticated users)
   useEffect(() => {
@@ -687,31 +542,31 @@ const DeliveryInformation = ({
             </div>
 
             {/* Delivery Options */}
-            <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
-              <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Choose Your Delivery Method</h3>
-                <p className="text-gray-600">Select the option that works best for you</p>
+            <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Choose Your Delivery Method</h3>
+                <p className="text-sm text-gray-600">Select the option that works best for you</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Pickup Option */}
                 {deliveryOptions[currentArtisanId]?.pickup?.available && (
                   <div 
-                    className={`relative p-8 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                    className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                       selectedDeliveryMethods[currentArtisanId] === 'pickup'
-                        ? 'border-green-500 bg-green-50 shadow-lg'
-                        : 'border-gray-200 hover:border-green-300 hover:shadow-md'
+                        ? 'border-green-500 bg-green-50 shadow-sm'
+                        : 'border-gray-200 hover:border-green-300 hover:shadow-sm'
                     }`}
                     onClick={() => handleDeliveryMethodChange('pickup')}
                   >
                     {selectedDeliveryMethods[currentArtisanId] === 'pickup' && (
-                      <div className="absolute top-4 right-4">
-                        <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                      <div className="absolute top-3 right-3">
+                        <CheckCircleIcon className="w-5 h-5 text-green-600" />
                       </div>
                     )}
                     
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                         {getDeliveryMethodIcon('pickup')}
                       </div>
                       <input
@@ -721,15 +576,15 @@ const DeliveryInformation = ({
                         onChange={() => handleDeliveryMethodChange('pickup')}
                         className="sr-only"
                       />
-                      <h4 className="text-xl font-bold text-gray-900 mb-3">Pickup</h4>
-                      <p className="text-gray-600 mb-4">Visit the artisan directly</p>
-                      <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full inline-block font-bold text-lg">
+                      <h4 className="text-lg font-bold text-gray-900 mb-2">Pickup</h4>
+                      <p className="text-sm text-gray-600 mb-3">Visit the artisan directly</p>
+                      <div className="bg-green-100 text-green-700 px-3 py-1.5 rounded-full inline-block font-bold text-sm">
                         Free
                       </div>
-                      <div className="mt-4 text-sm text-green-600 font-medium">
-                        ✓ No delivery fees<br/>
-                        ✓ Meet the artisan<br/>
-                        ✓ Instant pickup
+                      <div className="mt-3 text-xs text-green-600 font-medium space-y-1">
+                        <div>✓ No delivery fees</div>
+                        <div>✓ Meet the artisan</div>
+                        <div>✓ Instant pickup</div>
                       </div>
                     </div>
                   </div>
@@ -738,21 +593,21 @@ const DeliveryInformation = ({
                 {/* Personal Delivery Option */}
                 {deliveryOptions[currentArtisanId]?.personalDelivery?.available && (
                   <div 
-                    className={`relative p-8 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                    className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                       selectedDeliveryMethods[currentArtisanId] === 'personalDelivery'
-                        ? 'border-orange-500 bg-orange-50 shadow-lg'
-                        : 'border-gray-200 hover:border-orange-300 hover:shadow-md'
+                        ? 'border-orange-500 bg-orange-50 shadow-sm'
+                        : 'border-gray-200 hover:border-orange-300 hover:shadow-sm'
                     }`}
                     onClick={() => handleDeliveryMethodChange('personalDelivery')}
                   >
                     {selectedDeliveryMethods[currentArtisanId] === 'personalDelivery' && (
-                      <div className="absolute top-4 right-4">
-                        <CheckCircleIcon className="w-6 h-6 text-orange-600" />
+                      <div className="absolute top-3 right-3">
+                        <CheckCircleIcon className="w-5 h-5 text-orange-600" />
                       </div>
                     )}
                     
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                         {getDeliveryMethodIcon('personalDelivery')}
                       </div>
                       <input
@@ -762,19 +617,19 @@ const DeliveryInformation = ({
                         onChange={() => handleDeliveryMethodChange('personalDelivery')}
                         className="sr-only"
                       />
-                      <h4 className="text-xl font-bold text-gray-900 mb-3">Personal Delivery</h4>
-                      <p className="text-gray-600 mb-4">Direct from artisan</p>
-                      <div className="bg-orange-100 text-orange-700 px-4 py-2 rounded-full inline-block font-bold text-lg">
+                      <h4 className="text-lg font-bold text-gray-900 mb-2">Personal Delivery</h4>
+                      <p className="text-sm text-gray-600 mb-3">Direct from artisan</p>
+                      <div className="bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full inline-block font-bold text-sm">
                         {deliveryOptions[currentArtisanId]?.personalDelivery?.freeDeliveryThreshold && 
                          costs.subtotal >= deliveryOptions[currentArtisanId].personalDelivery.freeDeliveryThreshold
                           ? 'Free'
                           : formatPrice(deliveryOptions[currentArtisanId]?.personalDelivery?.fee || 0)
                         }
                       </div>
-                      <div className="mt-4 text-sm text-orange-600 font-medium">
-                        ✓ Personal service<br/>
-                        ✓ 30-60 min delivery<br/>
-                        ✓ Within {deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10}km radius
+                      <div className="mt-3 text-xs text-orange-600 font-medium space-y-1">
+                        <div>✓ Personal service</div>
+                        <div>✓ 30-60 min delivery</div>
+                        <div>✓ Within {deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10}km radius</div>
                       </div>
                     </div>
                   </div>
@@ -783,21 +638,21 @@ const DeliveryInformation = ({
                 {/* Professional Delivery Option */}
                 {deliveryOptions[currentArtisanId]?.professionalDelivery?.available && (
                   <div 
-                    className={`relative p-8 border-2 rounded-2xl cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                    className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
                       selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery'
-                        ? 'border-blue-500 bg-blue-50 shadow-lg'
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+                        ? 'border-blue-500 bg-blue-50 shadow-sm'
+                        : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
                     }`}
                     onClick={() => handleDeliveryMethodChange('professionalDelivery')}
                   >
                     {selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery' && (
-                      <div className="absolute top-4 right-4">
-                        <CheckCircleIcon className="w-6 h-6 text-blue-600" />
+                      <div className="absolute top-3 right-3">
+                        <CheckCircleIcon className="w-5 h-5 text-blue-600" />
                       </div>
                     )}
                     
                     <div className="text-center">
-                      <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                         {getDeliveryMethodIcon('professionalDelivery')}
                       </div>
                       <input
@@ -807,17 +662,17 @@ const DeliveryInformation = ({
                         onChange={() => handleDeliveryMethodChange('professionalDelivery')}
                         className="sr-only"
                       />
-                      <h4 className="text-xl font-bold text-gray-900 mb-3">Professional Delivery</h4>
-                      <p className="text-gray-600 mb-4">
-                        <span className="font-semibold text-blue-800">Uber</span>
+                      <h4 className="text-lg font-bold text-gray-900 mb-2">Professional Delivery</h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        <span className="font-semibold text-blue-800">Courrier Service</span>
                       </p>
-                      <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full inline-block font-bold text-lg">
+                      <div className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full inline-block font-bold text-sm">
                         {(() => {
                           // Check if we have a valid address with coordinates
                           const hasValidAddress = addressValidation.isValid && addressValidation.coordinates;
                           
                           if (!hasValidAddress) {
-                            return "Enter address for quote";
+                            return "Enter address";
                           }
                           
                           // Show loading state
@@ -832,24 +687,19 @@ const DeliveryInformation = ({
                             return `${formatPrice(uberQuote.fee)}${estimatedText}`;
                           }
                           
-                          // Show error if quote failed
-                          if (uberQuoteErrors[currentArtisanId]) {
-                            return "Quote unavailable";
-                          }
-                          
-                          return "Quote pending";
+                          return "Getting quote...";
                         })()}
                       </div>
-                      <div className="mt-4 text-sm text-blue-600 font-medium">
-                        ✓ Professional courier service<br/>
-                        ✓ {(() => {
+                      <div className="mt-3 text-xs text-blue-600 font-medium space-y-1">
+                        <div>✓ Professional courier service</div>
+                        <div>✓ {(() => {
                           const uberQuote = uberQuotes[currentArtisanId];
                           if (uberQuote && uberQuote.duration) {
                             return `${Math.round(uberQuote.duration)} min delivery`;
                           }
                           return '20-40 min delivery';
-                        })()}<br/>
-                        ✓ Within {deliveryOptions[currentArtisanId]?.professionalDelivery?.serviceRadius || 25}km radius
+                        })()}</div>
+                        <div>✓ Within {deliveryOptions[currentArtisanId]?.professionalDelivery?.serviceRadius || 25}km radius</div>
                       </div>
                     </div>
                   </div>
@@ -995,7 +845,7 @@ const DeliveryInformation = ({
                             : 'border-stone-200 hover:border-amber-300'
                         }`}
                         onClick={() => {
-                          setUseSavedAddress(true);
+                          onUseSavedAddressChange(true);
                           setShowDeliveryAddress(false);
                         }}
                       >
@@ -1004,7 +854,7 @@ const DeliveryInformation = ({
                             type="radio"
                             checked={useSavedAddress}
                             onChange={() => {
-                              setUseSavedAddress(true);
+                              onUseSavedAddressChange(true);
                               setShowDeliveryAddress(false);
                             }}
                             className="text-amber-600"
@@ -1026,7 +876,7 @@ const DeliveryInformation = ({
                             : 'border-stone-200 hover:border-amber-300'
                         }`}
                         onClick={() => {
-                          setUseSavedAddress(false);
+                          onUseSavedAddressChange(false);
                           setShowDeliveryAddress(true);
                         }}
                       >
@@ -1035,7 +885,7 @@ const DeliveryInformation = ({
                             type="radio"
                             checked={!useSavedAddress}
                             onChange={() => {
-                              setUseSavedAddress(false);
+                              onUseSavedAddressChange(false);
                               setShowDeliveryAddress(true);
                             }}
                             className="text-amber-600"

@@ -1045,8 +1045,11 @@ export default function Orders() {
                   )}
                 </div>
 
-                {/* Patron Confirmation Needed Badge */}
-                {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
+                {/* Patron Confirmation Needed Badge (not for professional delivery - auto-completes) */}
+                {userRole === 'patron' && 
+                 (order.status === 'delivered' || order.status === 'picked_up') && 
+                 !order.walletCredit?.patronConfirmedAt && 
+                 order.deliveryMethod !== 'professionalDelivery' && (
                   <div className="mt-4 p-3 bg-primary-50 border-2 border-amber-400 rounded-lg animate-pulse">
                     <div className="flex items-center gap-2">
                       <ExclamationTriangleIcon className="w-5 h-5 text-primary" />
@@ -1057,6 +1060,24 @@ export default function Orders() {
                         </p>
                       </div>
                       <CheckCircleIcon className="w-5 h-5 text-primary" />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Professional Delivery Auto-Complete Badge */}
+                {userRole === 'patron' && 
+                 order.status === 'completed' && 
+                 order.deliveryMethod === 'professionalDelivery' &&
+                 order.autoCompletedBySystem && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-300 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-green-900">Delivery Confirmed by Courier</p>
+                        <p className="text-xs text-green-700">
+                          Order automatically completed - courier confirmed delivery
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1643,6 +1664,39 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
     }
   };
 
+  const handleCostAbsorptionResponse = async (response) => {
+    setIsLoading(true);
+    try {
+      console.log(`💰 Artisan responding to cost absorption:`, response);
+      
+      const result = await orderService.respondToCostAbsorption(order._id, response);
+      
+      if (response === 'accepted') {
+        toast.success(
+          `Delivery created! Cost of $${result.data.excessAmount?.toFixed(2) || order.costAbsorption?.amount?.toFixed(2)} will be deducted from your earnings.`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.info(
+          'Order cancelled. Customer has been fully refunded.',
+          { duration: 4000 }
+        );
+      }
+      
+      // Close modal and refresh
+      onClose();
+      await onRefresh(true); // Force refresh after response
+      
+    } catch (error) {
+      console.error('❌ Error responding to cost absorption:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to process response';
+      toast.error(errorMessage);
+      await onRefresh(true); // Refresh to show correct state
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -1693,6 +1747,242 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
               </div>
             </div>
           </div>
+
+          {/* Cost Absorption Decision CTA (for artisans when delivery cost increased) */}
+          {order.costAbsorption?.required && 
+           order.costAbsorption?.artisanResponse === 'pending' && 
+           isArtisan(userRole) && (
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-5 animate-pulse shadow-md">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="w-7 h-7 text-yellow-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-yellow-900 text-lg mb-2 flex items-center gap-2">
+                    ⚠️ Delivery Cost Increased
+                  </h4>
+                  <div className="bg-yellow-100 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-yellow-900 mb-2">
+                      The current delivery cost is <strong className="font-bold text-lg">${order.deliveryPricing?.actualFee?.toFixed(2)}</strong>,
+                      but the customer was charged <strong className="font-bold text-lg">${order.deliveryPricing?.chargedAmount?.toFixed(2)}</strong>.
+                    </p>
+                    <p className="text-sm text-yellow-900 font-semibold">
+                      Additional cost you need to cover: <span className="text-xl font-bold">${order.costAbsorption?.amount?.toFixed(2)}</span>
+                    </p>
+                  </div>
+                  <p className="text-xs text-yellow-800 mb-4 bg-yellow-50 p-2 rounded border border-yellow-200">
+                    💡 <strong>What happens next?</strong><br/>
+                    <strong>If you accept:</strong> The delivery will be created and ${order.costAbsorption?.amount?.toFixed(2)} will be deducted from your earnings.<br/>
+                    <strong>If you decline:</strong> The order will be cancelled and the customer will be fully refunded.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleCostAbsorptionResponse('accepted')}
+                      disabled={isLoading}
+                      className="flex-1 px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-base"
+                    >
+                      {isLoading ? (
+                        <>⏳ Processing...</>
+                      ) : (
+                        <>
+                          <CheckCircleIcon className="w-5 h-5" />
+                          Accept ${order.costAbsorption?.amount?.toFixed(2)}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleCostAbsorptionResponse('declined')}
+                      disabled={isLoading}
+                      className="flex-1 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-base"
+                    >
+                      {isLoading ? (
+                        <>⏳ Processing...</>
+                      ) : (
+                        <>
+                          <XMarkIcon className="w-5 h-5" />
+                          Decline & Cancel Order
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Uber Tracking Information (for artisans to track courier) */}
+          {order.deliveryMethod === 'professionalDelivery' && 
+           order.uberDelivery && 
+           (order.status === 'ready_for_delivery' || order.status === 'out_for_delivery') &&
+           isArtisan(userRole) && (
+            <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-5 shadow-md">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <TruckIcon className="w-7 h-7 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-blue-900 text-lg mb-2 flex items-center gap-2">
+                    🚚 Courier Tracking
+                  </h4>
+                  
+                  {/* Pickup ETA */}
+                  {order.uberDelivery.pickupEta && (
+                    <div className="bg-blue-100 rounded-lg p-3 mb-3">
+                      <p className="text-sm text-blue-900 font-semibold mb-1">
+                        ⏰ Courier arriving in: <span className="text-2xl font-bold">{order.uberDelivery.pickupEta} minutes</span>
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        Please have the order ready for pickup
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Courier Details */}
+                  {order.uberDelivery.courier && (
+                    <div className="bg-white rounded-lg p-3 mb-3 border border-blue-200">
+                      <p className="text-sm text-blue-900 font-semibold mb-2">Courier Details:</p>
+                      <div className="space-y-1 text-sm text-blue-800">
+                        {order.uberDelivery.courier.name && (
+                          <p>👤 Name: <strong>{order.uberDelivery.courier.name}</strong></p>
+                        )}
+                        {order.uberDelivery.courier.phone && (
+                          <p>📱 Phone: <strong>{order.uberDelivery.courier.phone}</strong></p>
+                        )}
+                        {order.uberDelivery.courier.vehicle && (
+                          <p>🚗 Vehicle: <strong>{order.uberDelivery.courier.vehicle}</strong></p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Track Delivery Button */}
+                  {order.uberDelivery.trackingUrl && (
+                    <a
+                      href={order.uberDelivery.trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-bold text-center shadow-md hover:shadow-lg"
+                    >
+                      🗺️ Track Courier in Real-Time
+                    </a>
+                  )}
+                  
+                  <p className="text-xs text-blue-700 mt-3 text-center">
+                    Delivery ID: {order.uberDelivery.deliveryId}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Uber Tracking Information (for patrons to track their delivery) */}
+          {order.deliveryMethod === 'professionalDelivery' && 
+           order.uberDelivery && 
+           order.status === 'out_for_delivery' &&
+           !isArtisan(userRole) && (
+            <div className="bg-blue-50 border-2 border-blue-400 rounded-lg p-5 shadow-md mb-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <TruckIcon className="w-7 h-7 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-blue-900 text-lg mb-2">
+                    🚚 Your Order is On The Way!
+                  </h4>
+                  
+                  {/* Delivery ETA */}
+                  {order.uberDelivery.dropoffEta && (
+                    <div className="bg-blue-100 rounded-lg p-3 mb-3">
+                      <p className="text-sm text-blue-900 font-semibold mb-1">
+                        ⏰ Estimated arrival: <span className="text-2xl font-bold">{order.uberDelivery.dropoffEta} minutes</span>
+                      </p>
+                      <p className="text-xs text-blue-700">
+                        The courier is on their way to your address
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Courier Details */}
+                  {order.uberDelivery.courier && (
+                    <div className="bg-white rounded-lg p-3 mb-3 border border-blue-200">
+                      <p className="text-sm text-blue-900 font-semibold mb-2">Courier Information:</p>
+                      <div className="space-y-1 text-sm text-blue-800">
+                        {order.uberDelivery.courier.name && (
+                          <p>👤 Name: <strong>{order.uberDelivery.courier.name}</strong></p>
+                        )}
+                        {order.uberDelivery.courier.phone && (
+                          <p>📱 Phone: <strong>{order.uberDelivery.courier.phone}</strong></p>
+                        )}
+                        {order.uberDelivery.courier.vehicle && (
+                          <p>🚗 Vehicle: <strong>{order.uberDelivery.courier.vehicle}</strong></p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Track Delivery Button */}
+                  {order.uberDelivery.trackingUrl && (
+                    <a
+                      href={order.uberDelivery.trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-bold text-center shadow-md hover:shadow-lg mb-2"
+                    >
+                      🗺️ Track Your Delivery Live
+                    </a>
+                  )}
+                  
+                  <p className="text-xs text-blue-700 text-center">
+                    Delivery ID: {order.uberDelivery.deliveryId}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delivery Refund Notification (for buyers when refund was processed) */}
+          {order.deliveryPricing?.refundAmount && 
+           order.deliveryPricing.refundAmount > 0 && 
+           !isArtisan(userRole) && (
+            <div className="bg-green-50 border border-green-300 rounded-lg p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-green-900 text-base mb-1">
+                    💰 Delivery Refund Processed
+                  </h4>
+                  <p className="text-sm text-green-800 mb-2">
+                    Great news! The actual delivery cost was lower than estimated. 
+                    <strong className="font-bold"> ${order.deliveryPricing.refundAmount.toFixed(2)}</strong> has been refunded to your wallet.
+                  </p>
+                  <div className="bg-green-100 rounded px-3 py-2 text-xs text-green-800 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Estimated delivery fee:</span>
+                      <span className="font-semibold">${order.deliveryPricing.estimatedFee?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Buffer charged (20%):</span>
+                      <span className="font-semibold">+${order.deliveryPricing.buffer?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-green-200 pt-1">
+                      <span>You paid:</span>
+                      <span className="font-semibold">${order.deliveryPricing.chargedAmount?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Actual delivery cost:</span>
+                      <span className="font-semibold">${order.deliveryPricing.actualFee?.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-green-300 pt-1 font-bold">
+                      <span>Refunded:</span>
+                      <span className="text-green-700">${order.deliveryPricing.refundAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Decline/Cancellation Reason (if applicable) */}
           {(order.status === 'declined' || order.status === 'cancelled') && order.lastStatusUpdate?.reason && (
@@ -1794,10 +2084,10 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">{item.product?.name || item.name || item.productName || 'Unknown Product'}</p>
                     <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                    <p className="text-sm text-gray-600">Unit Price: ${(item.unitPrice || item.productPrice || 0).toFixed(2)}</p>
+                    <p className="text-sm text-gray-600">Unit Price: ${(parseFloat(item.unitPrice) || parseFloat(item.productPrice) || 0).toFixed(2)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-gray-900">${(item.totalPrice || item.itemTotal || ((item.unitPrice || item.productPrice || 0) * (item.quantity || 0))).toFixed(2)}</p>
+                    <p className="font-medium text-gray-900">${(parseFloat(item.totalPrice) || parseFloat(item.itemTotal) || ((parseFloat(item.unitPrice) || parseFloat(item.productPrice) || 0) * (parseInt(item.quantity) || 0))).toFixed(2)}</p>
                   </div>
                 </div>
                 );

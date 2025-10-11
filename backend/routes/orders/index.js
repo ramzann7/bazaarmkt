@@ -11,23 +11,47 @@ const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STR
 const PlatformSettingsService = require('../../services/platformSettingsService');
 const redisCacheService = require('../../services/redisCacheService');
 
-// Import notification service functions
-const { sendNotification, sendEmailNotification } = require('../notifications/index');
+// Import notification service functions  
+const { sendNotification, sendPreferenceBasedNotification } = require('../notifications/index');
 
-// Helper function to send notifications directly
+// Helper function to send notifications directly (with email via preference system)
 const sendNotificationDirect = async (notificationData, db) => {
   try {
-    // Send platform notification
-    const mockReq = { body: notificationData, db: db };
-    const mockRes = { 
-      json: (data) => console.log('✅ Notification response:', data),
-      status: (code) => ({ json: (data) => console.log(`❌ Notification error (${code}):`, data) })
-    };
+    // Skip guest notifications for now (they have no userId)
+    if (!notificationData.userId) {
+      console.log('⏭️ Skipping notification for guest/no userId');
+      return true;
+    }
+
+    console.log('📧 Attempting to send notification:', {
+      userId: notificationData.userId,
+      type: notificationData.type,
+      hasDb: !!db
+    });
+
+    // Use the preference-based notification system which handles both email and platform notifications
+    // This system checks user roles and preferences to determine if email should be sent
+    const result = await sendPreferenceBasedNotification(
+      notificationData.userId,
+      notificationData,
+      db
+    );
     
-    await sendNotification(mockReq, mockRes);
+    console.log('✅ Notification sent via preference system:', {
+      userId: notificationData.userId,
+      type: notificationData.type,
+      emailSent: result?.emailSent || false,
+      pushSent: result?.pushSent || false,
+      result
+    });
     
-        // Send email notification if user has email and it's an order status update
-        const patronEmailStatuses = ['pending', 'confirmed', 'declined', 'out_for_delivery', 'ready_for_pickup', 'ready_for_delivery', 'delivered', 'picked_up', 'completed'];
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending notification directly:', error);
+    console.error('Error stack:', error.stack);
+    return false;
+  }
+};
 
 /**
  * Unified Order Schema Function
@@ -59,20 +83,27 @@ const createUnifiedOrderSchema = (orderParams) => {
   } = orderParams;
 
   // Standardize item schema with both new and legacy fields for compatibility
-  const standardizedItems = items.map(item => ({
-    productId: item.productId,
-    product: item.product || {},
-    name: item.name || item.productName || 'Unknown Product',
-    productName: item.productName || item.name || 'Unknown Product', // Legacy support
-    price: item.price || item.unitPrice || item.productPrice || 0,
-    unitPrice: item.unitPrice || item.price || item.productPrice || 0,
-    productPrice: item.productPrice || item.price || item.unitPrice || 0, // Legacy support
-    quantity: item.quantity || 0,
-    totalPrice: item.totalPrice || item.itemTotal || (item.quantity * (item.price || item.unitPrice || 0)),
-    itemTotal: item.itemTotal || item.totalPrice || (item.quantity * (item.price || item.unitPrice || 0)), // Legacy support
-    productType: item.productType || 'ready_to_ship',
-    artisanId: item.artisanId || item.artisan
-  }));
+  const standardizedItems = items.map(item => {
+    // Ensure all price fields are numbers (parseFloat to handle string values)
+    const price = parseFloat(item.price || item.unitPrice || item.productPrice || 0);
+    const quantity = parseInt(item.quantity || 0);
+    const totalPrice = parseFloat(item.totalPrice || item.itemTotal || (quantity * price));
+    
+    return {
+      productId: item.productId,
+      product: item.product || {},
+      name: item.name || item.productName || 'Unknown Product',
+      productName: item.productName || item.name || 'Unknown Product', // Legacy support
+      price: price,
+      unitPrice: price,
+      productPrice: price, // Legacy support
+      quantity: quantity,
+      totalPrice: totalPrice,
+      itemTotal: totalPrice, // Legacy support
+      productType: item.productType || 'ready_to_ship',
+      artisanId: item.artisanId || item.artisan
+    };
+  });
 
   // Use deliveryAddress if provided, fallback to shippingAddress for legacy compatibility
   const finalDeliveryAddress = deliveryAddress && Object.keys(deliveryAddress).length > 0 
@@ -105,68 +136,6 @@ const createUnifiedOrderSchema = (orderParams) => {
     createdAt: new Date(),
     updatedAt: new Date()
   };
-};
-        const patronEmailTypes = ['order_placed', 'order_completion', 'order_confirmed', 'order_declined', 'order_ready', 'order_completed', 'order_ready_for_pickup', 'order_ready_for_delivery', 'order_out_for_delivery'];
-        
-        const isPatronEmailAllowed = notificationData.userInfo?.isGuest || 
-                                   !notificationData.userId || 
-                                   patronEmailStatuses.includes(notificationData.status) ||
-                                   patronEmailTypes.includes(notificationData.type);
-        
-        // Also allow artisan notification types
-        const artisanEmailTypes = ['new_order_pending', 'order_confirmation_sent', 'order_status_update', 'order_cancelled', 'order_receipt_confirmed'];
-        const isArtisanEmail = artisanEmailTypes.includes(notificationData.type);
-        
-        if (notificationData.userEmail && notificationData.type && (isPatronEmailAllowed || isArtisanEmail)) {
-          try {
-            const emailReq = {
-              body: {
-                to: notificationData.userEmail,
-                subject: `${notificationData.title || 'Order Update'}`,
-                template: 'order_status_update',
-                data: {
-                  orderId: notificationData.orderId,
-                  orderNumber: notificationData.orderNumber || notificationData.orderId,
-                  status: notificationData.status || notificationData.orderData?.status,
-                  newStatus: notificationData.status || notificationData.orderData?.status,
-                  message: notificationData.message,
-                  reason: notificationData.updateDetails?.reason,
-                  userId: notificationData.userId,
-                  userName: notificationData.userInfo?.firstName || notificationData.userInfo?.email || 'Customer',
-                  isGuest: notificationData.userInfo?.isGuest || false,
-                  totalAmount: notificationData.orderData?.totalAmount,
-                  subtotal: notificationData.orderData?.subtotal,
-                  deliveryFee: notificationData.orderData?.deliveryFee,
-                  deliveryMethod: notificationData.orderData?.deliveryMethod,
-                  deliveryAddress: notificationData.orderData?.deliveryAddress,
-                  deliveryInstructions: notificationData.orderData?.deliveryInstructions,
-                  pickupTimeWindows: notificationData.orderData?.pickupTimeWindows,
-                  selectedPickupTimes: notificationData.orderData?.selectedPickupTimes,
-                  artisan: notificationData.orderData?.artisan,
-                  items: notificationData.orderData?.items,
-                  createdAt: notificationData.orderData?.createdAt,
-                  updatedAt: notificationData.orderData?.updatedAt
-                }
-              },
-              db: db
-            };
-            const emailRes = {
-              json: (data) => {},
-              status: (code) => ({ json: (data) => console.error(`Email notification error (${code}):`, data) })
-            };
-            
-            await sendEmailNotification(emailReq, emailRes);
-          } catch (emailError) {
-            console.error('Error sending email notification:', emailError.message);
-            // Don't fail the whole notification if email fails
-          }
-        }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Error sending notification directly:', error);
-    return false;
-  }
 };
 
 // Cache configuration
@@ -294,20 +263,34 @@ const createPaymentIntent = async (req, res) => {
     }
 
     // Add delivery fee if applicable
+    // For professionalDelivery, prioritize frontend-provided fee (includes Uber buffer)
+    // For personalDelivery, calculate from artisan settings
     let deliveryFee = 0;
-    if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
-      // Get artisan delivery settings
+    
+    if (req.body.deliveryFee && deliveryMethod === 'professionalDelivery') {
+      // Use the buffered delivery fee provided by frontend (includes 20% buffer)
+      deliveryFee = parseFloat(req.body.deliveryFee);
+      console.log('💰 Using frontend-provided delivery fee (buffered):', deliveryFee);
+    } else if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
+      // Fallback: Calculate from artisan settings
       const artisansCollection = db.collection('artisans');
       const artisan = await artisansCollection.findOne({ _id: validatedItems[0].artisanId });
       
-      if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
-        deliveryFee = artisan.deliveryOptions.deliveryFee;
-      } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
-        deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+      if (artisan) {
+        const { getDeliveryFee } = require('../../utils/artisanSchemaUtils');
+        deliveryFee = getDeliveryFee(artisan, deliveryMethod);
+        console.log('💰 Calculated delivery fee from artisan settings:', deliveryFee);
       }
     }
 
     const finalAmount = totalAmount + deliveryFee;
+    
+    console.log('💰 Payment intent amounts:', {
+      subtotal: totalAmount,
+      deliveryFee,
+      finalAmount,
+      deliveryMethod
+    });
 
     // Validate minimum order amount from platform settings
     const PlatformSettingsService = require('../../services/platformSettingsService');
@@ -550,20 +533,33 @@ const createGuestPaymentIntent = async (req, res) => {
     }
 
     // Add delivery fee if applicable
+    // For professionalDelivery, prioritize frontend-provided fee (includes Uber buffer)
     let deliveryFee = 0;
-    if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
-      // Get artisan delivery settings
+    
+    if (req.body.deliveryFee && deliveryMethod === 'professionalDelivery') {
+      // Use the buffered delivery fee provided by frontend (includes 20% buffer)
+      deliveryFee = parseFloat(req.body.deliveryFee);
+      console.log('💰 [Guest] Using frontend-provided delivery fee (buffered):', deliveryFee);
+    } else if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
+      // Fallback: Calculate from artisan settings
       const artisansCollection = db.collection('artisans');
       const artisan = await artisansCollection.findOne({ _id: validatedItems[0].artisanId });
       
-      if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
-        deliveryFee = artisan.deliveryOptions.deliveryFee;
-      } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
-        deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+      if (artisan) {
+        const { getDeliveryFee } = require('../../utils/artisanSchemaUtils');
+        deliveryFee = getDeliveryFee(artisan, deliveryMethod);
+        console.log('💰 [Guest] Calculated delivery fee from artisan settings:', deliveryFee);
       }
     }
 
     const finalAmount = totalAmount + deliveryFee;
+    
+    console.log('💰 [Guest] Payment intent amounts:', {
+      subtotal: totalAmount,
+      deliveryFee,
+      finalAmount,
+      deliveryMethod
+    });
 
     // Create Stripe PaymentIntent for guest with automatic capture
     const paymentIntent = await stripe.paymentIntents.create({
@@ -769,6 +765,20 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       isGuestOrder: !userId,
       guestInfo: orderData.guestInfo
     });
+    
+    // Add delivery pricing data for professional delivery (buffer system)
+    if (orderData.deliveryPricing && orderData.deliveryMethod === 'professionalDelivery') {
+      order.deliveryPricing = {
+        estimatedFee: orderData.deliveryPricing.estimatedFee || 0,
+        buffer: orderData.deliveryPricing.buffer || 0,
+        bufferPercentage: orderData.deliveryPricing.bufferPercentage || 20,
+        chargedAmount: orderData.deliveryPricing.chargedAmount || deliveryFee,
+        uberQuoteId: orderData.deliveryPricing.uberQuoteId,
+        uberQuoteExpiry: orderData.deliveryPricing.uberQuoteExpiry,
+        lastUpdated: new Date()
+      };
+      console.log('💰 Added delivery pricing to order:', order.deliveryPricing);
+    }
 
     const result = await ordersCollection.insertOne(order);
 
@@ -897,8 +907,10 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       // Send notification to customer about order placement
       const customerNotificationData = {
         type: 'order_placed',
-        userId: userId,
+        userId: userId ? userId.toString() : null,
         orderId: result.insertedId,
+        title: 'Order Placed Successfully',
+        message: `Your order #${result.insertedId.toString().slice(-8)} has been placed successfully`,
         orderData: {
           _id: result.insertedId,
           orderNumber: result.insertedId,
@@ -933,7 +945,10 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
               id: artisan._id,
               name: artisan.artisanName || artisan.businessName,
               email: artisan.email,
-              phone: artisan.phone
+              phone: artisan.phone,
+              pickupAddress: artisan.pickupAddress,
+              businessHours: artisan.businessHours,
+              pickupInstructions: artisan.pickupInstructions
             };
             // Also add pickup address if available
             if (artisan.pickupAddress && order.deliveryMethod === 'pickup') {
@@ -944,6 +959,12 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           console.error('❌ Error fetching artisan info for customer notification:', artisanFetchError);
         }
       }
+
+      console.log('📧 Sending customer order placement notification:', {
+        userId: customerNotificationData.userId,
+        type: customerNotificationData.type,
+        email: customerUserInfo.email
+      });
 
       await sendNotificationDirect(customerNotificationData, db);
       console.log('✅ Customer order placement notification sent');
@@ -984,8 +1005,10 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         
         const artisanNotificationData = {
           type: 'new_order_pending',
-          userId: artisanUserInfo.id,
+          userId: artisanUserInfo.id ? artisanUserInfo.id.toString() : null,
           orderId: result.insertedId,
+          title: 'New Order Received',
+          message: `You have a new order #${result.insertedId.toString().slice(-8)} from ${customerUserInfo.firstName || 'a customer'}`,
           orderData: {
             _id: result.insertedId,
             orderNumber: result.insertedId,
@@ -1002,7 +1025,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
             pickupTime: order.pickupTime, // Add pickup time
             deliveryMethodDetails: order.deliveryMethodDetails,
             isGuestOrder: order.isGuestOrder,
-            guestInfo: order.guestOrder ? {
+            guestInfo: order.isGuestOrder ? {
               firstName: customerUserInfo.firstName,
               lastName: customerUserInfo.lastName,
               email: customerUserInfo.email,
@@ -1014,12 +1037,25 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
               email: customerUserInfo.email,
               phone: customerUserInfo.phone
             } : null,
+            customerInfo: {  // Add customer info for artisan
+              firstName: customerUserInfo.firstName,
+              lastName: customerUserInfo.lastName,
+              email: customerUserInfo.email,
+              phone: customerUserInfo.phone,
+              isGuest: order.isGuestOrder
+            },
             createdAt: order.createdAt
           },
           userInfo: artisanUserInfo,
           userEmail: artisanUserInfo.email, // Explicitly set userEmail for backend notification service
           timestamp: new Date().toISOString()
         };
+
+        console.log('📧 Sending artisan new order notification:', {
+          userId: artisanNotificationData.userId,
+          type: artisanNotificationData.type,
+          email: artisanUserInfo.email
+        });
 
         await sendNotificationDirect(artisanNotificationData, db);
         console.log('✅ Artisan new order notification sent');
@@ -1836,6 +1872,122 @@ const updateOrderStatus = async (req, res) => {
         notificationType = 'order_completed';
       }
       
+      // Handle Uber Direct professional delivery when order is marked ready_for_delivery
+      if (finalStatus === 'ready_for_delivery' && updatedOrder.deliveryMethod === 'professionalDelivery') {
+        console.log('🚛 Order ready for delivery - processing Uber Direct request');
+        
+        try {
+          const uberDirectService = require('../../services/uberDirectService');
+          const result = await uberDirectService.processReadyForDelivery(updatedOrder, db);
+          
+          console.log('✅ Ready for delivery processing result:', result);
+          
+          // If action is 'awaiting_artisan_response', send notification about cost increase
+          if (result.action === 'awaiting_artisan_response') {
+            // Get artisan user information
+            const artisan = await artisansCollection.findOne({ 
+              _id: updatedOrder.artisan._id || updatedOrder.artisan 
+            });
+            const artisanUser = artisan ? await usersCollection.findOne({ _id: artisan.user }) : null;
+            
+            // Send notification to artisan about cost increase
+            await sendNotificationDirect({
+              userId: artisan?.user,
+              type: 'delivery_cost_increase',
+              title: 'Delivery Cost Increased',
+              message: `The delivery cost for order #${updatedOrder._id.toString().slice(-8)} increased by $${result.excessAmount.toFixed(2)}. Please review and respond.`,
+              priority: 'high',
+              data: {
+                orderId: updatedOrder._id,
+                orderNumber: updatedOrder._id.toString().slice(-8),
+                excessAmount: result.excessAmount,
+                actualFee: result.actualFee,
+                chargedAmount: updatedOrder.deliveryPricing?.chargedAmount || updatedOrder.deliveryFee
+              },
+              userEmail: artisanUser?.email,
+              userInfo: {
+                firstName: artisan?.artisanName || 'Artisan',
+                email: artisanUser?.email
+              }
+            }, db);
+          }
+          
+          // If refund was processed, notify buyer
+          if (result.action === 'refund_processed') {
+            const patronUser = updatedOrder.userId ? await usersCollection.findOne({ _id: updatedOrder.userId }) : null;
+            
+            await sendNotificationDirect({
+              userId: updatedOrder.userId,
+              type: 'delivery_refund',
+              title: 'Delivery Refund',
+              message: `You've been refunded $${result.refundAmount.toFixed(2)} because the delivery cost was lower than estimated.`,
+              priority: 'medium',
+              data: {
+                orderId: updatedOrder._id,
+                orderNumber: updatedOrder._id.toString().slice(-8),
+                refundAmount: result.refundAmount,
+                estimatedFee: updatedOrder.deliveryPricing?.estimatedFee,
+                actualFee: result.actualFee
+              },
+              userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUser?.email || null),
+              userInfo: {
+                isGuest: updatedOrder.isGuestOrder || false,
+                email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUser?.email || null),
+                firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUser?.firstName || null)
+              }
+            }, db);
+          }
+          
+          // If delivery was created successfully, update status and notify both parties
+          if (result.action === 'delivery_created' || result.action === 'refund_processed') {
+            // Refresh the order object to get the updated status (now out_for_delivery)
+            updatedOrder = await ordersCollection.findOne({ 
+              _id: new (require('mongodb')).ObjectId(req.params.id) 
+            });
+            
+            // Send tracking information to artisan
+            if (updatedOrder.uberDelivery) {
+              const artisan = await artisansCollection.findOne({ 
+                _id: updatedOrder.artisan._id || updatedOrder.artisan 
+              });
+              const artisanUser = artisan ? await usersCollection.findOne({ _id: artisan.user }) : null;
+              
+              await sendNotificationDirect({
+                userId: artisan?.user?.toString(),
+                type: 'courier_on_way',
+                title: 'Courier On The Way',
+                message: `Uber courier is on the way to pick up order #${updatedOrder._id.toString().slice(-8)}`,
+                priority: 'high',
+                data: {
+                  orderId: updatedOrder._id,
+                  orderNumber: updatedOrder._id.toString().slice(-8),
+                  trackingUrl: updatedOrder.uberDelivery.trackingUrl,
+                  deliveryId: updatedOrder.uberDelivery.deliveryId,
+                  pickupEta: updatedOrder.uberDelivery.pickupEta,
+                  courierName: updatedOrder.uberDelivery.courier?.name,
+                  courierPhone: updatedOrder.uberDelivery.courier?.phone,
+                  courierVehicle: updatedOrder.uberDelivery.courier?.vehicle
+                },
+                uberDelivery: updatedOrder.uberDelivery,
+                userEmail: artisanUser?.email,
+                userInfo: {
+                  firstName: artisan?.artisanName || 'Artisan',
+                  email: artisanUser?.email
+                }
+              }, db);
+              
+              console.log('✅ Artisan tracking notification sent with ETA:', updatedOrder.uberDelivery.pickupEta);
+            }
+          }
+          
+        } catch (error) {
+          console.error('❌ Error processing ready for delivery:', error);
+          // Don't fail the status update, but log the error
+          // The order will stay in ready_for_delivery status
+          // Manual intervention may be needed
+        }
+      }
+      
       // Calculate delivery distance and estimated time for "out for delivery" status
       let deliveryInfo = null;
       if (finalStatus === 'out_for_delivery' && updatedOrder.deliveryMethod !== 'pickup') {
@@ -1920,15 +2072,45 @@ const updateOrderStatus = async (req, res) => {
         _id: updatedOrder.artisan._id || updatedOrder.artisan 
       });
       
+      // Enhance delivery info with Uber tracking data for out_for_delivery status
+      let enhancedDeliveryInfo = deliveryInfo;
+      if (finalStatus === 'out_for_delivery' && updatedOrder.deliveryMethod === 'professionalDelivery' && updatedOrder.uberDelivery) {
+        enhancedDeliveryInfo = {
+          ...deliveryInfo,
+          trackingUrl: updatedOrder.uberDelivery.trackingUrl || null,
+          deliveryId: updatedOrder.uberDelivery.deliveryId || null,
+          courier: updatedOrder.uberDelivery.courier || null,
+          pickupEta: updatedOrder.uberDelivery.pickupEta || null,
+          dropoffEta: updatedOrder.uberDelivery.dropoffEta || null
+        };
+      }
+
+      // Enhance orderData with artisan information for email templates
+      const enhancedOrderData = {
+        ...updatedOrder,
+        artisanInfo: artisanForEmail ? {
+          id: artisanForEmail._id,
+          name: artisanForEmail.artisanName || artisanForEmail.businessName,
+          email: artisanForEmail.email,
+          phone: artisanForEmail.phone,
+          pickupAddress: artisanForEmail.pickupAddress,  // Only pickup location, not business address
+          businessHours: artisanForEmail.businessHours,
+          pickupInstructions: artisanForEmail.pickupInstructions,
+          deliveryInstructions: artisanForEmail.deliveryInstructions
+        } : null
+      };
+
       // Send notification to patron (customer)
       const patronNotificationData = {
         type: notificationType,
-        userId: updatedOrder.userId,
+        userId: updatedOrder.userId ? updatedOrder.userId.toString() : null,
         orderId: updatedOrder._id,
-        orderData: updatedOrder,
+        orderData: enhancedOrderData,
         userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUserInfo?.email || null),
         orderNumber: updatedOrder._id.toString().slice(-8),
         status: finalStatus,
+        title: `Order ${getStatusDisplayText(finalStatus, updatedOrder.deliveryMethod)}`,
+        message: `Your order #${updatedOrder._id.toString().slice(-8)} is now ${getStatusDisplayText(finalStatus, updatedOrder.deliveryMethod).toLowerCase()}`,
         updateType: finalStatus === 'declined' ? 'order_declined' : 'status_change',
         updateDetails: {
           newStatus: finalStatus,
@@ -1938,7 +2120,7 @@ const updateOrderStatus = async (req, res) => {
           autoCompleted: updatedOrder.lastStatusUpdate?.autoCompleted || false
         },
         userInfo: {
-          id: updatedOrder.userId,
+          id: updatedOrder.userId ? updatedOrder.userId.toString() : null,
           isGuest: updatedOrder.isGuestOrder || false,
           email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUserInfo?.email || null),
           firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUserInfo?.firstName || null),
@@ -1948,11 +2130,21 @@ const updateOrderStatus = async (req, res) => {
           id: artisanForEmail._id,
           name: artisanForEmail.artisanName || artisanForEmail.businessName,
           email: artisanForEmail.email,
-          phone: artisanForEmail.phone
+          phone: artisanForEmail.phone,
+          pickupAddress: artisanForEmail.pickupAddress,  // Only pickup location, not business address
+          businessHours: artisanForEmail.businessHours,
+          pickupInstructions: artisanForEmail.pickupInstructions,
+          deliveryInstructions: artisanForEmail.deliveryInstructions
         } : null,
-        deliveryInfo: deliveryInfo,
+        deliveryInfo: enhancedDeliveryInfo,
         timestamp: new Date().toISOString()
       };
+
+      console.log('📧 Sending patron notification for status update:', {
+        userId: patronNotificationData.userId,
+        type: patronNotificationData.type,
+        status: finalStatus
+      });
 
       await sendNotificationDirect(patronNotificationData, db);
       console.log(`✅ Patron notification sent for order ${finalStatus}: ${updatedOrder._id}`);
@@ -2388,12 +2580,29 @@ const getPatronOrders = async (req, res) => {
       .toArray();
     
     // Populate artisan information for each order using artisanId from items
+    const usersCollection = db.collection('users');
     const ordersWithArtisan = await Promise.all(orders.map(async (order) => {
       let artisan = null;
       
       // Use artisanId from order items to lookup artisan information from artisans collection
       if (order.items && order.items.length > 0 && order.items[0].artisanId) {
         artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+        
+        // Fetch associated user for email and phone
+        if (artisan && artisan.user) {
+          const artisanUser = await usersCollection.findOne({ _id: artisan.user });
+          if (artisanUser) {
+            // Merge user contact info into artisan object
+            artisan = {
+              ...artisan,
+              email: artisan.email || artisanUser.email,
+              phone: artisan.phone || artisanUser.phone,
+              firstName: artisanUser.firstName,
+              lastName: artisanUser.lastName
+            };
+          }
+        }
+        
         console.log('🔍 Looked up artisan for order', order._id.toString().slice(-8), ':', artisan?.artisanName || 'not found');
       }
       
@@ -3888,6 +4097,472 @@ const getArtisanCompletedOrders = async (req, res) => {
   }
 };
 
+/**
+ * Handle artisan response to delivery cost absorption
+ * POST /api/orders/:id/artisan-cost-response
+ */
+const handleArtisanCostResponse = async (req, res) => {
+  try {
+    const { response } = req.body; // 'accepted' or 'declined'
+    
+    if (!response || !['accepted', 'declined'].includes(response)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Response must be "accepted" or "declined"'
+      });
+    }
+    
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const db = req.db;
+    const ObjectId = require('mongodb').ObjectId;
+    
+    // Get order and verify artisan ownership
+    const order = await db.collection('orders').findOne({ _id: new ObjectId(req.params.id) });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    // Verify user is the artisan for this order
+    const artisan = await db.collection('artisans').findOne({ _id: order.artisan });
+    
+    if (!artisan || artisan.user.toString() !== decoded.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized - not the artisan for this order'
+      });
+    }
+    
+    // Verify there's a pending cost absorption
+    if (!order.costAbsorption || !order.costAbsorption.required || order.costAbsorption.artisanResponse !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'No pending cost absorption for this order'
+      });
+    }
+    
+    // Process the response
+    const uberDirectService = require('../../services/uberDirectService');
+    const result = await uberDirectService.handleArtisanCostResponse(
+      new ObjectId(req.params.id),
+      response,
+      db
+    );
+    
+    // Send notification to buyer
+    const usersCollection = db.collection('users');
+    
+    if (result.action === 'order_cancelled') {
+      const patronUser = order.userId ? await usersCollection.findOne({ _id: order.userId }) : null;
+      
+      await sendNotificationDirect({
+        userId: order.userId,
+        type: 'order_cancelled',
+        title: 'Order Cancelled',
+        message: `Your order #${order._id.toString().slice(-8)} has been cancelled due to delivery cost increase. You have been fully refunded $${result.refundAmount.toFixed(2)}.`,
+        priority: 'high',
+        data: {
+          orderId: order._id,
+          orderNumber: order._id.toString().slice(-8),
+          refundAmount: result.refundAmount,
+          reason: 'Artisan declined to absorb delivery cost increase'
+        },
+        userEmail: order.isGuestOrder ? order.guestInfo?.email : (patronUser?.email || null),
+        userInfo: {
+          isGuest: order.isGuestOrder || false,
+          email: order.isGuestOrder ? order.guestInfo?.email : (patronUser?.email || null),
+          firstName: order.isGuestOrder ? order.guestInfo?.firstName : (patronUser?.firstName || null)
+        }
+      }, db);
+    } else if (result.action === 'cost_absorbed') {
+      const patronUser = order.userId ? await usersCollection.findOne({ _id: order.userId }) : null;
+      
+      await sendNotificationDirect({
+        userId: order.userId,
+        type: 'order_out_for_delivery',
+        title: 'Order Out for Delivery',
+        message: `Your order #${order._id.toString().slice(-8)} is now out for delivery!`,
+        priority: 'high',
+        data: {
+          orderId: order._id,
+          orderNumber: order._id.toString().slice(-8),
+          trackingUrl: result.delivery.trackingUrl,
+          deliveryId: result.delivery.deliveryId
+        },
+        userEmail: order.isGuestOrder ? order.guestInfo?.email : (patronUser?.email || null),
+        userInfo: {
+          isGuest: order.isGuestOrder || false,
+          email: order.isGuestOrder ? order.guestInfo?.email : (patronUser?.email || null),
+          firstName: order.isGuestOrder ? order.guestInfo?.firstName : (patronUser?.firstName || null)
+        }
+      }, db);
+    }
+    
+    // Invalidate cache
+    await invalidateArtisanCache(order.artisan);
+    
+    res.json({
+      success: true,
+      data: result,
+      message: result.message
+    });
+    
+  } catch (error) {
+    console.error('❌ Error handling artisan cost response:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process artisan response',
+      error: error.message
+    });
+  }
+};
+
+// Helper function to complete Uber delivery and mark order as delivered
+const completeUberDelivery = async (order, db) => {
+  const ordersCollection = db.collection('orders');
+  const artisansCollection = db.collection('artisans');
+  const usersCollection = db.collection('users');
+  
+  console.log('✅ Completing Uber delivery for order:', order._id);
+  
+  // Update order status to delivered
+  await ordersCollection.updateOne(
+    { _id: order._id },
+    {
+      $set: {
+        status: 'delivered',
+        'uberDelivery.status': 'delivered',
+        'uberDelivery.deliveredAt': new Date(),
+        deliveredAt: new Date(),
+        updatedAt: new Date(),
+        // For professional delivery, skip patron confirmation - courier confirmed
+        autoCompleted: false  // Will auto-complete after a grace period
+      }
+    }
+  );
+  
+  console.log('✅ Order marked as delivered by Uber courier');
+  
+  // Get updated order
+  const updatedOrder = await ordersCollection.findOne({ _id: order._id });
+  
+  // Send notification to patron
+  try {
+    const patronUser = updatedOrder.userId ? await usersCollection.findOne({ _id: updatedOrder.userId }) : null;
+    const artisanForEmail = await artisansCollection.findOne({ 
+      _id: updatedOrder.artisan._id || updatedOrder.artisan 
+    });
+    
+    const enhancedOrderData = {
+      ...updatedOrder,
+      artisanInfo: artisanForEmail ? {
+        id: artisanForEmail._id,
+        name: artisanForEmail.artisanName || artisanForEmail.businessName,
+        email: artisanForEmail.email,
+        phone: artisanForEmail.phone,
+        pickupAddress: artisanForEmail.pickupAddress
+      } : null
+    };
+    
+    await sendNotificationDirect({
+      type: 'order_delivered',
+      userId: updatedOrder.userId ? updatedOrder.userId.toString() : null,
+      orderId: updatedOrder._id,
+      orderData: enhancedOrderData,
+      userEmail: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUser?.email || null),
+      orderNumber: updatedOrder._id.toString().slice(-8),
+      status: 'delivered',
+      title: 'Order Delivered',
+      message: `Your order #${updatedOrder._id.toString().slice(-8)} has been delivered by courier`,
+      userInfo: {
+        id: updatedOrder.userId ? updatedOrder.userId.toString() : null,
+        isGuest: updatedOrder.isGuestOrder || false,
+        email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUser?.email || null),
+        firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUser?.firstName || null)
+      },
+      timestamp: new Date().toISOString()
+    }, db);
+    
+    console.log('📧 Patron notified: Order delivered');
+  } catch (notificationError) {
+    console.error('❌ Error sending delivery notification:', notificationError);
+  }
+  
+  // Auto-complete the order immediately for professional delivery
+  // Since courier confirmed delivery, no patron confirmation needed
+  console.log('🔄 Auto-completing professional delivery order immediately');
+  
+  await ordersCollection.updateOne(
+    { _id: order._id },
+    {
+      $set: {
+        status: 'completed',
+        completedAt: new Date(),
+        autoCompletedBySystem: true,
+        autoCompletionReason: 'professional_delivery_courier_confirmed',
+        updatedAt: new Date()
+      }
+    }
+  );
+  
+  const completedOrder = await ordersCollection.findOne({ _id: order._id });
+  
+  // Process revenue recognition and payment transfer
+  try {
+    if (completedOrder.artisan) {
+      console.log('💰 Processing revenue for auto-completed professional delivery order');
+      
+      const { createWalletService } = require('../../services');
+      const walletService = await createWalletService();
+      
+      const revenueResult = await walletService.processOrderCompletion(completedOrder, db);
+      console.log('✅ Revenue processed for professional delivery:', revenueResult.data);
+    }
+  } catch (revenueError) {
+    console.error('❌ Error processing revenue for professional delivery:', revenueError);
+  }
+  
+  // Send completion notification to artisan
+  try {
+    const artisan = await artisansCollection.findOne({ 
+      _id: completedOrder.artisan._id || completedOrder.artisan 
+    });
+    const artisanUser = artisan ? await usersCollection.findOne({ _id: artisan.user }) : null;
+    
+    await sendNotificationDirect({
+      type: 'order_completed',
+      userId: artisan?.user?.toString(),
+      orderId: completedOrder._id,
+      orderData: completedOrder,
+      userEmail: artisanUser?.email,
+      orderNumber: completedOrder._id.toString().slice(-8),
+      status: 'completed',
+      title: 'Order Completed',
+      message: `Order #${completedOrder._id.toString().slice(-8)} has been completed. Payment released.`,
+      userInfo: {
+        firstName: artisan?.artisanName || 'Artisan',
+        email: artisanUser?.email
+      },
+      timestamp: new Date().toISOString()
+    }, db);
+    
+    console.log('📧 Artisan notified: Order completed, payment released');
+  } catch (notificationError) {
+    console.error('❌ Error sending completion notification to artisan:', notificationError);
+  }
+  
+  return completedOrder;
+};
+
+// Handle Uber Direct delivery webhook updates
+const handleUberDeliveryWebhook = async (req, res) => {
+  try {
+    const { delivery_id, status, event_type } = req.body;
+    
+    console.log('🚛 Uber webhook received:', {
+      deliveryId: delivery_id,
+      status,
+      eventType: event_type
+    });
+    
+    // Verify webhook authenticity (you may want to add signature verification)
+    // For now, we'll trust the webhook
+    
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    // Find order by delivery ID
+    const order = await ordersCollection.findOne({
+      'uberDelivery.deliveryId': delivery_id
+    });
+    
+    if (!order) {
+      console.warn('⚠️ Order not found for delivery ID:', delivery_id);
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found for this delivery'
+      });
+    }
+    
+    console.log('📦 Found order for delivery update:', order._id);
+    
+    // Handle delivery completion
+    if (status === 'delivered' || event_type === 'delivery.completed') {
+      await completeUberDelivery(order, db);
+      
+      return res.json({
+        success: true,
+        message: 'Delivery completion processed'
+      });
+    }
+    
+    // Update delivery status in order for other events
+    await ordersCollection.updateOne(
+      { _id: order._id },
+      {
+        $set: {
+          'uberDelivery.status': status,
+          'uberDelivery.lastWebhookUpdate': new Date(),
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Webhook processed'
+    });
+  } catch (error) {
+    console.error('❌ Error handling Uber webhook:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Webhook processing failed',
+      error: error.message
+    });
+  }
+};
+
+// Manually check Uber delivery status (can be called by system or admin)
+const checkUberDeliveryStatus = async (req, res) => {
+  try {
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    // Get order
+    const order = await ordersCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(req.params.id)
+    });
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+    
+    if (!order.uberDelivery || !order.uberDelivery.deliveryId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order does not have Uber delivery'
+      });
+    }
+    
+    // Get delivery status from Uber
+    const uberDirectService = require('../../services/uberDirectService');
+    const deliveryStatus = await uberDirectService.getDeliveryStatus(order.uberDelivery.deliveryId);
+    
+    console.log('📊 Uber delivery status check:', {
+      orderId: order._id,
+      deliveryId: order.uberDelivery.deliveryId,
+      currentStatus: deliveryStatus.status
+    });
+    
+    // If delivery is completed, mark order as delivered
+    if (deliveryStatus.status === 'delivered' || deliveryStatus.status === 'completed') {
+      await completeUberDelivery(order, db);
+      
+      return res.json({
+        success: true,
+        message: 'Delivery completed. Order marked as delivered.',
+        data: deliveryStatus
+      });
+    }
+    
+    // Update delivery status in order
+    await ordersCollection.updateOne(
+      { _id: order._id },
+      {
+        $set: {
+          'uberDelivery.status': deliveryStatus.status,
+          'uberDelivery.lastStatusCheck': new Date(),
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: 'Delivery status updated',
+      data: deliveryStatus
+    });
+  } catch (error) {
+    console.error('❌ Error checking delivery status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check delivery status',
+      error: error.message
+    });
+  }
+};
+
+// Auto-complete delivered professional delivery orders (cron job endpoint)
+const autoCompleteDeliveredOrders = async (req, res) => {
+  try {
+    const db = req.db;
+    const ordersCollection = db.collection('orders');
+    
+    // Find all professional delivery orders that are delivered but not completed
+    const deliveredOrders = await ordersCollection.find({
+      deliveryMethod: 'professionalDelivery',
+      status: 'delivered',
+      autoCompletedBySystem: { $ne: true }
+    }).toArray();
+    
+    console.log(`🔄 Auto-completing ${deliveredOrders.length} professional delivery orders`);
+    
+    const results = [];
+    
+    for (const order of deliveredOrders) {
+      try {
+        const completedOrder = await completeUberDelivery(order, db);
+        results.push({
+          orderId: order._id,
+          success: true
+        });
+      } catch (error) {
+        console.error(`❌ Error auto-completing order ${order._id}:`, error);
+        results.push({
+          orderId: order._id,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Processed ${deliveredOrders.length} orders`,
+      results
+    });
+  } catch (error) {
+    console.error('❌ Error in auto-complete job:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Auto-complete job failed',
+      error: error.message
+    });
+  }
+};
+
 // Routes
 router.post('/payment-intent', createPaymentIntent);
 router.post('/guest/payment-intent', createGuestPaymentIntent);
@@ -3908,5 +4583,9 @@ router.put('/:id/payment', updatePaymentStatus);
 router.post('/:id/capture-payment', capturePaymentAndTransfer);
 router.post('/auto-capture-payments', autoCapturePayment);
 router.post('/:id/confirm-receipt', confirmOrderReceipt);
+router.post('/:id/artisan-cost-response', handleArtisanCostResponse);
+router.post('/uber-delivery-webhook', handleUberDeliveryWebhook);
+router.post('/:id/check-delivery-status', checkUberDeliveryStatus);
+router.post('/auto-complete-deliveries', autoCompleteDeliveredOrders);
 
 module.exports = router;

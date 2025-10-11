@@ -268,6 +268,27 @@ export const orderService = {
     }
   },
 
+  // Artisan responds to delivery cost absorption request
+  respondToCostAbsorption: async (orderId, response) => {
+    try {
+      console.log(`💰 Responding to cost absorption for order ${orderId}:`, response);
+      
+      const apiResponse = await api.post(`${API_URL}/orders/${orderId}/artisan-cost-response`, {
+        response // 'accepted' or 'declined'
+      });
+      
+      // Clear caches to ensure fresh data
+      const { cacheService } = await import('./cacheService');
+      cacheService.clear();
+      
+      console.log('✅ Cost absorption response processed:', apiResponse.data);
+      return apiResponse.data;
+    } catch (error) {
+      console.error('❌ Error responding to cost absorption:', error);
+      throw error;
+    }
+  },
+
   // Helper function to format order status
   formatOrderStatus: (status) => {
     const statusMap = {

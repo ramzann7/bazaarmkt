@@ -541,33 +541,83 @@ export const cartService = {
           
           if (latestArtisanData) {
             // Use latest data from database
+            // Support both old and new schema for compatibility
+            const deliveryOptions = latestArtisanData.deliveryOptions || {
+              pickup: true,
+              delivery: false,
+              deliveryRadius: 0,
+              deliveryFee: 0,
+              freeDeliveryThreshold: 0
+            };
+            
+            const professionalDelivery = latestArtisanData.professionalDelivery || {
+              enabled: false,
+              uberDirectEnabled: false,
+              serviceRadius: 25,
+              regions: [],
+              packaging: '',
+              restrictions: ''
+            };
+            
+            // Build unified fulfillment.methods structure from either new or old schema
+            const fulfillmentMethods = latestArtisanData.fulfillment?.methods || {
+              pickup: {
+                enabled: latestArtisanData.fulfillment?.methods?.pickup?.enabled ?? deliveryOptions.pickup ?? true,
+                location: latestArtisanData.pickupLocation || latestArtisanData.address,
+                instructions: latestArtisanData.pickupInstructions || '',
+                schedule: latestArtisanData.pickupSchedule || null,
+                useBusinessAddress: true
+              },
+              delivery: {
+                enabled: latestArtisanData.fulfillment?.methods?.delivery?.enabled ?? deliveryOptions.delivery ?? false,
+                radius: latestArtisanData.fulfillment?.methods?.delivery?.radius ?? deliveryOptions.deliveryRadius ?? 0,
+                fee: latestArtisanData.fulfillment?.methods?.delivery?.fee ?? deliveryOptions.deliveryFee ?? 0,
+                freeThreshold: latestArtisanData.fulfillment?.methods?.delivery?.freeThreshold ?? deliveryOptions.freeDeliveryThreshold ?? 0,
+                instructions: latestArtisanData.deliveryInstructions || ''
+              },
+              professionalDelivery: {
+                enabled: latestArtisanData.fulfillment?.methods?.professionalDelivery?.enabled ?? professionalDelivery.enabled ?? false,
+                uberDirectEnabled: latestArtisanData.fulfillment?.methods?.professionalDelivery?.uberDirectEnabled ?? professionalDelivery.uberDirectEnabled ?? false,
+                serviceRadius: latestArtisanData.fulfillment?.methods?.professionalDelivery?.serviceRadius ?? professionalDelivery.serviceRadius ?? 25,
+                regions: latestArtisanData.fulfillment?.methods?.professionalDelivery?.regions ?? professionalDelivery.regions ?? [],
+                packaging: latestArtisanData.fulfillment?.methods?.professionalDelivery?.packaging ?? professionalDelivery.packaging ?? '',
+                restrictions: latestArtisanData.fulfillment?.methods?.professionalDelivery?.restrictions ?? professionalDelivery.restrictions ?? ''
+              }
+            };
+            
+            // Extract coordinates with fallback to address
+            const extractedCoordinates = latestArtisanData.coordinates || (latestArtisanData.address ? {
+              latitude: latestArtisanData.address.latitude,
+              longitude: latestArtisanData.address.longitude
+            } : undefined);
+            
+            console.log('📍 Building artisan data - coordinates:', {
+              artisanId,
+              hasCoordinatesField: !!latestArtisanData.coordinates,
+              hasAddressLatLng: !!(latestArtisanData.address?.latitude && latestArtisanData.address?.longitude),
+              extractedCoordinates
+            });
+            
             groupedByArtisan[artisanId] = {
               artisan: {
                 _id: artisanId,
                 artisanName: latestArtisanData.artisanName || 'Unknown Artisan',
                 type: latestArtisanData.type || 'other',
-                deliveryOptions: latestArtisanData.deliveryOptions || {
-                  pickup: true,
-                  delivery: false,
-                  deliveryRadius: 0,
-                  deliveryFee: 0,
-                  freeDeliveryThreshold: 0
-                },
-                professionalDelivery: latestArtisanData.professionalDelivery || {
-                  enabled: false,
-                  uberDirectEnabled: false,
-                  serviceRadius: 25,
-                  regions: [],
-                  packaging: '',
-                  restrictions: ''
+                // Old schema (for backward compatibility)
+                deliveryOptions: deliveryOptions,
+                professionalDelivery: professionalDelivery,
+                // New unified schema
+                fulfillment: {
+                  methods: fulfillmentMethods
                 },
                 address: latestArtisanData.address,
-                coordinates: latestArtisanData.coordinates,
+                coordinates: extractedCoordinates,
                 pickupLocation: latestArtisanData.pickupLocation,
                 pickupInstructions: latestArtisanData.pickupInstructions,
                 pickupHours: latestArtisanData.pickupHours,
                 pickupSchedule: latestArtisanData.pickupSchedule,
-                deliveryInstructions: latestArtisanData.deliveryInstructions
+                deliveryInstructions: latestArtisanData.deliveryInstructions,
+                phone: latestArtisanData.phone || latestArtisanData.contactInfo?.phone
               },
               items: group.items,
               subtotal: group.items.reduce((total, item) => total + (parseFloat(item.price) * parseInt(item.quantity)), 0)
@@ -575,28 +625,64 @@ export const cartService = {
           } else {
             // Fallback to cart item data if fetch fails
             const fallbackItem = group.items[0];
+            const fallbackDeliveryOptions = fallbackItem.artisan?.deliveryOptions || {
+              pickup: true,
+              delivery: false,
+              deliveryRadius: 0,
+              deliveryFee: 0,
+              freeDeliveryThreshold: 0
+            };
+            
+            const fallbackProfessionalDelivery = fallbackItem.artisan?.professionalDelivery || {
+              enabled: false,
+              uberDirectEnabled: false,
+              serviceRadius: 25,
+              regions: [],
+              packaging: '',
+              restrictions: ''
+            };
+            
             groupedByArtisan[artisanId] = {
               artisan: {
                 _id: artisanId,
                 artisanName: fallbackItem.artisan?.artisanName || 'Unknown Artisan',
                 type: fallbackItem.artisan?.type || 'other',
-                deliveryOptions: fallbackItem.artisan?.deliveryOptions || {
-                  pickup: true,
-                  delivery: false,
-                  deliveryRadius: 0,
-                  deliveryFee: 0,
-                  freeDeliveryThreshold: 0
-                },
-                professionalDelivery: fallbackItem.artisan?.professionalDelivery || {
-                  enabled: false,
-                  uberDirectEnabled: false,
-                  serviceRadius: 25,
-                  regions: [],
-                  packaging: '',
-                  restrictions: ''
+                // Old schema
+                deliveryOptions: fallbackDeliveryOptions,
+                professionalDelivery: fallbackProfessionalDelivery,
+                // New unified schema
+                fulfillment: {
+                  methods: {
+                    pickup: {
+                      enabled: fallbackDeliveryOptions.pickup ?? true,
+                      location: fallbackItem.artisan?.address,
+                      instructions: '',
+                      schedule: null,
+                      useBusinessAddress: true
+                    },
+                    delivery: {
+                      enabled: fallbackDeliveryOptions.delivery ?? false,
+                      radius: fallbackDeliveryOptions.deliveryRadius ?? 0,
+                      fee: fallbackDeliveryOptions.deliveryFee ?? 0,
+                      freeThreshold: fallbackDeliveryOptions.freeDeliveryThreshold ?? 0,
+                      instructions: ''
+                    },
+                    professionalDelivery: {
+                      enabled: fallbackProfessionalDelivery.enabled ?? false,
+                      uberDirectEnabled: fallbackProfessionalDelivery.uberDirectEnabled ?? false,
+                      serviceRadius: fallbackProfessionalDelivery.serviceRadius ?? 25,
+                      regions: fallbackProfessionalDelivery.regions ?? [],
+                      packaging: fallbackProfessionalDelivery.packaging ?? '',
+                      restrictions: fallbackProfessionalDelivery.restrictions ?? ''
+                    }
+                  }
                 },
                 address: fallbackItem.artisan?.address,
-                coordinates: fallbackItem.artisan?.coordinates
+                coordinates: fallbackItem.artisan?.coordinates || (fallbackItem.artisan?.address ? {
+                  latitude: fallbackItem.artisan.address.latitude,
+                  longitude: fallbackItem.artisan.address.longitude
+                } : undefined),
+                phone: fallbackItem.artisan?.phone
               },
               items: group.items,
               subtotal: group.items.reduce((total, item) => total + (parseFloat(item.price) * parseInt(item.quantity)), 0)
@@ -1001,9 +1087,11 @@ export const cartService = {
           artisanId,
           artisanName: artisanData.artisanName,
           address: artisanData.address,
+          'address.latitude': artisanData.address?.latitude,
+          'address.longitude': artisanData.address?.longitude,
           coordinates: artisanData.coordinates,
           deliveryOptions: artisanData.deliveryOptions,
-          fullData: artisanData
+          fulfillment: artisanData.fulfillment
         });
         return artisanData;
       }

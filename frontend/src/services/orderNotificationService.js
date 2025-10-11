@@ -296,7 +296,11 @@ class OrderNotificationService {
       this.notificationSound();
     }
 
-    // Show toast notification for each updated order
+    // DISABLED: Toast notifications for patrons (they see in-app notifications instead)
+    // In-app notifications are more detailed and persistent in the notification bell
+    // Keeping this code for reference but toast notifications are now disabled for registered users
+    
+    /* TOAST NOTIFICATIONS DISABLED FOR PATRONS
     import('react-hot-toast').then(({ default: toast }) => {
       updatedOrders.forEach(order => {
         const statusMessages = {
@@ -314,8 +318,6 @@ class OrderNotificationService {
 
         const actionRequiredMessages = {
           'ready_for_pickup': 'Action Required: Your order is ready for pickup!',
-          'ready_for_delivery': 'Action Required: Your order is ready for delivery!',
-          'out_for_delivery': 'Action Required: Your order is out for delivery!',
           'delivered': 'Action Required: Please confirm receipt of your delivered order.',
           'picked_up': 'Action Required: Please confirm you picked up your order.'
         };
@@ -323,7 +325,7 @@ class OrderNotificationService {
         const message = statusMessages[order.status] || `Order status updated to: ${order.status}`;
         const actionMessage = actionRequiredMessages[order.status];
         const isPositive = !['cancelled', 'declined'].includes(order.status);
-        const requiresAction = ['ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status);
+        const requiresAction = ['ready_for_pickup', 'delivered', 'picked_up'].includes(order.status);
         
         // Use longer duration for action-required notifications
         const duration = requiresAction ? 8000 : 5000;
@@ -366,8 +368,9 @@ class OrderNotificationService {
     }).catch(error => {
       console.error('Could not show order update toast notification:', error);
     });
+    */
 
-    // Dispatch custom event for components to listen to
+    // Dispatch custom event for components to listen to (still active for in-app notifications)
     window.dispatchEvent(new CustomEvent('orderUpdatesReceived', {
       detail: { orders: updatedOrders, count: updatedOrders.length }
     }));

@@ -1212,10 +1212,12 @@ const Cart = () => {
   const handleUseSavedAddressChange = async (useSaved) => {
     setUseSavedAddress(useSaved);
     
+    // ALWAYS clear quotes when switching addresses to force fresh fetch
+    setUberDirectQuotes({});
+    
     if (!useSaved) {
-      // User wants to enter new address - clear selected address and quotes
+      // User wants to enter new address
       setSelectedAddress(null);
-      setUberDirectQuotes({});
       // Reset new address form
       setNewAddressForm({
         street: '',
@@ -1225,37 +1227,25 @@ const Cart = () => {
         country: 'Canada'
       });
     } else {
-      // User switched back to saved address - fetch quotes for professional delivery
-      const hasProfessionalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
-        method === 'professionalDelivery'
-      );
+      // User switched back to saved address - immediately fetch quotes
+      const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
       
-      if (hasProfessionalDeliverySelected) {
-        // Get the address to use (selectedAddress or deliveryForm.deliveryAddress)
-        const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
+      if (addressToUse && addressToUse.street) {
+        // Fetch quote for professional delivery
+        const professionalDeliveryArtisans = Object.entries(selectedDeliveryMethods)
+          .filter(([_, method]) => method === 'professionalDelivery')
+          .map(([artisanId]) => artisanId);
         
-        if (addressToUse && addressToUse.street) {
-          // Clear existing quotes
-          setUberDirectQuotes({});
-          
-          // Fetch quote for each artisan with professional delivery
-          for (const [artisanId, method] of Object.entries(selectedDeliveryMethods)) {
-            if (method === 'professionalDelivery') {
-              await calculateUberDirectFee(artisanId, addressToUse);
-            }
-          }
+        for (const artisanId of professionalDeliveryArtisans) {
+          await calculateUberDirectFee(artisanId, addressToUse);
         }
-      }
-      
-      // Also validate for personal delivery
-      const hasPersonalDeliverySelected = Object.entries(selectedDeliveryMethods).some(([artisanId, method]) => 
-        method === 'personalDelivery'
-      );
-      
-      if (hasPersonalDeliverySelected) {
-        const addressToUse = selectedAddress || deliveryForm.deliveryAddress;
         
-        if (addressToUse && addressToUse.street) {
+        // Validate for personal delivery
+        const personalDeliveryArtisans = Object.entries(selectedDeliveryMethods)
+          .filter(([_, method]) => method === 'personalDelivery')
+          .map(([artisanId]) => artisanId);
+        
+        if (personalDeliveryArtisans.length > 0) {
           const validation = await validateDeliveryAddress(addressToUse);
           if (validation.results) {
             setDeliveryValidationResults(validation.results);
@@ -1844,6 +1834,9 @@ const Cart = () => {
       
       if (!isComplete) return;
       
+      // Clear existing quotes to force fresh fetch with new address
+      setUberDirectQuotes({});
+      
       // Fetch quote for professional delivery
       const professionalDeliveryArtisans = Object.entries(selectedDeliveryMethods)
         .filter(([_, method]) => method === 'professionalDelivery')
@@ -1851,10 +1844,7 @@ const Cart = () => {
       
       if (professionalDeliveryArtisans.length > 0) {
         for (const artisanId of professionalDeliveryArtisans) {
-          // Only fetch if we don't have a quote yet or quote is stale
-          if (!uberDirectQuotes[artisanId]) {
-            await calculateUberDirectFee(artisanId, newAddressForm);
-          }
+          await calculateUberDirectFee(artisanId, newAddressForm);
         }
       }
     };

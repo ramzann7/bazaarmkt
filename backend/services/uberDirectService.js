@@ -8,10 +8,11 @@ const axios = require('axios');
 class UberDirectService {
   constructor() {
     this.baseURL = process.env.UBER_DIRECT_BASE_URL || 'https://api.uber.com';
-    this.clientId = process.env.UBER_DIRECT_CLIENT_ID;
-    this.clientSecret = process.env.UBER_DIRECT_CLIENT_SECRET;
-    this.customerId = process.env.UBER_DIRECT_CUSTOMER_ID;
-    this.serverToken = process.env.UBER_DIRECT_SERVER_TOKEN;
+    // Support both UBER_DIRECT_* and UBER_* variable names for backwards compatibility
+    this.clientId = process.env.UBER_DIRECT_CLIENT_ID || process.env.UBER_CLIENT_ID;
+    this.clientSecret = process.env.UBER_DIRECT_CLIENT_SECRET || process.env.UBER_CLIENT_SECRET;
+    this.customerId = process.env.UBER_DIRECT_CUSTOMER_ID || process.env.UBER_CUSTOMER_ID;
+    this.serverToken = process.env.UBER_DIRECT_SERVER_TOKEN || process.env.UBER_SERVER_TOKEN;
   }
 
   /**

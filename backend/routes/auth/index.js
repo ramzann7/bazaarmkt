@@ -194,44 +194,65 @@ const register = async (req, res) => {
     
     // Create artisan profile if user is registering as artisan
     if (role === 'artisan') {
-      const { createUnifiedArtisanProfile } = require('../../utils/artisanSchemaUtils');
-      
-      const artisanProfile = await createUnifiedArtisanProfile({
-        userId: userId,
-        artisanName: artisanName || artisanData?.artisanName || `${firstName} ${lastName}`,
-        type: type || artisanData?.type || 'food_beverages',
-        description: description || artisanData?.description || `Artisan profile for ${firstName} ${lastName}`,
-        category: [type || artisanData?.type || 'food_beverages'],
-        address: artisanData?.address || (addresses.length > 0 ? addresses[0] : {}),
-        contactInfo: {
-          phone: phone || '',
-          email: email.toLowerCase(),
-          website: '',
-          socialMedia: {
-            instagram: '',
-            facebook: '',
-            twitter: ''
-          }
-        },
-        profileImage: null,
-        businessImage: null,
-        photos: [],
-        deliveryOptions: {
-          pickup: false,
-          delivery: false,
-          shipping: false
-        },
-        operationDetails: {},
-        creationMethod: 'registration',
-        isActive: true,
-        isVerified: false
-      }, db);
-      
-      const artisanResult = await artisansCollection.insertOne(artisanProfile);
-      artisan = {
-        _id: artisanResult.insertedId,
-        ...artisanProfile
-      };
+      try {
+        console.log('🎨 Creating artisan profile for user:', userId.toString());
+        
+        const { createUnifiedArtisanProfile } = require('../../utils/artisanSchemaUtils');
+        
+        const artisanProfile = await createUnifiedArtisanProfile({
+          userId: userId,
+          artisanName: artisanName || artisanData?.artisanName || `${firstName} ${lastName}`,
+          type: type || artisanData?.type || 'food_beverages',
+          description: description || artisanData?.description || `Artisan profile for ${firstName} ${lastName}`,
+          category: [type || artisanData?.type || 'food_beverages'],
+          address: artisanData?.address || (addresses.length > 0 ? addresses[0] : {}),
+          contactInfo: {
+            phone: phone || '',
+            email: email.toLowerCase(),
+            website: '',
+            socialMedia: {
+              instagram: '',
+              facebook: '',
+              twitter: ''
+            }
+          },
+          profileImage: null,
+          businessImage: null,
+          photos: [],
+          deliveryOptions: {
+            pickup: false,
+            delivery: false,
+            shipping: false
+          },
+          operationDetails: {},
+          creationMethod: 'registration',
+          isActive: true,
+          isVerified: false
+        }, db);
+        
+        console.log('✅ Artisan profile created, inserting into database...');
+        
+        const artisanResult = await artisansCollection.insertOne(artisanProfile);
+        artisan = {
+          _id: artisanResult.insertedId,
+          ...artisanProfile
+        };
+        
+        console.log('✅ Artisan profile inserted successfully with ID:', artisanResult.insertedId.toString());
+      } catch (artisanError) {
+        console.error('❌ Error creating artisan profile:', artisanError);
+        console.error('Artisan error stack:', artisanError.stack);
+        
+        // Rollback: Delete the user that was just created since artisan creation failed
+        await usersCollection.deleteOne({ _id: userId });
+        
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create artisan profile during registration',
+          error: artisanError.message,
+          details: 'User registration has been rolled back. Please try again.'
+        });
+      }
     }
     
     // Generate JWT token

@@ -308,18 +308,20 @@ const updateUnifiedArtisanProfile = (currentProfile, updateData) => {
   }
 
   // Process image updates - update the images object
-  if (updates.profileImage || updates.businessImage || updates.images) {
+  if (updates.profileImage || updates.businessImage || updates.photos || updates.images) {
     const currentImages = currentProfile.images || { profile: null, business: null, gallery: [] };
     updates.images = {
       ...currentImages,
       ...(updates.profileImage !== undefined && { profile: updates.profileImage }),
       ...(updates.businessImage !== undefined && { business: updates.businessImage }),
+      ...(updates.photos !== undefined && { gallery: updates.photos }),
       ...(updates.images && updates.images)
     };
     
     // Remove standalone fields from updates
     delete updates.profileImage;
     delete updates.businessImage;
+    delete updates.photos;
   }
 
   // Update hours structure if artisanHours provided

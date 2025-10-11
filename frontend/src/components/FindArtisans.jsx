@@ -396,31 +396,19 @@ export default function FindArtisans() {
   const getArtisanImages = (artisan) => {
     if (!artisan) return [];
     
-    // Handle business image first (highest priority)
-    if (artisan.businessImage) {
-      const url = getImageUrl(artisan.businessImage);
+    // Get business image first (highest priority) - new schema
+    if (artisan.images?.business) {
+      const url = getImageUrl(artisan.images.business);
       if (url) {
         return [url];
       }
     }
     
-    // Handle photos array
-    if (artisan.photos && Array.isArray(artisan.photos)) {
-      return artisan.photos
+    // Handle photos/gallery array - new schema
+    if (artisan.images?.gallery && Array.isArray(artisan.images.gallery) && artisan.images.gallery.length > 0) {
+      return artisan.images.gallery
         .map(photo => getImageUrl(photo))
         .filter(url => url !== null);
-    }
-    
-    // Handle single photo field
-    if (artisan.photo) {
-      const url = getImageUrl(artisan.photo);
-      return url ? [url] : [];
-    }
-    
-    // Handle image field
-    if (artisan.image) {
-      const url = getImageUrl(artisan.image);
-      return url ? [url] : [];
     }
     
     return [];
@@ -448,7 +436,9 @@ export default function FindArtisans() {
 
   // Check if artisan is currently open
   const isArtisanOpen = (artisan) => {
-    if (!artisan.artisanHours) {
+    // Check new schema first: hours.schedule
+    const schedule = artisan.hours?.schedule;
+    if (!schedule) {
       return null;
     }
     
@@ -460,7 +450,7 @@ export default function FindArtisans() {
     const dayMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const currentDayKey = dayMap[currentDay];
     
-    const todayHours = artisan.artisanHours[currentDayKey];
+    const todayHours = schedule[currentDayKey];
     
     if (!todayHours || todayHours.closed) {
       return false;
@@ -505,7 +495,9 @@ export default function FindArtisans() {
 
   // Enhanced rating display
   const getRatingDisplay = (artisan) => {
-    const { average, count } = artisan.rating || {};
+    // Use new schema: metrics.rating and metrics.reviewCount
+    const average = artisan.metrics?.rating || 0;
+    const count = artisan.metrics?.reviewCount || 0;
     const createdAt = new Date(artisan.createdAt);
     const now = new Date();
     const daysSinceCreation = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
@@ -537,7 +529,7 @@ export default function FindArtisans() {
     const ratingDisplay = getRatingDisplay(artisan);
     
     // Debug logging
-    console.log('Artisan:', artisan.artisanName, 'Photos:', artisan.photos, 'Images:', artisanImages, 'Primary Image:', primaryImage);
+    console.log('Artisan:', artisan.artisanName, 'Images:', artisan.images, 'Artisan Images:', artisanImages, 'Primary Image:', primaryImage);
 
     return (
       <div 
@@ -693,7 +685,7 @@ export default function FindArtisans() {
               }`}>
                 {artisan.artisanName || 'Unnamed Artisan'}
               </h3>
-              {artisan.isVerified && (
+              {artisan.status?.isVerified && (
                 <div className="flex items-center bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
                   <CheckCircleIcon className="w-3 h-3 mr-1" />
                   Verified
@@ -952,7 +944,7 @@ export default function FindArtisans() {
                           <h3 className="font-semibold text-gray-900 group-hover:text-primary transition-colors">
                             {artisan.artisanName || artisan.businessName}
                           </h3>
-                          {artisan.isVerified && (
+                          {artisan.status?.isVerified && (
                             <div className="flex items-center bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
                               <CheckCircleIcon className="w-3 h-3 mr-1" />
                               Verified

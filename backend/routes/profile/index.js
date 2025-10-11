@@ -1315,6 +1315,7 @@ const updateArtisanHours = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
+    const { updateUnifiedArtisanProfile, invalidateArtisanCache } = require('../../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db;
@@ -1328,7 +1329,8 @@ const updateArtisanHours = async (req, res) => {
       });
     }
 
-    const updateData = { updatedAt: new Date() };
+    // Prepare raw update data
+    const rawUpdateData = {};
     
     // Handle artisan hours
     if (req.body.artisanHours) {
@@ -1338,15 +1340,21 @@ const updateArtisanHours = async (req, res) => {
         console.log('⚠️  Detected double-nested artisanHours, unwrapping...');
         hoursData = hoursData.artisanHours;
       }
-      updateData.artisanHours = hoursData;
-      
-      console.log('✅ Updated artisan business hours (pickup schedule remains independent)');
+      rawUpdateData.artisanHours = hoursData;
     }
+    
+    // Use unified schema update function to handle field synchronization
+    const updateData = updateUnifiedArtisanProfile(artisan, rawUpdateData);
+    
+    console.log('✅ Updated artisan hours using unified schema (stored in hours.schedule)');
 
     await artisansCollection.updateOne(
       { _id: artisan._id },
       { $set: updateData }
     );
+
+    // Invalidate cache for this artisan
+    await invalidateArtisanCache(artisan._id.toString());
 
     // Build consistent response using helper
     const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
@@ -1378,6 +1386,7 @@ const updateArtisanDelivery = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
+    const { updateUnifiedArtisanProfile, invalidateArtisanCache } = require('../../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db;
@@ -1391,40 +1400,19 @@ const updateArtisanDelivery = async (req, res) => {
       });
     }
 
-    const updateData = { updatedAt: new Date() };
+    // Use unified schema update function to handle field synchronization
+    // This will properly structure delivery options in fulfillment.methods
+    const updateData = updateUnifiedArtisanProfile(artisan, req.body);
     
-    // Handle delivery options
-    if (req.body.deliveryOptions) {
-      updateData.deliveryOptions = req.body.deliveryOptions;
-      
-      // Sync deliveryOptions to root-level fields for backward compatibility
-      // This ensures all existing code that reads from root fields continues to work
-      const opts = req.body.deliveryOptions;
-      updateData.pickupSchedule = opts.pickupSchedule || {};
-      updateData.pickupLocation = opts.pickupLocation || null;
-      updateData.pickupAddress = opts.pickupAddress || null;
-      updateData.pickupInstructions = opts.pickupInstructions || '';
-      updateData.pickupUseBusinessAddress = opts.pickupUseBusinessAddress !== undefined ? opts.pickupUseBusinessAddress : true;
-      // professionalDelivery is an object, not a boolean - sync the entire object
-      updateData.professionalDelivery = opts.professionalDelivery || { enabled: false };
-      updateData.deliveryInstructions = opts.deliveryInstructions || '';
-      
-      // Handle pickup hours - use provided value or generate from schedule
-      if (opts.pickupHours) {
-        updateData.pickupHours = opts.pickupHours;
-        updateData['deliveryOptions.pickupHours'] = opts.pickupHours;
-      } else if (opts.pickupSchedule) {
-        updateData.pickupHours = formatPickupHours(opts.pickupSchedule);
-        updateData['deliveryOptions.pickupHours'] = updateData.pickupHours;
-      }
-      
-      console.log('✅ Synced deliveryOptions to root-level fields for backward compatibility');
-    }
+    console.log('✅ Updated delivery options using unified schema (stored in fulfillment.methods)');
 
     await artisansCollection.updateOne(
       { _id: artisan._id },
       { $set: updateData }
     );
+
+    // Invalidate cache for this artisan
+    await invalidateArtisanCache(artisan._id.toString());
 
     // Build consistent response using helper
     const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);
@@ -1456,6 +1444,7 @@ const updateArtisanPhotosContact = async (req, res) => {
 
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
+    const { updateUnifiedArtisanProfile, invalidateArtisanCache } = require('../../utils/artisanSchemaUtils');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     const db = req.db;
@@ -1469,24 +1458,15 @@ const updateArtisanPhotosContact = async (req, res) => {
       });
     }
 
-    const updateData = { updatedAt: new Date() };
+    // Prepare raw update data
+    const rawUpdateData = { ...req.body };
     
-    // Handle photos
-    if (req.body.photos) {
-      updateData.photos = req.body.photos;
-    }
-    
-    // Handle contact info
-    if (req.body.contactInfo) {
-      updateData.contactInfo = req.body.contactInfo;
-    }
-    
-    // Handle business image
+    // Handle business image upload
     if (req.body.businessImage) {
       if (typeof req.body.businessImage === 'string' && req.body.businessImage.startsWith('data:image')) {
         console.log('📸 Processing businessImage...');
         try {
-          updateData.businessImage = await imageUploadService.handleImageUpload(
+          rawUpdateData.businessImage = await imageUploadService.handleImageUpload(
             req.body.businessImage,
             'business',
             `business-${decoded.userId}-${Date.now()}.jpg`
@@ -1494,19 +1474,19 @@ const updateArtisanPhotosContact = async (req, res) => {
           console.log('✅ businessImage processed');
         } catch (uploadError) {
           console.error('⚠️ Business image upload failed:', uploadError.message);
-          updateData.businessImage = req.body.businessImage;
+          rawUpdateData.businessImage = req.body.businessImage;
         }
       } else {
-        updateData.businessImage = req.body.businessImage;
+        rawUpdateData.businessImage = req.body.businessImage;
       }
     }
     
-    // Handle profile image
+    // Handle profile image upload
     if (req.body.profileImage) {
       if (typeof req.body.profileImage === 'string' && req.body.profileImage.startsWith('data:image')) {
         console.log('📸 Processing profileImage...');
         try {
-          updateData.profileImage = await imageUploadService.handleImageUpload(
+          rawUpdateData.profileImage = await imageUploadService.handleImageUpload(
             req.body.profileImage,
             'profile',
             `profile-${decoded.userId}-${Date.now()}.jpg`
@@ -1514,17 +1494,26 @@ const updateArtisanPhotosContact = async (req, res) => {
           console.log('✅ profileImage processed');
         } catch (uploadError) {
           console.error('⚠️ Profile image upload failed:', uploadError.message);
-          updateData.profileImage = req.body.profileImage;
+          rawUpdateData.profileImage = req.body.profileImage;
         }
       } else {
-        updateData.profileImage = req.body.profileImage;
+        rawUpdateData.profileImage = req.body.profileImage;
       }
     }
+    
+    // Use unified schema update function to handle field synchronization
+    // This will properly structure images in the images object
+    const updateData = updateUnifiedArtisanProfile(artisan, rawUpdateData);
+    
+    console.log('✅ Updated photos and contact using unified schema (images stored in images object)');
 
     await artisansCollection.updateOne(
       { _id: artisan._id },
       { $set: updateData }
     );
+
+    // Invalidate cache for this artisan
+    await invalidateArtisanCache(artisan._id.toString());
 
     // Build consistent response using helper
     const userProfile = await buildArtisanProfileResponse(db, decoded.userId, artisan._id);

@@ -78,7 +78,7 @@ const ArtisanCard = ({ artisan, onFavorite, onMessage, showDistance = true }) =>
       {/* Banner Image */}
       <div className="relative h-36 overflow-hidden">
         <img
-          src={getImageUrl(artisan.photos?.main || artisan.businessImage, { width: 400, height: 144, quality: 80 })}
+          src={getImageUrl(artisan.images?.business, { width: 400, height: 144, quality: 80 })}
           alt={artisan.artisanName}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
@@ -86,7 +86,7 @@ const ArtisanCard = ({ artisan, onFavorite, onMessage, showDistance = true }) =>
         {/* Avatar */}
         <div className="absolute left-4 -bottom-7 w-14 h-14 rounded-full border-4 border-white shadow-lg overflow-hidden bg-white">
           <img
-            src={getImageUrl(artisan.photos?.avatar || artisan.profileImage, { width: 56, height: 56, quality: 80 })}
+            src={getImageUrl(artisan.images?.profile, { width: 56, height: 56, quality: 80 })}
             alt={artisan.artisanName}
             className="w-full h-full object-cover"
           />
@@ -106,7 +106,7 @@ const ArtisanCard = ({ artisan, onFavorite, onMessage, showDistance = true }) =>
           <div className="flex items-center gap-2">
             <div className="flex items-center bg-gradient-to-r from-yellow-400 to-yellow-500 text-gray-900 px-2 py-1 rounded-full text-xs font-bold">
               <StarIconSolid className="w-3 h-3 mr-1" />
-              {(artisan.rating?.average || 0).toFixed(1)}
+              {(artisan.metrics?.rating || 0).toFixed(1)}
             </div>
             {showDistance && artisan.distance && (
               <div className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
@@ -115,7 +115,7 @@ const ArtisanCard = ({ artisan, onFavorite, onMessage, showDistance = true }) =>
             )}
           </div>
           <div className="text-xs text-gray-500">
-            {artisan.rating?.count || 0} reviews
+            {artisan.metrics?.reviewCount || 0} reviews
           </div>
         </div>
 

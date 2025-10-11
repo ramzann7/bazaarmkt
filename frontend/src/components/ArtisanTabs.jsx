@@ -32,8 +32,8 @@ export function OverviewTab({ profile, onSave, isSaving }) {
   
   const [overview, setOverview] = useState({
     artisanName: profile.artisanName || '',
-    businessImage: profile.businessImage || null,
-    businessImagePreview: profile.businessImage || null,
+    businessImage: profile.images?.business || null,
+    businessImagePreview: profile.images?.business || null,
     description: profile.description || '',
     category: profile.category || [],
     address: {
@@ -74,8 +74,8 @@ export function OverviewTab({ profile, onSave, isSaving }) {
       setOverview(prev => ({
         artisanName: profile.artisanName || '',
         // Keep user's uploaded image if they have one, otherwise use profile image
-        businessImage: hasNewImage ? prev.businessImage : (profile.businessImage || null),
-        businessImagePreview: hasNewImage ? prev.businessImagePreview : (profile.businessImage || null),
+        businessImage: hasNewImage ? prev.businessImage : (profile.images?.business || null),
+        businessImagePreview: hasNewImage ? prev.businessImagePreview : (profile.images?.business || null),
         description: profile.description || '',
         category: profile.category || [],
         address: {
@@ -853,13 +853,13 @@ export function OperationsTab({ profile, onSave, isSaving }) {
 
 export function HoursTab({ profile, onSave, isSaving }) {
   const [hours, setHours] = useState({
-    monday: profile.artisanHours?.monday || { open: '09:00', close: '17:00', closed: false },
-    tuesday: profile.artisanHours?.tuesday || { open: '09:00', close: '17:00', closed: false },
-    wednesday: profile.artisanHours?.wednesday || { open: '09:00', close: '17:00', closed: false },
-    thursday: profile.artisanHours?.thursday || { open: '09:00', close: '17:00', closed: false },
-    friday: profile.artisanHours?.friday || { open: '09:00', close: '17:00', closed: false },
-    saturday: profile.artisanHours?.saturday || { open: '09:00', close: '17:00', closed: false },
-    sunday: profile.artisanHours?.sunday || { open: '09:00', close: '17:00', closed: true }
+    monday: profile.hours?.schedule?.monday || { open: '09:00', close: '17:00', closed: false },
+    tuesday: profile.hours?.schedule?.tuesday || { open: '09:00', close: '17:00', closed: false },
+    wednesday: profile.hours?.schedule?.wednesday || { open: '09:00', close: '17:00', closed: false },
+    thursday: profile.hours?.schedule?.thursday || { open: '09:00', close: '17:00', closed: false },
+    friday: profile.hours?.schedule?.friday || { open: '09:00', close: '17:00', closed: false },
+    saturday: profile.hours?.schedule?.saturday || { open: '09:00', close: '17:00', closed: false },
+    sunday: profile.hours?.schedule?.sunday || { open: '09:00', close: '17:00', closed: true }
   });
 
   const handleSubmit = async (e) => {

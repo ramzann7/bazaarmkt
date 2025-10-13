@@ -64,6 +64,14 @@ export default function SearchResults() {
     return products.filter(product => {
       const inventoryModel = new InventoryModel(product);
       const outOfStockStatus = inventoryModel.getOutOfStockStatus();
+      
+      // Debug logging
+      if (outOfStockStatus.isOutOfStock) {
+        console.log(`   ❌ FILTERED OUT: ${product.name}`);
+        console.log(`      Reason: ${outOfStockStatus.message} - ${outOfStockStatus.reason}`);
+        console.log(`      Inventory: stock=${product.stock}, capacity=${product.remainingCapacity}, qty=${product.availableQuantity}`);
+      }
+      
       return !outOfStockStatus.isOutOfStock;
     });
   };
@@ -276,8 +284,24 @@ export default function SearchResults() {
           .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
         setProducts(processedProducts);
+        
+        // Debug: Log products before filtering
+        console.log('🔍 Products before inventory filter:', processedProducts.length);
+        processedProducts.forEach((p, idx) => {
+          console.log(`   ${idx + 1}. ${p.name}`);
+          console.log(`      Type: ${p.productType || 'none'}`);
+          console.log(`      Stock: ${p.stock || 0}, Capacity: ${p.remainingCapacity || 0}, Qty: ${p.availableQuantity || 0}`);
+        });
+        
         // Filter out out-of-stock products for search results
         const inStockProducts = filterInStockProducts(processedProducts);
+        
+        // Debug: Log products after filtering
+        console.log('✅ Products after inventory filter:', inStockProducts.length);
+        inStockProducts.forEach((p, idx) => {
+          console.log(`   ${idx + 1}. ${p.name} - PASSED FILTER`);
+        });
+        
         setFilteredProducts(inStockProducts);
       } else {
         console.log('⚠️ Search results not in expected format:', searchResults);

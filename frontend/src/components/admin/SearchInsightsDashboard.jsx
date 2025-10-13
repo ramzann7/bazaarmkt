@@ -279,7 +279,8 @@ const SearchInsightsDashboard = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

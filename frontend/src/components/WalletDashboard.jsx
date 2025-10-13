@@ -12,6 +12,7 @@ import {
 import { profileService } from '../services/profileService';
 import walletService from '../services/walletService';
 import toast from 'react-hot-toast';
+import WalletTopUp from './WalletTopUp';
 
 const WalletDashboard = () => {
   const [walletData, setWalletData] = useState(null);
@@ -22,11 +23,24 @@ const WalletDashboard = () => {
   const [error, setError] = useState(null);
   const [recentTransactions, setRecentTransactions] = useState([]);
   const [transactionSummary, setTransactionSummary] = useState(null);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
 
   useEffect(() => {
     loadWalletData();
     loadArtisanProfile();
   }, []);
+
+  const handleTopUpSuccess = async (data) => {
+    console.log('✅ Wallet top-up successful in dashboard:', data);
+    setShowTopUpModal(false);
+    toast.success(`Successfully added $${data.transaction.amount.toFixed(2)} to your wallet!`);
+    // Reload wallet data to show updated balance
+    await loadWalletData();
+  };
+
+  const handleTopUpCancel = () => {
+    setShowTopUpModal(false);
+  };
 
   const loadArtisanProfile = async () => {
     try {
@@ -145,30 +159,6 @@ const WalletDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Bank Info Required Alert */}
-      {!hasBankInfo && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <ExclamationTriangleIcon className="h-6 w-6 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-amber-900 mb-1">
-                Bank Information Required for Payouts
-              </h4>
-              <p className="text-sm text-amber-700 mb-3">
-                To receive weekly payouts, please configure your bank account information in your profile.
-              </p>
-              <a
-                href="/profile?tab=payment"
-                className="btn-primary text-sm"
-              >
-                Add Bank Information
-                <ArrowRightIcon className="w-4 h-4 ml-2" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Wallet Balance Card - Compact and Neutral */}
       <div className="card p-4">
         <div className="flex items-center justify-between">
@@ -318,9 +308,9 @@ const WalletDashboard = () => {
                 <p className="text-sm mb-4">Add your bank account to receive weekly payouts</p>
                 <a
                   href="/profile?tab=payment"
-                  className="btn-primary text-sm inline-flex items-center"
+                  className="inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
                 >
-                  Add Bank Information
+                  <span>Add Bank Information</span>
                   <ArrowRightIcon className="w-4 h-4 ml-2" />
                 </a>
               </div>
@@ -380,7 +370,7 @@ const WalletDashboard = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <button
-          onClick={() => {/* Navigate to top-up */}}
+          onClick={() => setShowTopUpModal(true)}
           className="card p-4 hover:shadow-md transition-shadow"
         >
           <div className="flex items-center space-x-3">
@@ -422,6 +412,20 @@ const WalletDashboard = () => {
                 Your wallet balance is below the minimum payout threshold. 
                 Consider topping up to continue using promotional features.
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Top-Up Modal */}
+      {showTopUpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <WalletTopUp 
+                onSuccess={handleTopUpSuccess} 
+                onCancel={handleTopUpCancel}
+              />
             </div>
           </div>
         </div>

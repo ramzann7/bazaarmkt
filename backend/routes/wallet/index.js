@@ -26,14 +26,60 @@ const getWalletBalance = async (req, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const db = req.db;
     
-    // Get user's wallet balance from users collection
-    const usersCollection = db.collection('users');
-    const user = await usersCollection.findOne({ _id: new ObjectId(decoded.userId) });
-    
-    if (!user) {
-      return res.status(404).json({
+    if (!db) {
+      console.error('❌ Database connection not available in wallet routes');
+      return res.status(503).json({
         success: false,
-        message: 'User not found'
+        message: 'Database connection not available'
+      });
+    }
+    
+    console.log('💰 Getting wallet balance for user:', decoded.userId);
+    
+    // Get platform settings for payout configuration
+    const PlatformSettingsService = require('../../services/platformSettingsService');
+    const platformSettingsService = new PlatformSettingsService(db);
+    const platformSettings = await platformSettingsService.getPlatformSettings();
+    
+    // Get user's wallet from wallets collection
+    const walletsCollection = db.collection('wallets');
+    let wallet = await walletsCollection.findOne({ userId: new ObjectId(decoded.userId) });
+    
+    // If wallet doesn't exist, create it with platform payout settings
+    if (!wallet) {
+      console.log('🆕 Creating new wallet for user with platform payout settings');
+      
+      wallet = {
+        userId: new ObjectId(decoded.userId),
+        balance: 0,
+        currency: platformSettings.currency || 'CAD',
+        stripeCustomerId: null,
+        stripeAccountId: null,
+        payoutSettings: {
+          enabled: false,
+          method: 'bank_transfer',
+          bankAccount: null,
+          schedule: platformSettings.payoutSettings?.payoutFrequency || 'weekly',
+          minimumPayout: platformSettings.payoutSettings?.minimumPayoutAmount || 25,
+          payoutDelay: platformSettings.payoutSettings?.payoutDelay || 7,
+          lastPayoutDate: null,
+          nextPayoutDate: null
+        },
+        metadata: {
+          totalEarnings: 0,
+          totalSpent: 0,
+          totalPayouts: 0,
+          platformFees: 0
+        },
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await walletsCollection.insertOne(wallet);
+      console.log('✅ Wallet created with platform payout settings:', {
+        minimumPayout: wallet.payoutSettings.minimumPayout,
+        schedule: wallet.payoutSettings.schedule
       });
     }
 
@@ -59,9 +105,12 @@ const getWalletBalance = async (req, res) => {
     res.json({
       success: true,
       data: {
-        balance: user.walletBalance || 0,
-        currency: 'CAD',
-        lastUpdated: user.updatedAt || user.createdAt,
+        balance: wallet.balance || 0,
+        currency: wallet.currency || 'CAD',
+        stripeCustomerId: wallet.stripeCustomerId,
+        stripeAccountId: wallet.stripeAccountId,
+        payoutSettings: wallet.payoutSettings,
+        lastUpdated: wallet.updatedAt || wallet.createdAt,
         statistics: {
           totalEarnings: totalEarnings[0]?.total || 0,
           totalWithdrawals: totalWithdrawals[0]?.total || 0,
@@ -78,11 +127,27 @@ const getWalletBalance = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get wallet balance error:', error);
+    console.error('❌ Get wallet balance error:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      message: error.message,
+      name: error.name,
+      code: error.code
+    });
+    
+    // Handle JWT errors specifically
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to get wallet balance',
-      error: error.message
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

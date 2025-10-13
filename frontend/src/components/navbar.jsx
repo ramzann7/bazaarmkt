@@ -577,22 +577,20 @@ export default function Navbar() {
               <LanguageSwitcher />
             </div>
             
-            {/* Cart - Available for all users except artisans */}
-            {(!user || (user?.role !== 'artisan' && user?.userType !== 'artisan')) && (
-              <button 
-                onClick={() => setShowCartDropdown(!showCartDropdown)}
-                className="relative p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200 flex items-center"
-              >
-                <ShoppingBagIcon className="w-5 h-5 md:w-6 md:h-6" />
-                {cartCount > 0 && (
-                  <span className={`absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg ${
-                    cartCount > 99 ? 'w-5 h-5 md:w-6 md:h-6 text-[9px] md:text-[10px]' : 'w-4 h-4 md:w-5 md:h-5 text-[10px]'
-                  }`}>
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </button>
-            )}
+            {/* Cart - Available for all users including artisans */}
+            <button 
+              onClick={() => setShowCartDropdown(!showCartDropdown)}
+              className="relative p-1.5 md:p-2 text-secondary hover:text-amber-600 transition-colors duration-200 flex items-center"
+            >
+              <ShoppingBagIcon className="w-5 h-5 md:w-6 md:h-6" />
+              {cartCount > 0 && (
+                <span className={`absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg ${
+                  cartCount > 99 ? 'w-5 h-5 md:w-6 md:h-6 text-[9px] md:text-[10px]' : 'w-4 h-4 md:w-5 md:h-5 text-[10px]'
+                }`}>
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
+            </button>
 
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (

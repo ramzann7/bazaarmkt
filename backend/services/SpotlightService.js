@@ -10,7 +10,7 @@ class SpotlightService extends BaseService {
     super(db);
     this.artisansCollection = 'artisans';
     this.usersCollection = 'users';
-    this.transactionsCollection = 'transactions';
+    this.transactionsCollection = 'wallettransactions';
   }
 
   /**
@@ -71,19 +71,15 @@ class SpotlightService extends BaseService {
     const costPerDay = 10; // $10 per day
     const totalCost = days * costPerDay;
     
-    // Check wallet balance
-    const user = await this.findById(this.usersCollection, userId);
-    const currentBalance = user?.walletBalance || 0;
+    // Use WalletService for wallet operations
+    const WalletService = require('./WalletService');
+    const walletService = new WalletService(this.db);
     
-    if (currentBalance < totalCost) {
-      const shortfall = totalCost - currentBalance;
-      throw new Error(`Insufficient wallet balance. Need $${shortfall} more.`);
-    }
-    
-    // Deduct from wallet
-    await this.getCollection(this.usersCollection).updateOne(
-      { _id: this.createObjectId(userId) },
-      { $inc: { walletBalance: -totalCost } }
+    // Deduct funds from wallet (this will check balance automatically)
+    const walletResult = await walletService.deductFunds(
+      userId, 
+      totalCost, 
+      `Spotlight subscription for ${days} days`
     );
     
     // Set spotlight dates
@@ -104,28 +100,13 @@ class SpotlightService extends BaseService {
       }
     );
     
-    // Create transaction record
-    await this.create(this.transactionsCollection, {
-      userId: this.createObjectId(userId),
-      type: 'spotlight_purchase',
-      amount: -totalCost,
-      description: `Spotlight subscription for ${days} days`,
-      paymentMethod: paymentMethod,
-      status: 'completed',
-      metadata: {
-        days,
-        costPerDay,
-        spotlightStartDate: startDate,
-        spotlightEndDate: endDate
-      }
-    });
-    
     return {
       days,
       totalCost,
       startDate,
       endDate,
-      remainingBalance: currentBalance - totalCost
+      remainingBalance: walletResult.newBalance,
+      transactionId: walletResult.transactionId
     };
   }
 
@@ -211,10 +192,21 @@ class SpotlightService extends BaseService {
     const costPerDay = 10;
     const refundAmount = remainingDays * costPerDay;
     
-    // Refund to wallet
-    await this.getCollection(this.usersCollection).updateOne(
-      { _id: this.createObjectId(userId) },
-      { $inc: { walletBalance: refundAmount } }
+    // Use WalletService for wallet operations
+    const WalletService = require('./WalletService');
+    const walletService = new WalletService(this.db);
+    
+    // Add funds to wallet as refund
+    const walletResult = await walletService.addFunds(
+      userId,
+      refundAmount,
+      'refund',
+      {
+        description: `Spotlight subscription refund for ${remainingDays} remaining days`,
+        remainingDays,
+        costPerDay,
+        originalEndDate: endDate
+      }
     );
     
     // Remove spotlight status
@@ -229,24 +221,11 @@ class SpotlightService extends BaseService {
       }
     );
     
-    // Create refund transaction
-    await this.create(this.transactionsCollection, {
-      userId: this.createObjectId(userId),
-      type: 'spotlight_refund',
-      amount: refundAmount,
-      description: `Spotlight subscription refund for ${remainingDays} remaining days`,
-      status: 'completed',
-      metadata: {
-        remainingDays,
-        costPerDay,
-        originalEndDate: endDate
-      }
-    });
-    
     return {
       refundAmount,
       remainingDays,
-      message: 'Spotlight subscription cancelled and refunded'
+      message: 'Spotlight subscription cancelled and refunded',
+      transactionId: walletResult.transactionId
     };
   }
 

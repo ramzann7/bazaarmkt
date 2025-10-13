@@ -10,6 +10,7 @@ const jwt = require('jsonwebtoken');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const PlatformSettingsService = require('../../services/platformSettingsService');
 const redisCacheService = require('../../services/redisCacheService');
+const WalletService = require('../../services/walletService');
 
 // Import notification service functions  
 const { sendNotification, sendPreferenceBasedNotification } = require('../notifications/index');
@@ -1106,6 +1107,328 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to confirm payment and create order',
+      error: error.message
+    });
+  }
+};
+
+// Wallet payment and create order (for artisans only)
+const walletPaymentAndCreateOrder = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    const { orderData } = req.body;
+
+    if (!orderData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order data is required'
+      });
+    }
+
+    // Verify user is an artisan
+    const db = req.db;
+    const usersCollection = db.collection('users');
+    const user = await usersCollection.findOne({ 
+      _id: new (require('mongodb')).ObjectId(userId) 
+    });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (user.role !== 'artisan') {
+      return res.status(403).json({
+        success: false,
+        message: 'Wallet payment is only available for artisans'
+      });
+    }
+
+    // Initialize WalletService
+    const walletService = new WalletService(db);
+    
+    // Calculate total amount
+    const totalAmount = orderData.totalAmount || 0;
+    
+    // Check wallet balance
+    try {
+      const walletBalanceData = await walletService.getWalletBalance(userId);
+      const walletBalance = walletBalanceData.balance;
+      
+      if (walletBalance < totalAmount) {
+        return res.status(400).json({
+          success: false,
+          message: 'Insufficient wallet balance. Please top up your wallet.',
+          data: {
+            required: totalAmount,
+            available: walletBalance,
+            shortfall: totalAmount - walletBalance
+          }
+        });
+      }
+    } catch (balanceError) {
+      console.error('❌ Error checking wallet balance:', balanceError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to verify wallet balance',
+        error: balanceError.message
+      });
+    }
+
+    // Enrich order items with complete product data
+    const ordersCollection = db.collection('orders');
+    const productsCollection = db.collection('products');
+    
+    const enrichedItems = [];
+    for (const item of orderData.items || []) {
+      try {
+        const product = await productsCollection.findOne({ 
+          _id: new (require('mongodb')).ObjectId(item.productId) 
+        });
+        
+        if (product) {
+          enrichedItems.push({
+            productId: product._id,
+            product: {
+              _id: product._id,
+              name: product.name,
+              price: product.price,
+              description: product.description,
+              images: product.images,
+              category: product.category,
+              productType: product.productType,
+              artisan: product.artisan
+            },
+            name: product.name,
+            productName: product.name,
+            price: product.price,
+            quantity: item.quantity,
+            totalPrice: product.price * item.quantity,
+            unitPrice: product.price,
+            productType: product.productType,
+            artisanId: product.artisan
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Error enriching order item ${item.productId}:`, error);
+      }
+    }
+
+    // Calculate delivery fee
+    let deliveryFee = orderData.deliveryFee || 0;
+    const deliveryMethod = orderData.deliveryMethod || 'pickup';
+    
+    if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
+      const artisansCollection = db.collection('artisans');
+      if (enrichedItems.length > 0 && enrichedItems[0].artisanId) {
+        const artisan = await artisansCollection.findOne({ _id: enrichedItems[0].artisanId });
+        
+        if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
+          deliveryFee = artisan.deliveryOptions.deliveryFee;
+        } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
+          deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+        }
+      }
+    }
+
+    const subtotal = totalAmount - deliveryFee;
+
+    // Deduct funds from wallet
+    try {
+      const orderId = new (require('mongodb')).ObjectId();
+      const orderNumber = orderId.toString().slice(-8);
+      
+      await walletService.deductFunds(
+        userId,
+        totalAmount,
+        `Purchase - Order #${orderNumber}`,
+        { orderId: orderId.toString(), orderNumber, paymentMethod: 'wallet' }
+      );
+      
+      console.log(`✅ Deducted $${totalAmount} from wallet for order #${orderNumber}`);
+    } catch (deductError) {
+      console.error('❌ Error deducting funds from wallet:', deductError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process wallet payment',
+        error: deductError.message
+      });
+    }
+
+    // Create order using unified schema
+    const order = createUnifiedOrderSchema({
+      userId: userId,
+      items: enrichedItems,
+      totalAmount: totalAmount,
+      subtotal: subtotal,
+      deliveryFee: deliveryFee,
+      status: 'pending',
+      paymentStatus: 'paid', // Wallet payment is immediate
+      paymentMethod: 'wallet',
+      paymentIntentId: `wallet_${Date.now()}_${userId}`,
+      deliveryAddress: orderData.deliveryAddress,
+      deliveryInstructions: orderData.deliveryInstructions,
+      deliveryMethod: orderData.deliveryMethod,
+      pickupTimeWindows: orderData.pickupTimeWindows,
+      deliveryMethodDetails: orderData.deliveryMethodDetails,
+      paymentDetails: {
+        paymentMethod: 'wallet',
+        paidAt: new Date()
+      },
+      notes: orderData.notes,
+      artisan: enrichedItems.length > 0 ? enrichedItems[0].artisanId : null,
+      isGuestOrder: false
+    });
+
+    // Add delivery pricing for professional delivery
+    if (orderData.deliveryPricing && orderData.deliveryMethod === 'professionalDelivery') {
+      order.deliveryPricing = {
+        estimatedFee: orderData.deliveryPricing.estimatedFee || 0,
+        buffer: orderData.deliveryPricing.buffer || 0,
+        bufferPercentage: orderData.deliveryPricing.bufferPercentage || 20,
+        chargedAmount: orderData.deliveryPricing.chargedAmount || deliveryFee,
+        uberQuoteId: orderData.deliveryPricing.uberQuoteId,
+        uberQuoteExpiry: orderData.deliveryPricing.uberQuoteExpiry,
+        lastUpdated: new Date()
+      };
+    }
+
+    const result = await ordersCollection.insertOne(order);
+
+    // Reduce inventory
+    const inventoryUpdates = [];
+    for (const item of order.items) {
+      try {
+        const product = await productsCollection.findOne({ 
+          _id: new (require('mongodb')).ObjectId(item.productId) 
+        });
+        
+        if (product) {
+          const updateFields = {
+            soldCount: (product.soldCount || 0) + item.quantity,
+            updatedAt: new Date()
+          };
+          
+          if (product.productType === 'ready_to_ship') {
+            updateFields.stock = Math.max(0, (product.stock || 0) - item.quantity);
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          } else if (product.productType === 'made_to_order') {
+            updateFields.remainingCapacity = Math.max(0, (product.remainingCapacity || 0) - item.quantity);
+          } else if (product.productType === 'scheduled_order') {
+            updateFields.availableQuantity = Math.max(0, (product.availableQuantity || 0) - item.quantity);
+          }
+          
+          const remainingStock = product.productType === 'ready_to_ship' ? updateFields.stock : 
+                                product.productType === 'made_to_order' ? updateFields.remainingCapacity :
+                                product.productType === 'scheduled_order' ? updateFields.availableQuantity : 0;
+          
+          updateFields.status = remainingStock > 0 ? 'active' : 'out_of_stock';
+          
+          await productsCollection.updateOne(
+            { _id: new (require('mongodb')).ObjectId(item.productId) },
+            { $set: updateFields }
+          );
+          
+          inventoryUpdates.push({
+            productId: item.productId,
+            productName: product.name,
+            quantityReduced: item.quantity,
+            remainingStock: remainingStock,
+            newStatus: updateFields.status
+          });
+          
+          console.log(`✅ Inventory reduced for product ${product.name}: -${item.quantity}, remaining: ${remainingStock}`);
+        }
+      } catch (inventoryError) {
+        console.error(`❌ Error reducing inventory for product ${item.productId}:`, inventoryError);
+      }
+    }
+
+    // Send notifications
+    try {
+      // Notify buyer (artisan who made purchase)
+      await sendNotificationDirect({
+        userId: userId,
+        type: 'order_created_buyer',
+        title: 'Order Placed Successfully',
+        message: `Your order #${result.insertedId.toString().slice(-8)} has been placed. Payment of $${totalAmount.toFixed(2)} was deducted from your wallet.`,
+        data: {
+          orderId: result.insertedId.toString(),
+          orderNumber: result.insertedId.toString().slice(-8),
+          totalAmount: totalAmount,
+          paymentMethod: 'wallet'
+        },
+        priority: 'high'
+      }, db);
+      
+      // Notify seller (artisan whose product was purchased)
+      if (enrichedItems.length > 0 && enrichedItems[0].artisanId) {
+        const artisansCollection = db.collection('artisans');
+        const sellerArtisan = await artisansCollection.findOne({ _id: enrichedItems[0].artisanId });
+        
+        if (sellerArtisan && sellerArtisan.user) {
+          await sendNotificationDirect({
+            userId: sellerArtisan.user.toString(),
+            type: 'order_created_seller',
+            title: 'New Order Received',
+            message: `You have a new order #${result.insertedId.toString().slice(-8)} from a fellow artisan!`,
+            data: {
+              orderId: result.insertedId.toString(),
+              orderNumber: result.insertedId.toString().slice(-8),
+              totalAmount: totalAmount,
+              itemCount: enrichedItems.length
+            },
+            priority: 'high'
+          }, db);
+        }
+      }
+    } catch (notifError) {
+      console.error('❌ Error sending notifications:', notifError);
+      // Continue even if notifications fail
+    }
+
+    // Fetch complete order to return
+    const completeOrder = await ordersCollection.findOne({ _id: result.insertedId });
+    
+    // Populate artisan information
+    let orderWithArtisan = { ...completeOrder };
+    if (completeOrder.artisan) {
+      const artisansCollection = db.collection('artisans');
+      const artisan = await artisansCollection.findOne({ _id: completeOrder.artisan });
+      orderWithArtisan.artisan = artisan;
+    }
+
+    res.json({
+      success: true,
+      message: 'Order created successfully with wallet payment',
+      data: {
+        ...orderWithArtisan,
+        orderId: result.insertedId,
+        inventoryUpdates: inventoryUpdates
+      }
+    });
+  } catch (error) {
+    console.error('❌ Wallet payment and create order error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process wallet payment and create order',
       error: error.message
     });
   }
@@ -2222,12 +2545,33 @@ const getArtisanOrders = async (req, res) => {
     const ordersCollection = db.collection('orders');
     const artisansCollection = db.collection('artisans');
     
+    // Check query parameter for order type (sales, purchases, or all)
+    const orderType = req.query.type || 'sales'; // Default to sales (existing behavior)
+    
     // Get the artisan record for this user
     const artisan = await artisansCollection.findOne({ user: new (require('mongodb')).ObjectId(decoded.userId) });
     if (!artisan) {
       return res.status(403).json({
         success: false,
         message: 'User is not an artisan'
+      });
+    }
+    
+    // If requesting purchases, return orders where this user is the buyer
+    if (orderType === 'purchases') {
+      const orders = await ordersCollection
+        .find({ userId: new (require('mongodb')).ObjectId(decoded.userId) })
+        .sort({ createdAt: -1 })
+        .limit(parseInt(req.query.limit) || 50)
+        .toArray();
+      
+      return res.json({
+        success: true,
+        data: {
+          orders,
+          count: orders.length,
+          orderType: 'purchases'
+        }
       });
     }
     
@@ -4573,6 +4917,7 @@ const autoCompleteDeliveredOrders = async (req, res) => {
 router.post('/payment-intent', createPaymentIntent);
 router.post('/guest/payment-intent', createGuestPaymentIntent);
 router.post('/confirm-payment', confirmPaymentAndCreateOrder);
+router.post('/wallet-payment', walletPaymentAndCreateOrder);
 router.post('/', createOrder);
 router.post('/guest', createGuestOrder);
 router.get('/', getUserOrders);

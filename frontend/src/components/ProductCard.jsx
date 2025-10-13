@@ -156,7 +156,7 @@ const ProductCard = ({
             <div className={`flex items-center space-x-1 ${compact ? 'mb-2' : 'mb-3'}`}>
               {renderStars(product.artisan?.rating?.average || product.rating || 0)}
               <span className={`${compact ? 'text-[10px]' : 'text-xs'} text-gray-500`}>
-                ({(product.artisan?.rating?.average || product.rating || 0).toFixed(1)})
+                ({(Number(product.artisan?.rating?.average) || Number(product.rating) || 0).toFixed(1)})
               </span>
             </div>
           )}

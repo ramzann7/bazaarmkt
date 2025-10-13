@@ -12,12 +12,19 @@ class GeocodingService {
   // Convert address to coordinates (latitude, longitude)
   async geocodeAddress(address) {
     try {
-      // Check cache first
+      // Don't geocode incomplete addresses (must have comma or be reasonably long)
+      const isIncompleteAddress = !address.includes(',') && address.length < 30;
+      
+      // Check cache first - but only for complete addresses
       const cacheKey = `geocode_${this.hashAddress(address)}`;
-      const cached = cacheService.get(cacheKey);
-      if (cached) {
-        console.log('📍 Using cached geocode for:', address);
-        return cached;
+      if (!isIncompleteAddress) {
+        const cached = cacheService.get(cacheKey);
+        if (cached) {
+          console.log('📍 Using cached geocode for:', address);
+          return cached;
+        }
+      } else {
+        console.log('🔍 Skipping cache for incomplete address:', address);
       }
 
       // Rate limiting
@@ -62,8 +69,10 @@ class GeocodingService {
 
       console.log('✅ Geocoded successfully:', coordinates);
       
-      // Cache the result
-      cacheService.set(cacheKey, coordinates, CACHE_TTL.GEOCODING);
+      // Only cache complete addresses with good confidence
+      if (!isIncompleteAddress && coordinates.confidence >= 60) {
+        cacheService.set(cacheKey, coordinates, CACHE_TTL.GEOCODING);
+      }
       
       return coordinates;
     } catch (error) {
@@ -303,6 +312,30 @@ class GeocodingService {
     }
     
     return results;
+  }
+
+  // Clear geocoding cache for a specific address
+  clearAddressCache(address) {
+    const cacheKey = `geocode_${this.hashAddress(address)}`;
+    cacheService.remove(cacheKey);
+    console.log('🗑️ Cleared geocoding cache for:', address);
+  }
+
+  // Clear all geocoding cache
+  clearAllCache() {
+    // This would require cache service to support clearing by prefix
+    // For now, we'll just log
+    console.log('🗑️ To clear all geocoding cache, clear browser storage');
+  }
+
+  // Validate if address is complete enough for geocoding
+  isCompleteAddress(address) {
+    if (!address || typeof address !== 'string') return false;
+    
+    // Address should either:
+    // 1. Contain a comma (multiple parts like "street, city")
+    // 2. Be at least 30 characters (likely a full address)
+    return address.includes(',') || address.length >= 30;
   }
 }
 

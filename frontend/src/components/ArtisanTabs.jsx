@@ -1133,6 +1133,39 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
     return formatted.join(', ') || 'No pickup hours set';
   };
 
+  // Helper to parse pickup location (could be object or string)
+  const parsePickupLocation = (location) => {
+    if (!location) {
+      return { street: '', city: '', state: '', zipCode: '' };
+    }
+    
+    // If already an object, return as-is
+    if (typeof location === 'object') {
+      return {
+        street: location.street || '',
+        city: location.city || '',
+        state: location.state || '',
+        zipCode: location.zipCode || ''
+      };
+    }
+    
+    // If string, try to parse it (legacy format: "street, city, state zipCode")
+    if (typeof location === 'string') {
+      const parts = location.split(',').map(p => p.trim());
+      if (parts.length >= 3) {
+        const stateZip = parts[2].trim().split(/\s+/);
+        return {
+          street: parts[0] || '',
+          city: parts[1] || '',
+          state: stateZip[0] || '',
+          zipCode: stateZip.slice(1).join(' ') || ''
+        };
+      }
+    }
+    
+    return { street: '', city: '', state: '', zipCode: '' };
+  };
+
   const [delivery, setDelivery] = useState({
     pickup: {
       enabled: profile.fulfillment?.methods?.pickup?.enabled !== false,
@@ -1140,12 +1173,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
       instructions: profile.fulfillment?.methods?.pickup?.instructions || '',
       hours: profile.pickupHours || '',
       useBusinessAddress: profile.fulfillment?.methods?.pickup?.useBusinessAddress !== false, // Default to true if not set
-      address: {
-        street: profile.fulfillment?.methods?.pickup?.location?.street || '',
-        city: profile.fulfillment?.methods?.pickup?.location?.city || '',
-        state: profile.fulfillment?.methods?.pickup?.location?.state || '',
-        zipCode: profile.fulfillment?.methods?.pickup?.location?.zipCode || ''
-      },
+      address: parsePickupLocation(profile.fulfillment?.methods?.pickup?.location),
       schedule: normalizePickupSchedule(profile.fulfillment?.methods?.pickup?.schedule)
     },
     personalDelivery: {
@@ -1158,7 +1186,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
     },
     professionalDelivery: {
       enabled: profile.fulfillment?.methods?.professionalDelivery?.enabled || false,
-      uberDirectEnabled: profile.professionalDelivery?.uberDirectEnabled || false,
+      uberDirectEnabled: profile.fulfillment?.methods?.professionalDelivery?.enabled || false, // Auto-enabled with professional delivery
       serviceRadius: profile.fulfillment?.methods?.professionalDelivery?.serviceRadius || 25,
       regions: profile.fulfillment?.methods?.professionalDelivery?.regions || [],
       packaging: profile.professionalDelivery?.packaging || '',
@@ -1179,12 +1207,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
           instructions: profile.fulfillment?.methods?.pickup?.instructions || '',
           hours: profile.pickupHours || '',
           useBusinessAddress: profile.fulfillment?.methods?.pickup?.useBusinessAddress !== false,
-          address: {
-            street: profile.fulfillment?.methods?.pickup?.location?.street || '',
-            city: profile.fulfillment?.methods?.pickup?.location?.city || '',
-            state: profile.fulfillment?.methods?.pickup?.location?.state || '',
-            zipCode: profile.fulfillment?.methods?.pickup?.location?.zipCode || ''
-          },
+          address: parsePickupLocation(profile.fulfillment?.methods?.pickup?.location),
           schedule: normalizePickupSchedule(profile.fulfillment?.methods?.pickup?.schedule)
         },
         personalDelivery: {
@@ -1197,7 +1220,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
         },
         professionalDelivery: {
           enabled: profile.fulfillment?.methods?.professionalDelivery?.enabled || false,
-          uberDirectEnabled: profile.professionalDelivery?.uberDirectEnabled || false,
+          uberDirectEnabled: profile.fulfillment?.methods?.professionalDelivery?.enabled || false, // Auto-enabled with professional delivery
           serviceRadius: profile.fulfillment?.methods?.professionalDelivery?.serviceRadius || 25,
           regions: profile.fulfillment?.methods?.professionalDelivery?.regions || [],
           packaging: profile.professionalDelivery?.packaging || '',
@@ -1230,10 +1253,10 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
       freeDeliveryThreshold: delivery.personalDelivery.freeThreshold,
       deliveryInstructions: delivery.personalDelivery.instructions,
       
-      // Professional delivery options
+      // Professional delivery options (automatically enables Uber Direct when enabled)
       professionalDelivery: {
         enabled: delivery.professionalDelivery.enabled,
-        uberDirectEnabled: delivery.professionalDelivery.uberDirectEnabled,
+        uberDirectEnabled: delivery.professionalDelivery.enabled, // Auto-enable Uber Direct when professional delivery is enabled
         serviceRadius: delivery.professionalDelivery.serviceRadius,
         regions: delivery.professionalDelivery.regions,
         packaging: delivery.professionalDelivery.packaging,
@@ -1430,9 +1453,6 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 🕒 Pickup Schedule <span className="text-red-500">*</span>
               </label>
-              
-              {/* Debug info */}
-              {console.log('🔄 Rendering pickup schedule with data:', delivery.pickup.schedule)}
               
               <div className="space-y-3">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
@@ -1760,46 +1780,25 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
             checked={delivery.professionalDelivery.enabled}
             onChange={(e) => setDelivery({ 
               ...delivery, 
-              professionalDelivery: { ...delivery.professionalDelivery, enabled: e.target.checked } 
+              professionalDelivery: { 
+                ...delivery.professionalDelivery, 
+                enabled: e.target.checked,
+                uberDirectEnabled: e.target.checked // Auto-enable Uber Direct
+              } 
             })}
             className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mt-1"
           />
           <div className="flex-1">
-            <label className="block text-lg font-semibold text-gray-900">🚛 Professional Delivery</label>
-            <p className="text-sm text-gray-600 mb-2">Professional delivery services for customers outside your personal delivery radius</p>
+            <label className="block text-lg font-semibold text-gray-900">🚛 Professional Delivery (Uber Direct)</label>
+            <p className="text-sm text-gray-600 mb-2">Offer Uber Direct delivery for customers with automated tracking and professional service</p>
             <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              💡 <strong>Perfect for:</strong> Reaching customers in wider areas and offering premium delivery service
+              💡 <strong>Perfect for:</strong> Reaching customers in wider areas, automated delivery tracking, and premium service
             </div>
           </div>
         </div>
         
         {delivery.professionalDelivery.enabled && (
           <div className="space-y-6 ml-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="p-4 bg-white rounded-lg border border-blue-200">
-              <label className="block text-sm font-medium text-gray-700 mb-3">🚛 Uber Direct Integration</label>
-              <div className="flex items-start space-x-4">
-                <input
-                  type="checkbox"
-                  checked={delivery.professionalDelivery.uberDirectEnabled}
-                  onChange={(e) => setDelivery({ 
-                    ...delivery, 
-                    professionalDelivery: { 
-                      ...delivery.professionalDelivery, 
-                      uberDirectEnabled: e.target.checked 
-                    } 
-                  })}
-                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mt-1"
-                />
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Enable Uber Direct</label>
-                  <p className="text-sm text-gray-600 mb-2">Allow customers to use Uber Direct for professional delivery</p>
-                  <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded">
-                    💡 <strong>Benefits:</strong> Wider reach, professional service, automated delivery tracking
-                  </div>
-                </div>
-              </div>
-            </div>
-            
             <div className="p-4 bg-white rounded-lg border border-blue-200">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 🌍 Service Regions <span className="text-red-500">*</span>

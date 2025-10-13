@@ -30,6 +30,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [filter, setFilter] = useState('active'); // Default to active orders (priority queue shows all active orders with pending prioritized)
+  const [orderType, setOrderType] = useState('sales'); // For artisans: 'sales' or 'purchases'
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -44,6 +45,14 @@ export default function Orders() {
     const interval = setInterval(loadUserAndOrders, 120000);
     return () => clearInterval(interval);
   }, []);
+  
+  // Reload orders when orderType changes (for artisans)
+  useEffect(() => {
+    if (userRole === 'artisan' && ordersLoaded) {
+      setOrdersLoaded(false); // Force reload from API
+      loadUserAndOrders(true);
+    }
+  }, [orderType]);
 
   // Apply filter when filter or userRole changes (no API call needed)
   useEffect(() => {
@@ -86,7 +95,7 @@ export default function Orders() {
   const loadUserAndOrders = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
-      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)');
+      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)', `orderType: ${orderType}`);
       const userProfile = await getProfile();
       const actualUserRole = userProfile.role || userProfile.userType; // Check both role and userType for compatibility
       setUserRole(actualUserRole);
@@ -96,13 +105,16 @@ export default function Orders() {
         console.log('📋 Loading all orders from API...');
         let ordersData;
         if (actualUserRole === 'artisan') {
-          ordersData = await orderService.getArtisanOrders(true); // Always load all orders
+          // For artisans, load based on orderType (sales or purchases)
+          console.log(`📋 Loading ${orderType} orders for artisan...`);
+          ordersData = await orderService.getArtisanOrders(true, orderType);
         } else {
           ordersData = await orderService.getPatronOrders(true); // Always load all orders
         }
         
         console.log('📦 All orders loaded from API:', {
           count: ordersData.length,
+          type: orderType,
           statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
         });
         
@@ -764,6 +776,36 @@ export default function Orders() {
 
         {/* Enhanced Filters and View Toggle */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          {/* Sales vs Purchases tabs for Artisans */}
+          {isArtisan(userRole) && (
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOrderType('sales')}
+                  className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                    orderType === 'sales'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+                  }`}
+                >
+                  <span>📦</span>
+                  <span>Sales (Orders I'm Selling)</span>
+                </button>
+                <button
+                  onClick={() => setOrderType('purchases')}
+                  className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                    orderType === 'purchases'
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
+                  }`}
+                >
+                  <span>🛍️</span>
+                  <span>Purchases (Orders I Bought)</span>
+                </button>
+              </div>
+            </div>
+          )}
+          
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex flex-wrap gap-2">
               {isArtisan(userRole) ? (

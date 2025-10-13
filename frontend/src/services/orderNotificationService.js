@@ -266,25 +266,67 @@ class OrderNotificationService {
   }
 
   // Notify about new orders
-  notifyNewOrders(newOrders) {
+  notifyNewOrders(newOrders, orderType = 'sales') {
     // Play notification sound
     if (this.notificationSound) {
       this.notificationSound();
     }
 
-    // Show toast notification
+    // Show toast notification with different colors based on order type
     import('react-hot-toast').then(({ default: toast }) => {
       if (newOrders.length === 1) {
-        toast.success(`New order received! Order #${newOrders[0]._id.slice(-6)}`, {
+        const order = newOrders[0];
+        // Determine if this is a purchase order (artisan is buyer) or sales order (artisan is seller)
+        const isPurchase = orderType === 'purchases';
+        
+        const message = isPurchase 
+          ? `✨ Your purchase order was placed! Order #${order._id.slice(-6)}`
+          : `🎉 New order received! Order #${order._id.slice(-6)}`;
+        
+        const toastStyle = isPurchase 
+          ? {
+              background: '#9333ea', // Purple for purchases
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '15px'
+            }
+          : {
+              background: '#3b82f6', // Blue for sales
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '15px'
+            };
+        
+        toast.success(message, {
           duration: 5000,
+          style: toastStyle,
           onClick: () => {
-            // Navigate to orders page
             window.location.href = '/orders';
           }
         });
       } else {
-        toast.success(`${newOrders.length} new orders received!`, {
+        const isPurchase = orderType === 'purchases';
+        const message = isPurchase
+          ? `✨ ${newOrders.length} purchase orders placed!`
+          : `🎉 ${newOrders.length} new orders received!`;
+        
+        const toastStyle = isPurchase 
+          ? {
+              background: '#9333ea', // Purple for purchases
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '15px'
+            }
+          : {
+              background: '#3b82f6', // Blue for sales
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '15px'
+            };
+        
+        toast.success(message, {
           duration: 5000,
+          style: toastStyle,
           onClick: () => {
             window.location.href = '/orders';
           }
@@ -296,7 +338,7 @@ class OrderNotificationService {
 
     // Dispatch custom event for components to listen to
     window.dispatchEvent(new CustomEvent('newOrdersReceived', {
-      detail: { orders: newOrders, count: newOrders.length }
+      detail: { orders: newOrders, count: newOrders.length, orderType }
     }));
 
     // Update browser notification badge if supported

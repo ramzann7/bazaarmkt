@@ -62,52 +62,71 @@ const generateLocationFromAddress = (address) => {
 /**
  * Normalize fulfillment settings from legacy delivery options
  */
-const normalizeFulfillmentSettings = (deliveryOptions = {}) => ({
-  methods: {
-    pickup: {
-      enabled: deliveryOptions.pickup || false,
-      location: deliveryOptions.pickupLocation || deliveryOptions.pickupAddress || null,
-      instructions: deliveryOptions.pickupInstructions || '',
-      useBusinessAddress: deliveryOptions.pickupUseBusinessAddress !== undefined ? 
-        deliveryOptions.pickupUseBusinessAddress : true,
-      schedule: deliveryOptions.pickupSchedule || {}
-    },
-    delivery: {
-      enabled: deliveryOptions.delivery || false,
-      fee: deliveryOptions.deliveryFee || 0,
-      radius: deliveryOptions.deliveryRadius || 10,
-      instructions: deliveryOptions.deliveryInstructions || '',
-      estimatedTime: deliveryOptions.estimatedDeliveryTime || '1-2 hours'
-    },
-    professionalDelivery: {
-      enabled: deliveryOptions.professionalDelivery?.enabled || false,
-      fee: deliveryOptions.professionalDeliveryFee || 
-        deliveryOptions.professionalDelivery?.fee || 0,
-      providers: deliveryOptions.professionalDelivery?.providers || []
-    },
-    shipping: {
-      enabled: deliveryOptions.shipping || false,
-      regions: deliveryOptions.shippingRegions || []
-    }
+const normalizeFulfillmentSettings = (deliveryOptions = {}) => {
+  // Handle pickup location - could be string or address object
+  let pickupLocation = deliveryOptions.pickupLocation;
+  
+  // If pickupAddress is an object, use it as the location
+  if (deliveryOptions.pickupAddress && typeof deliveryOptions.pickupAddress === 'object') {
+    pickupLocation = deliveryOptions.pickupAddress;
   }
-});
+  
+  return {
+    methods: {
+      pickup: {
+        enabled: deliveryOptions.pickup || false,
+        location: pickupLocation || null,
+        instructions: deliveryOptions.pickupInstructions || '',
+        useBusinessAddress: deliveryOptions.pickupUseBusinessAddress !== undefined ? 
+          deliveryOptions.pickupUseBusinessAddress : true,
+        schedule: deliveryOptions.pickupSchedule || {}
+      },
+      delivery: {
+        enabled: deliveryOptions.delivery || false,
+        fee: deliveryOptions.deliveryFee || 0,
+        radius: deliveryOptions.deliveryRadius || 10,
+        instructions: deliveryOptions.deliveryInstructions || '',
+        estimatedTime: deliveryOptions.estimatedDeliveryTime || '1-2 hours'
+      },
+      professionalDelivery: {
+        enabled: deliveryOptions.professionalDelivery?.enabled || false,
+        fee: deliveryOptions.professionalDeliveryFee || 
+          deliveryOptions.professionalDelivery?.fee || 0,
+        providers: deliveryOptions.professionalDelivery?.providers || []
+      },
+      shipping: {
+        enabled: deliveryOptions.shipping || false,
+        regions: deliveryOptions.shippingRegions || []
+      }
+    }
+  };
+};
 
 /**
  * Create legacy delivery options object for backward compatibility
  */
-const createLegacyDeliveryOptions = (fulfillment) => ({
-  pickup: fulfillment.methods.pickup.enabled,
-  delivery: fulfillment.methods.delivery.enabled,
-  shipping: fulfillment.methods.shipping.enabled,
-  deliveryFee: fulfillment.methods.delivery.fee,
-  professionalDeliveryFee: fulfillment.methods.professionalDelivery.fee,
-  pickupSchedule: fulfillment.methods.pickup.schedule,
-  pickupLocation: fulfillment.methods.pickup.location,
-  pickupAddress: fulfillment.methods.pickup.location,
-  pickupInstructions: fulfillment.methods.pickup.instructions,
-  pickupUseBusinessAddress: fulfillment.methods.pickup.useBusinessAddress,
-  deliveryInstructions: fulfillment.methods.delivery.instructions
-});
+const createLegacyDeliveryOptions = (fulfillment) => {
+  const pickupLocation = fulfillment.methods.pickup.location;
+  
+  // Generate string representation of location for pickupLocation field
+  const pickupLocationString = typeof pickupLocation === 'object' && pickupLocation !== null
+    ? `${pickupLocation.street || ''}, ${pickupLocation.city || ''}, ${pickupLocation.state || ''} ${pickupLocation.zipCode || ''}`.trim()
+    : pickupLocation || '';
+  
+  return {
+    pickup: fulfillment.methods.pickup.enabled,
+    delivery: fulfillment.methods.delivery.enabled,
+    shipping: fulfillment.methods.shipping.enabled,
+    deliveryFee: fulfillment.methods.delivery.fee,
+    professionalDeliveryFee: fulfillment.methods.professionalDelivery.fee,
+    pickupSchedule: fulfillment.methods.pickup.schedule,
+    pickupLocation: pickupLocationString, // String format for legacy compatibility
+    pickupAddress: pickupLocation, // Keep object format for detailed address info
+    pickupInstructions: fulfillment.methods.pickup.instructions,
+    pickupUseBusinessAddress: fulfillment.methods.pickup.useBusinessAddress,
+    deliveryInstructions: fulfillment.methods.delivery.instructions
+  };
+};
 
 /**
  * Calculate profile completion score (0-100)

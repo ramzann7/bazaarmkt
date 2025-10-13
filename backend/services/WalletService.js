@@ -8,24 +8,113 @@ const BaseService = require('./BaseService');
 class WalletService extends BaseService {
   constructor(db) {
     super(db);
+    this.walletsCollection = 'wallets';
+    this.transactionsCollection = 'wallettransactions';
     this.usersCollection = 'users';
-    this.transactionsCollection = 'transactions';
   }
 
   /**
    * Get wallet balance for user
    */
   async getWalletBalance(userId) {
-    const user = await this.findById(this.usersCollection, userId);
+    // Try to find wallet by userId first (new format)
+    let wallet = await this.getCollection(this.walletsCollection).findOne({ 
+      userId: this.createObjectId(userId) 
+    });
     
-    if (!user) {
-      throw new Error('User not found');
+    // If not found, try by artisanId (legacy format)
+    if (!wallet) {
+      // Get artisan ID for this user
+      const artisansCollection = this.getCollection('artisans');
+      const artisan = await artisansCollection.findOne({ 
+        user: this.createObjectId(userId) 
+      });
+      
+      if (artisan) {
+        // Try to find wallet by artisanId
+        wallet = await this.getCollection(this.walletsCollection).findOne({ 
+          artisanId: artisan._id 
+        });
+        
+        // If found with artisanId, migrate it to use userId
+        if (wallet) {
+          console.log('🔄 Migrating wallet from artisanId to userId format for user:', userId);
+          await this.getCollection(this.walletsCollection).updateOne(
+            { _id: wallet._id },
+            { 
+              $set: { 
+                userId: this.createObjectId(userId),
+                updatedAt: new Date()
+              }
+            }
+          );
+          wallet.userId = this.createObjectId(userId);
+        }
+      }
+    }
+    
+    // If wallet still doesn't exist, create it
+    if (!wallet) {
+      const user = await this.findById(this.usersCollection, userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+      
+      console.log('🆕 Creating new wallet for user:', userId);
+      
+      // Get platform settings for payout configuration
+      const PlatformSettingsService = require('./platformSettingsService');
+      const platformSettingsService = new PlatformSettingsService(this.db);
+      const platformSettings = await platformSettingsService.getPlatformSettings();
+      
+      wallet = {
+        userId: this.createObjectId(userId),
+        balance: 0,
+        currency: platformSettings.currency || 'CAD',
+        stripeCustomerId: null,
+        stripeAccountId: null,
+        payoutSettings: {
+          enabled: false,
+          method: 'bank_transfer',
+          bankAccount: null,
+          schedule: platformSettings.payoutSettings?.payoutFrequency || 'weekly',
+          minimumPayout: platformSettings.payoutSettings?.minimumPayoutAmount || 25,
+          payoutDelay: platformSettings.payoutSettings?.payoutDelay || 7,
+          lastPayoutDate: null,
+          nextPayoutDate: null
+        },
+        metadata: {
+          totalEarnings: 0,
+          totalSpent: 0,
+          totalPayouts: 0,
+          platformFees: 0
+        },
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      await this.getCollection(this.walletsCollection).insertOne(wallet);
+      console.log('✅ Wallet created with platform settings:', {
+        minimumPayout: wallet.payoutSettings.minimumPayout,
+        schedule: wallet.payoutSettings.schedule,
+        currency: wallet.currency
+      });
     }
     
     return {
-      balance: user.walletBalance || 0,
-      currency: 'CAD',
-      lastUpdated: user.updatedAt || user.createdAt
+      balance: wallet.balance || 0,
+      currency: wallet.currency || 'CAD',
+      stripeCustomerId: wallet.stripeCustomerId,
+      stripeAccountId: wallet.stripeAccountId,
+      payoutSettings: wallet.payoutSettings || {
+        method: 'bank_transfer',
+        bankAccount: null,
+        schedule: 'weekly',
+        enabled: false,
+        minimumPayout: 50
+      },
+      lastUpdated: wallet.updatedAt || wallet.createdAt
     };
   }
 
@@ -37,17 +126,20 @@ class WalletService extends BaseService {
       throw new Error('Amount must be greater than 0');
     }
     
-    // Update user wallet balance
-    const result = await this.getCollection(this.usersCollection).updateOne(
-      { _id: this.createObjectId(userId) },
+    // Ensure wallet exists
+    await this.getWalletBalance(userId);
+    
+    // Update wallet balance
+    const result = await this.getCollection(this.walletsCollection).updateOne(
+      { userId: this.createObjectId(userId) },
       { 
-        $inc: { walletBalance: amount },
+        $inc: { balance: amount },
         $set: { updatedAt: new Date() }
       }
     );
     
     if (result.matchedCount === 0) {
-      throw new Error('User not found');
+      throw new Error('Wallet not found');
     }
     
     // Determine transaction type and description based on payment method
@@ -75,12 +167,19 @@ class WalletService extends BaseService {
     });
     
     // Get updated balance
-    const updatedUser = await this.findById(this.usersCollection, userId);
+    const updatedWallet = await this.getCollection(this.walletsCollection).findOne({ 
+      userId: this.createObjectId(userId) 
+    });
     
     return {
       transactionId: transaction.insertedId,
+      transaction: {
+        id: transaction.insertedId,
+        amount: amount,
+        type: transactionType
+      },
       amount: amount,
-      newBalance: updatedUser.walletBalance,
+      newBalance: updatedWallet.balance,
       paymentMethod: paymentMethod
     };
   }
@@ -94,21 +193,18 @@ class WalletService extends BaseService {
     }
     
     // Check current balance
-    const user = await this.findById(this.usersCollection, userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
+    const walletData = await this.getWalletBalance(userId);
+    const currentBalance = walletData.balance || 0;
     
-    const currentBalance = user.walletBalance || 0;
     if (currentBalance < amount) {
-      throw new Error(`Insufficient funds. Current balance: $${currentBalance}, Required: $${amount}`);
+      throw new Error(`Insufficient funds. Current balance: $${currentBalance.toFixed(2)}, Required: $${amount.toFixed(2)}`);
     }
     
-    // Update user wallet balance
-    await this.getCollection(this.usersCollection).updateOne(
-      { _id: this.createObjectId(userId) },
+    // Update wallet balance
+    await this.getCollection(this.walletsCollection).updateOne(
+      { userId: this.createObjectId(userId) },
       { 
-        $inc: { walletBalance: -amount },
+        $inc: { balance: -amount },
         $set: { updatedAt: new Date() }
       }
     );
@@ -148,37 +244,37 @@ class WalletService extends BaseService {
     }
     
     // Check sender balance
-    const fromUser = await this.findById(this.usersCollection, fromUserId);
-    if (!fromUser) {
-      throw new Error('Sender not found');
-    }
+    const fromWalletData = await this.getWalletBalance(fromUserId);
+    const currentBalance = fromWalletData.balance || 0;
     
-    const currentBalance = fromUser.walletBalance || 0;
     if (currentBalance < amount) {
-      throw new Error(`Insufficient funds. Current balance: $${currentBalance}, Required: $${amount}`);
+      throw new Error(`Insufficient funds. Current balance: $${currentBalance.toFixed(2)}, Required: $${amount.toFixed(2)}`);
     }
     
-    // Check receiver exists
-    const toUser = await this.findById(this.usersCollection, toUserId);
-    if (!toUser) {
-      throw new Error('Receiver not found');
-    }
+    // Ensure receiver wallet exists
+    const toWalletData = await this.getWalletBalance(toUserId);
+    
+    // Get user names for transaction descriptions
+    const [fromUser, toUser] = await Promise.all([
+      this.findById(this.usersCollection, fromUserId),
+      this.findById(this.usersCollection, toUserId)
+    ]);
     
     // Perform transfer
     await Promise.all([
       // Deduct from sender
-      this.getCollection(this.usersCollection).updateOne(
-        { _id: this.createObjectId(fromUserId) },
+      this.getCollection(this.walletsCollection).updateOne(
+        { userId: this.createObjectId(fromUserId) },
         { 
-          $inc: { walletBalance: -amount },
+          $inc: { balance: -amount },
           $set: { updatedAt: new Date() }
         }
       ),
       // Add to receiver
-      this.getCollection(this.usersCollection).updateOne(
-        { _id: this.createObjectId(toUserId) },
+      this.getCollection(this.walletsCollection).updateOne(
+        { userId: this.createObjectId(toUserId) },
         { 
-          $inc: { walletBalance: amount },
+          $inc: { balance: amount },
           $set: { updatedAt: new Date() }
         }
       )
@@ -220,7 +316,7 @@ class WalletService extends BaseService {
       fromUserId: fromUserId,
       toUserId: toUserId,
       fromNewBalance: currentBalance - amount,
-      toNewBalance: (toUser.walletBalance || 0) + amount,
+      toNewBalance: (toWalletData.balance || 0) + amount,
       description: description
     };
   }
@@ -253,6 +349,72 @@ class WalletService extends BaseService {
     return {
       transactions,
       count: transactions.length
+    };
+  }
+
+  /**
+   * Get transactions with pagination and summary (alias for compatibility)
+   */
+  async getTransactions(userId, page = 1, limit = 20, type = null, status = null) {
+    const offset = (page - 1) * limit;
+    const options = { limit, offset };
+    
+    if (type) options.type = type;
+    if (status) options.status = status;
+    
+    const result = await this.getTransactionHistory(userId, options);
+    
+    // Calculate summary statistics
+    const summary = await this.getTransactionSummary(userId);
+    
+    // Calculate pagination info
+    const totalTransactions = await this.count(this.transactionsCollection, { 
+      userId: this.createObjectId(userId) 
+    });
+    
+    const totalPages = Math.ceil(totalTransactions / limit);
+    
+    return {
+      transactions: result.transactions,
+      pagination: {
+        current: parseInt(page),
+        pages: totalPages,
+        total: totalTransactions,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      },
+      summary: summary
+    };
+  }
+
+  /**
+   * Get transaction summary for user
+   */
+  async getTransactionSummary(userId) {
+    const [creditSum, debitSum, transactionCount] = await Promise.all([
+      // Sum of credits (positive amounts)
+      this.aggregate(this.transactionsCollection, [
+        { $match: { userId: this.createObjectId(userId), amount: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      // Sum of debits (negative amounts)
+      this.aggregate(this.transactionsCollection, [
+        { $match: { userId: this.createObjectId(userId), amount: { $lt: 0 } } },
+        { $group: { _id: null, total: { $sum: { $abs: '$amount' } } } }
+      ]),
+      // Total transaction count
+      this.count(this.transactionsCollection, { userId: this.createObjectId(userId) })
+    ]);
+
+    const totalCredits = creditSum[0]?.total || 0;
+    const totalDebits = debitSum[0]?.total || 0;
+    const netAmount = totalCredits - totalDebits;
+
+    return {
+      totalCredits,
+      totalDebits,
+      netAmount,
+      transactionCount
     };
   }
 
@@ -334,10 +496,10 @@ class WalletService extends BaseService {
     const refundAmount = Math.abs(transaction.amount);
     
     // Add funds back to wallet
-    await this.getCollection(this.usersCollection).updateOne(
-      { _id: this.createObjectId(userId) },
+    await this.getCollection(this.walletsCollection).updateOne(
+      { userId: this.createObjectId(userId) },
       { 
-        $inc: { walletBalance: refundAmount },
+        $inc: { balance: refundAmount },
         $set: { updatedAt: new Date() }
       }
     );
@@ -509,26 +671,42 @@ class WalletService extends BaseService {
    * Get wallet analytics
    */
   async getWalletAnalytics() {
-    const [totalUsers, totalBalance, totalTransactions, topUsers] = await Promise.all([
-      this.count(this.usersCollection, { walletBalance: { $exists: true } }),
-      this.aggregate(this.usersCollection, [
-        { $match: { walletBalance: { $exists: true } } },
-        { $group: { _id: null, total: { $sum: '$walletBalance' } } }
+    const [totalWallets, totalBalance, totalTransactions, topWallets] = await Promise.all([
+      this.count(this.walletsCollection, { balance: { $exists: true } }),
+      this.aggregate(this.walletsCollection, [
+        { $match: { balance: { $exists: true } } },
+        { $group: { _id: null, total: { $sum: '$balance' } } }
       ]),
       this.count(this.transactionsCollection),
-      this.aggregate(this.usersCollection, [
-        { $match: { walletBalance: { $gt: 0 } } },
-        { $sort: { walletBalance: -1 } },
+      this.aggregate(this.walletsCollection, [
+        { $match: { balance: { $gt: 0 } } },
+        { $sort: { balance: -1 } },
         { $limit: 10 },
-        { $project: { firstName: 1, lastName: 1, walletBalance: 1, email: 1 } }
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user'
+          }
+        },
+        { $unwind: '$user' },
+        {
+          $project: {
+            firstName: '$user.firstName',
+            lastName: '$user.lastName',
+            email: '$user.email',
+            balance: 1
+          }
+        }
       ])
     ]);
     
     return {
-      totalUsers: totalUsers,
+      totalUsers: totalWallets,
       totalBalance: totalBalance[0]?.total || 0,
       totalTransactions: totalTransactions,
-      topUsers: topUsers
+      topUsers: topWallets
     };
   }
 }

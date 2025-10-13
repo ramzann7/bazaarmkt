@@ -266,9 +266,33 @@ const updateAddresses = async (req, res) => {
     
     console.log(`📍 Updating addresses for user ${decoded.userId}:`, addresses?.length || 0, 'address(es)');
     
+    // Geocode each address if it has a street
+    const geocodingService = require('../../services/geocodingService');
+    const geocodedAddresses = await Promise.all(
+      (addresses || []).map(async (address) => {
+        if (address.street) {
+          try {
+            const coordinates = await geocodingService.geocodeAddress(address);
+            if (coordinates) {
+              return {
+                ...address,
+                latitude: coordinates.latitude,
+                longitude: coordinates.longitude,
+                geocodedAt: new Date(),
+                geocodedFrom: coordinates.display_name
+              };
+            }
+          } catch (error) {
+            console.error(`❌ Failed to geocode address: ${address.street}`, error);
+          }
+        }
+        return address;
+      })
+    );
+    
     const result = await usersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(decoded.userId) },
-      { $set: { addresses, updatedAt: new Date() } }
+      { $set: { addresses: geocodedAddresses, updatedAt: new Date() } }
     );
     
     if (result.matchedCount === 0) {
@@ -324,10 +348,32 @@ const addAddress = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
     
+    // Geocode address if it has a street
+    let addressToAdd = address;
+    if (address.street) {
+      const geocodingService = require('../../services/geocodingService');
+      try {
+        const coordinates = await geocodingService.geocodeAddress(address);
+        if (coordinates) {
+          addressToAdd = {
+            ...address,
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+            geocodedAt: new Date(),
+            geocodedFrom: coordinates.display_name
+          };
+          console.log(`✅ Address geocoded: ${coordinates.latitude}, ${coordinates.longitude}`);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to geocode address: ${address.street}`, error);
+        // Continue with original address if geocoding fails
+      }
+    }
+    
     const result = await usersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(decoded.userId) },
       { 
-        $push: { addresses: address },
+        $push: { addresses: addressToAdd },
         $set: { updatedAt: new Date() }
       }
     );
@@ -1130,6 +1176,39 @@ const updateArtisanProfile = async (req, res) => {
     
     console.log('✅ Using unified schema update with automatic field synchronization');
     
+    // Geocode address if address was updated
+    if (updateData.address && updateData.address.street) {
+      const geocodingService = require('../../services/geocodingService');
+      console.log('📍 Address was updated, geocoding...');
+      
+      try {
+        const coordinates = await geocodingService.geocodeAddress(updateData.address);
+        
+        if (coordinates) {
+          // Add coordinates to artisan document
+          updateData.coordinates = {
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude
+          };
+          
+          // Also add to address object for backward compatibility
+          updateData.address.latitude = coordinates.latitude;
+          updateData.address.longitude = coordinates.longitude;
+          
+          // Store geocoding metadata
+          updateData.geocodedAt = new Date();
+          updateData.geocodedFrom = coordinates.display_name;
+          
+          console.log(`✅ Address geocoded: ${coordinates.latitude}, ${coordinates.longitude}`);
+        } else {
+          console.log('⚠️  Could not geocode address, coordinates not added');
+        }
+      } catch (geocodeError) {
+        console.error('❌ Geocoding failed:', geocodeError);
+        // Continue with update even if geocoding fails
+      }
+    }
+    
     // Update the artisan record
     const result = await artisansCollection.updateOne(
       { _id: artisan._id },
@@ -1141,6 +1220,22 @@ const updateArtisanProfile = async (req, res) => {
         success: false,
         message: 'Artisan profile not found'
       });
+    }
+    
+    // Also update coordinates in users collection if address was geocoded
+    if (updateData.coordinates) {
+      await usersCollection.updateOne(
+        { _id: user._id },
+        { 
+          $set: { 
+            coordinates: updateData.coordinates,
+            'address.latitude': updateData.coordinates.latitude,
+            'address.longitude': updateData.coordinates.longitude,
+            updatedAt: new Date()
+          }
+        }
+      );
+      console.log(`✅ Synced coordinates to users collection`);
     }
     
     // Invalidate cache for this artisan

@@ -59,10 +59,55 @@ class PlatformSettingsService {
         },
         { upsert: true }
       );
+      
+      // If payout settings were updated, sync all wallets
+      if (cleanUpdates.payoutSettings) {
+        console.log('🔄 Payout settings updated, syncing all wallets...');
+        await this.syncWalletPayoutSettings(cleanUpdates.payoutSettings);
+      }
 
       return await this.getPlatformSettings();
     } catch (error) {
       console.error('Error updating platform settings:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Sync wallet payout settings with platform settings
+   * Updates all wallets to use the latest platform payout configuration
+   * @param {Object} payoutSettings - New payout settings from platform
+   */
+  async syncWalletPayoutSettings(payoutSettings) {
+    try {
+      const walletsCollection = this.db.collection('wallets');
+      
+      // Update all wallets that don't have custom payout settings
+      const updateData = {
+        'payoutSettings.schedule': payoutSettings.payoutFrequency || 'weekly',
+        'payoutSettings.minimumPayout': payoutSettings.minimumPayoutAmount || 25,
+        'payoutSettings.payoutDelay': payoutSettings.payoutDelay || 7,
+        updatedAt: new Date()
+      };
+      
+      const result = await walletsCollection.updateMany(
+        {
+          isActive: true,
+          // Only update wallets that haven't customized their settings
+          'payoutSettings.customized': { $ne: true }
+        },
+        { $set: updateData }
+      );
+      
+      console.log(`✅ Synced ${result.modifiedCount} wallets with new payout settings:`, {
+        schedule: payoutSettings.payoutFrequency,
+        minimumPayout: payoutSettings.minimumPayoutAmount,
+        delay: payoutSettings.payoutDelay
+      });
+      
+      return result.modifiedCount;
+    } catch (error) {
+      console.error('❌ Error syncing wallet payout settings:', error);
       throw error;
     }
   }

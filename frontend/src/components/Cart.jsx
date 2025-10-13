@@ -9,9 +9,18 @@ import {
   ShieldCheckIcon,
   CheckCircleIcon,
   ShoppingBagIcon,
-  PlusIcon
+  PlusIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
+  UserIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  BuildingStorefrontIcon,
+  EnvelopeIcon,
+  PhoneIcon
 } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+import { StarIcon } from '@heroicons/react/24/solid';
+import toast from 'react-hot-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { cartService } from '../services/cartService';
@@ -27,8 +36,11 @@ import { locationService } from '../services/locationService';
 import { geocodingService } from '../services/geocodingService';
 import { uberDirectService } from '../services/uberDirectService';
 import { orderPaymentService } from '../services/orderPaymentService';
+import walletService from '../services/walletService';
+import { getImageUrl } from '../utils/imageUtils.js';
 import DeliveryInformation from './DeliveryInformation.jsx';
 import StripeOrderPayment from './StripeOrderPayment.jsx';
+import WalletTopUp from './WalletTopUp.jsx';
 
 // Initialize Stripe with Canadian locale
 const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY 
@@ -38,6 +50,142 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
     })
   : null;
 
+// Wallet Payment Section Component
+const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, externalBalance = null }) => {
+  const [walletBalance, setWalletBalance] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  
+  console.log('🔷 WalletPaymentSection rendered with:', {
+    totalAmount,
+    walletBalance,
+    externalBalance,
+    hasTopUpClick: !!onTopUpClick
+  });
+
+  // Use external balance if provided, otherwise fetch
+  React.useEffect(() => {
+    if (externalBalance !== null) {
+      setWalletBalance(externalBalance);
+      setLoading(false);
+      return;
+    }
+
+    const fetchBalance = async () => {
+      try {
+        setLoading(true);
+        const walletData = await walletService.getWalletBalance();
+        const balance = walletData.balance || 0;
+        setWalletBalance(balance);
+        // Notify parent of loaded balance
+        if (onBalanceLoaded) {
+          onBalanceLoaded(balance);
+        }
+      } catch (error) {
+        console.error('Error fetching wallet balance:', error);
+        setWalletBalance(0);
+        if (onBalanceLoaded) {
+          onBalanceLoaded(0);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBalance();
+  }, [onBalanceLoaded, externalBalance]);
+
+  const hasSufficientFunds = walletBalance !== null && walletBalance >= totalAmount;
+  const shortfall = walletBalance !== null ? Math.max(0, totalAmount - walletBalance) : 0;
+
+  return (
+    <div className={`rounded-xl shadow-sm border-2 p-6 mb-6 ${
+      hasSufficientFunds 
+        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
+        : 'bg-gradient-to-r from-purple-50 to-purple-100 border-purple-300'
+    }`}>
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+          hasSufficientFunds ? 'bg-green-600' : 'bg-purple-600'
+        }`}>
+          <CreditCardIcon className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className={`text-lg font-semibold mb-3 ${
+            hasSufficientFunds ? 'text-green-900' : 'text-purple-900'
+          }`}>
+            Payment Method: Wallet
+          </h3>
+
+          {loading ? (
+            <div className="flex items-center gap-2 text-gray-600">
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-sm">Loading wallet balance...</span>
+            </div>
+          ) : (
+            <>
+              {/* Wallet Balance Display */}
+              <div className="bg-white rounded-lg p-4 mb-3 border border-gray-200">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-600">Current Balance</span>
+                  <span className={`text-2xl font-bold ${
+                    hasSufficientFunds ? 'text-green-600' : 'text-purple-600'
+                  }`}>
+                    ${walletBalance !== null ? walletBalance.toFixed(2) : '0.00'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Order Total</span>
+                  <span className="font-semibold text-gray-800">${totalAmount.toFixed(2)}</span>
+                </div>
+                {!hasSufficientFunds && shortfall > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-red-600 font-medium">Amount Needed</span>
+                      <span className="font-bold text-red-600">${shortfall.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Status Message & Actions */}
+              {hasSufficientFunds ? (
+                <div className="flex items-center gap-2 text-green-800 text-sm">
+                  <CheckCircleIcon className="w-5 h-5" />
+                  <span className="font-medium">✓ Sufficient funds available</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-purple-800 text-sm">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    <span>Insufficient funds to complete this purchase</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🔵 Top Up Wallet button clicked');
+                      if (onTopUpClick) {
+                        onTopUpClick();
+                      } else {
+                        console.error('❌ onTopUpClick is not defined!');
+                      }
+                    }}
+                    type="button"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <PlusIcon className="w-5 h-5" />
+                    <span>Top Up Wallet</span>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Cart = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -45,9 +193,14 @@ const Cart = () => {
   // Core cart state
   const [cart, setCart] = useState([]);
   const [cartByArtisan, setCartByArtisan] = useState({});
-  const [checkoutStep, setCheckoutStep] = useState('delivery'); // Start at delivery options
+  const [checkoutStep, setCheckoutStep] = useState('checkout'); // Single checkout page with collapsible sections
   const [currentCheckoutArtisan, setCurrentCheckoutArtisan] = useState(null);
   const [processedArtisans, setProcessedArtisans] = useState([]);
+  
+  // Collapsible section states
+  const [deliverySectionExpanded, setDeliverySectionExpanded] = useState(true);
+  const [paymentSectionExpanded, setPaymentSectionExpanded] = useState(false);
+  const [deliveryConfirmed, setDeliveryConfirmed] = useState(false);
   
   // Order confirmation state
   const [orderConfirmation, setOrderConfirmation] = useState(null);
@@ -105,6 +258,10 @@ const Cart = () => {
   const [paymentIntent, setPaymentIntent] = useState(null);
   const [isCreatingPaymentIntent, setIsCreatingPaymentIntent] = useState(false);
   
+  // Wallet top-up state
+  const [showWalletTopUp, setShowWalletTopUp] = useState(false);
+  const [pendingPaymentData, setPendingPaymentData] = useState(null);
+  const [currentWalletBalance, setCurrentWalletBalance] = useState(null);
 
   // Initialize checkout artisan when cart loads
   useEffect(() => {
@@ -238,8 +395,8 @@ const Cart = () => {
       // Prepare locations for Uber Direct API
       const pickupLocation = {
         address: `${artisanData.artisan.address?.street || ''}, ${artisanData.artisan.address?.city || ''}, ${artisanData.artisan.address?.state || ''}, ${artisanData.artisan.address?.country || 'Canada'}`,
-        latitude: artisanData.artisan.address?.latitude || artisanData.artisan.coordinates?.latitude,
-        longitude: artisanData.artisan.address?.longitude || artisanData.artisan.coordinates?.longitude,
+        latitude: artisanData.artisan.coordinates?.latitude || artisanData.artisan.address?.latitude,
+        longitude: artisanData.artisan.coordinates?.longitude || artisanData.artisan.address?.longitude,
         phone: artisanData.artisan.phone || '',
         contactName: artisanData.artisan.artisanName
       };
@@ -883,11 +1040,29 @@ const Cart = () => {
             artisan: artisanData.artisan,
             address: artisanData.artisan?.address,
             coordinates: artisanData.artisan?.coordinates,
+            coordinatesLatitude: artisanData.artisan?.coordinates?.latitude,
+            coordinatesLongitude: artisanData.artisan?.coordinates?.longitude,
+            addressLatitude: artisanData.artisan?.address?.latitude,
+            addressLongitude: artisanData.artisan?.address?.longitude,
+            addressLat: artisanData.artisan?.address?.lat,
+            addressLng: artisanData.artisan?.address?.lng,
             fullArtisanData: artisanData.artisan
           });
           
-          const artisanLat = artisanData.artisan?.address?.lat || artisanData.artisan?.address?.latitude || artisanData.artisan?.coordinates?.latitude;
-          const artisanLng = artisanData.artisan?.address?.lng || artisanData.artisan?.address?.longitude || artisanData.artisan?.coordinates?.longitude;
+          // Priority order: coordinates object, then address object, then fallback to address lat/lng
+          const artisanLat = artisanData.artisan?.coordinates?.latitude || 
+                           artisanData.artisan?.address?.latitude || 
+                           artisanData.artisan?.address?.lat;
+          const artisanLng = artisanData.artisan?.coordinates?.longitude || 
+                           artisanData.artisan?.address?.longitude || 
+                           artisanData.artisan?.address?.lng;
+          
+          console.log(`🔍 Extracted coordinates for ${artisanData.artisan.artisanName}:`, {
+            artisanLat,
+            artisanLng,
+            coordinatesObj: artisanData.artisan?.coordinates,
+            addressObj: artisanData.artisan?.address
+          });
           
           // Convert to numbers and validate
           const artisanLatNum = parseFloat(artisanLat);
@@ -1705,8 +1880,8 @@ const Cart = () => {
     }
   };
 
-  // Handle checkout - go directly to Stripe payment
-  const handleCheckout = async () => {
+  // Handle "Continue to Payment" - validate delivery and collapse/expand sections
+  const handleContinueToPayment = async () => {
     try {
       // Validate delivery options
       const hasDeliveryMethod = Object.keys(selectedDeliveryMethods).length > 0;
@@ -1736,16 +1911,238 @@ const Cart = () => {
         return;
       }
       
-      // Create payment intent and go directly to Stripe payment page
+      // Mark delivery as confirmed
+      setDeliveryConfirmed(true);
+      
+      // Collapse delivery, expand payment
+      setDeliverySectionExpanded(false);
+      setPaymentSectionExpanded(true);
+      
+      // For patrons/guests, create payment intent when entering payment section
+      const isArtisan = userProfile?.role === 'artisan';
+      if (!isArtisan) {
       await createPaymentIntent();
+      }
+      
+      // Scroll to payment section
+      setTimeout(() => {
+        document.getElementById('payment-section')?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
+      
     } catch (error) {
-      console.error('❌ Error during checkout:', error);
-      toast.error('Checkout failed');
+      console.error('❌ Error proceeding to payment:', error);
+      toast.error('Failed to proceed to payment');
     }
   };
 
+  // Handle wallet checkout for artisans
+  const handleWalletCheckout = async () => {
+    try {
+      setPaymentLoading(true);
+      
+      // Get wallet balance
+      const walletData = await walletService.getWalletBalance();
+      const currentWalletBalance = walletData.balance || 0;
+      
+      // Calculate total including delivery fees
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totalDeliveryFee = await getTotalDeliveryFees();
+      const totalAmount = subtotal + totalDeliveryFee;
+      
+      console.log('💰 Wallet checkout:', {
+        balance: currentWalletBalance,
+        totalAmount,
+        subtotal,
+        deliveryFee: totalDeliveryFee
+      });
+      
+      // Check if artisan has sufficient funds
+      if (currentWalletBalance < totalAmount) {
+        const shortfall = totalAmount - currentWalletBalance;
+        setPaymentLoading(false);
+        
+        // Store payment data to retry after successful top-up
+        setPendingPaymentData({
+          orderData: null, // Will be set when retrying
+          totalAmount,
+          currentBalance: currentWalletBalance,
+          shortfall
+        });
+        
+        // Show wallet top-up modal
+        console.log('🔴 Setting showWalletTopUp to true');
+        console.log('🔴 Pending payment data:', {
+          totalAmount,
+          currentBalance: currentWalletBalance,
+          shortfall
+        });
+        setShowWalletTopUp(true);
+        toast.error(`Insufficient funds. Current balance: $${currentWalletBalance.toFixed(2)}, Need: $${totalAmount.toFixed(2)}`);
+        return;
+      }
+      
+      // Prepare order data
+      const orderData = {
+        items: cart.map(item => {
+          let productId = item._id;
+          if (item.artisan && (item._id === item.artisan._id || item._id === item.artisan)) {
+            productId = item.productId || item._id;
+          }
+          return {
+            productId: productId,
+            quantity: item.quantity,
+            productType: item.productType || 'ready_to_ship'
+          };
+        }),
+        deliveryAddress: useSavedAddress ? (selectedAddress || deliveryForm) : (newAddressForm.street ? newAddressForm : deliveryForm),
+        deliveryInstructions: deliveryForm.instructions || '',
+        deliveryMethod: Object.values(selectedDeliveryMethods)[0] || 'pickup',
+        deliveryFee: totalDeliveryFee,
+        totalAmount: totalAmount,
+        pickupTimeWindows: selectedPickupTimes,
+        deliveryMethodDetails: Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => ({
+          artisanId,
+          method,
+          fee: method === 'professionalDelivery' 
+            ? (uberDirectQuotes[artisanId]?.fee || 0)
+            : method === 'personalDelivery'
+            ? (deliveryOptions[artisanId]?.personalDelivery?.fee || 0)
+            : 0,
+          instructions: method === 'pickup' 
+            ? deliveryOptions[artisanId]?.pickup?.instructions || ''
+            : method === 'personalDelivery'
+            ? deliveryOptions[artisanId]?.personalDelivery?.instructions || ''
+            : method === 'professionalDelivery'
+            ? `${deliveryOptions[artisanId]?.professionalDelivery?.packaging || ''}${deliveryOptions[artisanId]?.professionalDelivery?.restrictions ? ` - ${deliveryOptions[artisanId].professionalDelivery.restrictions}` : ''}`.trim()
+            : ''
+        })),
+        deliveryPricing: (() => {
+          const professionalDeliveryArtisan = Object.entries(selectedDeliveryMethods)
+            .find(([artisanId, method]) => method === 'professionalDelivery');
+          
+          if (professionalDeliveryArtisan) {
+            const [artisanId] = professionalDeliveryArtisan;
+            const quote = uberDirectQuotes[artisanId];
+            
+            if (quote) {
+              return {
+                estimatedFee: quote.estimatedFee || 0,
+                buffer: quote.buffer || 0,
+                bufferPercentage: quote.bufferPercentage || 20,
+                chargedAmount: quote.fee || 0,
+                uberQuoteId: quote.quote_id,
+                uberQuoteExpiry: quote.expires_at
+              };
+            }
+          }
+          return null;
+        })()
+      };
+      
+      // Create order with wallet payment
+      const response = await orderService.createWalletOrder(orderData);
+      
+      if (response.success) {
+        toast.success('Order placed successfully! Payment deducted from your wallet.');
+        
+        // Handle payment success (same as Stripe success)
+        await handlePaymentSuccess(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to create order');
+      }
+    } catch (error) {
+      console.error('❌ Error during wallet checkout:', error);
+      
+      if (error.message === 'INSUFFICIENT_FUNDS') {
+        toast.error('Insufficient wallet balance. Please top up your wallet.');
+        setTimeout(() => {
+          navigate('/wallet');
+        }, 2000);
+      } else if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Failed to process wallet payment. Please try again.');
+      }
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
 
+  // Handle successful wallet top-up
+  const handleWalletTopUpSuccess = async (data) => {
+    console.log('✅ Wallet top-up successful:', data);
+    
+    // Handle different response formats
+    const amount = data?.transaction?.amount || data?.amount || 0;
+    const newBalance = data?.newBalance || data?.balance || (currentWalletBalance + amount);
+    
+    setCurrentWalletBalance(newBalance);
+    
+    // Close the modal
+    setShowWalletTopUp(false);
+    setPendingPaymentData(null);
+    
+    // Show success message
+    if (amount > 0) {
+      toast.success(`Successfully added $${amount.toFixed(2)} to your wallet!`);
+    } else {
+      toast.success('Wallet topped up successfully!');
+    }
+    
+    // Retry the payment automatically
+    toast('Retrying payment with updated balance...', { icon: '🔄' });
+    
+    // Wait a moment for the toast to be visible
+    setTimeout(async () => {
+      await handleWalletCheckout();
+    }, 1000);
+  };
 
+  // Handle wallet top-up cancel
+  const handleWalletTopUpCancel = () => {
+    setShowWalletTopUp(false);
+    setPendingPaymentData(null);
+    toast('Payment cancelled. Please top up your wallet to continue.', { icon: 'ℹ️' });
+  };
+
+  // Handle top-up button click from payment section
+  const handleTopUpClick = () => {
+    console.log('🟢 handleTopUpClick called');
+    const subtotal = cart.reduce((sum, item) => sum + (Number(item.price || 0) * item.quantity), 0);
+    const totalDeliveryFee = Object.values(uberDirectQuotes).reduce((sum, quote) => sum + (quote.fee || 0), 0) || 
+      Object.values(selectedDeliveryMethods).reduce((sum, method, idx) => {
+        const artisanId = Object.keys(selectedDeliveryMethods)[idx];
+        if (method === 'personalDelivery') {
+          return sum + (deliveryOptions[artisanId]?.personalDelivery?.fee || 0);
+        }
+        return sum;
+      }, 0);
+    const totalAmount = subtotal + totalDeliveryFee;
+    const shortfall = Math.max(0, totalAmount - (currentWalletBalance || 0));
+
+    console.log('🟢 Setting modal data:', {
+      totalAmount,
+      currentBalance: currentWalletBalance,
+      shortfall
+    });
+
+    setPendingPaymentData({
+      orderData: null,
+      totalAmount,
+      currentBalance: currentWalletBalance || 0,
+      shortfall
+    });
+    setShowWalletTopUp(true);
+    console.log('🟢 Modal should now be visible');
+  };
+
+  // Handle balance loaded from WalletPaymentSection
+  const handleBalanceLoaded = (balance) => {
+    setCurrentWalletBalance(balance);
+  };
 
 
   // Load data on component mount
@@ -1909,11 +2306,236 @@ const Cart = () => {
     );
   }
 
-  // Render delivery information page
-  if (checkoutStep === 'delivery') {
+  // Render checkout page with collapsible delivery & payment sections
+  if (checkoutStep === 'checkout') {
+    const subtotal = cart.reduce((sum, item) => sum + (Number(item.price || 0) * item.quantity), 0);
+    const totalDeliveryFee = Object.values(uberDirectQuotes).reduce((sum, quote) => sum + (quote.fee || 0), 0) || 
+      Object.values(selectedDeliveryMethods).reduce((sum, method, idx) => {
+        const artisanId = Object.keys(selectedDeliveryMethods)[idx];
+        if (method === 'personalDelivery') {
+          return sum + (deliveryOptions[artisanId]?.personalDelivery?.fee || 0);
+        }
+        return sum;
+      }, 0);
+    const totalAmount = subtotal + totalDeliveryFee;
+
     return (
+      <div className="min-h-screen bg-background py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Page Title */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-stone-800 font-display mb-2">Delivery & Payment</h1>
+            <p className="text-lg text-stone-600">Complete your purchase in 2 simple steps</p>
+          </div>
+
+          {/* Artisan Cards - Always Visible */}
+          <div className="mb-6 space-y-4">
+            {Object.entries(cartByArtisan).map(([artisanId, artisanData]) => {
+              const artisan = artisanData.artisan;
+              const artisanItems = artisanData.items || [];
+              
+              return (
+                <div key={artisanId} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className="flex items-start gap-4 mb-4">
+                    {/* Artisan Image */}
+                    {artisan?.businessImage ? (
+                      <img
+                        src={getImageUrl(artisan.businessImage)}
+                        alt={artisan.artisanName}
+                        className="w-20 h-20 object-cover rounded-lg flex-shrink-0 border-2 border-amber-200"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ display: artisan?.businessImage ? 'none' : 'flex' }}
+                    >
+                      <BuildingStorefrontIcon className="w-10 h-10 text-white" />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-stone-800 mb-1">{artisan?.artisanName || 'Unknown Artisan'}</h3>
+                      <div className="flex items-center gap-4 text-sm text-stone-600 flex-wrap">
+                        {artisan?.rating?.average && (
+                          <div className="flex items-center gap-1">
+                            <StarIcon className="w-4 h-4 text-amber-500" />
+                            <span className="font-medium">{Number(artisan.rating.average).toFixed(1)}</span>
+                            <span className="text-stone-400">({artisan.rating.count || 0})</span>
+                          </div>
+                        )}
+                        {artisan?.address?.city && (
+                          <div className="flex items-center gap-1">
+                            <MapPinIcon className="w-4 h-4" />
+                            <span>{artisan.address.city}, {artisan.address.state || artisan.address.province || 'QC'}</span>
+                          </div>
+                        )}
+                        {artisan?.type && (
+                          <div className="px-2 py-1 bg-stone-100 rounded text-xs font-medium text-stone-700 capitalize">
+                            {artisan.type}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Products from this artisan */}
+                  <div className="space-y-3">
+                    {artisanItems.map((item) => (
+                      <div key={item._id} className="flex items-center gap-4 p-3 bg-stone-50 rounded-lg">
+                        <img
+                          src={getImageUrl(item.images?.[0])}
+                          alt={item.name}
+                          className="w-16 h-16 object-cover rounded-lg"
+                          onError={(e) => { e.target.src = '/placeholder-product.png'; }}
+                        />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-stone-800">{item.name}</h4>
+                          <p className="text-sm text-stone-600">
+                            ${Number(item.price || 0).toFixed(2)} × {item.quantity}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-stone-800">
+                            ${(Number(item.price || 0) * item.quantity).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Order Summary with Total - Always Visible */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl shadow-sm border-2 border-amber-300 p-6 mb-6">
+            <h2 className="text-xl font-semibold text-stone-800 mb-4">Order Summary</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between text-stone-600">
+                <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
+                <span className="font-medium">${subtotal.toFixed(2)}</span>
+              </div>
+              {totalDeliveryFee > 0 && (
+                <div className="flex justify-between text-stone-600">
+                  <span>Delivery Fee</span>
+                  <span className="font-medium">${totalDeliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="border-t border-gray-200 pt-3 mt-3">
+                <div className="flex justify-between text-xl font-bold text-stone-800">
+                  <span>Total</span>
+                  <span>${totalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Guest Details Section - For Guests Only */}
+          {isGuest && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="text-xl font-semibold text-stone-800 mb-4">Your Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3">
+                  <UserIcon className="w-5 h-5 text-stone-500" />
+                  <div>
+                    <p className="text-xs text-stone-500">Name</p>
+                    <p className="font-medium text-stone-800">
+                      {deliveryForm.firstName} {deliveryForm.lastName}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <EnvelopeIcon className="w-5 h-5 text-stone-500" />
+                  <div>
+                    <p className="text-xs text-stone-500">Email</p>
+                    <p className="font-medium text-stone-800">{deliveryForm.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <PhoneIcon className="w-5 h-5 text-stone-500" />
+                  <div>
+                    <p className="text-xs text-stone-500">Phone</p>
+                    <p className="font-medium text-stone-800">{deliveryForm.phone || 'Not provided'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delivery Section - Collapsible */}
+          <div className="mb-6">
+            <div
+              onClick={() => {
+                if (deliveryConfirmed) {
+                  setDeliverySectionExpanded(!deliverySectionExpanded);
+                  if (deliverySectionExpanded) {
+                    setPaymentSectionExpanded(false);
+                  }
+                }
+              }}
+              className={`w-full flex items-center justify-between bg-white rounded-xl shadow-sm border-2 border-orange-300 p-6 transition-shadow ${
+                deliveryConfirmed ? 'hover:shadow-md cursor-pointer' : ''
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  deliveryConfirmed ? 'bg-green-600' : 'bg-orange-600'
+                }`}>
+                  {deliveryConfirmed ? (
+                    <CheckCircleIcon className="w-6 h-6 text-white" />
+                  ) : (
+                    <TruckIcon className="w-6 h-6 text-white" />
+                  )}
+                </div>
+                <div className="text-left flex-1">
+                  <h2 className="text-xl font-semibold text-stone-800 mb-1">
+                    {deliveryConfirmed ? '✓ Delivery Options' : '1. Delivery Options'}
+                  </h2>
+                  {deliveryConfirmed && !deliverySectionExpanded && (
+                    <div className="text-sm text-stone-600 space-y-1">
+                      {/* Delivery Method Summary */}
+                      <p className="font-medium">
+                        {Object.values(selectedDeliveryMethods)[0] === 'pickup' ? '📦 Pickup' : 
+                         Object.values(selectedDeliveryMethods)[0] === 'personalDelivery' ? '🚗 Personal Delivery' :
+                         '🚚 Professional Delivery'}
+                      </p>
+                      {/* Delivery Address Summary */}
+                      {(selectedAddress || deliveryForm.street || newAddressForm.street) && (
+                        <p className="text-xs text-stone-500">
+                          {selectedAddress 
+                            ? `${selectedAddress.street}, ${selectedAddress.city}`
+                            : deliveryForm.street 
+                            ? `${deliveryForm.street}, ${deliveryForm.city}`
+                            : `${newAddressForm.street}, ${newAddressForm.city}`
+                          }
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {deliveryConfirmed && (
+                  <span className="text-orange-600 hover:text-orange-700 text-sm font-medium">
+                    Edit
+                  </span>
+                )}
+                {deliveryConfirmed ? (
+                  deliverySectionExpanded ? <ChevronUpIcon className="w-5 h-5 text-stone-400" /> : <ChevronDownIcon className="w-5 h-5 text-stone-400" />
+                ) : (
+                  <ChevronDownIcon className="w-5 h-5 text-stone-400" />
+                )}
+              </div>
+            </div>
+
+            {deliverySectionExpanded && (
+              <div className="mt-4">
       <DeliveryInformation
-        cartByArtisan={currentCheckoutArtisan ? { [currentCheckoutArtisan]: cartByArtisan[currentCheckoutArtisan] } : {}}
+                  cartByArtisan={cartByArtisan}
         deliveryOptions={deliveryOptions}
         selectedDeliveryMethods={selectedDeliveryMethods}
         onDeliveryMethodChange={handleDeliveryMethodChange}
@@ -1928,8 +2550,8 @@ const Cart = () => {
         userProfile={userProfile}
         uberDirectQuotes={uberDirectQuotes}
         loadingUberQuotes={loadingUberQuotes}
-        onContinue={handleNextStep}
-        onBack={handlePreviousStep}
+                  onContinue={handleContinueToPayment}
+                  onBack={() => navigate('/cart')}
         isGuest={isGuest}
         user={user}
         userLocation={userLocation}
@@ -1938,13 +2560,322 @@ const Cart = () => {
         selectedPickupTimes={selectedPickupTimes}
         onPickupTimeChange={handlePickupTimeChange}
         enhancedProducts={enhancedProducts}
-      />
+                  embedded={true}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Payment Section */}
+          <div id="payment-section" className="mb-6">
+            <button
+              onClick={() => {
+                if (deliveryConfirmed) {
+                  setPaymentSectionExpanded(!paymentSectionExpanded);
+                  if (paymentSectionExpanded) {
+                    setDeliverySectionExpanded(false);
+                  }
+                }
+              }}
+              disabled={!deliveryConfirmed}
+              className={`w-full flex items-center justify-between rounded-xl shadow-sm border-2 p-6 transition-all ${
+                deliveryConfirmed 
+                  ? 'bg-white border-purple-300 hover:shadow-md cursor-pointer' 
+                  : 'bg-gray-50 border-gray-300 cursor-not-allowed opacity-60'
+              }`}
+            >
+              <div className="flex items-center gap-4 flex-1">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  deliveryConfirmed ? 'bg-purple-600' : 'bg-gray-400'
+                }`}>
+                  <CreditCardIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-xl font-semibold text-stone-800">
+                    2. Payment
+                  </h2>
+                  {!deliveryConfirmed && (
+                    <p className="text-sm text-stone-500">Complete delivery options first</p>
+                  )}
+                  {deliveryConfirmed && paymentSectionExpanded && (
+                    <p className="text-sm text-purple-600">
+                      {userProfile?.role === 'artisan' ? 'Wallet Payment' : 'Card Payment'}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {deliveryConfirmed && (
+                paymentSectionExpanded ? <ChevronUpIcon className="w-5 h-5 text-stone-400" /> : <ChevronDownIcon className="w-5 h-5 text-stone-400" />
+              )}
+            </button>
+
+            {paymentSectionExpanded && deliveryConfirmed && (
+              <div className="mt-4">
+                {userProfile?.role === 'artisan' ? (
+                  // Artisan Wallet Payment
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    {/* Wallet Payment Method */}
+                    <WalletPaymentSection 
+                      totalAmount={totalAmount} 
+                      onTopUpClick={handleTopUpClick}
+                      onBalanceLoaded={handleBalanceLoaded}
+                      externalBalance={currentWalletBalance}
+                    />
+
+                    {/* Complete Payment Button */}
+                    <button
+                      onClick={handleWalletCheckout}
+                      disabled={paymentLoading}
+                      className={`w-full py-4 rounded-lg font-semibold text-lg transition-all mt-6 ${
+                        paymentLoading
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg hover:shadow-xl'
+                      }`}
+                    >
+                      {paymentLoading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Processing Payment...</span>
+                        </div>
+                      ) : (
+                        `Complete Payment - $${totalAmount.toFixed(2)}`
+                      )}
+                    </button>
+                    <p className="text-center text-stone-500 text-sm mt-4">
+                      💳 Payment will be deducted from your wallet balance
+                    </p>
+                  </div>
+                ) : (
+                  // Patron/Guest Stripe Payment
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    {paymentIntent && stripePromise ? (
+                      <Elements stripe={stripePromise} options={{ clientSecret: paymentIntent.client_secret, locale: 'en-CA' }}>
+                        <StripeOrderPayment
+                          paymentIntent={paymentIntent}
+                          clientSecret={paymentIntent.client_secret}
+                          totalAmount={paymentIntent.totalAmount}
+                          onPaymentSuccess={(orderId) => {
+                            setOrderConfirmation({ orderId });
+                            setCheckoutStep('success');
+                            navigate(`/order-confirmation/${orderId}`);
+                          }}
+                          userProfile={userProfile}
+                          isGuest={isGuest}
+                          savedPaymentMethods={userProfile?.paymentMethods || []}
+                        />
+                      </Elements>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CreditCardIcon className="w-8 h-8 text-red-600" />
+                        </div>
+                        <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Payment System Configuration Error</h2>
+                        <p className="text-stone-600 mb-4">Stripe payment processing is not properly configured.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Wallet Top-Up Modal Overlay */}
+        {showWalletTopUp && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                {/* Header with balance info */}
+                {pendingPaymentData && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <ExclamationTriangleIcon className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
+                      <div>
+                        <h3 className="font-semibold text-red-900 mb-2">Insufficient Wallet Balance</h3>
+                        <div className="text-sm text-red-800 space-y-1">
+                          <p>Current Balance: <span className="font-semibold">${pendingPaymentData.currentBalance.toFixed(2)}</span></p>
+                          <p>Order Total: <span className="font-semibold">${pendingPaymentData.totalAmount.toFixed(2)}</span></p>
+                          <p>Amount Needed: <span className="font-semibold text-red-600">${pendingPaymentData.shortfall.toFixed(2)}</span></p>
+                        </div>
+                        <p className="text-sm text-red-700 mt-2">
+                          Please add at least ${pendingPaymentData.shortfall.toFixed(2)} to complete your purchase.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Wallet top-up form */}
+                <WalletTopUp 
+                  onSuccess={handleWalletTopUpSuccess} 
+                  onCancel={handleWalletTopUpCancel}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
-  // Render payment page
-  if (checkoutStep === 'payment') {
-    // Show loading while creating payment intent
+  // OLD MULTI-PAGE FLOW - KEEPING FOR FALLBACK
+  // Render payment page (old flow, will be removed after testing)
+  if (checkoutStep === 'payment-old') {
+    // Show wallet payment confirmation for artisans
+    if (userProfile?.role === 'artisan') {
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const totalDeliveryFee = Object.values(uberDirectQuotes).reduce((sum, quote) => sum + (quote.fee || 0), 0) || 
+        Object.values(selectedDeliveryMethods).reduce((sum, method, idx) => {
+          const artisanId = Object.keys(selectedDeliveryMethods)[idx];
+          if (method === 'personalDelivery') {
+            return sum + (deliveryOptions[artisanId]?.personalDelivery?.fee || 0);
+          }
+          return sum;
+        }, 0);
+      const totalAmount = subtotal + totalDeliveryFee;
+      
+      return (
+        <div className="min-h-screen bg-background py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Back Button */}
+            <button
+              onClick={() => setCheckoutStep('delivery')}
+              className="flex items-center gap-2 text-stone-600 hover:text-stone-800 mb-6 transition-colors group"
+            >
+              <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium">Back to Delivery</span>
+            </button>
+
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-stone-800 font-display mb-3">Complete Your Payment</h1>
+              <p className="text-xl text-stone-600">Review your order and confirm payment</p>
+            </div>
+
+            {/* Products in Order */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="text-xl font-semibold text-stone-800 mb-4">Items in Your Order</h2>
+              <div className="space-y-4">
+                {cart.map((item) => (
+                  <div key={item._id} className="flex items-center gap-4 p-4 bg-stone-50 rounded-lg">
+                    <img
+                      src={getImageUrl(item.images?.[0])}
+                      alt={item.name}
+                      className="w-20 h-20 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.target.src = '/placeholder-product.png';
+                      }}
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-stone-800">{item.name}</h3>
+                      <p className="text-sm text-stone-600">
+                        ${Number(item.price || 0).toFixed(2)} × {item.quantity}
+                      </p>
+                      {item.artisan?.artisanName && (
+                        <p className="text-xs text-stone-500 mt-1">
+                          From: {item.artisan.artisanName}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-stone-800">
+                        ${(Number(item.price || 0) * item.quantity).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Order Summary */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="text-xl font-semibold text-stone-800 mb-4">Price Breakdown</h2>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between text-stone-600">
+                  <span>Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
+                  <span className="font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                
+                {totalDeliveryFee > 0 && (
+                  <div className="flex justify-between text-stone-600">
+                    <span>Delivery Fee</span>
+                    <span className="font-medium">${totalDeliveryFee.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                <div className="border-t border-gray-200 pt-3 mt-3">
+                  <div className="flex justify-between text-xl font-bold text-stone-800">
+                    <span>Total</span>
+                    <span>${totalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Wallet Payment Method */}
+            <WalletPaymentSection 
+              totalAmount={totalAmount} 
+              onTopUpClick={handleTopUpClick}
+              onBalanceLoaded={handleBalanceLoaded}
+              externalBalance={currentWalletBalance}
+            />
+
+            {/* Delivery Information Summary */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="text-xl font-semibold text-stone-800 mb-4">Delivery Information</h2>
+              
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-stone-600">Method:</span>
+                  <span className="font-medium text-stone-800 capitalize">
+                    {Object.values(selectedDeliveryMethods)[0]?.replace(/([A-Z])/g, ' $1').trim() || 'Pickup'}
+                  </span>
+                </div>
+                
+                {(selectedAddress || deliveryForm.street) && (
+                  <div className="flex justify-between">
+                    <span className="text-stone-600">Address:</span>
+                    <span className="font-medium text-stone-800 text-right max-w-xs">
+                      {selectedAddress ? 
+                        `${selectedAddress.street}, ${selectedAddress.city}, ${selectedAddress.state} ${selectedAddress.zipCode}` :
+                        `${deliveryForm.street}, ${deliveryForm.city}, ${deliveryForm.state} ${deliveryForm.zipCode}`
+                      }
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Complete Payment Button */}
+            <button
+              onClick={handleWalletCheckout}
+              disabled={paymentLoading}
+              className={`w-full py-4 rounded-lg font-semibold text-lg transition-all ${
+                paymentLoading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg hover:shadow-xl'
+              }`}
+            >
+              {paymentLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Processing Payment...</span>
+                </div>
+              ) : (
+                `Complete Payment - $${totalAmount.toFixed(2)}`
+              )}
+            </button>
+
+            <p className="text-center text-stone-500 text-sm mt-4">
+              💳 Payment will be deducted from your wallet balance
+            </p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Show loading while creating payment intent (for non-artisans)
     if (isCreatingPaymentIntent) {
     return (
         <div className="min-h-screen bg-background py-8">
@@ -1959,7 +2890,7 @@ const Cart = () => {
       );
     }
 
-    // Show Stripe payment form
+    // Show Stripe payment form (for non-artisans)
     if (paymentIntent && stripePromise) {
                       return (
         <div className="min-h-screen bg-background py-8">

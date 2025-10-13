@@ -30,6 +30,7 @@ const WalletTopUpForm = ({ onSuccess, onCancel }) => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [postalCode, setPostalCode] = useState('');
 
   const predefinedAmounts = [25, 50, 100, 250, 500];
 
@@ -55,6 +56,19 @@ const WalletTopUpForm = ({ onSuccess, onCancel }) => {
       return;
     }
 
+    // Validate postal code for Canadian payments
+    if (!postalCode || postalCode.trim() === '') {
+      setError('Postal code is required for payment processing');
+      return;
+    }
+
+    // Basic Canadian postal code validation (A1A 1A1 format)
+    const canadianPostalCodeRegex = /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/;
+    if (!canadianPostalCodeRegex.test(postalCode.trim())) {
+      setError('Please enter a valid Canadian postal code (e.g., M5V 3A8)');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -72,6 +86,11 @@ const WalletTopUpForm = ({ onSuccess, onCancel }) => {
         {
           payment_method: {
             card: elements.getElement(CardElement),
+            billing_details: {
+              address: {
+                postal_code: postalCode.trim(),
+              },
+            },
           }
         }
       );
@@ -115,6 +134,7 @@ const WalletTopUpForm = ({ onSuccess, onCancel }) => {
         color: '#9e2146',
       },
     },
+    hidePostalCode: true, // Hide built-in postal code, we'll provide our own field
   };
 
   return (
@@ -168,11 +188,37 @@ const WalletTopUpForm = ({ onSuccess, onCancel }) => {
       {/* Card Element */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Payment Information
+          Card Information
         </label>
         <div className="p-4 border border-gray-300 rounded-lg">
           <CardElement options={cardElementOptions} />
         </div>
+      </div>
+
+      {/* Postal Code Field */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Postal Code <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={postalCode}
+          onChange={(e) => {
+            // Auto-format postal code (add space after 3rd character)
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (value.length > 3) {
+              value = value.slice(0, 3) + ' ' + value.slice(3, 6);
+            }
+            setPostalCode(value);
+            setError(null);
+          }}
+          placeholder="e.g., M5V 3A8"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D77A61] focus:border-transparent"
+          maxLength="7"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Enter your Canadian postal code for payment verification
+        </p>
       </div>
 
       {/* Error Message */}
@@ -236,10 +282,14 @@ const WalletTopUp = ({ onSuccess, onCancel }) => {
         <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Top-up Successful!</h3>
         <p className="text-gray-500 mb-4">
-          {walletService.formatCurrency(successData.transaction.amount)} has been added to your wallet.
+          {successData.transaction?.amount 
+            ? `${walletService.formatCurrency(successData.transaction.amount)} has been added to your wallet.`
+            : 'Funds have been added to your wallet.'}
         </p>
         <p className="text-sm text-gray-400">
-          New balance: {walletService.formatCurrency(successData.newBalance)}
+          {successData.newBalance 
+            ? `New balance: ${walletService.formatCurrency(successData.newBalance)}`
+            : 'Your wallet has been updated.'}
         </p>
       </div>
     );

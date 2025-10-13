@@ -67,63 +67,124 @@ const processScheduledPayouts = async () => {
     const db = require('../config/database').getDb();
     const walletsCollection = db.collection('wallets');
     const transactionsCollection = db.collection('wallettransactions');
+    const usersCollection = db.collection('users');
     const artisansCollection = db.collection('artisans');
+    
+    // Get platform settings for payout configuration
+    const PlatformSettingsService = require('../../services/platformSettingsService');
+    const platformSettingsService = new PlatformSettingsService(db);
+    const platformSettings = await platformSettingsService.getPlatformSettings();
     
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
+    console.log('📋 Platform payout settings:', {
+      minimumPayout: platformSettings.payoutSettings?.minimumPayoutAmount,
+      frequency: platformSettings.payoutSettings?.payoutFrequency,
+      delay: platformSettings.payoutSettings?.payoutDelay
+    });
+    
     // Find wallets with payouts due today
     const walletsDueForPayout = await walletsCollection.find({
+      isActive: true,
       'payoutSettings.enabled': true,
       'payoutSettings.nextPayoutDate': {
         $lte: today
-      },
-      balance: {
-        $gte: '$payoutSettings.minimumPayout'
       }
     }).toArray();
     
-    console.log(`📊 Found ${walletsDueForPayout.length} wallets due for payout`);
+    // Filter wallets that meet minimum payout amount
+    const eligibleWallets = walletsDueForPayout.filter(w => 
+      w.balance >= (w.payoutSettings?.minimumPayout || platformSettings.payoutSettings?.minimumPayoutAmount || 25)
+    );
+    
+    console.log(`📊 Found ${walletsDueForPayout.length} wallets due for payout, ${eligibleWallets.length} eligible (meet minimum balance)`);
     
     let processedCount = 0;
     let errorCount = 0;
     
-    for (const wallet of walletsDueForPayout) {
+    for (const wallet of eligibleWallets) {
       try {
-        // Get artisan information
-        const artisan = await artisansCollection.findOne({ _id: wallet.artisanId });
-        if (!artisan) {
-          console.error(`❌ Artisan not found for wallet ${wallet._id}`);
+        // Get user information
+        const user = await usersCollection.findOne({ _id: wallet.userId });
+        if (!user) {
+          console.error(`❌ User not found for wallet ${wallet._id}`);
           errorCount++;
           continue;
         }
         
+        // Get artisan information for display name
+        const artisan = await artisansCollection.findOne({ user: wallet.userId });
+        const displayName = artisan?.artisanName || artisan?.businessName || `${user.firstName} ${user.lastName}`;
+        
         // Check if payout amount meets minimum
         const payoutAmount = wallet.balance;
-        const minimumPayout = wallet.payoutSettings.minimumPayout;
+        const minimumPayout = wallet.payoutSettings?.minimumPayout || platformSettings.payoutSettings?.minimumPayoutAmount || 25;
         
         if (payoutAmount < minimumPayout) {
           console.log(`⏭️ Skipping wallet ${wallet._id} - balance ${payoutAmount} below minimum ${minimumPayout}`);
           continue;
         }
         
-        // For now, we'll simulate the payout since Stripe Connect requires proper setup
-        // In production, this would use the StripeService to create actual payouts
-        console.log(`💰 Processing payout for artisan ${artisan.artisanName}: $${payoutAmount}`);
+        // Process payout through Stripe Connect if account is connected
+        console.log(`💰 Processing payout for ${displayName}: $${payoutAmount}`);
+        
+        let payoutStatus = 'completed';
+        let payoutReference = `PAYOUT-${Date.now()}`;
+        
+        // If Stripe account is connected, process actual payout
+        if (wallet.stripeAccountId && artisan?.stripeConnectAccountId) {
+          try {
+            const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+            
+            // Create payout through Stripe
+            const payout = await stripe.payouts.create(
+              {
+                amount: Math.round(payoutAmount * 100), // Convert to cents
+                currency: wallet.currency || 'cad',
+                description: `${wallet.payoutSettings.schedule} payout - ${displayName}`,
+                metadata: {
+                  userId: wallet.userId.toString(),
+                  artisanId: artisan?._id.toString(),
+                  walletId: wallet._id.toString()
+                }
+              },
+              {
+                stripeAccount: wallet.stripeAccountId // Use Connect account
+              }
+            );
+            
+            payoutReference = payout.id;
+            console.log(`✅ Stripe payout created: ${payout.id}`);
+          } catch (stripeError) {
+            console.error(`❌ Stripe payout failed for ${displayName}:`, stripeError.message);
+            payoutStatus = 'failed';
+            // Continue to record the attempt
+          }
+        } else {
+          console.log(`⚠️  No Stripe account connected for ${displayName}, recording payout attempt`);
+          payoutStatus = 'pending_stripe_setup';
+        }
         
         // Create payout transaction record
         const payoutTransaction = {
-          artisanId: wallet.artisanId,
+          userId: wallet.userId, // Use userId instead of artisanId
           type: 'payout',
           amount: -payoutAmount, // Negative for outgoing
-          description: `Weekly payout - ${wallet.payoutSettings.schedule}`,
-          status: 'completed',
-          reference: `PAYOUT-${Date.now()}`,
-          balanceAfter: 0, // Balance after payout
+          description: `${wallet.payoutSettings.schedule} payout - ${displayName}`,
+          status: payoutStatus,
+          paymentMethod: 'bank_transfer',
+          reference: payoutReference,
           metadata: {
             payoutDate: now,
             schedule: wallet.payoutSettings.schedule,
-            originalBalance: payoutAmount
+            originalBalance: payoutAmount,
+            stripeAccountId: wallet.stripeAccountId,
+            bankLast4: wallet.payoutSettings?.bankAccount?.last4,
+            platformSettings: {
+              minimumPayout: minimumPayout,
+              frequency: wallet.payoutSettings.schedule
+            }
           },
           createdAt: now,
           updatedAt: now
@@ -131,31 +192,45 @@ const processScheduledPayouts = async () => {
         
         await transactionsCollection.insertOne(payoutTransaction);
         
-        // Calculate next payout date
+        // Calculate next payout date based on platform settings
         let nextPayoutDate;
-        if (wallet.payoutSettings.schedule === 'weekly') {
+        const schedule = wallet.payoutSettings.schedule || platformSettings.payoutSettings?.payoutFrequency || 'weekly';
+        const payoutDelay = wallet.payoutSettings.payoutDelay || platformSettings.payoutSettings?.payoutDelay || 0;
+        
+        if (schedule === 'weekly') {
           nextPayoutDate = new Date(now);
-          nextPayoutDate.setDate(now.getDate() + 7);
-        } else if (wallet.payoutSettings.schedule === 'monthly') {
-          nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          nextPayoutDate.setDate(now.getDate() + 7 + payoutDelay);
+          // Set to Friday at 1 PM
+          const daysUntilFriday = (5 - nextPayoutDate.getDay() + 7) % 7;
+          nextPayoutDate.setDate(nextPayoutDate.getDate() + daysUntilFriday);
+          nextPayoutDate.setHours(13, 0, 0, 0);
+        } else if (schedule === 'monthly') {
+          nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 1, 13, 0, 0, 0);
+          nextPayoutDate.setDate(nextPayoutDate.getDate() + payoutDelay);
         }
         
-        // Update wallet balance and payout settings
+        // Only update wallet balance if payout was successful
+        const walletUpdate = {
+          'payoutSettings.lastPayoutDate': now,
+          'payoutSettings.nextPayoutDate': nextPayoutDate,
+          updatedAt: now
+        };
+        
+        if (payoutStatus === 'completed') {
+          walletUpdate.balance = 0; // Deduct full balance only if successful
+          walletUpdate['metadata.totalPayouts'] = (wallet.metadata?.totalPayouts || 0) + payoutAmount;
+        }
+        
         await walletsCollection.updateOne(
           { _id: wallet._id },
-          {
-            $set: {
-              balance: 0,
-              'payoutSettings.lastPayoutDate': now,
-              'payoutSettings.nextPayoutDate': nextPayoutDate,
-              'metadata.totalPayouts': (wallet.metadata?.totalPayouts || 0) + payoutAmount,
-              updatedAt: now
-            }
-          }
+          { $set: walletUpdate }
         );
         
         processedCount++;
-        console.log(`✅ Payout processed for artisan ${artisan.artisanName}: $${payoutAmount}`);
+        console.log(`✅ Payout ${payoutStatus} for ${displayName}: $${payoutAmount}`, {
+          nextPayout: nextPayoutDate,
+          stripeReference: payoutReference
+        });
         
       } catch (error) {
         console.error(`❌ Error processing payout for wallet ${wallet._id}:`, error);

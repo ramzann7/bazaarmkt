@@ -61,7 +61,6 @@ class AuthService extends BaseService {
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),
-      walletBalance: 0
     };
     
     const result = await this.create(this.usersCollection, guestUser);
@@ -111,7 +110,6 @@ class AuthService extends BaseService {
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),
-      walletBalance: 0
     };
     
     const result = await this.create(this.usersCollection, user);
@@ -397,7 +395,6 @@ class AuthService extends BaseService {
         userType: user.userType,
         isGuest: user.isGuest,
         status: user.status,
-        walletBalance: user.walletBalance || 0,
         createdAt: user.createdAt
       }
     };

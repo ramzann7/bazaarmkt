@@ -46,11 +46,12 @@ export const orderService = {
   },
 
   // Get orders for the current artisan - active orders by default
-  getArtisanOrders: async (includeAll = false) => {
+  getArtisanOrders: async (includeAll = false, orderType = 'sales') => {
     try {
       const response = await api.get(`${API_URL}/orders/artisan`, {
         params: {
           _t: Date.now(), // Cache busting parameter
+          type: orderType, // 'sales', 'purchases', or 'all'
           ...(includeAll && { all: 'true' }) // Include all orders if requested
         }
       });
@@ -58,6 +59,40 @@ export const orderService = {
       return response.data.data?.orders || response.data.orders || [];
     } catch (error) {
       console.error('Error fetching artisan orders:', error);
+      throw error;
+    }
+  },
+  
+  // Get purchase orders for artisan (orders they bought from other artisans)
+  getArtisanPurchases: async (includeAll = false) => {
+    try {
+      const response = await api.get(`${API_URL}/orders/artisan`, {
+        params: {
+          _t: Date.now(),
+          type: 'purchases',
+          ...(includeAll && { all: 'true' })
+        }
+      });
+      return response.data.data?.orders || response.data.orders || [];
+    } catch (error) {
+      console.error('Error fetching artisan purchases:', error);
+      throw error;
+    }
+  },
+  
+  // Get sales orders for artisan (orders placed with them)
+  getArtisanSales: async (includeAll = false) => {
+    try {
+      const response = await api.get(`${API_URL}/orders/artisan`, {
+        params: {
+          _t: Date.now(),
+          type: 'sales',
+          ...(includeAll && { all: 'true' })
+        }
+      });
+      return response.data.data?.orders || response.data.orders || [];
+    } catch (error) {
+      console.error('Error fetching artisan sales:', error);
       throw error;
     }
   },
@@ -136,6 +171,32 @@ export const orderService = {
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
+      throw error;
+    }
+  },
+  
+  // Create order with wallet payment (artisans only)
+  createWalletOrder: async (orderData) => {
+    try {
+      console.log('💰 Creating order with wallet payment:', orderData);
+      
+      const response = await api.post(`${API_URL}/orders/wallet-payment`, {
+        orderData
+      });
+      
+      // Clear product cache after successful order creation
+      clearProductCaches();
+      
+      console.log('✅ Wallet order created successfully:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error creating wallet order:', error);
+      
+      // Check for insufficient funds error
+      if (error.response?.data?.message?.includes('Insufficient wallet balance')) {
+        throw new Error('INSUFFICIENT_FUNDS');
+      }
+      
       throw error;
     }
   },

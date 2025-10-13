@@ -46,7 +46,8 @@ const DeliveryInformation = ({
   pickupTimeWindows,
   selectedPickupTimes,
   onPickupTimeChange,
-  enhancedProducts
+  enhancedProducts,
+  embedded = false // New prop to hide header/artisan card when embedded
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showDeliveryAddress, setShowDeliveryAddress] = useState(false);
@@ -61,6 +62,10 @@ const DeliveryInformation = ({
   const [lastValidatedEmail, setLastValidatedEmail] = useState(null);
   const [showAddressOptions, setShowAddressOptions] = useState(false);
   const [showAllPickupTimes, setShowAllPickupTimes] = useState({}); // Track expanded state per artisan
+  
+  // Refs for debouncing
+  const addressValidationTimeout = React.useRef(null);
+  
   // Use Uber quotes from parent Cart component (passed as props)
   // This eliminates duplicate state and ensures consistency
   const uberQuotes = uberDirectQuotes;
@@ -77,6 +82,12 @@ const DeliveryInformation = ({
   // Validate and geocode address - MUST BE BEFORE validateSavedAddress
   const validateAddress = async (address) => {
     if (!address || address.length < 10) return;
+    
+    // Only validate complete addresses (with comma or sufficient length)
+    if (!geocodingService.isCompleteAddress(address)) {
+      console.log('⏳ Waiting for complete address before validating:', address);
+      return;
+    }
     
     setIsValidatingAddress(true);
     try {
@@ -209,6 +220,15 @@ const DeliveryInformation = ({
 
     calculatePickupDistance();
   }, [selectedDeliveryMethods, currentArtisanId, currentArtisan, user, userLocation, isGuest]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (addressValidationTimeout.current) {
+        clearTimeout(addressValidationTimeout.current);
+      }
+    };
+  }, []);
 
   // Early return AFTER all hooks have been called
   if (!currentArtisan) {
@@ -486,71 +506,11 @@ const DeliveryInformation = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors group"
-          >
-            <ArrowRightIcon className="w-5 h-5 rotate-180 group-hover:translate-x-1 transition-transform" />
-            <span className="font-medium">Back to cart</span>
-          </button>
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-3">Delivery & Pickup Options</h1>
-            <p className="text-xl text-gray-600">Choose how you'd like to receive your order</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-          {/* Main Content */}
-          <div className="xl:col-span-3 space-y-8">
-            {/* Artisan Info Card */}
-            <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
-              <div className="flex items-center gap-6 mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center shadow-lg">
-                  <UserIcon className="w-10 h-10 text-orange-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    {currentArtisan.artisan?.artisanName || 'Unknown Artisan'}
-                  </h3>
-                  <p className="text-gray-600 text-lg">
-                    {currentArtisan.items.length} item{currentArtisan.items.length !== 1 ? 's' : ''} • {formatPrice(costs.subtotal)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full">
-                  <StarIcon className="w-5 h-5" />
-                  <span className="font-semibold">Local Artisan</span>
-                </div>
-              </div>
-
-              {/* Order Items */}
-              <div className="border-t border-gray-200 pt-6">
-                <h4 className="font-semibold text-gray-900 mb-4 text-lg">Your Order:</h4>
-                <div className="space-y-3">
-                  {currentArtisan.items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-xl">
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm font-medium text-gray-600 bg-white px-3 py-1 rounded-full">×{item.quantity}</span>
-                        <span className="font-semibold text-gray-900">{item.name}</span>
-                      </div>
-                      <span className="font-bold text-gray-900 text-lg">{formatPrice(item.price * item.quantity)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Delivery Options */}
-            <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-6">
-              <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Choose Your Delivery Method</h3>
-                <p className="text-sm text-gray-600">Select the option that works best for you</p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="space-y-6">
+      {/* Delivery Method Selection */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Delivery Method</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Pickup Option */}
                 {deliveryOptions[currentArtisanId]?.pickup?.available && (
                   <div 
@@ -709,9 +669,9 @@ const DeliveryInformation = ({
               </div>
             </div>
 
-            {/* Pickup Time Selection */}
-            {selectedDeliveryMethods[currentArtisanId] === 'pickup' && pickupTimeWindows[currentArtisanId] && (
-              <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
+      {/* Pickup Time Selection */}
+      {selectedDeliveryMethods[currentArtisanId] === 'pickup' && pickupTimeWindows[currentArtisanId] && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
                     <ClockIcon className="w-6 h-6 text-green-600" />
@@ -732,7 +692,9 @@ const DeliveryInformation = ({
                       <div className="space-y-2">
                         {deliveryOptions[currentArtisanId]?.pickup?.address ? (
                           <p className="text-green-800 font-medium text-base">
-                            📍 {deliveryOptions[currentArtisanId].pickup.address}
+                            📍 {typeof deliveryOptions[currentArtisanId].pickup.address === 'object' 
+                              ? `${deliveryOptions[currentArtisanId].pickup.address.street || ''}, ${deliveryOptions[currentArtisanId].pickup.address.city || ''}, ${deliveryOptions[currentArtisanId].pickup.address.state || ''} ${deliveryOptions[currentArtisanId].pickup.address.zipCode || ''}`.trim()
+                              : deliveryOptions[currentArtisanId].pickup.address}
                           </p>
                         ) : currentArtisan?.artisan?.address ? (
                           <p className="text-green-800 font-medium text-base">
@@ -966,9 +928,12 @@ const DeliveryInformation = ({
                             street: value
                           });
                         }
-                        // Validate address when user stops typing
+                        // Validate address when user stops typing (debounced)
+                        if (addressValidationTimeout.current) {
+                          clearTimeout(addressValidationTimeout.current);
+                        }
                         if (value.length > 10) {
-                          setTimeout(() => validateAddress(value), 500);
+                          addressValidationTimeout.current = setTimeout(() => validateAddress(value), 1000);
                         }
                       }}
                       className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-orange-500 text-lg ${
@@ -1152,9 +1117,9 @@ const DeliveryInformation = ({
               </div>
             )}
 
-            {/* Personal Information Section (Guest Users) */}
-            {isGuest && (
-              <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
+      {/* Personal Information Section (Guest Users) */}
+      {isGuest && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
                     <UserIcon className="w-6 h-6 text-blue-600" />
@@ -1335,80 +1300,39 @@ const DeliveryInformation = ({
                     />
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+        </div>
+      )}
 
-          {/* Order Summary Sidebar */}
-          <div className="xl:col-span-1">
-            <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-6 sticky top-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
-                  <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900">Order Summary</h3>
-              </div>
-              
-              {/* Subtotal */}
-              <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                <span className="text-gray-600 font-medium">Subtotal</span>
-                <span className="font-bold text-lg">{formatPrice(costs.subtotal)}</span>
-              </div>
+      {/* Continue Button */}
+      <div className="mt-8">
+        <button
+          onClick={onContinue}
+          disabled={!canProceed}
+          className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 ${
+            canProceed
+              ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          Continue to Payment
+          <ArrowRightIcon className="w-5 h-5 ml-2 inline" />
+        </button>
 
-              {/* Delivery Fee */}
-              {costs.deliveryFee > 0 && (
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                  <span className="text-gray-600 font-medium">
-                    {selectedDeliveryMethods[currentArtisanId] === 'personalDelivery' ? 'Personal Delivery' : 'Professional Delivery'}
-                  </span>
-                  <span className="font-bold text-lg">{formatPrice(costs.deliveryFee)}</span>
-                </div>
-              )}
-
-              {/* Total */}
-              <div className="flex justify-between items-center mb-6 pt-4 border-t-2 border-gray-300">
-                <span className="text-xl font-bold text-gray-900">Total</span>
-                <span className="text-2xl font-bold text-orange-600">{formatPrice(costs.total)}</span>
-              </div>
-
-              {/* Continue Button */}
-              <button
-                onClick={onContinue}
-                disabled={!canProceed}
-                className={`w-full py-4 px-6 rounded-2xl font-bold text-lg transition-all duration-200 ${
-                  canProceed
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                Continue to Payment
-                <ArrowRightIcon className="w-5 h-5 ml-2 inline" />
-              </button>
-
-              {/* Requirements Notice */}
-              {!canProceed && (
-                <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
-                  <div className="flex items-center gap-3">
-                    <ExclamationTriangleIcon className="w-6 h-6 text-yellow-600 flex-shrink-0" />
-                    <p className="text-sm text-yellow-800 font-medium">
-                      {!methodSelected && "Please select a delivery method"}
-                      {methodSelected && !pickupTimeSelected && "Please select a pickup time"}
-                      {methodSelected && pickupTimeSelected && !deliveryAddressComplete && "Please complete and verify delivery address"}
-                      {methodSelected && pickupTimeSelected && deliveryAddressComplete && !guestInfoComplete && "Please complete and verify contact information"}
-                      {!deliveryWithinRadius && "Delivery address is outside the service radius"}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Security Badge */}
-              <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-500">
-                <ShieldCheckIcon className="w-5 h-5" />
-                <span>Secure checkout</span>
-              </div>
+        {/* Requirements Notice */}
+        {!canProceed && (
+          <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+            <div className="flex items-center gap-3">
+              <ExclamationTriangleIcon className="w-6 h-6 text-yellow-600 flex-shrink-0" />
+              <p className="text-sm text-yellow-800 font-medium">
+                {!methodSelected && "Please select a delivery method"}
+                {methodSelected && !pickupTimeSelected && "Please select a pickup time"}
+                {methodSelected && pickupTimeSelected && !deliveryAddressComplete && "Please complete and verify delivery address"}
+                {methodSelected && pickupTimeSelected && deliveryAddressComplete && !guestInfoComplete && "Please complete and verify contact information"}
+                {!deliveryWithinRadius && "Delivery address is outside the service radius"}
+              </p>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

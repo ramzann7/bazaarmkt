@@ -2,15 +2,22 @@ import React, { useMemo } from 'react';
 import PriorityOrderCard from './PriorityOrderCard';
 import { getPriorityStatuses, calculatePriorityScore, getUrgencyLevel, groupBy } from '../utils/orderPriority';
 
-const PriorityOrderQueue = ({ orders, onOrderClick, onQuickAction, userRole, updatingOrderId }) => {
+const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick, onQuickAction, userRole, updatingOrderId }) => {
   // Get appropriate priority statuses based on user role
   const PRIORITY_STATUSES = useMemo(() => getPriorityStatuses(userRole), [userRole]);
+  
   // Calculate priority orders with scores and urgency
   const priorityOrders = useMemo(() => {
     // Define terminated statuses that should never appear in priority queue
     const terminatedStatuses = ['cancelled', 'declined', 'completed'];
     
-    return orders
+    // For artisans, combine sales and purchases; for patrons, use orders prop
+    const allOrders = userRole === 'artisan' && salesOrders && purchasesOrders
+      ? [...salesOrders, ...purchasesOrders]
+      : orders;
+    
+    // Process and tag orders with their type
+    const processedOrders = allOrders
       .filter(order => {
         // Immediately filter out terminated statuses
         if (terminatedStatuses.includes(order.status)) {
@@ -27,18 +34,47 @@ const PriorityOrderQueue = ({ orders, onOrderClick, onQuickAction, userRole, upd
         
         return true;
       })
-      .map(order => ({
-        ...order,
-        priorityScore: calculatePriorityScore(order, userRole),
-        urgency: getUrgencyLevel(order, userRole)
-      }))
-      .sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [orders, PRIORITY_STATUSES, userRole]);
+      .map(order => {
+        // Determine if this is a sales or purchase order for artisans
+        let orderType = 'order'; // Default for patrons
+        if (userRole === 'artisan') {
+          const isSalesOrder = salesOrders?.some(so => so._id === order._id);
+          orderType = isSalesOrder ? 'sales' : 'purchases';
+        }
+        
+        return {
+          ...order,
+          orderType, // Add order type for styling
+          priorityScore: calculatePriorityScore(order, userRole),
+          urgency: getUrgencyLevel(order, userRole),
+          // Boost sales orders priority by adding 1000 points
+          adjustedPriorityScore: orderType === 'sales' 
+            ? calculatePriorityScore(order, userRole) + 1000 
+            : calculatePriorityScore(order, userRole)
+        };
+      })
+      .sort((a, b) => {
+        // Sort by adjusted priority score (sales orders will be first)
+        return b.adjustedPriorityScore - a.adjustedPriorityScore;
+      });
+    
+    return processedOrders;
+  }, [orders, salesOrders, purchasesOrders, PRIORITY_STATUSES, userRole]);
   
   // Group by status for tabs
   const groupedOrders = useMemo(() => {
     return groupBy(priorityOrders, 'status');
   }, [priorityOrders]);
+  
+  // Count sales vs purchases for artisans
+  const orderTypeCounts = useMemo(() => {
+    if (userRole !== 'artisan') return null;
+    
+    const sales = priorityOrders.filter(o => o.orderType === 'sales').length;
+    const purchases = priorityOrders.filter(o => o.orderType === 'purchases').length;
+    
+    return { sales, purchases };
+  }, [priorityOrders, userRole]);
   
   // Hide component if no priority orders
   if (priorityOrders.length === 0) {
@@ -49,9 +85,22 @@ const PriorityOrderQueue = ({ orders, onOrderClick, onQuickAction, userRole, upd
     <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-lg p-6 mb-8 shadow-lg">
       {/* Header with Info */}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-gray-800">
-          {userRole === 'artisan' ? '🚨 Priority Queue - Action Needed' : '📋 Active Orders - Track Your Orders'}
-        </h2>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">
+            {userRole === 'artisan' ? '🚨 Priority Queue - Action Needed' : '📋 Active Orders - Track Your Orders'}
+          </h2>
+          {userRole === 'artisan' && orderTypeCounts && (
+            <div className="flex gap-3 mt-2 text-sm">
+              <span className="font-semibold text-blue-700">
+                💼 {orderTypeCounts.sales} Sales
+              </span>
+              <span className="text-gray-400">|</span>
+              <span className="font-semibold text-teal-700">
+                🛒 {orderTypeCounts.purchases} Purchases
+              </span>
+            </div>
+          )}
+        </div>
         <div className="text-sm text-gray-600">
           💡 <span className="font-semibold">Tip:</span> Click any card for full details
         </div>

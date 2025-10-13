@@ -50,8 +50,8 @@ const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
     })
   : null;
 
-// Wallet Payment Section Component
-const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, externalBalance = null }) => {
+// Wallet Payment Section Component (Artisan Only)
+const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, externalBalance = null, userRole = null }) => {
   const [walletBalance, setWalletBalance] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   
@@ -59,29 +59,50 @@ const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, exte
     totalAmount,
     walletBalance,
     externalBalance,
+    userRole,
     hasTopUpClick: !!onTopUpClick
   });
 
-  // Use external balance if provided, otherwise fetch
+  // Use external balance if provided and valid, otherwise fetch
   React.useEffect(() => {
-    if (externalBalance !== null) {
+    // Only fetch wallet balance for artisans
+    if (userRole !== 'artisan') {
+      console.log('⚠️ WalletPaymentSection: User is not an artisan, skipping wallet balance fetch');
+      setWalletBalance(0);
+      setLoading(false);
+      return;
+    }
+
+    // Only use externalBalance if it's been actually loaded (not null or 0 from initial state)
+    // We consider it loaded if it's a positive number OR if it's explicitly 0 after being loaded
+    const hasValidExternalBalance = externalBalance !== null && externalBalance > 0;
+    
+    if (hasValidExternalBalance) {
+      console.log('💰 Using external balance:', externalBalance);
       setWalletBalance(externalBalance);
       setLoading(false);
       return;
     }
 
+    // Always fetch fresh balance for artisans
     const fetchBalance = async () => {
       try {
         setLoading(true);
-        const walletData = await walletService.getWalletBalance();
-        const balance = walletData.balance || 0;
+        console.log('🔄 Fetching wallet balance for artisan...');
+        const response = await walletService.getWalletBalance();
+        console.log('💰 Wallet balance response:', response);
+        
+        const balance = response.success ? (response.data?.balance || 0) : 0;
+        console.log('💰 Setting wallet balance to:', balance);
+        
         setWalletBalance(balance);
+        
         // Notify parent of loaded balance
         if (onBalanceLoaded) {
           onBalanceLoaded(balance);
         }
       } catch (error) {
-        console.error('Error fetching wallet balance:', error);
+        console.error('❌ Error fetching wallet balance:', error);
         setWalletBalance(0);
         if (onBalanceLoaded) {
           onBalanceLoaded(0);
@@ -92,7 +113,7 @@ const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, exte
     };
 
     fetchBalance();
-  }, [onBalanceLoaded, externalBalance]);
+  }, [onBalanceLoaded, externalBalance, userRole]);
 
   const hasSufficientFunds = walletBalance !== null && walletBalance >= totalAmount;
   const shortfall = walletBalance !== null ? Math.max(0, totalAmount - walletBalance) : 0;
@@ -256,12 +277,13 @@ const Cart = () => {
   
   // Payment state
   const [paymentIntent, setPaymentIntent] = useState(null);
+  const [paymentOrderData, setPaymentOrderData] = useState(null); // Store order data for payment confirmation
   const [isCreatingPaymentIntent, setIsCreatingPaymentIntent] = useState(false);
   
   // Wallet top-up state
   const [showWalletTopUp, setShowWalletTopUp] = useState(false);
   const [pendingPaymentData, setPendingPaymentData] = useState(null);
-  const [currentWalletBalance, setCurrentWalletBalance] = useState(null);
+  const [currentWalletBalance, setCurrentWalletBalance] = useState(null); // Initialize to null, will be loaded when needed
 
   // Initialize checkout artisan when cart loads
   useEffect(() => {
@@ -1712,30 +1734,66 @@ const Cart = () => {
       }
 
       if (response.success) {
-        setPaymentIntent(response.data);
-        setCheckoutStep('payment');
+        console.log('✅ Payment intent response:', response);
+        console.log('✅ Payment intent data:', response.data);
+        console.log('✅ Client secret (camelCase):', response.data?.clientSecret);
+        console.log('✅ Client secret (snake_case):', response.data?.client_secret);
+        
+        // Normalize the response - backend might return camelCase or snake_case
+        const normalizedData = {
+          ...response.data,
+          client_secret: response.data.clientSecret || response.data.client_secret,
+          clientSecret: response.data.clientSecret || response.data.client_secret
+        };
+        
+        setPaymentIntent(normalizedData);
+        // Store orderData for payment confirmation
+        setPaymentOrderData(orderData);
+        console.log('✅ Stored order data for payment confirmation:', orderData);
+        
+        // Don't set checkoutStep - we're using collapsible sections now
+        // setCheckoutStep('payment'); // REMOVED - conflicts with collapsible flow
+        
+        if (!normalizedData.client_secret) {
+          console.error('❌ Payment intent created but missing client_secret!');
+          throw new Error('Invalid payment intent response - missing client_secret');
+        }
+        
+        console.log('✅ Payment intent set with client_secret:', normalizedData.client_secret.substring(0, 20) + '...');
         toast.success('Payment form ready');
       } else {
         throw new Error(response.message || 'Failed to create payment intent');
       }
     } catch (error) {
-      console.error('Error creating payment intent:', error);
+      console.error('❌ Error creating payment intent:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error response data:', error.response?.data);
       
       // Handle specific error types
       if (error.response?.data?.message) {
         const errorMessage = error.response.data.message;
+        
+        console.error('❌ Backend error message:', errorMessage);
         
         // Check for inventory-related errors
         if (errorMessage.includes('Insufficient inventory')) {
           toast.error(`❌ ${errorMessage}. Please adjust your cart quantities.`);
         } else if (errorMessage.includes('Product not found')) {
           toast.error('❌ Some items in your cart are no longer available. Please refresh your cart.');
+        } else if (errorMessage.includes('Stripe is not configured') || errorMessage.includes('Payment processing is not available')) {
+          toast.error('❌ Payment system is not available. Please contact support.');
         } else {
           toast.error(`❌ ${errorMessage}`);
         }
+      } else if (error.message) {
+        console.error('❌ Error message:', error.message);
+        toast.error(`Failed to initialize payment: ${error.message}`);
       } else {
         toast.error('Failed to initialize payment. Please try again.');
       }
+      
+      // Clear payment intent on error
+      setPaymentIntent(null);
     } finally {
       setIsCreatingPaymentIntent(false);
     }
@@ -1921,7 +1979,7 @@ const Cart = () => {
       // For patrons/guests, create payment intent when entering payment section
       const isArtisan = userProfile?.role === 'artisan';
       if (!isArtisan) {
-      await createPaymentIntent();
+        await createPaymentIntent();
       }
       
       // Scroll to payment section
@@ -1943,9 +2001,13 @@ const Cart = () => {
     try {
       setPaymentLoading(true);
       
-      // Get wallet balance
-      const walletData = await walletService.getWalletBalance();
-      const currentWalletBalance = walletData.balance || 0;
+      // Use current wallet balance from state (already loaded and updated after top-ups)
+      const walletBalance = currentWalletBalance || 0;
+      
+      console.log('💰 Wallet checkout using state balance:', {
+        stateBalance: currentWalletBalance,
+        walletBalance
+      });
       
       // Calculate total including delivery fees
       const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -1953,22 +2015,22 @@ const Cart = () => {
       const totalAmount = subtotal + totalDeliveryFee;
       
       console.log('💰 Wallet checkout:', {
-        balance: currentWalletBalance,
+        balance: walletBalance,
         totalAmount,
         subtotal,
         deliveryFee: totalDeliveryFee
       });
       
       // Check if artisan has sufficient funds
-      if (currentWalletBalance < totalAmount) {
-        const shortfall = totalAmount - currentWalletBalance;
+      if (walletBalance < totalAmount) {
+        const shortfall = totalAmount - walletBalance;
         setPaymentLoading(false);
         
         // Store payment data to retry after successful top-up
         setPendingPaymentData({
           orderData: null, // Will be set when retrying
           totalAmount,
-          currentBalance: currentWalletBalance,
+          currentBalance: walletBalance,
           shortfall
         });
         
@@ -1976,11 +2038,11 @@ const Cart = () => {
         console.log('🔴 Setting showWalletTopUp to true');
         console.log('🔴 Pending payment data:', {
           totalAmount,
-          currentBalance: currentWalletBalance,
+          currentBalance: walletBalance,
           shortfall
         });
         setShowWalletTopUp(true);
-        toast.error(`Insufficient funds. Current balance: $${currentWalletBalance.toFixed(2)}, Need: $${totalAmount.toFixed(2)}`);
+        toast.error(`Insufficient funds. Current balance: $${walletBalance.toFixed(2)}, Need: $${totalAmount.toFixed(2)}`);
         return;
       }
       
@@ -2046,10 +2108,37 @@ const Cart = () => {
       const response = await orderService.createWalletOrder(orderData);
       
       if (response.success) {
+        console.log('✅ Wallet order created successfully:', response);
         toast.success('Order placed successfully! Payment deducted from your wallet.');
         
-        // Handle payment success (same as Stripe success)
-        await handlePaymentSuccess(response.data);
+        // Extract order ID - same logic as patron flow
+        let orderId = null;
+        if (response.data._id) {
+          orderId = response.data._id.toString();
+        } else if (response.data.orderId) {
+          orderId = response.data.orderId.toString();
+        }
+        
+        console.log('✅ Wallet order ID:', orderId);
+        
+        if (orderId) {
+          // Clear cart
+          await cartService.clearCart();
+          
+          // Navigate to order confirmation - same as patron flow
+          navigate('/order-confirmation', {
+            state: {
+              orderId: orderId,
+              message: 'Order placed successfully!',
+              fromCart: true,
+              paymentMethod: 'wallet'
+            }
+          });
+        } else {
+          console.error('❌ Could not extract order ID from wallet response');
+          toast.error('Order created but navigation failed. Check your Orders page.');
+          navigate('/orders');
+        }
       } else {
         throw new Error(response.message || 'Failed to create order');
       }
@@ -2620,6 +2709,7 @@ const Cart = () => {
                       onTopUpClick={handleTopUpClick}
                       onBalanceLoaded={handleBalanceLoaded}
                       externalBalance={currentWalletBalance}
+                      userRole={userProfile?.role}
                     />
 
                     {/* Complete Payment Button */}
@@ -2638,7 +2728,7 @@ const Cart = () => {
                           <span>Processing Payment...</span>
                         </div>
                       ) : (
-                        `Complete Payment - $${totalAmount.toFixed(2)}`
+                        'Complete Payment'
                       )}
                     </button>
                     <p className="text-center text-stone-500 text-sm mt-4">
@@ -2648,16 +2738,59 @@ const Cart = () => {
                 ) : (
                   // Patron/Guest Stripe Payment
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    {paymentIntent && stripePromise ? (
+                    {isCreatingPaymentIntent ? (
+                      // Loading state while payment intent is being created
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto mb-4"></div>
+                        <h2 className="text-xl font-semibold text-stone-800 mb-2 font-display">Preparing Payment</h2>
+                        <p className="text-stone-600">Setting up secure payment processing...</p>
+                      </div>
+                    ) : paymentIntent && stripePromise ? (
                       <Elements stripe={stripePromise} options={{ clientSecret: paymentIntent.client_secret, locale: 'en-CA' }}>
                         <StripeOrderPayment
                           paymentIntent={paymentIntent}
                           clientSecret={paymentIntent.client_secret}
                           totalAmount={paymentIntent.totalAmount}
-                          onPaymentSuccess={(orderId) => {
+                          orderData={paymentOrderData}
+                          onPaymentSuccess={(result) => {
+                            console.log('✅ Payment success callback received:', result);
+                            console.log('✅ Result type:', typeof result);
+                            console.log('✅ Result keys:', Object.keys(result || {}));
+                            
+                            // Extract order ID - result.data contains the order
+                            let orderId = null;
+                            if (result._id) {
+                              orderId = result._id.toString();
+                            } else if (result.orderId) {
+                              orderId = result.orderId.toString();
+                            } else if (result.data?._id) {
+                              orderId = result.data._id.toString();
+                            } else if (result.data?.orderId) {
+                              orderId = result.data.orderId.toString();
+                            } else if (typeof result === 'string') {
+                              orderId = result;
+                            }
+                            
+                            console.log('✅ Extracted order ID:', orderId, 'Type:', typeof orderId);
+                            
+                            if (!orderId) {
+                              console.error('❌ Could not extract order ID from result');
+                              toast.error('Order created but navigation failed. Check your Orders page.');
+                              navigate('/orders');
+                              return;
+                            }
+                            
                             setOrderConfirmation({ orderId });
                             setCheckoutStep('success');
-                            navigate(`/order-confirmation/${orderId}`);
+                            
+                            // Navigate to order confirmation with state
+                            navigate('/order-confirmation', {
+                              state: {
+                                orderId: orderId,
+                                message: 'Order placed successfully!',
+                                fromCart: true
+                              }
+                            });
                           }}
                           userProfile={userProfile}
                           isGuest={isGuest}
@@ -2819,6 +2952,7 @@ const Cart = () => {
               onTopUpClick={handleTopUpClick}
               onBalanceLoaded={handleBalanceLoaded}
               externalBalance={currentWalletBalance}
+              userRole={userProfile?.role}
             />
 
             {/* Delivery Information Summary */}

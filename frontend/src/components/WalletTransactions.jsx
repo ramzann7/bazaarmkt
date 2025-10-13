@@ -220,7 +220,7 @@ const WalletTransactions = () => {
                     {formatAmount(transaction.amount, transaction.type)}
                   </p>
                   <p className="text-sm text-stone-500">
-                    Balance: {walletService.formatCurrency(transaction.balanceAfter)}
+                    Balance: {transaction.balanceAfter !== null ? walletService.formatCurrency(transaction.balanceAfter) : 'Pending'}
                   </p>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     transaction.status === 'completed' ? 'bg-emerald-100 text-emerald-800' :

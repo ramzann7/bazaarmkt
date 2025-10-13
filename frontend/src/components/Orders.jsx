@@ -25,6 +25,8 @@ const isArtisan = (userRole) => {
 export default function Orders() {
   const location = useLocation();
   const [allOrders, setAllOrders] = useState([]); // Cache all orders
+  const [allSalesOrders, setAllSalesOrders] = useState([]); // Cache sales orders for priority queue
+  const [allPurchasesOrders, setAllPurchasesOrders] = useState([]); // Cache purchases orders for priority queue
   const [orders, setOrders] = useState([]); // Filtered orders for display
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -46,11 +48,17 @@ export default function Orders() {
     return () => clearInterval(interval);
   }, []);
   
-  // Reload orders when orderType changes (for artisans)
+  // Switch between sales and purchases when orderType changes (for artisans)
   useEffect(() => {
     if (userRole === 'artisan' && ordersLoaded) {
-      setOrdersLoaded(false); // Force reload from API
-      loadUserAndOrders(true);
+      console.log('🔄 Switching order type to:', orderType);
+      // Use cached data instead of reloading from API
+      const ordersData = orderType === 'sales' ? allSalesOrders : allPurchasesOrders;
+      setAllOrders(ordersData);
+      setRefreshKey(prev => prev + 1);
+      
+      // Re-apply current filter to the switched data
+      applyFilter();
     }
   }, [orderType]);
 
@@ -105,9 +113,19 @@ export default function Orders() {
         console.log('📋 Loading all orders from API...');
         let ordersData;
         if (actualUserRole === 'artisan') {
-          // For artisans, load based on orderType (sales or purchases)
-          console.log(`📋 Loading ${orderType} orders for artisan...`);
-          ordersData = await orderService.getArtisanOrders(true, orderType);
+          // For artisans, load BOTH sales and purchases for priority queue
+          console.log(`📋 Loading ${orderType} orders for artisan (and both types for priority queue)...`);
+          const [salesData, purchasesData] = await Promise.all([
+            orderService.getArtisanOrders(true, 'sales'),
+            orderService.getArtisanOrders(true, 'purchases')
+          ]);
+          
+          // Store both for priority queue
+          setAllSalesOrders(salesData);
+          setAllPurchasesOrders(purchasesData);
+          
+          // Use the current orderType for the main list
+          ordersData = orderType === 'sales' ? salesData : purchasesData;
         } else {
           ordersData = await orderService.getPatronOrders(true); // Always load all orders
         }
@@ -227,6 +245,18 @@ export default function Orders() {
     if (!originalOrder) {
       console.error('❌ Order not found:', orderId);
       return;
+    }
+    
+    // PERMISSION CHECK: Prevent buyers from confirming/declining
+    // Buyers can only cancel orders when pending
+    if (userRole === 'artisan' && orderType === 'purchases') {
+      const allowedActions = ['Cancel Order', 'Confirm Receipt'];
+      if (!allowedActions.includes(action)) {
+        console.warn('🚫 Buyer artisan cannot perform action:', action);
+        toast.error('Only the selling artisan can confirm or decline orders');
+        setUpdatingOrderId(null);
+        return;
+      }
     }
     
     try {
@@ -768,6 +798,8 @@ export default function Orders() {
         <PriorityOrderQueue
           key={`priority-queue-${refreshKey}`}
           orders={orders}
+          salesOrders={allSalesOrders}
+          purchasesOrders={allPurchasesOrders}
           onOrderClick={handleOrderClick}
           onQuickAction={handleQuickAction}
           userRole={userRole}
@@ -1165,6 +1197,7 @@ export default function Orders() {
           <OrderDetailsModal
             order={selectedOrder}
             userRole={userRole}
+            orderType={orderType}
             onClose={() => setShowOrderDetails(false)}
             onRefresh={loadUserAndOrders}
           />
@@ -1306,7 +1339,7 @@ function OrderConfirmationModal({ confirmationData, onClose }) {
 }
 
 // Order Details Modal Component
-function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
+function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [declineReason, setDeclineReason] = useState('');
@@ -1314,6 +1347,9 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
   const [deliveryDistance, setDeliveryDistance] = useState(null);
   const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState(null);
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
+  
+  // Determine if the current artisan is the seller (not the buyer)
+  const isSellerArtisan = orderType === 'sales';
 
   // Calculate delivery info when modal opens and order is ready for delivery
   useEffect(() => {
@@ -2493,8 +2529,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </button>
               )}
               
-              {/* Patron: Cancel Order Button */}
-              {userRole === 'patron' && order.status === 'pending' && (
+              {/* Patron OR Buying Artisan: Cancel Order Button (only when pending) */}
+              {(userRole === 'patron' || (isArtisan(userRole) && !isSellerArtisan)) && order.status === 'pending' && (
                 <button
                   onClick={handleCancelOrder}
                   disabled={isLoading}
@@ -2504,14 +2540,15 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                 </button>
               )}
               
-              {isArtisan(userRole) && (
+              {/* Selling Artisan: Order Management Buttons */}
+              {isArtisan(userRole) && isSellerArtisan && (
                 <>
                   {order.status === 'pending' && (
                     <>
                       <button
                         onClick={() => handleUpdateStatus('confirmed')}
                         disabled={isLoading}
-                        title={isLoading ? 'Loading...' : 'Click to decline order'}
+                        title={isLoading ? 'Loading...' : 'Confirm this order'}
                         className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
                       >
                         {isLoading ? '⏳ Confirming...' : '✅ Confirm Order'}
@@ -2523,7 +2560,6 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh }) {
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Click to decline order'}
                         className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                        style={{ border: '2px solid red' }} // Visual indicator for debugging
                       >
                         ❌ Decline Order
                       </button>

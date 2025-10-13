@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { MongoClient } = require('mongodb');
 const imageUploadService = require('../../services/imageUploadService');
+const searchCacheService = require('../../services/searchCacheService');
 
 // Helper function to validate inventory values
 const validateInventoryValue = (value, fieldName) => {
@@ -46,6 +47,20 @@ const checkInventoryAvailability = (product, quantity) => {
 // Get all products with optional filters
 const getProducts = async (req, res) => {
   try {
+    // Check cache first
+    const cacheKey = searchCacheService.generateKey(req.query.search, {
+      category: req.query.category,
+      subcategory: req.query.subcategory,
+      artisan: req.query.artisan,
+      limit: req.query.limit
+    });
+    
+    const cachedResults = searchCacheService.get(cacheKey);
+    if (cachedResults) {
+      console.log('✅ Returning cached search results');
+      return res.json(cachedResults);
+    }
+    
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
@@ -77,23 +92,38 @@ const getProducts = async (req, res) => {
       query.subcategory = req.query.subcategory;
     }
     if (req.query.search) {
-      query.$and = query.$and || [];
-      query.$and.push({
-        $or: [
-          { name: { $regex: req.query.search, $options: 'i' } },
-          { description: { $regex: req.query.search, $options: 'i' } }
-        ]
-      });
+      // Use native MongoDB text search for better performance
+      query.$text = { 
+        $search: req.query.search,
+        $caseSensitive: false,
+        $diacriticSensitive: false
+      };
     }
     if (req.query.artisan) {
       query.artisan = req.query.artisan;
     }
     
     // Get products with artisan population
+    const pipeline = [
+      { $match: query }
+    ];
+    
+    // Add text score for sorting if search query exists
+    if (req.query.search) {
+      pipeline.push({
+        $addFields: {
+          searchScore: { $meta: "textScore" }
+        }
+      });
+      pipeline.push({ $sort: { searchScore: -1, createdAt: -1 } });
+    } else {
+      pipeline.push({ $sort: { createdAt: -1 } });
+    }
+    
+    pipeline.push({ $limit: parseInt(req.query.limit) || 50 });
+    
     const products = await productsCollection.aggregate([
-      { $match: query },
-      { $sort: { createdAt: -1 } },
-      { $limit: parseInt(req.query.limit) || 50 },
+      ...pipeline,
       {
         $lookup: {
           from: 'artisans',
@@ -120,11 +150,16 @@ const getProducts = async (req, res) => {
     
     // Connection managed by middleware - no close needed
     
-    res.json({
+    const response = {
       success: true,
       products: products,
       count: products.length
-    });
+    };
+    
+    // Cache the results
+    searchCacheService.set(cacheKey, response);
+    
+    res.json(response);
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({
@@ -285,6 +320,19 @@ const getFeaturedProducts = async (req, res) => {
 // Enhanced search endpoint with location-based filtering
 const enhancedSearch = async (req, res) => {
   try {
+    // Check cache first
+    const cacheKey = searchCacheService.generateKey(req.query.search, {
+      category: req.query.category,
+      limit: req.query.limit,
+      enhanced: true
+    });
+    
+    const cachedResults = searchCacheService.get(cacheKey);
+    if (cachedResults) {
+      console.log('✅ Returning cached enhanced search results');
+      return res.json(cachedResults);
+    }
+    
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
@@ -313,19 +361,33 @@ const enhancedSearch = async (req, res) => {
       query.category = req.query.category;
     }
     if (req.query.search) {
-      query.$and = query.$and || [];
-      query.$and.push({
-        $or: [
-          { name: { $regex: req.query.search, $options: 'i' } },
-          { description: { $regex: req.query.search, $options: 'i' } }
-        ]
-      });
+      // Use native MongoDB text search for better performance
+      query.$text = { 
+        $search: req.query.search,
+        $caseSensitive: false,
+        $diacriticSensitive: false
+      };
     }
     
     // Get products with artisan population using aggregation
+    const pipeline = [
+      { $match: query }
+    ];
+    
+    // Add text score for relevance ranking if search query exists
+    if (req.query.search) {
+      pipeline.push({
+        $addFields: {
+          searchScore: { $meta: "textScore" }
+        }
+      });
+      pipeline.push({ $sort: { searchScore: -1 } });
+    }
+    
+    pipeline.push({ $limit: parseInt(req.query.limit) || 20 });
+    
     const products = await productsCollection.aggregate([
-      { $match: query },
-      { $limit: parseInt(req.query.limit) || 20 },
+      ...pipeline,
       {
         $lookup: {
           from: 'artisans',
@@ -351,11 +413,16 @@ const enhancedSearch = async (req, res) => {
     
     // Connection managed by middleware - no close needed
     
-    res.json({
+    const response = {
       success: true,
       products: products,
       count: products.length
-    });
+    };
+    
+    // Cache the results
+    searchCacheService.set(cacheKey, response);
+    
+    res.json(response);
   } catch (error) {
     console.error('Error in enhanced search:', error);
     res.status(500).json({
@@ -1360,12 +1427,78 @@ const testInventoryFunctionality = async (req, res) => {
   }
 };
 
+// Get search suggestions
+const getSearchSuggestions = async (req, res) => {
+  try {
+    const { q: query } = req.query;
+    
+    if (!query || query.length < 2) {
+      return res.json({ 
+        success: true,
+        suggestions: [] 
+      });
+    }
+    
+    const db = req.db;
+    const productsCollection = db.collection('products');
+    
+    // Get product name suggestions using text search
+    const productSuggestions = await productsCollection
+      .find(
+        { 
+          $text: { $search: query },
+          isActive: { $ne: false }
+        },
+        { score: { $meta: "textScore" } }
+      )
+      .project({ name: 1, category: 1, subcategory: 1 })
+      .sort({ score: { $meta: "textScore" } })
+      .limit(5)
+      .toArray();
+    
+    // Get category suggestions
+    const categorySuggestions = await productsCollection
+      .distinct('category', {
+        category: { $regex: query, $options: 'i' },
+        isActive: { $ne: false }
+      });
+    
+    // Combine and format suggestions
+    const suggestions = [
+      ...productSuggestions.map(p => ({
+        type: 'product',
+        text: p.name,
+        category: p.category,
+        subcategory: p.subcategory
+      })),
+      ...categorySuggestions.slice(0, 3).map(cat => ({
+        type: 'category',
+        text: cat
+      }))
+    ];
+    
+    res.json({ 
+      success: true,
+      suggestions 
+    });
+    
+  } catch (error) {
+    console.error('Search suggestions error:', error);
+    // Return empty suggestions on error to avoid breaking the UI
+    res.json({ 
+      success: true,
+      suggestions: [] 
+    });
+  }
+};
+
 // Routes
 // IMPORTANT: Specific routes must come BEFORE parameterized routes (/:id)
 // Otherwise /:id will catch everything
 router.get('/popular', getPopularProducts);
 router.get('/featured', getFeaturedProducts);
 router.get('/enhanced-search', enhancedSearch);
+router.get('/suggestions', getSearchSuggestions);
 router.get('/categories/list', getCategories);
 router.get('/my-products', getMyProducts);
 router.get('/test-inventory', testInventoryFunctionality); // Test endpoint

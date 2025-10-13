@@ -152,23 +152,25 @@ class WalletService extends BaseService {
       description = `Revenue from order #${orderNumber} - $${amount.toFixed(2)}`;
     }
     
-    // Create transaction record
+    // Get updated balance first
+    const updatedWallet = await this.getCollection(this.walletsCollection).findOne({ 
+      userId: this.createObjectId(userId) 
+    });
+    
+    // Create transaction record with balanceAfter
     const transaction = await this.create(this.transactionsCollection, {
       userId: this.createObjectId(userId),
+      walletId: updatedWallet._id, // For compatibility with existing records
       type: transactionType,
       amount: amount,
       description: description,
       paymentMethod: paymentMethod,
       status: 'completed',
+      balanceAfter: updatedWallet.balance,
       metadata: {
         ...metadata,
         transactionType: transactionType
       }
-    });
-    
-    // Get updated balance
-    const updatedWallet = await this.getCollection(this.walletsCollection).findOne({ 
-      userId: this.createObjectId(userId) 
     });
     
     return {
@@ -209,14 +211,21 @@ class WalletService extends BaseService {
       }
     );
     
-    // Create transaction record
+    // Get updated balance after deduction
+    const updatedWallet = await this.getCollection(this.walletsCollection).findOne({ 
+      userId: this.createObjectId(userId) 
+    });
+    
+    // Create transaction record with balanceAfter
     const transaction = await this.create(this.transactionsCollection, {
       userId: this.createObjectId(userId),
+      walletId: updatedWallet._id, // For compatibility with existing records
       type: 'wallet_deduction',
       amount: -amount,
       description: description,
       paymentMethod: 'wallet',
       status: 'completed',
+      balanceAfter: updatedWallet.balance,
       metadata: {
         ...metadata,
         deductionAmount: amount
@@ -280,15 +289,23 @@ class WalletService extends BaseService {
       )
     ]);
     
-    // Create transaction records
+    // Get updated wallet balances after transfer
+    const [updatedFromWallet, updatedToWallet] = await Promise.all([
+      this.getCollection(this.walletsCollection).findOne({ userId: this.createObjectId(fromUserId) }),
+      this.getCollection(this.walletsCollection).findOne({ userId: this.createObjectId(toUserId) })
+    ]);
+    
+    // Create transaction records with balanceAfter
     const [senderTransaction, receiverTransaction] = await Promise.all([
       this.create(this.transactionsCollection, {
         userId: this.createObjectId(fromUserId),
+        walletId: updatedFromWallet._id, // For compatibility
         type: 'wallet_transfer_out',
         amount: -amount,
         description: `Transfer to ${toUser.firstName} ${toUser.lastName}: ${description}`,
         paymentMethod: 'wallet',
         status: 'completed',
+        balanceAfter: updatedFromWallet.balance,
         metadata: {
           ...metadata,
           toUserId: toUserId,
@@ -297,11 +314,13 @@ class WalletService extends BaseService {
       }),
       this.create(this.transactionsCollection, {
         userId: this.createObjectId(toUserId),
+        walletId: updatedToWallet._id, // For compatibility
         type: 'wallet_transfer_in',
         amount: amount,
         description: `Transfer from ${fromUser.firstName} ${fromUser.lastName}: ${description}`,
         paymentMethod: 'wallet',
         status: 'completed',
+        balanceAfter: updatedToWallet.balance,
         metadata: {
           ...metadata,
           fromUserId: fromUserId,
@@ -451,7 +470,8 @@ class WalletService extends BaseService {
     if (paymentMethod === 'wallet') {
       return await this.deductFunds(userId, amount, description, metadata);
     } else {
-      // For other payment methods, create a pending transaction
+      // For other payment methods, create a pending transaction  
+      // Don't include balanceAfter for pending transactions as balance hasn't changed yet
       const transaction = await this.create(this.transactionsCollection, {
         userId: this.createObjectId(userId),
         type: 'payment',
@@ -459,6 +479,7 @@ class WalletService extends BaseService {
         description: description,
         paymentMethod: paymentMethod,
         status: 'pending',
+        balanceAfter: null, // Pending transactions don't change balance yet
         metadata: {
           ...metadata,
           paymentAmount: amount
@@ -504,14 +525,21 @@ class WalletService extends BaseService {
       }
     );
     
-    // Create refund transaction
+    // Get updated balance after refund
+    const updatedWallet = await this.getCollection(this.walletsCollection).findOne({ 
+      userId: this.createObjectId(userId) 
+    });
+    
+    // Create refund transaction with balanceAfter
     const refundTransaction = await this.create(this.transactionsCollection, {
       userId: this.createObjectId(userId),
+      walletId: updatedWallet._id, // For compatibility
       type: 'refund',
       amount: refundAmount,
       description: `Refund: ${reason}`,
       paymentMethod: 'wallet',
       status: 'completed',
+      balanceAfter: updatedWallet.balance,
       metadata: {
         originalTransactionId: transactionId,
         refundReason: reason,

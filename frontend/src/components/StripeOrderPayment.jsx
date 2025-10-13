@@ -238,19 +238,7 @@ const StripeOrderPayment = ({
         <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
           <CreditCardIcon className="w-6 h-6 text-amber-600" />
         </div>
-        <h3 className="text-2xl font-bold text-stone-800 font-display">Payment Details</h3>
-      </div>
-
-      <div className="mb-6 p-4 bg-stone-50 rounded-lg border border-stone-200">
-        <div className="flex justify-between items-center">
-          <span className="text-stone-600 font-medium">Total Amount:</span>
-          <span className="text-2xl font-bold text-amber-600">
-            {new Intl.NumberFormat('en-CA', {
-              style: 'currency',
-              currency: currency
-            }).format(amount)}
-          </span>
-        </div>
+        <h3 className="text-2xl font-bold text-stone-800 font-display">Payment Method</h3>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

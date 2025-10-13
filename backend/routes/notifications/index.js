@@ -1279,13 +1279,28 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
     let shouldSendEmail = false;
     
     if (userRole === 'artisan') {
-      // ARTISANS: Send email for NEW orders, courier tracking, cost increases, and payment releases
-      shouldSendEmail = type === 'new_order' || 
-                       type === 'new_order_pending' || 
-                       type === 'courier_on_way' ||
-                       type === 'delivery_cost_increase' ||
-                       type === 'order_completed';
-      console.log(`📧 Artisan notification: type=${type}, sendEmail=${shouldSendEmail}`);
+      // Check if this is a seller notification or buyer notification
+      const isSellerNotification = type === 'new_order' || 
+                                   type === 'new_order_pending' ||
+                                   type === 'order_created_seller' ||
+                                   type === 'order_cancelled' ||  // Seller gets email when buyer cancels
+                                   type === 'courier_on_way' ||
+                                   type === 'delivery_cost_increase';
+      
+      const isBuyerNotification = type === 'order_created_buyer' ||
+                                 type === 'order_confirmed' ||
+                                 type === 'order_preparing' ||
+                                 type === 'order_ready_for_pickup' ||
+                                 type === 'order_ready_for_delivery' ||
+                                 type === 'order_out_for_delivery' ||
+                                 type === 'order_delivered' ||
+                                 type === 'order_declined';
+      
+      // ARTISANS AS SELLERS: Send email for orders they're selling
+      // ARTISANS AS BUYERS: Send email for orders they're buying (treat as patron)
+      shouldSendEmail = isSellerNotification || isBuyerNotification || type === 'order_completed';
+      
+      console.log(`📧 Artisan notification: type=${type}, isSeller=${isSellerNotification}, isBuyer=${isBuyerNotification}, sendEmail=${shouldSendEmail}`);
     } else if (isGuestOrder) {
       // GUESTS: Send email for ALL status changes (they can't see in-app notifications)
       shouldSendEmail = true;

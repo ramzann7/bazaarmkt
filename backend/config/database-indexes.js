@@ -63,19 +63,37 @@ async function createUserIndexes(db) {
 async function createProductIndexes(db) {
   const productsCollection = db.collection('products');
   
+  // Basic field indexes
   await productsCollection.createIndex({ artisan: 1 });
   await productsCollection.createIndex({ category: 1 });
   await productsCollection.createIndex({ subcategory: 1 });
   await productsCollection.createIndex({ status: 1 });
+  await productsCollection.createIndex({ isActive: 1 });
   await productsCollection.createIndex({ price: 1 });
   await productsCollection.createIndex({ createdAt: -1 });
   await productsCollection.createIndex({ updatedAt: -1 });
   await productsCollection.createIndex({ 'location.city': 1, 'location.state': 1 });
-  await productsCollection.createIndex({ 
-    title: 'text', 
-    description: 'text', 
-    tags: 'text' 
-  });
+  
+  // Optimized text search index with weighted fields for better relevance
+  await productsCollection.createIndex(
+    {
+      name: 'text',
+      description: 'text', 
+      tags: 'text',
+      category: 'text'
+    },
+    {
+      weights: {
+        name: 10,       // Product name most important
+        tags: 5,        // Tags moderately important
+        category: 3,    // Category helpful for context
+        description: 1  // Description least important
+      },
+      name: 'optimized_text_search_index'
+    }
+  );
+  
+  // Compound indexes for common query patterns
   await productsCollection.createIndex({ 
     artisan: 1, 
     status: 1, 
@@ -86,8 +104,47 @@ async function createProductIndexes(db) {
     subcategory: 1, 
     status: 1 
   });
+  await productsCollection.createIndex({ 
+    isActive: 1, 
+    category: 1, 
+    price: 1 
+  });
+  await productsCollection.createIndex({ 
+    isActive: 1, 
+    productType: 1,
+    createdAt: -1
+  });
   
-  console.log('✅ Product indexes created');
+  // Inventory-aware compound indexes
+  await productsCollection.createIndex({ 
+    productType: 1, 
+    stock: 1, 
+    isActive: 1 
+  });
+  await productsCollection.createIndex({ 
+    productType: 1, 
+    remainingCapacity: 1, 
+    isActive: 1 
+  });
+  await productsCollection.createIndex({ 
+    productType: 1, 
+    availableQuantity: 1, 
+    isActive: 1 
+  });
+  
+  // Popular/featured products optimization
+  await productsCollection.createIndex({ 
+    isActive: 1,
+    views: -1,
+    soldCount: -1
+  });
+  await productsCollection.createIndex({ 
+    isFeatured: 1,
+    isActive: 1,
+    createdAt: -1
+  });
+  
+  console.log('✅ Product indexes created with optimized text search');
 }
 
 /**

@@ -46,7 +46,7 @@ export default function SearchResults() {
   const [userLocation, setUserLocation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('distance');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 100000]); // No restrictive default price filter
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [productQuantities, setProductQuantities] = useState({});
   const [addingToCart, setAddingToCart] = useState({});
@@ -693,8 +693,8 @@ export default function SearchResults() {
                     <input
                       type="range"
                       min="0"
-                      max="1000"
-                      value={priceRange[1]}
+                      max="10000"
+                      value={priceRange[1] > 10000 ? 10000 : priceRange[1]}
                       onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                       className="flex-1 accent-accent"
                     />
@@ -708,7 +708,7 @@ export default function SearchResults() {
                 <button
                   onClick={() => {
                     setSelectedCategories([]);
-                    setPriceRange([0, 1000]);
+                    setPriceRange([0, 100000]);
                   }}
                   className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm font-semibold"
                 >

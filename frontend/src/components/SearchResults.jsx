@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -50,6 +50,9 @@ export default function SearchResults() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [productQuantities, setProductQuantities] = useState({});
   const [addingToCart, setAddingToCart] = useState({});
+
+  // Ref to track search analytics to prevent duplicates
+  const lastTrackedSearch = useRef(null);
 
   // Cart popup state
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -305,21 +308,41 @@ export default function SearchResults() {
         
         setFilteredProducts(inStockProducts);
         
-        // Track search analytics
+        // Track search analytics (with deduplication)
         if (query || categoryParam || subcategoryParam) {
           const searchEndTime = performance.now();
           const responseTime = Math.round(searchEndTime - searchStartTime);
           
-          searchAnalyticsService.trackSearch({
-            query: query || `category:${categoryParam || subcategoryParam}`,
-            userId: currentUserId,
-            resultsCount: inStockProducts.length,
-            responseTime,
-            category: categoryParam,
-            subcategory: subcategoryParam,
-            priceRange,
-            location: userLocation
-          });
+          // Create unique search key to prevent duplicate tracking
+          const searchKey = `${query || ''}-${categoryParam || ''}-${subcategoryParam || ''}-${JSON.stringify(userLocation)}-${currentUserId || 'guest'}`;
+          
+          // Only track if this exact search hasn't been tracked recently (within last 5 seconds)
+          const now = Date.now();
+          if (!lastTrackedSearch.current || 
+              lastTrackedSearch.current.key !== searchKey || 
+              (now - lastTrackedSearch.current.timestamp) > 5000) {
+            
+            console.log('📊 Tracking new search:', searchKey);
+            
+            searchAnalyticsService.trackSearch({
+              query: query || `category:${categoryParam || subcategoryParam}`,
+              userId: currentUserId,
+              resultsCount: inStockProducts.length,
+              responseTime,
+              category: categoryParam,
+              subcategory: subcategoryParam,
+              priceRange,
+              location: userLocation
+            });
+            
+            // Update last tracked search
+            lastTrackedSearch.current = {
+              key: searchKey,
+              timestamp: now
+            };
+          } else {
+            console.log('⏭️ Skipping duplicate search tracking:', searchKey);
+          }
         }
       } else {
         console.log('⚠️ Search results not in expected format:', searchResults);
@@ -353,7 +376,7 @@ export default function SearchResults() {
       setFilteredProducts([]);
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation]);
+  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation, performSearch]);
 
   // Refresh search results when page becomes visible (handles tab switching)
   useEffect(() => {
@@ -361,7 +384,12 @@ export default function SearchResults() {
       if (!document.hidden && (query || categoryParam || subcategoryParam)) {
         console.log('🔄 SearchResults page became visible, refreshing data...');
         clearProductCache();
-        performSearch();
+        // Use a timeout to prevent immediate duplicate calls
+        setTimeout(() => {
+          if (query || categoryParam || subcategoryParam || nearbySearch) {
+            performSearch();
+          }
+        }, 100);
       }
     };
 
@@ -370,7 +398,7 @@ export default function SearchResults() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [query, categoryParam, subcategoryParam, performSearch]);
+  }, [query, categoryParam, subcategoryParam, nearbySearch]);
 
   useEffect(() => {
     applyFiltersAndSort();

@@ -354,7 +354,11 @@ export default function Navbar() {
       try {
         const popular = await searchAnalyticsService.getPopularSearches();
         if (popular && popular.length > 0) {
-          setPopularSearches(popular);
+          // Extract just the query strings from the analytics objects
+          const queryStrings = popular.map(item => 
+            typeof item === 'object' ? item.query : item
+          ).filter(query => query && typeof query === 'string');
+          setPopularSearches(queryStrings);
         } else {
           // Fallback to default searches
           setPopularSearches([

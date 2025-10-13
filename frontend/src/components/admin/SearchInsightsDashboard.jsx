@@ -28,6 +28,7 @@ const SearchInsightsDashboard = () => {
     setError(null);
     try {
       const data = await searchAnalyticsService.getSearchInsights(timeRange);
+      console.log('📊 Search insights data received:', data);
       setInsights(data);
     } catch (err) {
       console.error('Failed to load search insights:', err);
@@ -65,9 +66,19 @@ const SearchInsightsDashboard = () => {
   }
 
   const summary = insights?.summary || {};
-  const popularSearches = insights?.popularSearches || [];
-  const zeroResultSearches = insights?.zeroResultSearches || [];
-  const slowQueries = insights?.slowQueries || [];
+  const popularSearches = Array.isArray(insights?.popularSearches) ? insights.popularSearches : [];
+  const zeroResultSearches = Array.isArray(insights?.zeroResultSearches) ? insights.zeroResultSearches : [];
+  const slowQueries = Array.isArray(insights?.slowQueries) ? insights.slowQueries : [];
+
+  console.log('📊 Component state:', {
+    summary,
+    popularSearches: popularSearches.length,
+    zeroResultSearches: zeroResultSearches.length,
+    slowQueries: slowQueries.length
+  });
+
+  console.log('📊 First popular search:', popularSearches[0]);
+  console.log('📊 Type of first popular search:', typeof popularSearches[0]);
 
   return (
     <div className="space-y-6">
@@ -115,17 +126,17 @@ const SearchInsightsDashboard = () => {
         />
         <MetricCard
           title="Zero Results Rate"
-          value={`${summary.zeroResultsRate?.toFixed(1) || 0}%`}
+          value={`${(typeof summary.zeroResultsRate === 'number' ? summary.zeroResultsRate.toFixed(1) : 0)}%`}
           icon={<ExclamationTriangleIcon className="w-6 h-6" />}
           color="yellow"
-          subtitle={summary.zeroResultsRate < 10 ? 'Good' : 'Review queries'}
+          subtitle={(typeof summary.zeroResultsRate === 'number' && summary.zeroResultsRate < 10) ? 'Good' : 'Review queries'}
         />
         <MetricCard
           title="Click-Through Rate"
-          value={`${summary.clickThroughRate?.toFixed(1) || 0}%`}
+          value={`${(typeof summary.clickThroughRate === 'number' ? summary.clickThroughRate.toFixed(1) : 0)}%`}
           icon={<ChartBarIcon className="w-6 h-6" />}
           color="purple"
-          subtitle={summary.clickThroughRate > 30 ? 'Excellent' : summary.clickThroughRate > 15 ? 'Good' : 'Can improve'}
+          subtitle={(typeof summary.clickThroughRate === 'number') ? (summary.clickThroughRate > 30 ? 'Excellent' : summary.clickThroughRate > 15 ? 'Good' : 'Can improve') : 'No data'}
         />
       </div>
 
@@ -143,9 +154,15 @@ const SearchInsightsDashboard = () => {
           <div className="p-6">
             {popularSearches.length > 0 ? (
               <div className="space-y-3">
-                {popularSearches.map((search, index) => (
+                {popularSearches.map((search, index) => {
+                  // Defensive check for search object
+                  if (!search || typeof search !== 'object') {
+                    console.error('Invalid search object:', search, 'at index:', index);
+                    return null;
+                  }
+                  return (
                   <div 
-                    key={index}
+                    key={`popular-${index}-${search.query || 'unknown'}`}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1">
@@ -153,22 +170,23 @@ const SearchInsightsDashboard = () => {
                         {index + 1}
                       </span>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{search.query}</p>
+                        <p className="font-medium text-gray-900">{search.query || 'Unknown'}</p>
                         <div className="flex gap-4 mt-1 text-xs text-gray-600">
-                          <span>{search.count} searches</span>
-                          <span>~{search.avgResults} results</span>
-                          <span>{search.avgResponseTime}ms</span>
-                          <span className="text-green-600">{search.clickThroughRate.toFixed(0)}% CTR</span>
+                          <span>{search.count || 0} searches</span>
+                          <span>~{search.avgResults || 0} results</span>
+                          <span>{search.avgResponseTime || 0}ms</span>
+                          <span className="text-green-600">{(search.clickThroughRate || 0).toFixed(0)}% CTR</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
-                        {search.count}
+                        {search.count || 0}
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -191,15 +209,20 @@ const SearchInsightsDashboard = () => {
           <div className="p-6">
             {zeroResultSearches.length > 0 ? (
               <div className="space-y-3">
-                {zeroResultSearches.map((search, index) => (
+                {zeroResultSearches.map((search, index) => {
+                  if (!search || typeof search !== 'object') {
+                    console.error('Invalid zero-result search object:', search);
+                    return null;
+                  }
+                  return (
                   <div 
-                    key={index}
+                    key={`zero-${index}-${search.query || 'unknown'}`}
                     className="flex items-center justify-between p-3 bg-red-50 rounded-lg"
                   >
                     <div className="flex-1">
-                      <p className="font-medium text-red-900">{search.query}</p>
+                      <p className="font-medium text-red-900">{search.query || 'Unknown'}</p>
                       <p className="text-xs text-red-600 mt-1">
-                        {search.count} attempt{search.count !== 1 ? 's' : ''}
+                        {search.count || 0} attempt{(search.count || 0) !== 1 ? 's' : ''}
                       </p>
                     </div>
                     <div className="text-right">
@@ -208,7 +231,8 @@ const SearchInsightsDashboard = () => {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500">
@@ -231,17 +255,22 @@ const SearchInsightsDashboard = () => {
           </div>
           <div className="p-6">
             <div className="space-y-3">
-              {slowQueries.map((query, index) => (
+              {slowQueries.map((query, index) => {
+                if (!query || typeof query !== 'object') {
+                  console.error('Invalid slow query object:', query);
+                  return null;
+                }
+                return (
                 <div 
-                  key={index}
+                  key={`slow-${index}-${query.query || 'unknown'}`}
                   className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-yellow-900">{query.query}</p>
+                    <p className="font-medium text-yellow-900">{query.query || 'Unknown'}</p>
                     <div className="flex gap-4 mt-1 text-xs text-yellow-700">
-                      <span>{query.count} occurrences</span>
-                      <span>Avg: {query.avgResponseTime}ms</span>
-                      <span>Max: {query.maxResponseTime}ms</span>
+                      <span>{query.count || 0} occurrences</span>
+                      <span>Avg: {query.avgResponseTime || 0}ms</span>
+                      <span>Max: {query.maxResponseTime || 0}ms</span>
                     </div>
                   </div>
                   <div className="text-right">

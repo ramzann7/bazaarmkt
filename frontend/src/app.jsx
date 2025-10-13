@@ -85,6 +85,7 @@ const AdminAnalytics = lazy(() => import("./components/AdminAnalytics.jsx"));
 const AdminPromotionalDashboard = lazy(() => import("./components/AdminPromotionalDashboard.jsx"));
 const AdminPlatformSettings = lazy(() => import("./components/AdminPlatformSettings.jsx"));
 const AdminGeographicSettings = lazy(() => import("./components/AdminGeographicSettings.jsx"));
+const SearchInsightsDashboard = lazy(() => import("./components/admin/SearchInsightsDashboard.jsx"));
 const OrderConfirmation = lazy(() => import("./components/OrderConfirmation.jsx"));
 const ArtisanProductManagement = lazy(() => import("./components/ArtisanProductManagement.jsx"));
 const ArtisanRevenueDashboard = lazy(() => import("./components/ArtisanRevenueDashboard.jsx"));
@@ -268,6 +269,10 @@ function AppRoutes() {
         <Route
           path="/admin/geographic-settings"
           element={isAuthenticated ? <AdminGeographicSettings /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/admin/search-insights"
+          element={isAuthenticated ? <SearchInsightsDashboard /> : <Navigate to="/login" />}
         />
         
         {/* Catch all route */}

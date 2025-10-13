@@ -9,6 +9,8 @@ const { MongoClient } = require('mongodb');
 const imageUploadService = require('../../services/imageUploadService');
 const searchCacheService = require('../../services/searchCacheService');
 const { getInStockInventoryConditions, isOutOfStock, getOutOfStockStatus } = require('../../utils/inventoryUtils');
+const { geoNearSearch } = require('./geoSearch');
+const searchPerformanceMonitor = require('../../services/searchPerformanceMonitor');
 
 // Helper function to validate inventory values
 const validateInventoryValue = (value, fieldName) => {
@@ -47,6 +49,8 @@ const checkInventoryAvailability = (product, quantity) => {
 
 // Get all products with optional filters
 const getProducts = async (req, res) => {
+  const startTime = Date.now();
+  
   try {
     // Check cache first
     const cacheKey = searchCacheService.generateKey(req.query.search, {
@@ -59,6 +63,18 @@ const getProducts = async (req, res) => {
     const cachedResults = searchCacheService.get(cacheKey);
     if (cachedResults) {
       console.log('✅ Returning cached search results');
+      
+      // Record performance even for cached results
+      if (req.query.search) {
+        const responseTime = Date.now() - startTime;
+        searchPerformanceMonitor.recordSearchPerformance({
+          query: req.query.search,
+          responseTime,
+          resultsCount: cachedResults.count || 0,
+          cached: true
+        });
+      }
+      
       return res.json(cachedResults);
     }
     
@@ -110,15 +126,46 @@ const getProducts = async (req, res) => {
       { $match: query }
     ];
     
-    // Add text score for sorting if search query exists
+    // Add advanced relevance scoring
     if (req.query.search) {
+      // Calculate recency date (30 days ago)
+      const recentDate = new Date();
+      recentDate.setDate(recentDate.getDate() - 30);
+      
       pipeline.push({
         $addFields: {
-          searchScore: { $meta: "textScore" }
+          textScore: { $meta: "textScore" },
+          relevanceScore: {
+            $add: [
+              // Text match relevance (40% weight)
+              { $multiply: [{ $meta: "textScore" }, 0.4] },
+              
+              // Popularity from views (0.01% weight, max ~200 points)
+              { $multiply: [{ $ifNull: ["$views", 0] }, 0.0001] },
+              
+              // Sales history (0.1% weight, max ~100 points)
+              { $multiply: [{ $ifNull: ["$soldCount", 0] }, 0.001] },
+              
+              // Featured products boost (+50 points)
+              { $cond: [{ $eq: ["$isFeatured", true] }, 50, 0] },
+              
+              // Recent listings boost (+25 points for products < 30 days old)
+              { $cond: [{ $gte: ["$createdAt", recentDate] }, 25, 0] },
+              
+              // Artisan spotlight boost (+100 points)
+              { $cond: [{ $eq: ["$artisanSpotlight", true] }, 100, 0] },
+              
+              // Promotional products boost (+75 points)
+              { $cond: [{ $eq: ["$isPromotional", true] }, 75, 0] }
+            ]
+          }
         }
       });
-      pipeline.push({ $sort: { searchScore: -1, createdAt: -1 } });
+      
+      // Sort by relevance score
+      pipeline.push({ $sort: { relevanceScore: -1, textScore: -1, createdAt: -1 } });
     } else {
+      // No search query - sort by most recent
       pipeline.push({ $sort: { createdAt: -1 } });
     }
     
@@ -173,6 +220,17 @@ const getProducts = async (req, res) => {
     
     // Cache the results
     searchCacheService.set(cacheKey, response);
+    
+    // Record performance metrics for search queries
+    if (req.query.search) {
+      const responseTime = Date.now() - startTime;
+      searchPerformanceMonitor.recordSearchPerformance({
+        query: req.query.search,
+        responseTime,
+        resultsCount: products.length,
+        cached: false
+      });
+    }
     
     res.json(response);
   } catch (error) {
@@ -385,14 +443,47 @@ const enhancedSearch = async (req, res) => {
       { $match: query }
     ];
     
-    // Add text score for relevance ranking if search query exists
+    // Add advanced relevance scoring for enhanced search
     if (req.query.search) {
+      // Calculate recency date (30 days ago)
+      const recentDate = new Date();
+      recentDate.setDate(recentDate.getDate() - 30);
+      
       pipeline.push({
         $addFields: {
-          searchScore: { $meta: "textScore" }
+          textScore: { $meta: "textScore" },
+          relevanceScore: {
+            $add: [
+              // Text match relevance (40% weight)
+              { $multiply: [{ $meta: "textScore" }, 0.4] },
+              
+              // Popularity from views (0.01% weight)
+              { $multiply: [{ $ifNull: ["$views", 0] }, 0.0001] },
+              
+              // Sales history (0.1% weight)
+              { $multiply: [{ $ifNull: ["$soldCount", 0] }, 0.001] },
+              
+              // Featured products boost (+50 points)
+              { $cond: [{ $eq: ["$isFeatured", true] }, 50, 0] },
+              
+              // Recent listings boost (+25 points)
+              { $cond: [{ $gte: ["$createdAt", recentDate] }, 25, 0] },
+              
+              // Artisan spotlight boost (+100 points)
+              { $cond: [{ $eq: ["$artisanSpotlight", true] }, 100, 0] },
+              
+              // Promotional products boost (+75 points)
+              { $cond: [{ $eq: ["$isPromotional", true] }, 75, 0] }
+            ]
+          }
         }
       });
-      pipeline.push({ $sort: { searchScore: -1 } });
+      
+      // Sort by relevance score
+      pipeline.push({ $sort: { relevanceScore: -1, textScore: -1, createdAt: -1 } });
+    } else {
+      // No search query - sort by most recent
+      pipeline.push({ $sort: { createdAt: -1 } });
     }
     
     pipeline.push({ $limit: parseInt(req.query.limit) || 20 });
@@ -1508,6 +1599,7 @@ const getSearchSuggestions = async (req, res) => {
 // Otherwise /:id will catch everything
 router.get('/popular', getPopularProducts);
 router.get('/featured', getFeaturedProducts);
+router.get('/geo-search', geoNearSearch); // Optimized geospatial search
 router.get('/enhanced-search', enhancedSearch);
 router.get('/suggestions', getSearchSuggestions);
 router.get('/categories/list', getCategories);

@@ -25,6 +25,7 @@ import { geocodingService } from '../services/geocodingService';
 import searchTrackingService from '../services/searchTrackingService';
 import { promotionalService } from '../services/promotionalService';
 import enhancedSearchService from '../services/enhancedSearchService';
+import searchAnalyticsService from '../services/searchAnalyticsService';
 
 import ProductTypeBadge from './ProductTypeBadge';
 import ProductCard from './ProductCard';
@@ -156,6 +157,7 @@ export default function SearchResults() {
   const performSearch = useCallback(async () => {
     try {
       setIsLoading(true);
+      const searchStartTime = performance.now();
       console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'nearbySearch:', nearbySearch);
       
       let searchResults;
@@ -303,6 +305,23 @@ export default function SearchResults() {
         });
         
         setFilteredProducts(inStockProducts);
+        
+        // Track search analytics
+        if (query || categoryParam || subcategoryParam) {
+          const searchEndTime = performance.now();
+          const responseTime = Math.round(searchEndTime - searchStartTime);
+          
+          searchAnalyticsService.trackSearch({
+            query: query || `category:${categoryParam || subcategoryParam}`,
+            userId: currentUserId,
+            resultsCount: inStockProducts.length,
+            responseTime,
+            category: categoryParam,
+            subcategory: subcategoryParam,
+            priceRange,
+            location: userLocation
+          });
+        }
       } else {
         console.log('⚠️ Search results not in expected format:', searchResults);
         setProducts([]);
@@ -316,7 +335,7 @@ export default function SearchResults() {
     } finally {
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, nearbySearch, autoSearch, userLocation, calculateDistance, formatDistance]);
+  }, [query, categoryParam, subcategoryParam, nearbySearch, autoSearch, userLocation, calculateDistance, formatDistance, currentUserId, priceRange]);
 
   useEffect(() => {
     getCurrentLocation();
@@ -722,7 +741,7 @@ export default function SearchResults() {
         {/* Results */}
         {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, index) => (
               <ProductCard
                 key={product._id}
                 product={product}
@@ -730,6 +749,10 @@ export default function SearchResults() {
                 showRating={true}
                 showImagePreview={true}
                 compact={true}
+                onClick={() => {
+                  // Track click on search result
+                  searchAnalyticsService.trackResultClick(product._id, index);
+                }}
               />
             ))}
           </div>

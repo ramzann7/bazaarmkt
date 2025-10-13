@@ -8,7 +8,8 @@ import {
   ShieldCheckIcon,
   CurrencyDollarIcon,
   SparklesIcon,
-  GlobeAltIcon
+  GlobeAltIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { authToken, getProfile } from '../services/authservice';
 import { useNavigate } from 'react-router-dom';
@@ -98,6 +99,14 @@ export default function AdminDashboard() {
       icon: ChartBarIcon,
       color: 'bg-orange-500',
       path: '/admin/analytics'
+    },
+    {
+      id: 'search-insights',
+      title: 'Search Insights',
+      description: 'View search analytics, popular queries, and performance metrics',
+      icon: MagnifyingGlassIcon,
+      color: 'bg-blue-600',
+      path: '/admin/search-insights'
     },
     {
       id: 'promotional',

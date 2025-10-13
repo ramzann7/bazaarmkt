@@ -213,6 +213,7 @@ const geocodingRoutes = require('./routes/geocoding');
 const platformSettingsRoutes = require('./routes/platform-settings');
 const geographicSettingsRoutes = require('./routes/geographic-settings');
 const deliveryRoutes = require('./routes/delivery');
+const searchRoutes = require('./routes/search');
 
 // ============================================================================
 // WALLET TRANSACTION HELPER FUNCTIONS
@@ -281,6 +282,7 @@ app.use('/api/geocoding', geocodingRoutes);
 app.use('/api/platform-settings', platformSettingsRoutes);
 app.use('/api/geographic-settings', geographicSettingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/search', searchRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS
@@ -415,16 +417,32 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 
+// Initialize search analytics on startup
+const initializeSearchAnalytics = async () => {
+  try {
+    const SearchAnalyticsService = require('./services/searchAnalyticsService');
+    const db = await getDB();
+    const searchAnalyticsService = new SearchAnalyticsService(db);
+    await searchAnalyticsService.createIndexes();
+    console.log('✅ Search analytics initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize search analytics:', error);
+  }
+};
+
 // Start server if this file is run directly
 if (require.main === module) {
   const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
     console.log(`💰 Payout processing: http://localhost:${PORT}/api/admin/wallet/process-payouts`);
     console.log(`📦 Inventory restoration: http://localhost:${PORT}/api/admin/inventory/restore-all`);
     console.log(`⏰ Cron jobs configured for Vercel deployment`);
+    
+    // Initialize search analytics
+    await initializeSearchAnalytics();
   });
 }
 

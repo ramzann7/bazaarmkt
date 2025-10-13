@@ -22,7 +22,7 @@ import enhancedSearchService from "../services/enhancedSearchService";
 import { getAllCategories, getAllSubcategories, PRODUCT_CATEGORIES } from "../data/productReference";
 import { cacheService, CACHE_KEYS, CACHE_TTL } from "../services/cacheService";
 import { useOptimizedEffect, useDebounce } from "../hooks/useOptimizedEffect";
-import searchTrackingService from "../services/searchTrackingService";
+import searchAnalyticsService from "../services/searchAnalyticsService";
 import toast from "react-hot-toast";
 
 export default function Navbar() {
@@ -214,10 +214,7 @@ export default function Navbar() {
       const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
       
       if (query || category !== 'all') {
-        // Track the search
-        if (query) {
-          searchTrackingService.trackSearch(query, category);
-        }
+        // Note: Search tracking will be handled by SearchResults component after search is performed
         
         const searchParams = new URLSearchParams();
         if (query) searchParams.append('q', query);
@@ -242,11 +239,6 @@ export default function Navbar() {
         
         // If no subcategories, automatically search for the main category
         if (category !== 'all') {
-          const categoryName = categories.find(c => c.key === category)?.name || category;
-          
-          // Track the category selection
-          searchTrackingService.trackSearch(categoryName, category);
-          
           // Automatically navigate to search with the category
           const searchParams = new URLSearchParams();
           searchParams.append('category', category);
@@ -263,9 +255,6 @@ export default function Navbar() {
       setSelectedSubcategory(subcategory);
       setShowCategoryDropdown(false);
       setShowSubcategoryDropdown(false);
-      
-      // Track the subcategory selection
-      searchTrackingService.trackSearch(subcategory.name, subcategory.id);
       
       // Automatically navigate to search with the subcategory
       const searchParams = new URLSearchParams();
@@ -292,9 +281,7 @@ export default function Navbar() {
       setSearchQuery(searchTerm);
       setShowPopularSearches(false);
       
-      // Track the popular search selection
-      const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
-      searchTrackingService.trackSearch(searchTerm, category);
+      // Note: Search tracking will be handled by SearchResults component
       
       // Navigate to search with the popular search term
       const searchParams = new URLSearchParams();
@@ -365,12 +352,33 @@ export default function Navbar() {
   useOptimizedEffect(() => {
     const loadPopularSearches = async () => {
       try {
-        const popular = searchTrackingService.getPopularSearches();
-        setPopularSearches(popular);
+        const popular = await searchAnalyticsService.getPopularSearches();
+        if (popular && popular.length > 0) {
+          setPopularSearches(popular);
+        } else {
+          // Fallback to default searches
+          setPopularSearches([
+            'fresh eggs',
+            'sourdough bread', 
+            'maple syrup',
+            'organic honey',
+            'artisan cheese',
+            'fresh herbs',
+            'homemade pasta'
+          ]);
+        }
       } catch (error) {
         console.error('Error loading popular searches:', error);
         // Fallback to default searches
-        setPopularSearches(searchTrackingService.getDefaultPopularSearches());
+        setPopularSearches([
+          'fresh eggs',
+          'sourdough bread', 
+          'maple syrup',
+          'organic honey',
+          'artisan cheese',
+          'fresh herbs',
+          'homemade pasta'
+        ]);
       }
     };
 

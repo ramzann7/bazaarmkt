@@ -8,6 +8,7 @@ const router = express.Router();
 const { MongoClient } = require('mongodb');
 const imageUploadService = require('../../services/imageUploadService');
 const searchCacheService = require('../../services/searchCacheService');
+const { getInStockInventoryConditions, isOutOfStock, getOutOfStockStatus } = require('../../utils/inventoryUtils');
 
 // Helper function to validate inventory values
 const validateInventoryValue = (value, fieldName) => {
@@ -64,29 +65,12 @@ const getProducts = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
-    // Build base query with inventory-aware filtering
-    const inventoryConditions = {
+    // Build base query with inventory-aware filtering using utility function
+    // This ensures consistency with frontend InventoryModel logic
+    const query = {
       isActive: { $ne: false },
-      $or: [
-        // ready_to_ship: has stock
-        { productType: 'ready_to_ship', stock: { $gt: 0 } },
-        // made_to_order: has remaining capacity
-        { productType: 'made_to_order', remainingCapacity: { $gt: 0 } },
-        // scheduled_order: has available quantity
-        { productType: 'scheduled_order', availableQuantity: { $gt: 0 } },
-        // Legacy products without productType: check availableQuantity or stock
-        { 
-          productType: { $exists: false },
-          $or: [
-            { availableQuantity: { $gt: 0 } },
-            { stock: { $gt: 0 } }
-          ]
-        }
-      ]
+      ...getInStockInventoryConditions()
     };
-    
-    // Start with inventory conditions
-    const query = { ...inventoryConditions };
     
     // Build $and array for combining conditions
     const andConditions = [];
@@ -168,11 +152,16 @@ const getProducts = async (req, res) => {
     
     // Connection managed by middleware - no close needed
     
-    // Debug logging for search results
+    // Debug logging for search results with inventory status
     if (req.query.search) {
       console.log(`📦 Found ${products.length} products for search: "${req.query.search}"`);
       products.forEach((p, idx) => {
-        console.log(`   ${idx + 1}. ${p.name} - Type: ${p.productType}, Stock: ${p.stock}, Capacity: ${p.remainingCapacity}, Qty: ${p.availableQuantity}`);
+        const outOfStockStatus = getOutOfStockStatus(p);
+        const statusIcon = outOfStockStatus.isOutOfStock ? '❌' : '✅';
+        console.log(`   ${statusIcon} ${idx + 1}. ${p.name}`);
+        console.log(`      Type: ${p.productType || 'unknown'}`);
+        console.log(`      Stock: ${p.stock || 0}, Capacity: ${p.remainingCapacity || 0}, Qty: ${p.availableQuantity || 0}`);
+        console.log(`      Status: ${outOfStockStatus.isOutOfStock ? outOfStockStatus.message : 'In Stock'}`);
       });
     }
     
@@ -362,29 +351,12 @@ const enhancedSearch = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
-    // Build base query with inventory-aware filtering
-    const inventoryConditions = {
+    // Build base query with inventory-aware filtering using utility function
+    // This ensures consistency with frontend InventoryModel logic
+    const query = {
       isActive: { $ne: false },
-      $or: [
-        // ready_to_ship: has stock
-        { productType: 'ready_to_ship', stock: { $gt: 0 } },
-        // made_to_order: has remaining capacity
-        { productType: 'made_to_order', remainingCapacity: { $gt: 0 } },
-        // scheduled_order: has available quantity
-        { productType: 'scheduled_order', availableQuantity: { $gt: 0 } },
-        // Legacy products without productType: check availableQuantity or stock
-        { 
-          productType: { $exists: false },
-          $or: [
-            { availableQuantity: { $gt: 0 } },
-            { stock: { $gt: 0 } }
-          ]
-        }
-      ]
+      ...getInStockInventoryConditions()
     };
-    
-    // Start with inventory conditions
-    const query = { ...inventoryConditions };
     
     // Build $and array for combining conditions
     const andConditions = [];

@@ -64,8 +64,8 @@ const getProducts = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
-    // Build query from filters - use inventory-aware filtering
-    const query = { 
+    // Build base query with inventory-aware filtering
+    const inventoryConditions = {
       isActive: { $ne: false },
       $or: [
         // ready_to_ship: has stock
@@ -85,22 +85,40 @@ const getProducts = async (req, res) => {
       ]
     };
     
+    // Start with inventory conditions
+    const query = { ...inventoryConditions };
+    
+    // Build $and array for combining conditions
+    const andConditions = [];
+    
     if (req.query.category) {
-      query.category = req.query.category;
+      andConditions.push({ category: req.query.category });
     }
     if (req.query.subcategory) {
-      query.subcategory = req.query.subcategory;
+      andConditions.push({ subcategory: req.query.subcategory });
     }
     if (req.query.search) {
       // Use native MongoDB text search for better performance
-      query.$text = { 
-        $search: req.query.search,
-        $caseSensitive: false,
-        $diacriticSensitive: false
-      };
+      andConditions.push({
+        $text: { 
+          $search: req.query.search,
+          $caseSensitive: false,
+          $diacriticSensitive: false
+        }
+      });
     }
     if (req.query.artisan) {
-      query.artisan = req.query.artisan;
+      andConditions.push({ artisan: req.query.artisan });
+    }
+    
+    // Combine all conditions with $and if we have additional filters
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
+    }
+    
+    // Debug logging for search queries
+    if (req.query.search) {
+      console.log('🔍 Search query constructed:', JSON.stringify(query, null, 2));
     }
     
     // Get products with artisan population
@@ -149,6 +167,14 @@ const getProducts = async (req, res) => {
     ]).toArray();
     
     // Connection managed by middleware - no close needed
+    
+    // Debug logging for search results
+    if (req.query.search) {
+      console.log(`📦 Found ${products.length} products for search: "${req.query.search}"`);
+      products.forEach((p, idx) => {
+        console.log(`   ${idx + 1}. ${p.name} - Type: ${p.productType}, Stock: ${p.stock}, Capacity: ${p.remainingCapacity}, Qty: ${p.availableQuantity}`);
+      });
+    }
     
     const response = {
       success: true,
@@ -336,8 +362,8 @@ const enhancedSearch = async (req, res) => {
     const db = req.db; // Use shared connection from middleware
     const productsCollection = db.collection('products');
     
-    // Build query - use inventory-aware filtering
-    const query = { 
+    // Build base query with inventory-aware filtering
+    const inventoryConditions = {
       isActive: { $ne: false },
       $or: [
         // ready_to_ship: has stock
@@ -357,16 +383,29 @@ const enhancedSearch = async (req, res) => {
       ]
     };
     
+    // Start with inventory conditions
+    const query = { ...inventoryConditions };
+    
+    // Build $and array for combining conditions
+    const andConditions = [];
+    
     if (req.query.category) {
-      query.category = req.query.category;
+      andConditions.push({ category: req.query.category });
     }
     if (req.query.search) {
       // Use native MongoDB text search for better performance
-      query.$text = { 
-        $search: req.query.search,
-        $caseSensitive: false,
-        $diacriticSensitive: false
-      };
+      andConditions.push({
+        $text: { 
+          $search: req.query.search,
+          $caseSensitive: false,
+          $diacriticSensitive: false
+        }
+      });
+    }
+    
+    // Combine all conditions with $and if we have additional filters
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
     
     // Get products with artisan population using aggregation

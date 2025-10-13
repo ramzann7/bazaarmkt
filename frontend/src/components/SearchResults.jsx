@@ -160,7 +160,9 @@ export default function SearchResults() {
     try {
       setIsLoading(true);
       const searchStartTime = performance.now();
+      const callStack = new Error().stack;
       console.log('🔍 Performing search for:', query, 'category:', categoryParam, 'subcategory:', subcategoryParam, 'nearbySearch:', nearbySearch);
+      console.log('🔍 Search called from:', callStack.split('\n')[2]?.trim());
       
       let searchResults;
       
@@ -308,21 +310,21 @@ export default function SearchResults() {
         
         setFilteredProducts(inStockProducts);
         
-        // Track search analytics (with deduplication)
+        // Track search analytics (with simplified deduplication)
         if (query || categoryParam || subcategoryParam) {
           const searchEndTime = performance.now();
           const responseTime = Math.round(searchEndTime - searchStartTime);
           
-          // Create unique search key to prevent duplicate tracking
-          const searchKey = `${query || ''}-${categoryParam || ''}-${subcategoryParam || ''}-${JSON.stringify(userLocation)}-${currentUserId || 'guest'}`;
+          // Create simplified search key (ignore async changing values like location/userId)
+          const searchKey = `${query || ''}-${categoryParam || ''}-${subcategoryParam || ''}`;
           
-          // Only track if this exact search hasn't been tracked recently (within last 5 seconds)
+          // Only track if this search hasn't been tracked recently (within last 3 seconds)
           const now = Date.now();
           if (!lastTrackedSearch.current || 
               lastTrackedSearch.current.key !== searchKey || 
-              (now - lastTrackedSearch.current.timestamp) > 5000) {
+              (now - lastTrackedSearch.current.timestamp) > 3000) {
             
-            console.log('📊 Tracking new search:', searchKey);
+            console.log('📊 Tracking new search:', searchKey, 'at', new Date().toLocaleTimeString());
             
             searchAnalyticsService.trackSearch({
               query: query || `category:${categoryParam || subcategoryParam}`,
@@ -341,7 +343,7 @@ export default function SearchResults() {
               timestamp: now
             };
           } else {
-            console.log('⏭️ Skipping duplicate search tracking:', searchKey);
+            console.log('⏭️ Skipping duplicate search tracking:', searchKey, 'within', (now - lastTrackedSearch.current.timestamp), 'ms');
           }
         }
       } else {
@@ -357,7 +359,8 @@ export default function SearchResults() {
     } finally {
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, nearbySearch, autoSearch, userLocation, calculateDistance, formatDistance, currentUserId, priceRange]);
+    // Reduced dependencies to prevent excessive re-creation
+  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation]);
 
   useEffect(() => {
     getCurrentLocation();
@@ -369,6 +372,7 @@ export default function SearchResults() {
 
   useEffect(() => {
     if (query || categoryParam || subcategoryParam || nearbySearch) {
+      console.log('🎯 useEffect triggering search due to parameter change');
       performSearch();
     } else {
       // If no query or category, show empty state
@@ -376,7 +380,8 @@ export default function SearchResults() {
       setFilteredProducts([]);
       setIsLoading(false);
     }
-  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation, performSearch]);
+    // Removed performSearch from dependencies to prevent cascade re-renders
+  }, [query, categoryParam, subcategoryParam, nearbySearch, userLocation]);
 
   // Refresh search results when page becomes visible (handles tab switching)
   useEffect(() => {

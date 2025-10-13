@@ -112,25 +112,26 @@ export default function Navbar() {
     }
   }, [user], { debounceMs: 300 });
 
-  // Optimized search with debouncing
-  useOptimizedEffect(() => {
-    if (debouncedSearchQuery.length > 2) {
-      // Cache search results
-      const searchCacheKey = `search_${debouncedSearchQuery}_${selectedCategory}`;
-      const cachedResults = cacheService.get(searchCacheKey);
-      
-      if (!cachedResults) {
-        // Preload search results in background
-        enhancedSearchService.searchProducts(debouncedSearchQuery, null, { category: selectedCategory })
-          .then(results => {
-            cacheService.set(searchCacheKey, results, 5 * 60 * 1000); // 5 minutes
-          })
-          .catch(error => {
-            console.error('Search preload error:', error);
-          });
-      }
-    }
-  }, [debouncedSearchQuery, selectedCategory], { debounceMs: 300 });
+  // Disabled search preloading to prevent duplicate analytics tracking
+  // TODO: Re-enable with proper analytics deduplication if needed
+  // useOptimizedEffect(() => {
+  //   if (debouncedSearchQuery.length > 2) {
+  //     // Cache search results
+  //     const searchCacheKey = `search_${debouncedSearchQuery}_${selectedCategory}`;
+  //     const cachedResults = cacheService.get(searchCacheKey);
+  //     
+  //     if (!cachedResults) {
+  //       // Preload search results in background
+  //       enhancedSearchService.searchProducts(debouncedSearchQuery, null, { category: selectedCategory })
+  //         .then(results => {
+  //           cacheService.set(searchCacheKey, results, 5 * 60 * 1000); // 5 minutes
+  //         })
+  //         .catch(error => {
+  //           console.error('Search preload error:', error);
+  //         });
+  //     }
+  //   }
+  // }, [debouncedSearchQuery, selectedCategory], { debounceMs: 300 });
 
   // Listen for cart updates
   useEffect(() => {

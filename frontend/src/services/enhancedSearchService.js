@@ -367,7 +367,7 @@ class EnhancedSearchService {
           ...product,
           distance: distance,
           formattedDistance: geocodingService.formatDistance(distance),
-          proximityScore: this.calculateProximityScore(distance)
+          proximityScore: this.calculateProximityScore(product, userLocation)
         };
       }
       
@@ -493,7 +493,7 @@ class EnhancedSearchService {
 
   // Calculate proximity score
   calculateProximityScore(product, userLocation) {
-    if (!product.artisan?.location?.coordinates) return 0;
+    if (!product?.artisan?.location?.coordinates || !userLocation) return 0;
     
     const distance = this.calculateDistance(
       userLocation.latitude,

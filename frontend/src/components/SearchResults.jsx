@@ -488,19 +488,29 @@ export default function SearchResults() {
   };
 
   const applyFiltersAndSort = () => {
+    console.log('🔧 applyFiltersAndSort called, products count:', products.length);
     let filtered = [...products];
+    console.log('   Starting with:', filtered.length, 'products');
 
     // Apply category filter
     if (selectedCategories.length > 0) {
+      console.log('   Applying category filter:', selectedCategories);
       filtered = filtered.filter(product => 
         selectedCategories.includes(product.category)
       );
+      console.log('   After category filter:', filtered.length, 'products');
     }
 
     // Apply price filter
-    filtered = filtered.filter(product => 
-      product.price >= priceRange[0] && product.price <= priceRange[1]
-    );
+    console.log('   Applying price filter, range:', priceRange);
+    filtered = filtered.filter(product => {
+      const passes = product.price >= priceRange[0] && product.price <= priceRange[1];
+      if (!passes) {
+        console.log(`   ❌ Price filter removed: ${product.name} (price: ${product.price}, range: ${priceRange[0]}-${priceRange[1]})`);
+      }
+      return passes;
+    });
+    console.log('   After price filter:', filtered.length, 'products');
 
     // Apply sorting
     switch (sortBy) {
@@ -522,7 +532,9 @@ export default function SearchResults() {
     }
 
     // Also filter out out-of-stock products
+    console.log('   Applying inventory filter...');
     const inStockFiltered = filterInStockProducts(filtered);
+    console.log('   📊 Final result: setting', inStockFiltered.length, 'products to filteredProducts state');
     setFilteredProducts(inStockFiltered);
   };
 

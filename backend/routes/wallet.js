@@ -13,7 +13,7 @@ const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STR
  */
 const getWalletBalance = async (req, res) => {
   try {
-    const WalletService = require('../services/walletService');
+    const WalletService = require('../services/WalletService');
     const walletService = new WalletService(req.db);
     
     const userId = req.user.userId;
@@ -39,7 +39,7 @@ const getWalletBalance = async (req, res) => {
  */
 const getWalletTransactions = async (req, res) => {
   try {
-    const WalletService = require('../services/walletService');
+    const WalletService = require('../services/WalletService');
     const walletService = new WalletService(req.db);
     
     const userId = req.user.userId;
@@ -165,7 +165,7 @@ const confirmTopUp = async (req, res) => {
     }
 
     // Add funds to wallet
-    const WalletService = require('../services/walletService');
+    const WalletService = require('../services/WalletService');
     const walletService = new WalletService(req.db);
     
     const amount = paymentIntent.amount / 100; // Convert from cents
@@ -212,7 +212,7 @@ const confirmTopUp = async (req, res) => {
  */
 const getWalletAnalytics = async (req, res) => {
   try {
-    const WalletService = require('../services/walletService');
+    const WalletService = require('../services/WalletService');
     const walletService = new WalletService(req.db);
     
     const userId = req.user.userId;

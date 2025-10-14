@@ -137,7 +137,7 @@ class OptimizedMicroservicesIntegration {
       'community-service': require('../services/communityService'),
       'artisan-service': require('../services/artisanService'),
       'promotional-service': require('../services/promotionalService'),
-      'wallet-service': require('../services/walletService'),
+      'wallet-service': require('../services/WalletService'),
       'revenue-service': require('../services/revenueService'),
       'spotlight-service': require('../services/spotlightService'),
       'admin-service': require('../services/adminService'),

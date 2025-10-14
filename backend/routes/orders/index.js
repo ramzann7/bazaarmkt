@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const stripe = process.env.STRIPE_SECRET_KEY ? require('stripe')(process.env.STRIPE_SECRET_KEY) : null;
 const PlatformSettingsService = require('../../services/platformSettingsService');
 const redisCacheService = require('../../services/redisCacheService');
-const WalletService = require('../../services/walletService');
+const WalletService = require('../../services/WalletService');
 
 // Import notification service functions  
 const { sendNotification, sendPreferenceBasedNotification } = require('../notifications/index');

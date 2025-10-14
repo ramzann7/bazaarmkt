@@ -223,6 +223,8 @@ export const orderService = {
         // Get the updated order data from response
         const updatedOrder = response.data?.data?.order || response.data?.order;
         if (updatedOrder && statusData.status) {
+          // Pass userRole as actorRole (the person making the change)
+          // The notification service will determine who should receive the notification
           orderNotificationService.triggerOrderStatusUpdateNotification(updatedOrder, statusData.status, userRole);
           console.log('✅ Order status update toast notification triggered');
         }
@@ -261,8 +263,25 @@ export const orderService = {
       const { cacheService, CACHE_KEYS } = await import('./cacheService');
       cacheService.clear(); // Clear all caches to ensure fresh data
       
-      // Note: Cancellation notifications are sent to artisans by the backend
-      // No patron notification needed here as per requirements
+      // Trigger notification to artisan (patron cancelled order)
+      try {
+        const { orderNotificationService } = await import('./orderNotificationService');
+        const { getProfile } = await import('./authservice');
+        const profile = await getProfile();
+        const userRole = profile.role || profile.userType;
+        
+        // Get the updated order data from response
+        const updatedOrder = response.data?.data?.order || response.data?.order;
+        if (updatedOrder) {
+          // Pass userRole as actorRole (patron making the cancellation)
+          // This will notify the artisan that the order was cancelled
+          orderNotificationService.triggerOrderStatusUpdateNotification(updatedOrder, 'cancelled', userRole);
+          console.log('✅ Order cancellation notification triggered');
+        }
+      } catch (toastError) {
+        console.error('❌ Error triggering cancellation notification:', toastError);
+        // Don't fail the cancellation if toast notification fails
+      }
       
       return response.data;
     } catch (error) {
@@ -302,6 +321,26 @@ export const orderService = {
       // Clear order-related caches to ensure fresh data
       const { cacheService, CACHE_KEYS } = await import('./cacheService');
       cacheService.clear(); // Clear all caches to ensure fresh data
+      
+      // Trigger notification to artisan (patron confirmed receipt)
+      try {
+        const { orderNotificationService } = await import('./orderNotificationService');
+        const { getProfile } = await import('./authservice');
+        const profile = await getProfile();
+        const userRole = profile.role || profile.userType;
+        
+        // Get the updated order data from response
+        const updatedOrder = response.data?.data?.order || response.data?.order;
+        if (updatedOrder) {
+          // Pass userRole as actorRole (patron making the confirmation)
+          // This will notify the artisan that the order is completed
+          orderNotificationService.triggerOrderStatusUpdateNotification(updatedOrder, 'completed', userRole);
+          console.log('✅ Order receipt confirmation notification triggered');
+        }
+      } catch (toastError) {
+        console.error('❌ Error triggering confirmation notification:', toastError);
+        // Don't fail the confirmation if toast notification fails
+      }
       
       return response.data;
     } catch (error) {

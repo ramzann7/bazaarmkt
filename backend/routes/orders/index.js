@@ -1690,6 +1690,57 @@ const createOrder = async (req, res) => {
       await invalidateArtisanCache(artisanId);
     }
     
+    // Calculate initial order timeline (Phase 1 Implementation)
+    try {
+      const { createOrderTimelineService, createProductionQueueService } = require('../../services');
+      const orderTimelineService = await createOrderTimelineService();
+      
+      console.log('🕐 Calculating initial timeline for new order:', orderId);
+      
+      // Get the created order with full data
+      const createdOrder = await ordersCollection.findOne({ _id: orderId });
+      
+      // Calculate timeline for the order
+      const timeline = await orderTimelineService.calculateOrderTimeline(createdOrder);
+      
+      // Update order with timeline
+      await ordersCollection.updateOne(
+        { _id: orderId },
+        { 
+          $set: { 
+            timeline: timeline,
+            'timeline.lastUpdated': new Date()
+          }
+        }
+      );
+      
+      // Add order items to production queue for artisan
+      if (order.artisan && timeline.productionRequirements.totalProductionTime > 0) {
+        const productionQueueService = await createProductionQueueService();
+        
+        try {
+          await productionQueueService.addOrderToQueue(
+            orderId.toString(),
+            order.artisan.toString(),
+            timeline.overallTimeline.earliestStartDate || new Date(),
+            'normal' // Default priority
+          );
+          
+          console.log('✅ Order added to production queue');
+        } catch (queueError) {
+          console.warn('⚠️ Failed to add order to production queue:', queueError.message);
+          // Don't fail order creation if queue addition fails
+        }
+      }
+      
+      console.log('✅ Timeline calculated and saved for order:', orderId);
+      
+    } catch (timelineError) {
+      console.error('❌ Error calculating order timeline:', timelineError);
+      // Don't fail order creation if timeline calculation fails
+      // Timeline can be calculated later via API
+    }
+    
     // Connection managed by middleware - no close needed
     
     res.status(201).json({
@@ -3359,6 +3410,57 @@ const createGuestOrder = async (req, res) => {
     } catch (notificationError) {
       console.error('❌ Error sending guest order notifications:', notificationError);
       // Don't fail the order creation if notification fails
+    }
+    
+    // Calculate initial order timeline for guest order (Phase 1 Implementation)
+    try {
+      const { createOrderTimelineService, createProductionQueueService } = require('../../services');
+      const orderTimelineService = await createOrderTimelineService();
+      
+      console.log('🕐 Calculating initial timeline for new guest order:', orderId);
+      
+      // Get the created order with full data
+      const createdOrder = await ordersCollection.findOne({ _id: orderId });
+      
+      // Calculate timeline for the order
+      const timeline = await orderTimelineService.calculateOrderTimeline(createdOrder);
+      
+      // Update order with timeline
+      await ordersCollection.updateOne(
+        { _id: orderId },
+        { 
+          $set: { 
+            timeline: timeline,
+            'timeline.lastUpdated': new Date()
+          }
+        }
+      );
+      
+      // Add order items to production queue for artisan
+      if (order.artisan && timeline.productionRequirements.totalProductionTime > 0) {
+        const productionQueueService = await createProductionQueueService();
+        
+        try {
+          await productionQueueService.addOrderToQueue(
+            orderId.toString(),
+            order.artisan.toString(),
+            timeline.overallTimeline.earliestStartDate || new Date(),
+            'normal' // Default priority
+          );
+          
+          console.log('✅ Guest order added to production queue');
+        } catch (queueError) {
+          console.warn('⚠️ Failed to add guest order to production queue:', queueError.message);
+          // Don't fail order creation if queue addition fails
+        }
+      }
+      
+      console.log('✅ Timeline calculated and saved for guest order:', orderId);
+      
+    } catch (timelineError) {
+      console.error('❌ Error calculating guest order timeline:', timelineError);
+      // Don't fail order creation if timeline calculation fails
+      // Timeline can be calculated later via API
     }
     
     // Populate artisan information for the guest order

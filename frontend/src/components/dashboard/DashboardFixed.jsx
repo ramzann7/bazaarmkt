@@ -15,7 +15,7 @@ import { orderService } from "../../services/orderService";
 import { spotlightService } from "../../services/spotlightService";
 import walletService from "../../services/walletService";
 import toast from "react-hot-toast";
-import PendingOrdersWidget from "./PendingOrdersWidget.jsx";
+import DashboardPriorityQueue from "./DashboardPriorityQueue.jsx";
 import WalletCard from "./WalletCard.jsx";
 
 export default function DashboardFixed() {
@@ -469,9 +469,9 @@ export default function DashboardFixed() {
           </div>
         </div>
 
-        {/* Orders Section */}
+        {/* Priority Queue Section */}
         <div className="mb-8">
-          <PendingOrdersWidget />
+          <DashboardPriorityQueue />
         </div>
 
         {/* Revenue & Earnings */}

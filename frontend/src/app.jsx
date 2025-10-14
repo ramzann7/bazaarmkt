@@ -119,11 +119,6 @@ function AppRoutes() {
         const currentPath = window.location.pathname;
         preloadService.preloadForRoute(currentPath);
         
-        // Initialize order notification service for artisans
-        if (isAuthenticated) {
-          orderNotificationService.connect();
-        }
-        
         // Initialize Brevo notification service
         // API key will be loaded from environment variable or use fallback
         initializeNotificationService();
@@ -134,7 +129,24 @@ function AppRoutes() {
     
     return () => {
       performanceService.endTimer('app_mount');
+    };
+  }, []); // Remove isAuthenticated dependency to prevent loops
+
+  // Initialize order notification service separately, only when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !orderNotificationService.isConnected) {
+      console.log('🔄 Connecting order notification service for authenticated user');
+      orderNotificationService.connect();
+    } else if (!isAuthenticated && orderNotificationService.isConnected) {
+      console.log('🔌 Disconnecting order notification service for unauthenticated user');
       orderNotificationService.disconnect();
+    }
+    
+    // Cleanup on unmount only
+    return () => {
+      if (orderNotificationService.isConnected) {
+        orderNotificationService.disconnect();
+      }
     };
   }, [isAuthenticated]);
 

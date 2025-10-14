@@ -123,11 +123,15 @@ class OrderNotificationService {
       // Reset the flag when we have a token
       this.hasLoggedNoToken = false;
 
-      // Get user profile to determine notification type
-      const { getProfile } = await import('./authservice');
-      console.log('🔍 Attempting to get profile for order notifications...');
-      const profile = await getProfile();
-      console.log('🔍 Profile result:', profile ? 'Found profile' : 'Profile is null/undefined');
+      // Cache user profile to avoid repeated API calls
+      if (!this.cachedProfile || isLoginTriggered) {
+        const { getProfile } = await import('./authservice');
+        console.log('🔍 Loading profile for order notifications...');
+        this.cachedProfile = await getProfile();
+        console.log('🔍 Profile cached:', this.cachedProfile ? 'Found profile' : 'Profile is null/undefined');
+      }
+      
+      const profile = this.cachedProfile;
       
       // Check if profile exists and has role information
       if (!profile) {
@@ -497,8 +501,9 @@ class OrderNotificationService {
       this.pollInterval = null;
     }
     this.isConnected = false;
-    // Reset the logging flag
+    // Reset the logging flag and clear cached profile
     this.hasLoggedNoToken = false;
+    this.cachedProfile = null;
     console.log('🔌 Order notification service disconnected');
   }
 
@@ -550,8 +555,19 @@ class OrderNotificationService {
   }
 
   // Manually trigger notification for order status updates
-  triggerOrderStatusUpdateNotification(orderData, newStatus, userRole) {
-    console.log('🔔 Manual order status update notification triggered');
+  triggerOrderStatusUpdateNotification(orderData, newStatus, actorRole, targetRole = null) {
+    console.log('🔔 Manual order status update notification triggered', {
+      orderId: orderData._id?.slice(-6),
+      newStatus,
+      actorRole,
+      targetRole
+    });
+    
+    // Don't notify the person making the change
+    if (actorRole === targetRole) {
+      console.log('🔇 Skipping self-notification - actor and target are the same role');
+      return;
+    }
     
     // Check if this is a guest user - guests should only get email notifications, not toast
     const isGuest = orderData?.isGuestOrder || orderData?.userInfo?.isGuest || false;
@@ -560,51 +576,94 @@ class OrderNotificationService {
       return;
     }
     
-    // Play notification sound
-    if (this.notificationSound) {
+    // Determine the recipient role (who should receive the notification)
+    const recipientRole = targetRole || (actorRole === 'artisan' ? 'patron' : 'artisan');
+    
+    // Play notification sound only if this is a real recipient
+    if (this.notificationSound && recipientRole !== actorRole) {
       this.notificationSound();
     }
 
-    // Show toast notification based on user role
+    // Show toast notification based on recipient role
     import('react-hot-toast').then(({ default: toast }) => {
-      if (userRole === 'patron') {
+      const orderId = orderData._id;
+      const orderNumber = orderId?.slice(-6) || 'New';
+      
+      // Helper function to navigate to specific order
+      const navigateToOrder = () => {
+        // Navigate to orders page with specific order selected
+        window.location.href = `/orders?orderId=${orderId}`;
+      };
+      
+      if (recipientRole === 'patron') {
+        // For patrons - only pending confirmation is action required
+        const requiresAction = newStatus === 'delivered' || newStatus === 'picked_up';
+        const needsConfirmation = requiresAction && !orderData.walletCredit?.patronConfirmedAt;
+        
         const statusMessages = {
-          'confirmed': 'Order confirmed by artisan!',
-          'preparing': 'Your order is being prepared!',
-          'ready_for_pickup': 'Your order is ready for pickup!',
-          'ready_for_delivery': 'Your order is ready for delivery!',
-          'out_for_delivery': 'Your order is out for delivery!',
-          'delivered': 'Your order has been delivered!',
-          'picked_up': 'Your order has been picked up!',
-          'completed': 'Your order has been completed!',
-          'cancelled': 'Your order has been cancelled.',
-          'declined': 'Your order has been declined by the artisan.'
+          'confirmed': 'Your order has been confirmed by the artisan',
+          'preparing': 'Your order is being prepared',
+          'ready_for_pickup': 'Your order is ready for pickup',
+          'ready_for_delivery': 'Your order is ready for delivery',  
+          'out_for_delivery': 'Your order is out for delivery',
+          'delivered': needsConfirmation ? 'Confirm receipt of your delivery!' : 'Your order has been delivered!',
+          'picked_up': needsConfirmation ? 'Confirm receipt of your pickup!' : 'Your order has been picked up!',
+          'completed': 'Your order has been completed',
+          'cancelled': 'Your order has been cancelled',
+          'declined': 'Your order has been declined by the artisan'
         };
 
         const message = statusMessages[newStatus] || `Order status updated to: ${newStatus}`;
         const isPositive = !['cancelled', 'declined'].includes(newStatus);
+        const prefix = needsConfirmation ? '⚡ ACTION REQUIRED: ' : '';
         
         if (isPositive) {
-          toast.success(`${message} Order #${orderData._id?.slice(-6) || 'New'}`, {
-            duration: 5000,
-            onClick: () => {
-              window.location.href = '/orders';
-            }
+          toast.success(`${prefix}${message} Order #${orderNumber}`, {
+            duration: needsConfirmation ? 8000 : 5000,
+            onClick: navigateToOrder,
+            style: needsConfirmation ? {
+              background: '#FEF3C7',
+              color: '#92400E',
+              border: '2px solid #F59E0B',
+              fontWeight: 'bold'
+            } : undefined
           });
         } else {
-          toast.error(`${message} Order #${orderData._id?.slice(-6) || 'New'}`, {
+          toast.error(`${message} Order #${orderNumber}`, {
             duration: 5000,
-            onClick: () => {
-              window.location.href = '/orders';
-            }
+            onClick: navigateToOrder
           });
         }
-      } else if (userRole === 'artisan') {
-        toast.success(`Order status updated to: ${newStatus}`, {
-          duration: 3000,
-          onClick: () => {
-            window.location.href = '/orders';
-          }
+      } else if (recipientRole === 'artisan') {
+        // For artisans - only pending orders require action (confirm/decline)
+        const requiresAction = newStatus === 'pending';
+        
+        const artisanStatusMessages = {
+          'pending': 'New order needs confirmation!',
+          'confirmed': 'Order confirmed',
+          'preparing': 'Order is being prepared',
+          'ready_for_pickup': 'Order is ready for pickup',
+          'ready_for_delivery': 'Order is ready for delivery',
+          'out_for_delivery': 'Order is out for delivery',
+          'picked_up': 'Order has been picked up',
+          'delivered': 'Order has been delivered',
+          'completed': 'Order has been completed',
+          'cancelled': 'Order was cancelled',
+          'declined': 'Order was declined'
+        };
+        
+        const message = artisanStatusMessages[newStatus] || `Order status updated to: ${newStatus}`;
+        const prefix = requiresAction ? '⚡ ACTION REQUIRED: ' : '';
+        
+        toast.success(`${prefix}${message} Order #${orderNumber}`, {
+          duration: requiresAction ? 8000 : 4000,
+          onClick: navigateToOrder,
+          style: requiresAction ? {
+            background: '#FEF3C7',
+            color: '#92400E',
+            border: '2px solid #F59E0B',
+            fontWeight: 'bold'
+          } : undefined
         });
       }
     }).catch(error => {

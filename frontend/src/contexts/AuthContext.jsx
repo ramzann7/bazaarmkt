@@ -207,17 +207,20 @@ export const AuthProvider = ({ children }) => {
     }
   }, [initializationAttempted]);
 
-  // Fallback initialization with timeout in case useEffect doesn't trigger
+  // Fallback initialization with timeout in case useEffect doesn't trigger (once only)
   useEffect(() => {
-    const fallbackTimer = setTimeout(() => {
-      if (!initializationAttempted) {
-        console.log('🚀 AuthContext: Fallback initialization triggered after timeout');
-        manualInitialize();
-      }
-    }, 1000); // 1 second fallback
+    // Only set fallback timer once, not on every initializationAttempted change
+    if (!initializationAttempted) {
+      const fallbackTimer = setTimeout(() => {
+        if (!initializationAttempted) {
+          console.log('🚀 AuthContext: Fallback initialization triggered after timeout');
+          manualInitialize();
+        }
+      }, 2000); // Increase to 2 seconds to prevent aggressive retries
 
-    return () => clearTimeout(fallbackTimer);
-  }, [initializationAttempted, manualInitialize]);
+      return () => clearTimeout(fallbackTimer);
+    }
+  }, []); // Empty dependency array to run only once
 
   // Login function - Optimized for immediate response
   const login = async (userData) => {

@@ -40,6 +40,7 @@ module.exports = {
   createSpotlightService: createService(require('./SpotlightService')),
   createWalletService: createService(require('./WalletService')),
   createInventoryService: createService(require('./InventoryService')),
+  createOrderTimelineService: createService(require('./OrderTimelineService')),
   createAuthService: createService(require('./AuthService')),
   createPlatformSettingsService: createService(require('./platformSettingsService'))
 };

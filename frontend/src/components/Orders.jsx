@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   ShoppingBagIcon, 
   XMarkIcon,
@@ -24,6 +24,7 @@ const isArtisan = (userRole) => {
 
 export default function Orders() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [allOrders, setAllOrders] = useState([]); // Cache all orders
   const [allSalesOrders, setAllSalesOrders] = useState([]); // Cache sales orders for priority queue
   const [allPurchasesOrders, setAllPurchasesOrders] = useState([]); // Cache purchases orders for priority queue
@@ -31,10 +32,11 @@ export default function Orders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [filter, setFilter] = useState('active'); // Default to active orders (priority queue shows all active orders with pending prioritized)
+  const [filter, setFilter] = useState('in_progress'); // Default to in progress orders 
   const [orderType, setOrderType] = useState('sales'); // For artisans: 'sales' or 'purchases'
   const [userRole, setUserRole] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, grid
+  const [searchQuery, setSearchQuery] = useState(''); // Search by order number
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationData, setConfirmationData] = useState(null);
   const [ordersLoaded, setOrdersLoaded] = useState(false); // Track if orders have been loaded
@@ -74,7 +76,7 @@ export default function Orders() {
     if (ordersLoaded && userRole && allOrders.length > 0) {
       applyFilter();
     }
-  }, [allOrders]);
+  }, [allOrders, filter, searchQuery]);
 
   // Handle order confirmation from checkout
   useEffect(() => {
@@ -98,7 +100,19 @@ export default function Orders() {
       // Clear the state to prevent showing again on refresh
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, orders]);
+    
+    // Handle selected order from URL parameters (e.g., from notifications)
+    const orderIdFromUrl = searchParams.get('orderId');
+    if (orderIdFromUrl) {
+      const selectedOrder = orders.find(order => order._id === orderIdFromUrl);
+      if (selectedOrder) {
+        setSelectedOrder(selectedOrder);
+        setShowOrderDetails(true);
+        // Clear the URL parameter after opening the order
+        setSearchParams(new URLSearchParams());
+      }
+    }
+  }, [location.state, orders, searchParams, setSearchParams]);
 
   const loadUserAndOrders = async (forceRefresh = false) => {
     try {
@@ -166,18 +180,7 @@ export default function Orders() {
     const actualUserRole = userRole || 'patron'; // Default to patron if not set
     if (actualUserRole === 'artisan') {
       switch (filter) {
-        case 'needs_action':
-          filteredOrders = allOrders.filter(order => 
-            ['pending'].includes(order.status)
-          );
-          break;
         case 'in_progress':
-          filteredOrders = allOrders.filter(order => 
-            ['confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
-          );
-          break;
-        case 'active':
-          // Show all active orders (not cancelled, completed, or declined) - priority sorting will handle prioritization
           filteredOrders = allOrders.filter(order => 
             !['cancelled', 'completed', 'declined'].includes(order.status)
           );
@@ -186,7 +189,7 @@ export default function Orders() {
           // Show all orders (no additional filtering)
           break;
         default:
-          // Default: Show all active orders (not cancelled, completed, or declined) - priority sorting will handle prioritization
+          // Default: Show in progress orders
           filteredOrders = allOrders.filter(order => 
             !['cancelled', 'completed', 'declined'].includes(order.status)
           );
@@ -194,9 +197,9 @@ export default function Orders() {
     } else {
       // Patron filtering
       switch (filter) {
-        case 'active':
+        case 'in_progress':
           filteredOrders = allOrders.filter(order => 
-            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
           );
           break;
         case 'delivered':
@@ -208,16 +211,37 @@ export default function Orders() {
           // Show all orders (no additional filtering)
           break;
         default:
-          // Default to active orders for patrons
+          // Default to in progress orders for patrons
           filteredOrders = allOrders.filter(order => 
-            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up'].includes(order.status)
+            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
           );
       }
+    }
+    
+    // Apply search filtering if search query exists
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filteredOrders = filteredOrders.filter(order => {
+        const orderId = order._id?.toString() || '';
+        const orderNumber = orderId.slice(-6); // Get last 6 characters (abbreviated)
+        
+        // Search in full order ID, abbreviated order number, or any order-related text
+        return (
+          orderId.toLowerCase().includes(query) ||
+          orderNumber.toLowerCase().includes(query) ||
+          // Also search in customer name if available
+          order.patron?.firstName?.toLowerCase().includes(query) ||
+          order.patron?.lastName?.toLowerCase().includes(query) ||
+          order.guestInfo?.firstName?.toLowerCase().includes(query) ||
+          order.guestInfo?.lastName?.toLowerCase().includes(query)
+        );
+      });
     }
     
     console.log('📦 Filtered orders result:', {
       filter: filter,
       userRole: userRole,
+      searchQuery: searchQuery,
       totalOrders: allOrders.length,
       filteredCount: filteredOrders.length,
       statuses: filteredOrders.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
@@ -794,17 +818,19 @@ export default function Orders() {
           )}
         </div>
 
-        {/* Priority Queue - For Both Artisans and Patrons */}
-        <PriorityOrderQueue
-          key={`priority-queue-${refreshKey}`}
-          orders={orders}
-          salesOrders={allSalesOrders}
-          purchasesOrders={allPurchasesOrders}
-          onOrderClick={handleOrderClick}
-          onQuickAction={handleQuickAction}
-          userRole={userRole}
-          updatingOrderId={updatingOrderId}
-        />
+        {/* Priority Queue - For Patrons Only (Artisans use Dashboard) */}
+        {userRole === 'patron' && (
+          <PriorityOrderQueue
+            key={`priority-queue-${refreshKey}`}
+            orders={orders}
+            salesOrders={allSalesOrders}
+            purchasesOrders={allPurchasesOrders}
+            onOrderClick={handleOrderClick}
+            onQuickAction={handleQuickAction}
+            userRole={userRole}
+            updatingOrderId={updatingOrderId}
+          />
+        )}
 
         {/* Enhanced Filters and View Toggle */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
@@ -839,12 +865,38 @@ export default function Orders() {
           )}
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row gap-4 w-full">
+              {/* Search Input */}
+              <div className="relative flex-1 max-w-sm">
+                <input
+                  type="text"
+                  placeholder="Search by order number (e.g., abc123 or #abc123)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-2 pl-10 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              
+              {/* Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
               {isArtisan(userRole) ? (
                 // Simplified artisan filters
                 [
-                  { key: 'active', label: 'Active Orders', icon: '⚡' },
-                  { key: 'needs_action', label: 'Needs Action', icon: '🚨' },
                   { key: 'in_progress', label: 'In Progress', icon: '👨‍🍳' },
                   { key: 'all', label: 'All Orders', icon: '📦' }
                 ].map(({ key, label, icon }) => (
@@ -862,9 +914,9 @@ export default function Orders() {
                   </button>
                 ))
               ) : (
-                // Patron filters - focus on active orders
+                // Patron filters
                 [
-                  { key: 'active', label: 'Active', icon: '📦' },
+                  { key: 'in_progress', label: 'In Progress', icon: '👨‍🍳' },
                   { key: 'delivered', label: 'Delivered', icon: '✅' },
                   { key: 'all', label: 'All Orders', icon: '📦' }
                 ].map(({ key, label, icon }) => (
@@ -882,8 +934,8 @@ export default function Orders() {
                   </button>
                 ))
               )}
+              </div>
             </div>
-            
             
             <div className="flex items-center gap-4">
               <button
@@ -1661,7 +1713,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
       onClose();
       
       await orderService.cancelOrder(order._id, reason);
-      toast.success('Order cancelled successfully');
+      // Note: Notification handled by orderService (sent to other party)
       
       console.log('🔄 Refreshing orders after cancellation...');
       await onRefresh(true); // Force refresh after cancellation
@@ -1723,7 +1775,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
       onClose();
       
       const result = await orderService.confirmOrderReceipt(order._id);
-      toast.success(`✅ Order confirmed successfully!`);
+      // Note: Notification handled by orderService (sent to other party)
       
       console.log('🔄 Refreshing orders after receipt confirmation...');
       await onRefresh(true); // Force refresh after receipt confirmation
@@ -1854,6 +1906,16 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Order Timeline - Phase 1 Implementation */}
+          <div className="space-y-4">
+            <h4 className="font-bold text-gray-900 text-lg">Order Timeline</h4>
+            <OrderTimeline 
+              order={order} 
+              isArtisanView={isArtisan(userRole)}
+              showDetailsButton={true}
+            />
           </div>
 
           {/* Cost Absorption Decision CTA (for artisans when delivery cost increased) */}

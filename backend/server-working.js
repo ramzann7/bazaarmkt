@@ -214,6 +214,7 @@ const platformSettingsRoutes = require('./routes/platform-settings');
 const geographicSettingsRoutes = require('./routes/geographic-settings');
 const deliveryRoutes = require('./routes/delivery');
 const searchRoutes = require('./routes/search');
+const timelineRoutes = require('./routes/timeline');
 
 // ============================================================================
 // WALLET TRANSACTION HELPER FUNCTIONS
@@ -327,6 +328,7 @@ app.use('/api/platform-settings', platformSettingsRoutes);
 app.use('/api/geographic-settings', geographicSettingsRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api', timelineRoutes);
 
 // ============================================================================
 // SPOTLIGHT ENDPOINTS

@@ -290,51 +290,56 @@ export default function DashboardPriorityQueue() {
 
   return (
     <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200 rounded-2xl overflow-hidden relative shadow-lg">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-orange-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
+      {/* Header - Responsive */}
+      <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-orange-200">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {/* Icon + Title */}
+          <div className="flex items-center gap-2">
             <div className="relative">
-              <BellIcon className="w-6 h-6 text-orange-600" />
+              <BellIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
               {priorityOrders.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-pulse">
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center font-bold animate-pulse">
                   {priorityOrders.length > 9 ? '9+' : priorityOrders.length}
                 </span>
               )}
             </div>
-            <div className="ml-3">
-              <h3 className="text-xl font-bold text-gray-900">
-                🚨 Priority Queue - Action Needed
-              </h3>
-              <div className="flex gap-3 mt-1 text-sm">
-                <span className="font-semibold text-blue-700">
-                  💼 {orderTypeCounts.sales} Sales
-                </span>
-                <span className="text-gray-400">|</span>
-                <span className="font-semibold text-teal-700">
-                  🛒 {orderTypeCounts.purchases} Purchases
-                </span>
-              </div>
-            </div>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+              🚨 Priority Queue
+            </h3>
           </div>
-          <button
-            onClick={handleViewAllOrders}
-            className="text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors px-3 py-2 rounded-lg hover:bg-white/50"
-          >
-            View All Orders
-          </button>
+          
+          {/* Stats - mobile optimized */}
+          <div className="flex items-center justify-between sm:justify-start gap-3 text-xs sm:text-sm">
+            <span className="font-semibold text-blue-700">
+              💼 {orderTypeCounts.sales} Sales
+            </span>
+            <span className="text-gray-400">|</span>
+            <span className="font-semibold text-teal-700">
+              🛒 {orderTypeCounts.purchases} Purchases
+            </span>
+            <button
+              onClick={handleViewAllOrders}
+              className="ml-auto sm:ml-4 text-xs sm:text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors px-2 sm:px-3 py-1 sm:py-2 rounded-lg hover:bg-white/50"
+            >
+              View All
+            </button>
+          </div>
         </div>
-        <p className="text-sm text-gray-600 mt-2">
+        <p className="text-xs sm:text-sm text-gray-600 mt-2">
           {priorityOrders.length === 1 
-            ? 'You have 1 order that needs immediate attention'
-            : `You have ${priorityOrders.length} orders that need immediate attention`
+            ? '1 order needs immediate attention'
+            : `${priorityOrders.length} orders need immediate attention`
           }
         </p>
       </div>
 
-      {/* Status Tabs */}
-      <div className="px-6 py-4 border-b border-orange-200">
-        <div className="flex gap-4 overflow-x-auto pb-2">
+      {/* Status Tabs with Scroll Indicators */}
+      <div className="relative px-3 sm:px-6 py-3 sm:py-4 border-b border-orange-200">
+        {/* Gradient indicators for scrollable content */}
+        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-orange-50 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-orange-50 to-transparent z-10 pointer-events-none" />
+        
+        <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 snap-x scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
           {Object.entries(PRIORITY_STATUSES).map(([status, config]) => {
             const count = groupedOrders[status]?.length || 0;
             if (count === 0) return null;
@@ -361,7 +366,7 @@ export default function DashboardPriorityQueue() {
             return (
               <div
                 key={status}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap cursor-default transition-all ${getTabClass()}`}
+                className={`snap-start flex-shrink-0 flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-semibold text-xs sm:text-sm whitespace-nowrap cursor-default transition-all ${getTabClass()}`}
               >
                 <span>{config.icon}</span>
                 <span>{config.label}</span>
@@ -375,31 +380,43 @@ export default function DashboardPriorityQueue() {
       </div>
 
       {/* Priority Orders - Always Shown */}
-      <div className="p-6">
-        {/* Horizontal Scrollable Cards */}
+      <div className="p-3 sm:p-6">
+        {/* Horizontal Scrollable Cards with Snap */}
         <div 
-          className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2"
+          className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100"
           style={{ 
-            scrollBehavior: 'smooth',
-            msOverflowStyle: 'none',
-            scrollbarWidth: 'thin'
+            scrollBehavior: 'smooth'
           }}
         >
           {priorityOrders.map(order => (
-            <PriorityOrderCard
-              key={order._id}
-              order={order}
-              onClick={handleOrderClick}
-              onQuickAction={handleQuickAction}
-              userRole="artisan"
-              isUpdating={updatingOrderId === order._id}
-            />
+            <div key={order._id} className="snap-center flex-shrink-0 w-[85vw] sm:w-80">
+              <PriorityOrderCard
+                order={order}
+                onClick={handleOrderClick}
+                onQuickAction={handleQuickAction}
+                userRole="artisan"
+                isUpdating={updatingOrderId === order._id}
+              />
+            </div>
           ))}
         </div>
         
-        {/* Scroll Hint for Many Orders */}
+        {/* Pagination Dots for Mobile */}
+        {priorityOrders.length > 1 && (
+          <div className="flex justify-center gap-1.5 mt-3">
+            {priorityOrders.map((_, idx) => (
+              <div 
+                key={idx} 
+                className="w-2 h-2 rounded-full bg-orange-300 transition-all"
+                aria-label={`Order ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Scroll Hint for Desktop */}
         {priorityOrders.length > 3 && (
-          <div className="text-center text-xs text-gray-500 mt-2">
+          <div className="hidden sm:block text-center text-xs text-gray-500 mt-2">
             ← Scroll to see all {priorityOrders.length} priority order{priorityOrders.length > 1 ? 's' : ''} →
           </div>
         )}

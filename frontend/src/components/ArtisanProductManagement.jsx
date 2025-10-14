@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
@@ -25,6 +26,8 @@ import { productService } from '../services/productService';
 import { PRODUCT_CATEGORIES, getAllCategories, getAllSubcategories } from '../data/productReference';
 import InventoryManagement, { InventoryDisplay } from './InventoryManagement';
 import InventoryModel from '../models/InventoryModel';
+import MobileProductForm from './forms/MobileProductForm';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 export default function ArtisanProductManagement() {
   const [products, setProducts] = useState([]);
@@ -44,6 +47,7 @@ export default function ArtisanProductManagement() {
   });
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
 
   useEffect(() => {
@@ -136,13 +140,29 @@ export default function ArtisanProductManagement() {
             );
             
             // Use the product from inventory API response
-            updatedProduct = response.data.product;
-            console.log('✅ Inventory updated via API:', updatedProduct);
+            if (response.data && response.data.product) {
+              updatedProduct = response.data.product;
+              console.log('✅ Inventory updated via API:', updatedProduct);
+            } else if (response.data) {
+              // Sometimes the response is the product itself
+              updatedProduct = response.data;
+              console.log('✅ Inventory updated via API (direct response):', updatedProduct);
+            } else {
+              console.warn('⚠️ Inventory API response missing product data, using previous product');
+            }
           }
         }
         
-        setProducts(products.map(p => p._id === selectedProduct._id ? updatedProduct : p));
-        toast.success('Product updated successfully!');
+        // Ensure updatedProduct is valid before updating
+        if (updatedProduct && updatedProduct._id) {
+          setProducts(products.map(p => p._id === selectedProduct._id ? updatedProduct : p));
+          toast.success('Product updated successfully!');
+        } else {
+          console.error('❌ Updated product is invalid:', updatedProduct);
+          toast.error('Product update may have failed - please refresh the page');
+          // Reload products to get fresh data
+          await loadProducts();
+        }
       } else {
         // Add new product
         console.log('🔍 Creating new product...');
@@ -276,13 +296,14 @@ export default function ArtisanProductManagement() {
   };
 
   const applyFiltersAndSort = () => {
-    let filtered = [...products];
+    // Filter out any null/undefined products first
+    let filtered = products.filter(p => p && p._id);
 
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase())
+        product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -503,20 +524,27 @@ export default function ArtisanProductManagement() {
               </div>
             </div>
             
-            {/* Category Filter - Subtle dropdown */}
+            {/* Category Filter - Mobile Optimized */}
             <div className="flex gap-2 w-full lg:w-auto">
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="flex-1 lg:flex-initial px-3 py-2 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700"
+                className="flex-1 lg:flex-initial px-4 py-3 text-base sm:text-sm border-2 border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700 font-medium shadow-sm hover:border-stone-400"
+                style={{ 
+                  minHeight: '48px', 
+                  fontSize: '16px',
+                  WebkitAppearance: 'menulist',
+                  MozAppearance: 'menulist',
+                  appearance: 'menulist'
+                }}
               >
-                <option value="all">All Categories</option>
-                <option value="bakery">Bakery</option>
-                <option value="dairy">Dairy</option>
-                <option value="produce">Produce</option>
-                <option value="meat">Meat</option>
-                <option value="beverages">Beverages</option>
-                <option value="snacks">Snacks</option>
+                <option value="all" style={{ fontSize: '16px' }}>All Categories</option>
+                <option value="bakery" style={{ fontSize: '16px' }}>Bakery</option>
+                <option value="dairy" style={{ fontSize: '16px' }}>Dairy</option>
+                <option value="produce" style={{ fontSize: '16px' }}>Produce</option>
+                <option value="meat" style={{ fontSize: '16px' }}>Meat</option>
+                <option value="beverages" style={{ fontSize: '16px' }}>Beverages</option>
+                <option value="snacks" style={{ fontSize: '16px' }}>Snacks</option>
               </select>
             </div>
           </div>
@@ -562,19 +590,33 @@ export default function ArtisanProductManagement() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredProducts.map((product) => {
+              {filteredProducts.filter(p => p && p._id).map((product) => {
                 // Use InventoryModel to check actual inventory status
                 const inventoryModel = new InventoryModel(product);
                 const outOfStockStatus = inventoryModel.getOutOfStockStatus();
                 
                 return (
-                <div key={product._id} className="bg-stone-50 rounded-xl p-6 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4 flex-1">
-                      <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-stone-200 shadow-sm">
+                <div 
+                  key={product._id} 
+                  className="bg-stone-50 rounded-xl p-3 sm:p-6 hover:shadow-md transition-all duration-200 cursor-pointer lg:cursor-default relative group"
+                  onClick={(e) => {
+                    // Only trigger edit on mobile when clicking the card itself (not buttons)
+                    if (window.innerWidth < 1024 && !e.target.closest('button')) {
+                      handleEditProduct(product);
+                    }
+                  }}
+                >
+                  {/* Mobile Edit Hint */}
+                  <div className="lg:hidden absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-stone-700 text-white text-xs px-2 py-1 rounded pointer-events-none">
+                    Tap to edit
+                  </div>
+                  
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 lg:gap-0">
+                    <div className="flex items-start space-x-3 sm:space-x-4 flex-1">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-lg flex items-center justify-center border border-stone-200 shadow-sm flex-shrink-0">
                         {product.image ? (
                           <img
-                              src={getImageUrl(product.image, { width: 64, height: 64, quality: 80 })}
+                              src={getImageUrl(product.image, { width: 80, height: 80, quality: 80 })}
                             alt={product.name}
                             className="w-full h-full object-cover rounded-lg"
                             onError={(e) => handleImageError(e, 'product')}
@@ -582,18 +624,18 @@ export default function ArtisanProductManagement() {
                         ) : null}
                         <div className={`w-full h-full flex items-center justify-center ${product.image ? 'hidden' : 'flex'}`}>
                           <div className="text-center">
-                            <CubeIcon className="w-8 h-8 text-gray-400 mx-auto mb-1" />
-                            <span className="text-xs text-gray-400">No Image</span>
+                            <CubeIcon className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 mx-auto mb-1" />
+                            <span className="text-xs text-gray-400 hidden sm:block">No Image</span>
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <h4 className="text-lg font-semibold text-stone-800 truncate font-display">{product.name}</h4>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:space-x-3 mb-2 sm:mb-3">
+                          <h4 className="text-base sm:text-lg font-semibold text-stone-800 truncate font-display">{product.name}</h4>
                           
                           {/* Status Badge - Shows manual status OR auto-detected out of stock */}
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                          <span className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-full flex-shrink-0 ${
                             outOfStockStatus.isOutOfStock ? 'bg-red-100 text-red-800' :
                             product.status === 'active' ? 'bg-green-100 text-green-800' : 
                             product.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
@@ -607,30 +649,30 @@ export default function ArtisanProductManagement() {
                              'Draft'}
                           </span>
                           
-                          {/* Out of Stock Reason Tag (if inventory-based) */}
+                          {/* Out of Stock Reason Tag (if inventory-based) - Hidden on mobile */}
                           {outOfStockStatus.isOutOfStock && product.status === 'active' && (
-                            <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full" title={outOfStockStatus.reason}>
+                            <span className="hidden sm:inline-block px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full" title={outOfStockStatus.reason}>
                               {outOfStockStatus.message}
                             </span>
                           )}
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPromotionStatus(product).color} bg-opacity-10`}>
+                          <span className={`hidden sm:inline-block px-3 py-1 text-xs font-medium rounded-full ${getPromotionStatus(product).color} bg-opacity-10`}>
                             {getPromotionStatus(product).text}
                           </span>
                         </div>
                         
-                        <p className="text-sm text-stone-600 mb-3 line-clamp-2">{product.description}</p>
+                        <p className="text-xs sm:text-sm text-stone-600 mb-2 sm:mb-3 line-clamp-2">{product.description}</p>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
                           <div>
                             <span className="font-medium text-stone-700">Category:</span>
-                            <p className="capitalize text-stone-600">{product.category}</p>
+                            <p className="capitalize text-stone-600 truncate">{product.category}</p>
                             {product.subcategory && (
-                              <p className="text-xs text-stone-500 capitalize">({product.subcategory})</p>
+                              <p className="text-xs text-stone-500 capitalize truncate">({product.subcategory})</p>
                             )}
                           </div>
                           <div>
                             <span className="font-medium text-stone-700">Price:</span>
-                            <p className="text-stone-600">${product.price} / {product.unit || 'piece'}</p>
+                            <p className="text-stone-600 truncate">${product.price} / {product.unit || 'piece'}</p>
                           </div>
                           <div>
                             <span className="font-medium text-stone-700">
@@ -640,7 +682,7 @@ export default function ArtisanProductManagement() {
                             </span>
                             <InventoryDisplay product={product} />
                           </div>
-                          <div>
+                          <div className="hidden sm:block">
                             <span className="font-medium text-stone-700">Created:</span>
                             <p className="text-stone-600">{new Date(product.createdAt).toLocaleDateString()}</p>
                           </div>
@@ -674,52 +716,75 @@ export default function ArtisanProductManagement() {
                       </div>
                     </div>
                     
-                    <div className="flex flex-col items-end space-y-3 ml-4">
-                      <div className="flex items-center space-x-2">
+                    {/* Action Buttons - Mobile Optimized */}
+                    <div className="flex lg:flex-col items-center lg:items-end justify-between lg:justify-start gap-2 lg:space-y-3 lg:ml-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-stone-200">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        {/* Hide View button on mobile since card is clickable */}
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedProduct(product);
                             setShowProductModal(true);
                           }}
-                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                          className="hidden lg:flex p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
                           title="View Details"
                         >
                           <EyeIcon className="w-5 h-5" />
                         </button>
                         
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedProduct(product);
                             setShowPromotionModal(true);
                           }}
-                          className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                          className="p-1.5 sm:p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
                           title="Promote Product"
                         >
-                          <SparklesIcon className="w-5 h-5" />
+                          <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                         
                         <button
-                          onClick={() => handleEditProduct(product)}
-                          className="p-2 text-stone-600 hover:text-stone-700 hover:bg-stone-50 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProduct(product);
+                          }}
+                          className="lg:hidden p-1.5 sm:p-2 text-stone-600 hover:text-stone-700 hover:bg-stone-50 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                          title="Edit Product"
+                        >
+                          <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditProduct(product);
+                          }}
+                          className="hidden lg:flex p-2 text-stone-600 hover:text-stone-700 hover:bg-stone-50 rounded-lg transition-colors"
                           title="Edit Product"
                         >
                           <PencilIcon className="w-5 h-5" />
                         </button>
                         
                         <button
-                          onClick={() => handleDeleteProduct(product._id)}
-                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProduct(product._id);
+                          }}
+                          className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
                           title="Delete Product"
                         >
-                          <TrashIcon className="w-5 h-5" />
+                          <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       </div>
                       
-                      {/* Quick Inventory Update */}
-                      <InventoryManagement 
-                        product={product} 
-                        onInventoryUpdate={handleInventoryUpdate}
-                      />
+                      {/* Quick Inventory Update - Full width on mobile */}
+                      <div className="w-full lg:w-auto">
+                        <InventoryManagement 
+                          product={product} 
+                          onInventoryUpdate={handleInventoryUpdate}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -933,40 +998,52 @@ export default function ArtisanProductManagement() {
 
         {/* Product Add/Edit Modal */}
         {showProductModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
-              {/* Enhanced Header */}
-              <div className="bg-gradient-to-r from-[#D77A61] to-[#E6B655] p-6 rounded-t-2xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                      <CubeIcon className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-white">
-                        {selectedProduct ? 'Edit Product' : 'Add New Product'}
-                      </h3>
-                      <p className="text-white text-opacity-90">
-                        {selectedProduct ? 'Update your product information' : 'Create a new product for your customers'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowProductModal(false)}
-                    className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-10 rounded-full"
-                  >
-                    <XMarkIcon className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-8">
-                <ProductForm
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl h-full sm:h-auto sm:max-h-[95vh] overflow-hidden">
+              {isMobile ? (
+                /* Mobile: Full-screen Multi-Step Form */
+                <MobileProductForm
                   product={selectedProduct}
                   onSave={handleSaveProduct}
                   onCancel={() => setShowProductModal(false)}
                 />
-              </div>
+              ) : (
+                /* Desktop: Traditional Form with Header */
+                <>
+                  {/* Enhanced Header */}
+                  <div className="bg-gradient-to-r from-[#D77A61] to-[#E6B655] p-6 rounded-t-2xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                          <CubeIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-white">
+                            {selectedProduct ? 'Edit Product' : 'Add New Product'}
+                          </h3>
+                          <p className="text-white text-opacity-90 text-sm">
+                            {selectedProduct ? 'Update your product information' : 'Create a new product for your customers'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowProductModal(false)}
+                        className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-10 rounded-full"
+                      >
+                        <XMarkIcon className="w-6 h-6" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-8 overflow-y-auto max-h-[calc(95vh-100px)]">
+                    <ProductForm
+                      product={selectedProduct}
+                      onSave={handleSaveProduct}
+                      onCancel={() => setShowProductModal(false)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

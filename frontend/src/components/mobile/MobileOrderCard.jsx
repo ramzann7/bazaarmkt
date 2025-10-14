@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -7,7 +7,8 @@ import {
   ShoppingBagIcon,
   MapPinIcon,
   CalendarIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import OptimizedImage from '../OptimizedImage';
 
@@ -16,6 +17,7 @@ import OptimizedImage from '../OptimizedImage';
  * 
  * Features:
  * - Compact, touch-friendly design
+ * - Collapsible by default for better density
  * - Clear visual status indicators
  * - Swipeable (when integrated with swipe gestures)
  * - Easy-to-scan layout
@@ -24,8 +26,10 @@ const MobileOrderCard = ({
   order, 
   onClick,
   onQuickAction, 
-  className = '' 
+  className = '',
+  defaultExpanded = false
 }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   // Status configuration
   const statusConfig = {
     pending: {
@@ -118,104 +122,135 @@ const MobileOrderCard = ({
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 active:scale-98 ${className}`}
-      onClick={onClick}
+      className={`bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 ${className}`}
     >
-      {/* Status Bar */}
-      <div className={`${status.bg} ${status.border} border-b px-4 py-2 flex items-center justify-between`}>
-        <div className="flex items-center gap-2">
-          <StatusIcon className={`w-5 h-5 ${status.color}`} />
-          <span className={`text-sm font-semibold ${status.color}`}>
+      {/* Compact Header - Always Visible - Collapsible */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          {/* Status Icon */}
+          <div className={`w-8 h-8 rounded-full ${status.bg} flex items-center justify-center flex-shrink-0`}>
+            <StatusIcon className={`w-4 h-4 ${status.color}`} />
+          </div>
+          
+          {/* Order Info */}
+          <div className="text-left flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">
+              #{order.orderNumber || order._id?.slice(-6)}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {itemCount} {itemCount === 1 ? 'item' : 'items'} • {formatDate(order.createdAt)}
+            </p>
+          </div>
+        </div>
+        
+        {/* Status Badge and Expand Icon */}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          <span className={`${status.bg} ${status.color} text-xs font-semibold px-2 py-1 rounded-full whitespace-nowrap`}>
             {status.label}
           </span>
+          <ChevronDownIcon 
+            className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          />
         </div>
-        <span className="text-xs text-gray-500">
-          #{order.orderNumber || order._id?.slice(-6)}
-        </span>
-      </div>
+      </button>
 
-      {/* Main Content */}
-      <div className="p-4">
-        <div className="flex gap-3">
-          {/* Product Image */}
-          {firstImage && (
-            <div className="flex-shrink-0">
-              <OptimizedImage
-                src={firstImage}
-                alt="Order item"
-                className="w-16 h-16 rounded-lg"
-                aspectRatio="1/1"
-                objectFit="cover"
-                fallbackSrc="/images/product-placeholder.png"
-              />
-              {itemCount > 1 && (
-                <div className="absolute top-0 right-0 bg-[#D77A61] text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center -mr-1 -mt-1">
-                  +{itemCount - 1}
+      {/* Expanded Details */}
+      {isExpanded && (
+        <div className="px-3 pb-3 space-y-3 border-t border-gray-100">
+          {/* Items List - Compact */}
+          <div className="space-y-2 pt-3">
+            {order.items && order.items.length > 0 && order.items.map((item, index) => (
+              <div key={item._id || index} className="flex items-center gap-2">
+                {/* Smaller Product Image */}
+                <div className="w-10 h-10 bg-gray-100 rounded flex-shrink-0 overflow-hidden">
+                  {item.product?.images?.[0] || item.product?.image ? (
+                    <OptimizedImage
+                      src={item.product.images?.[0] || item.product.image}
+                      alt={item.product?.name || 'Product'}
+                      className="w-full h-full object-cover"
+                      aspectRatio="1/1"
+                      objectFit="cover"
+                      fallbackSrc="/images/product-placeholder.png"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs">
+                      📦
+                    </div>
+                  )}
                 </div>
+                
+                {/* Item Details */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-900 truncate">
+                    {item.product?.name || 'Product'}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    ×{item.quantity} {item.product?.unit || 'pc'}
+                  </p>
+                </div>
+                
+                {/* Item Price */}
+                <p className="text-xs font-semibold text-gray-900 flex-shrink-0">
+                  {formatPrice(item.price * item.quantity)}
+                </p>
+              </div>
+            ))}
+          </div>
+          
+          {/* Delivery Method */}
+          {order.deliveryMethod && (
+            <div className="flex items-center gap-2 text-xs text-gray-600 py-2 px-3 bg-gray-50 rounded-lg">
+              {order.deliveryMethod === 'delivery' ? (
+                <>
+                  <TruckIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>Delivery</span>
+                </>
+              ) : (
+                <>
+                  <MapPinIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>Pickup</span>
+                </>
               )}
             </div>
           )}
-
-          {/* Order Info */}
-          <div className="flex-1 min-w-0">
-            {/* Items Summary */}
-            <h3 className="font-semibold text-gray-900 truncate mb-1">
-              {order.items && order.items.length > 0
-                ? order.items.length === 1
-                  ? order.items[0].product?.name || 'Order Item'
-                  : `${itemCount} items`
-                : 'Order Items'}
-            </h3>
-
-            {/* Date & Time */}
-            <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
-              <CalendarIcon className="w-4 h-4" />
-              <span>{formatDate(order.createdAt)}</span>
-            </div>
-
-            {/* Delivery Info */}
-            {order.deliveryMethod && (
-              <div className="flex items-center gap-1 text-xs text-gray-600 truncate">
-                {order.deliveryMethod === 'delivery' ? (
-                  <>
-                    <TruckIcon className="w-4 h-4" />
-                    <span>Delivery</span>
-                  </>
-                ) : (
-                  <>
-                    <MapPinIcon className="w-4 h-4" />
-                    <span>Pickup</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Price & Arrow */}
-          <div className="flex flex-col items-end justify-between">
-            <span className="text-lg font-bold text-gray-900">
-              {formatPrice(order.totalPrice)}
+          
+          {/* Order Total */}
+          <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+            <span className="text-sm font-medium text-gray-700">Total</span>
+            <span className="text-base font-bold text-gray-900">
+              {formatPrice(order.totalAmount || order.totalPrice || 0)}
             </span>
-            <ChevronRightIcon className="w-5 h-5 text-gray-400" />
           </div>
-        </div>
-
-        {/* Quick Actions (Optional) */}
-        {onQuickAction && status.label === 'Ready' && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <button
+          
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <button 
               onClick={(e) => {
                 e.stopPropagation();
-                onQuickAction(order, 'mark_delivered');
+                onClick && onClick();
               }}
-              className="w-full bg-green-500 text-white text-sm font-semibold py-2 px-4 rounded-lg 
-                       hover:bg-green-600 active:bg-green-700 transition-colors min-h-[44px]"
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors min-h-[40px]"
             >
-              Mark as Delivered
+              View Details
             </button>
+            
+            {onQuickAction && (status.label === 'Ready' || status.label === 'Pending') && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickAction(order, status.label === 'Ready' ? 'mark_delivered' : 'confirm');
+                }}
+                className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700 transition-colors min-h-[40px]"
+              >
+                {status.label === 'Ready' ? 'Mark Delivered' : 'Confirm Order'}
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

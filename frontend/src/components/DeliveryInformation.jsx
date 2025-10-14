@@ -506,30 +506,30 @@ const DeliveryInformation = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Delivery Method Selection */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* Delivery Method Selection - Mobile Optimized */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Your Delivery Method</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Pickup Option */}
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Choose Delivery Method</h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
+                {/* Pickup Option - Mobile Optimized */}
                 {deliveryOptions[currentArtisanId]?.pickup?.available && (
-                  <div 
-                    className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  <button 
+                    className={`relative p-3 sm:p-4 border-2 rounded-xl text-left transition-all duration-200 min-h-[120px] sm:min-h-[140px] ${
                       selectedDeliveryMethods[currentArtisanId] === 'pickup'
-                        ? 'border-green-500 bg-green-50 shadow-sm'
-                        : 'border-gray-200 hover:border-green-300 hover:shadow-sm'
+                        ? 'border-green-500 bg-green-50 shadow-md'
+                        : 'border-gray-200 hover:border-green-300 hover:shadow-sm active:scale-98'
                     }`}
                     onClick={() => handleDeliveryMethodChange('pickup')}
                   >
                     {selectedDeliveryMethods[currentArtisanId] === 'pickup' && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                       </div>
                     )}
                     
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                        {getDeliveryMethodIcon('pickup')}
+                    <div className="flex sm:flex-col sm:text-center gap-3 sm:gap-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0 sm:mx-auto sm:mb-3">
+                        <MapPinIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                       </div>
                       <input
                         type="radio"
@@ -538,39 +538,41 @@ const DeliveryInformation = ({
                         onChange={() => handleDeliveryMethodChange('pickup')}
                         className="sr-only"
                       />
-                      <h4 className="text-lg font-bold text-gray-900 mb-2">Pickup</h4>
-                      <p className="text-sm text-gray-600 mb-3">Visit the artisan directly</p>
-                      <div className="bg-green-100 text-green-700 px-3 py-1.5 rounded-full inline-block font-bold text-sm">
-                        Free
-                      </div>
-                      <div className="mt-3 text-xs text-green-600 font-medium space-y-1">
-                        <div>✓ No delivery fees</div>
-                        <div>✓ Meet the artisan</div>
-                        <div>✓ Instant pickup</div>
+                      <div className="flex-1">
+                        <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Pickup</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">Visit artisan directly</p>
+                        <div className="bg-green-100 text-green-700 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full inline-block font-bold text-xs sm:text-sm">
+                          Free
+                        </div>
+                        <div className="mt-2 sm:mt-3 text-xs text-green-600 font-medium space-y-0.5 sm:space-y-1 hidden sm:block">
+                          <div>✓ No delivery fees</div>
+                          <div>✓ Meet the artisan</div>
+                          <div>✓ Instant pickup</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )}
 
-                {/* Personal Delivery Option */}
+                {/* Personal Delivery Option - Mobile Optimized */}
                 {deliveryOptions[currentArtisanId]?.personalDelivery?.available && (
-                  <div 
-                    className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  <button 
+                    className={`relative p-3 sm:p-4 border-2 rounded-xl text-left transition-all duration-200 min-h-[120px] sm:min-h-[140px] ${
                       selectedDeliveryMethods[currentArtisanId] === 'personalDelivery'
-                        ? 'border-orange-500 bg-orange-50 shadow-sm'
-                        : 'border-gray-200 hover:border-orange-300 hover:shadow-sm'
+                        ? 'border-orange-500 bg-orange-50 shadow-md'
+                        : 'border-gray-200 hover:border-orange-300 hover:shadow-sm active:scale-98'
                     }`}
                     onClick={() => handleDeliveryMethodChange('personalDelivery')}
                   >
                     {selectedDeliveryMethods[currentArtisanId] === 'personalDelivery' && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircleIcon className="w-5 h-5 text-orange-600" />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                       </div>
                     )}
                     
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                        {getDeliveryMethodIcon('personalDelivery')}
+                    <div className="flex sm:flex-col sm:text-center gap-3 sm:gap-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0 sm:mx-auto sm:mb-3">
+                        <TruckIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                       </div>
                       <input
                         type="radio"
@@ -579,43 +581,45 @@ const DeliveryInformation = ({
                         onChange={() => handleDeliveryMethodChange('personalDelivery')}
                         className="sr-only"
                       />
-                      <h4 className="text-lg font-bold text-gray-900 mb-2">Personal Delivery</h4>
-                      <p className="text-sm text-gray-600 mb-3">Direct from artisan</p>
-                      <div className="bg-orange-100 text-orange-700 px-3 py-1.5 rounded-full inline-block font-bold text-sm">
-                        {deliveryOptions[currentArtisanId]?.personalDelivery?.freeDeliveryThreshold && 
-                         costs.subtotal >= deliveryOptions[currentArtisanId].personalDelivery.freeDeliveryThreshold
-                          ? 'Free'
-                          : formatPrice(deliveryOptions[currentArtisanId]?.personalDelivery?.fee || 0)
-                        }
-                      </div>
-                      <div className="mt-3 text-xs text-orange-600 font-medium space-y-1">
-                        <div>✓ Personal service</div>
-                        <div>✓ 30-60 min delivery</div>
-                        <div>✓ Within {deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10}km radius</div>
+                      <div className="flex-1">
+                        <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Personal</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">From artisan</p>
+                        <div className="bg-orange-100 text-orange-700 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full inline-block font-bold text-xs sm:text-sm">
+                          {deliveryOptions[currentArtisanId]?.personalDelivery?.freeDeliveryThreshold && 
+                           costs.subtotal >= deliveryOptions[currentArtisanId].personalDelivery.freeDeliveryThreshold
+                            ? 'Free'
+                            : formatPrice(deliveryOptions[currentArtisanId]?.personalDelivery?.fee || 0)
+                          }
+                        </div>
+                        <div className="mt-2 sm:mt-3 text-xs text-orange-600 font-medium space-y-0.5 sm:space-y-1 hidden sm:block">
+                          <div>✓ Personal service</div>
+                          <div>✓ 30-60 min</div>
+                          <div>✓ {deliveryOptions[currentArtisanId]?.personalDelivery?.radius || 10}km</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )}
 
-                {/* Professional Delivery Option */}
+                {/* Professional Delivery Option - Mobile Optimized */}
                 {deliveryOptions[currentArtisanId]?.professionalDelivery?.available && (
-                  <div 
-                    className={`relative p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                  <button 
+                    className={`relative p-3 sm:p-4 border-2 rounded-xl text-left transition-all duration-200 min-h-[120px] sm:min-h-[140px] ${
                       selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery'
-                        ? 'border-blue-500 bg-blue-50 shadow-sm'
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 hover:border-blue-300 hover:shadow-sm active:scale-98'
                     }`}
                     onClick={() => handleDeliveryMethodChange('professionalDelivery')}
                   >
                     {selectedDeliveryMethods[currentArtisanId] === 'professionalDelivery' && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircleIcon className="w-5 h-5 text-blue-600" />
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3">
+                        <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                       </div>
                     )}
                     
-                    <div className="text-center">
-                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                        {getDeliveryMethodIcon('professionalDelivery')}
+                    <div className="flex sm:flex-col sm:text-center gap-3 sm:gap-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0 sm:mx-auto sm:mb-3">
+                        <BuildingOfficeIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                       </div>
                       <input
                         type="radio"
@@ -624,47 +628,50 @@ const DeliveryInformation = ({
                         onChange={() => handleDeliveryMethodChange('professionalDelivery')}
                         className="sr-only"
                       />
-                      <h4 className="text-lg font-bold text-gray-900 mb-2">Professional Delivery</h4>
-                      <p className="text-sm text-gray-600 mb-3">
-                        <span className="font-semibold text-blue-800">Courrier Service</span>
-                      </p>
-                      <div className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full inline-block font-bold text-sm">
-                        {(() => {
-                          // Check if we have a valid address with coordinates
-                          const hasValidAddress = addressValidation.isValid && addressValidation.coordinates;
-                          
-                          if (!hasValidAddress) {
-                            return "Enter address";
-                          }
-                          
-                          // Show loading state
-                          if (loadingUberQuotes.has(currentArtisanId)) {
-                            return "Getting quote...";
-                          }
-                          
-                          // Show quote if available
-                          const uberQuote = uberQuotes[currentArtisanId];
-                          if (uberQuote && uberQuote.fee) {
-                            const estimatedText = uberQuote.estimated ? ' (est.)' : '';
-                            return `${formatPrice(uberQuote.fee)}${estimatedText}`;
-                          }
-                          
-                          return "Getting quote...";
-                        })()}
-                      </div>
-                      <div className="mt-3 text-xs text-blue-600 font-medium space-y-1">
-                        <div>✓ Professional courier service</div>
-                        <div>✓ {(() => {
-                          const uberQuote = uberQuotes[currentArtisanId];
-                          if (uberQuote && uberQuote.duration) {
-                            return `${Math.round(uberQuote.duration)} min delivery`;
-                          }
-                          return '20-40 min delivery';
-                        })()}</div>
-                        <div>✓ Within {deliveryOptions[currentArtisanId]?.professionalDelivery?.serviceRadius || 25}km radius</div>
+                      <div className="flex-1">
+                        <h4 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Pro Courier</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
+                          <span className="font-semibold text-blue-800 sm:inline hidden">Courier Service</span>
+                          <span className="font-semibold text-blue-800 sm:hidden">Fast delivery</span>
+                        </p>
+                        <div className="bg-blue-100 text-blue-700 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full inline-block font-bold text-xs sm:text-sm">
+                          {(() => {
+                            // Check if we have a valid address with coordinates
+                            const hasValidAddress = addressValidation.isValid && addressValidation.coordinates;
+                            
+                            if (!hasValidAddress) {
+                              return "Enter address";
+                            }
+                            
+                            // Show loading state
+                            if (loadingUberQuotes.has(currentArtisanId)) {
+                              return "Quote...";
+                            }
+                            
+                            // Show quote if available
+                            const uberQuote = uberQuotes[currentArtisanId];
+                            if (uberQuote && uberQuote.fee) {
+                              const estimatedText = uberQuote.estimated ? ' (est.)' : '';
+                              return `${formatPrice(uberQuote.fee)}${estimatedText}`;
+                            }
+                            
+                            return "Quote...";
+                          })()}
+                        </div>
+                        <div className="mt-2 sm:mt-3 text-xs text-blue-600 font-medium space-y-0.5 sm:space-y-1 hidden sm:block">
+                          <div>✓ Professional courier</div>
+                          <div>✓ {(() => {
+                            const uberQuote = uberQuotes[currentArtisanId];
+                            if (uberQuote && uberQuote.duration) {
+                              return `${Math.round(uberQuote.duration)} min`;
+                            }
+                            return '20-40 min';
+                          })()}</div>
+                          <div>✓ {deliveryOptions[currentArtisanId]?.professionalDelivery?.serviceRadius || 25}km</div>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )}
               </div>
             </div>

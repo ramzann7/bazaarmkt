@@ -1,18 +1,23 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   MagnifyingGlassIcon, 
   ShoppingBagIcon, 
   UserIcon,
-  Bars3Icon 
+  Bars3Icon,
+  ChartBarIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import { 
   MagnifyingGlassIcon as SearchIconSolid,
   ShoppingBagIcon as CartIconSolid,
   UserIcon as UserIconSolid,
-  Bars3Icon as MenuIconSolid
+  Bars3Icon as MenuIconSolid,
+  ChartBarIcon as ChartBarIconSolid,
+  ClipboardDocumentListIcon as ClipboardIconSolid
 } from '@heroicons/react/24/solid';
 import Logo from '../Logo';
+import { useAuth } from '../../contexts/AuthContext';
 
 const MobileNavigation = ({ 
   cartCount = 0, 
@@ -21,8 +26,18 @@ const MobileNavigation = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
-  const navItems = [
+  // Determine if user is an artisan
+  const isArtisan = useMemo(() => {
+    return user?.role === 'artisan' || 
+           user?.userType === 'artisan' || 
+           user?.role === 'producer' || 
+           user?.role === 'food_maker';
+  }, [user]);
+
+  // Dynamic navigation items based on user type
+  const navItems = useMemo(() => [
     { 
       path: '/', 
       label: 'Home', 
@@ -41,11 +56,17 @@ const MobileNavigation = ({
       activeIcon: CartIconSolid,
       badge: cartCount 
     },
-    { 
-      path: '/profile', 
-      label: 'Profile', 
-      icon: UserIcon, 
-      activeIcon: UserIconSolid 
+    // Dynamic 4th item: Dashboard for artisans, My Orders for patrons
+    isArtisan ? {
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: ChartBarIcon,
+      activeIcon: ChartBarIconSolid
+    } : {
+      path: '/orders',
+      label: 'Orders',
+      icon: ClipboardDocumentListIcon,
+      activeIcon: ClipboardIconSolid
     },
     { 
       path: null, 
@@ -54,7 +75,7 @@ const MobileNavigation = ({
       activeIcon: MenuIconSolid,
       onClick: onMenuClick 
     }
-  ];
+  ], [cartCount, isArtisan, onMenuClick]);
 
   const isActive = (path) => {
     if (!path) return false;

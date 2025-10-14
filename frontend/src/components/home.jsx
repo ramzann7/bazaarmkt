@@ -953,91 +953,94 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-        <div className="grid lg:grid-cols-[1fr_420px] gap-6 sm:gap-8 items-stretch">
+      {/* Hero Section - Mobile Optimized */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
+        <div className="grid lg:grid-cols-[1fr_420px] gap-4 sm:gap-6 lg:gap-8 items-stretch">
           {/* Hero Left - Text Content */}
-          <div className="bg-white rounded-xl p-8 sm:p-10 shadow-soft flex flex-col justify-center">
+          <div className="bg-white rounded-xl p-5 sm:p-8 lg:p-10 shadow-soft flex flex-col justify-center">
             {/* Tag */}
             <div className="inline-block self-start">
-              <span className="inline-block bg-primary/10 text-primary px-3 py-1.5 rounded-full font-bold text-xs sm:text-sm mb-4">
+              <span className="inline-block bg-primary/10 text-primary px-3 py-1.5 rounded-full font-bold text-xs sm:text-sm mb-3 sm:mb-4">
                 Handmade • Local • Seasonal
               </span>
             </div>
             
-            {/* Heading */}
-            <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-secondary mb-4 leading-tight">
+            {/* Heading - More compact on mobile */}
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-secondary mb-3 sm:mb-4 leading-tight">
               Discover treasures made by your neighbours
             </h1>
             
-            {/* Lead Text */}
-            <p className="text-base sm:text-lg text-secondary/70 mb-6 leading-relaxed">
+            {/* Lead Text - Shorter on mobile */}
+            <p className="text-sm sm:text-base lg:text-lg text-secondary/70 mb-4 sm:mb-6 leading-relaxed">
               Shop fresh, homemade food and handcrafted goods from local artisans near you. Each purchase supports a person — not a faceless corporation.
             </p>
             
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* CTA Buttons - Touch-friendly */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Link
                 to="/find-artisans"
-                className="btn-primary px-6 py-3 text-center"
+                className="btn-primary px-6 py-3 text-center text-sm sm:text-base min-h-[44px]"
               >
                 Explore Artisans
               </Link>
               <button
                 onClick={handleFindNearMe}
-                className="btn-outline px-6 py-3 text-center"
+                className="btn-outline px-6 py-3 text-center text-sm sm:text-base min-h-[44px]"
               >
                 Find Near Me
               </button>
             </div>
           </div>
           
-          {/* Hero Right - Image */}
-          <div className="rounded-xl overflow-hidden shadow-soft bg-white h-64 lg:h-auto">
+          {/* Hero Right - Image - More compact on mobile */}
+          <div className="rounded-xl overflow-hidden shadow-soft bg-white h-48 sm:h-56 lg:h-auto">
             <img 
               src={VECTEEZY_ARTISAN_MARKET} 
               alt="Vibrant artisan market with pottery and handcrafted goods"
               className="w-full h-full object-cover"
+              loading="eager"
             />
           </div>
         </div>
       </section>
 
-      {/* Featured Products - Grid */}
-      <section className="py-6 sm:py-8 lg:py-10 bg-background">
+      {/* Featured Products - Grid - Mobile Optimized */}
+      <section className="py-4 sm:py-6 lg:py-10 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary">Featured Products</h2>
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary">Featured Products</h2>
             {availableFeaturedProducts.length > 8 && (
               <button
                 onClick={() => setShowAllFeatured(!showAllFeatured)}
-                className="text-orange-600 hover:text-orange-700 font-medium text-sm flex items-center gap-2 transition-all"
+                className="text-orange-600 hover:text-orange-700 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 transition-all"
               >
                 {showAllFeatured ? (
                   <>
-                    Show Less
-                    <MinusIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Show Less</span>
+                    <span className="sm:hidden">Less</span>
+                    <MinusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 ) : (
                   <>
-                    View All ({availableFeaturedProducts.length})
-                    <PlusIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">View All ({availableFeaturedProducts.length})</span>
+                    <span className="sm:hidden">All ({availableFeaturedProducts.length})</span>
+                    <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 )}
               </button>
             )}
           </div>
 
-          {/* Products Grid */}
+          {/* Products Grid - Optimized gap for mobile */}
           {isLoadingFeatured ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {[...Array(8)].map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
           ) : availableFeaturedProducts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {availableFeaturedProducts
                 .slice(0, showAllFeatured ? 12 : 8)
                 .map((product) => (
@@ -1045,46 +1048,48 @@ export default function Home() {
                 ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">No featured products available</p>
+            <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">No featured products available</p>
           )}
         </div>
       </section>
 
-      {/* Popular Products - Grid */}
+      {/* Popular Products - Grid - Mobile Optimized */}
       <section className="py-4 sm:py-6 lg:py-8 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary">Popular Products</h2>
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary">Popular Products</h2>
             {availablePopularProducts.length > 8 && (
               <button
                 onClick={() => setShowAllPopular(!showAllPopular)}
-                className="text-orange-600 hover:text-orange-700 font-medium text-sm flex items-center gap-2 transition-all"
+                className="text-orange-600 hover:text-orange-700 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 transition-all"
               >
                 {showAllPopular ? (
                   <>
-                    Show Less
-                    <MinusIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Show Less</span>
+                    <span className="sm:hidden">Less</span>
+                    <MinusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 ) : (
                   <>
-                    View All ({availablePopularProducts.length})
-                    <PlusIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">View All ({availablePopularProducts.length})</span>
+                    <span className="sm:hidden">All ({availablePopularProducts.length})</span>
+                    <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 )}
               </button>
             )}
           </div>
 
-          {/* Products Grid */}
+          {/* Products Grid - Optimized gap for mobile */}
           {isLoadingPopular ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {[...Array(8)].map((_, index) => (
                 <ProductSkeleton key={index} />
               ))}
             </div>
           ) : availablePopularProducts.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
               {availablePopularProducts
                 .slice(0, showAllPopular ? 12 : 8)
                 .map((product) => (
@@ -1092,15 +1097,15 @@ export default function Home() {
                 ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-8">No popular products available</p>
+            <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">No popular products available</p>
           )}
         </div>
       </section>
 
-      {/* Community Spotlight */}
+      {/* Community Spotlight - Mobile Optimized */}
       <section className="py-4 sm:py-6 lg:py-8 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-2xl sm:text-3xl font-bold text-secondary mb-4">Community Spotlight</h2>
+          <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mb-4 sm:mb-6">Community Spotlight</h2>
           
           {isLoadingPosts ? (
             <div className="grid md:grid-cols-3 gap-6">

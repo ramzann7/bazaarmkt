@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   ShoppingBagIcon, 
@@ -44,130 +44,8 @@ export default function Orders() {
   const [updatingOrderId, setUpdatingOrderId] = useState(null); // Track which order is being updated
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render when data changes
 
-  useEffect(() => {
-    loadUserAndOrders();
-    // Set up real-time updates every 2 minutes (less frequent)
-    const interval = setInterval(loadUserAndOrders, 120000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Switch between sales and purchases when orderType changes (for artisans)
-  useEffect(() => {
-    if (userRole === 'artisan' && ordersLoaded) {
-      console.log('🔄 Switching order type to:', orderType);
-      // Use cached data instead of reloading from API
-      const ordersData = orderType === 'sales' ? allSalesOrders : allPurchasesOrders;
-      setAllOrders(ordersData);
-      setRefreshKey(prev => prev + 1);
-      
-      // Re-apply current filter to the switched data
-      applyFilter();
-    }
-  }, [orderType]);
-
-  // Apply filter when filter or userRole changes (no API call needed)
-  useEffect(() => {
-    if (ordersLoaded && userRole) {
-      applyFilter();
-    }
-  }, [filter, ordersLoaded, userRole]);
-
-  // Re-apply filter when allOrders changes (for optimistic updates)
-  useEffect(() => {
-    if (ordersLoaded && userRole && allOrders.length > 0) {
-      applyFilter();
-    }
-  }, [allOrders, filter, searchQuery]);
-
-  // Handle order confirmation from checkout
-  useEffect(() => {
-    if (location.state?.orders && location.state?.message) {
-      setConfirmationData({
-        orders: location.state.orders,
-        message: location.state.message
-      });
-      setShowConfirmation(true);
-      // Clear the state to prevent showing again on refresh
-      window.history.replaceState({}, document.title);
-    }
-    
-    // Handle selected order from profile navigation
-    if (location.state?.selectedOrderId) {
-      const selectedOrder = orders.find(order => order._id === location.state.selectedOrderId);
-      if (selectedOrder) {
-        setSelectedOrder(selectedOrder);
-        setShowOrderDetails(true);
-      }
-      // Clear the state to prevent showing again on refresh
-      window.history.replaceState({}, document.title);
-    }
-    
-    // Handle selected order from URL parameters (e.g., from notifications)
-    const orderIdFromUrl = searchParams.get('orderId');
-    if (orderIdFromUrl) {
-      const selectedOrder = orders.find(order => order._id === orderIdFromUrl);
-      if (selectedOrder) {
-        setSelectedOrder(selectedOrder);
-        setShowOrderDetails(true);
-        // Clear the URL parameter after opening the order
-        setSearchParams(new URLSearchParams());
-      }
-    }
-  }, [location.state, orders, searchParams, setSearchParams]);
-
-  const loadUserAndOrders = async (forceRefresh = false) => {
-    try {
-      setIsLoading(true);
-      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)', `orderType: ${orderType}`);
-      const userProfile = await getProfile();
-      const actualUserRole = userProfile.role || userProfile.userType; // Check both role and userType for compatibility
-      setUserRole(actualUserRole);
-      
-      // Only load orders from API if not already loaded or force refresh
-      if (!ordersLoaded || forceRefresh) {
-        console.log('📋 Loading all orders from API...');
-        let ordersData;
-        if (actualUserRole === 'artisan') {
-          // For artisans, load BOTH sales and purchases for priority queue
-          console.log(`📋 Loading ${orderType} orders for artisan (and both types for priority queue)...`);
-          const [salesData, purchasesData] = await Promise.all([
-            orderService.getArtisanOrders(true, 'sales'),
-            orderService.getArtisanOrders(true, 'purchases')
-          ]);
-          
-          // Store both for priority queue
-          setAllSalesOrders(salesData);
-          setAllPurchasesOrders(purchasesData);
-          
-          // Use the current orderType for the main list
-          ordersData = orderType === 'sales' ? salesData : purchasesData;
-        } else {
-          ordersData = await orderService.getPatronOrders(true); // Always load all orders
-        }
-        
-        console.log('📦 All orders loaded from API:', {
-          count: ordersData.length,
-          type: orderType,
-          statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
-        });
-        
-        setAllOrders(ordersData);
-        setOrdersLoaded(true);
-        setRefreshKey(prev => prev + 1); // Increment to force re-render
-      }
-      
-      // Apply current filter to cached orders
-      applyFilter();
-      
-    } catch (error) {
-      console.error('Error loading orders:', error);
-      toast.error('Failed to load orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const applyFilter = () => {
+  // Define applyFilter function BEFORE useEffect hooks
+  const applyFilter = useCallback(() => {
     if (!ordersLoaded || !userRole) {
       console.log('🔍 Skipping filter - ordersLoaded:', ordersLoaded, 'userRole:', userRole);
       return;
@@ -249,7 +127,131 @@ export default function Orders() {
     });
     
     setOrders(filteredOrders);
-  };
+  }, [ordersLoaded, userRole, filter, allOrders, searchQuery]);
+
+  // Define loadUserAndOrders function BEFORE useEffect hooks
+  const loadUserAndOrders = useCallback(async (forceRefresh = false) => {
+    try {
+      setIsLoading(true);
+      console.log('🔄 Loading user and orders...', forceRefresh ? '(FORCE REFRESH)' : '', ordersLoaded ? '(FROM CACHE)' : '(INITIAL LOAD)', `orderType: ${orderType}`);
+      const userProfile = await getProfile();
+      const actualUserRole = userProfile.role || userProfile.userType; // Check both role and userType for compatibility
+      setUserRole(actualUserRole);
+      
+      // Only load orders from API if not already loaded or force refresh
+      if (!ordersLoaded || forceRefresh) {
+        console.log('📋 Loading all orders from API...');
+        let ordersData;
+        if (actualUserRole === 'artisan') {
+          // For artisans, load BOTH sales and purchases for priority queue
+          console.log(`📋 Loading ${orderType} orders for artisan (and both types for priority queue)...`);
+          const [salesData, purchasesData] = await Promise.all([
+            orderService.getArtisanOrders(true, 'sales'),
+            orderService.getArtisanOrders(true, 'purchases')
+          ]);
+          
+          // Store both for priority queue
+          setAllSalesOrders(salesData);
+          setAllPurchasesOrders(purchasesData);
+          
+          // Use the current orderType for the main list
+          ordersData = orderType === 'sales' ? salesData : purchasesData;
+        } else {
+          ordersData = await orderService.getPatronOrders(true); // Always load all orders
+        }
+        
+        console.log('📦 All orders loaded from API:', {
+          count: ordersData.length,
+          type: orderType,
+          statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
+        });
+        
+        setAllOrders(ordersData);
+        setOrdersLoaded(true);
+        setRefreshKey(prev => prev + 1); // Increment to force re-render
+      }
+      
+      // Apply current filter to cached orders
+      applyFilter();
+      
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [ordersLoaded, orderType, applyFilter]);
+
+  useEffect(() => {
+    loadUserAndOrders();
+    // Set up real-time updates every 2 minutes (less frequent)
+    const interval = setInterval(loadUserAndOrders, 120000);
+    return () => clearInterval(interval);
+  }, [loadUserAndOrders]);
+  
+  // Switch between sales and purchases when orderType changes (for artisans)
+  useEffect(() => {
+    if (userRole === 'artisan' && ordersLoaded) {
+      console.log('🔄 Switching order type to:', orderType);
+      // Use cached data instead of reloading from API
+      const ordersData = orderType === 'sales' ? allSalesOrders : allPurchasesOrders;
+      setAllOrders(ordersData);
+      setRefreshKey(prev => prev + 1);
+      
+      // Re-apply current filter to the switched data
+      applyFilter();
+    }
+  }, [orderType, userRole, ordersLoaded, allSalesOrders, allPurchasesOrders, applyFilter]);
+
+  // Apply filter when filter or userRole changes (no API call needed)
+  useEffect(() => {
+    if (ordersLoaded && userRole) {
+      applyFilter();
+    }
+  }, [filter, ordersLoaded, userRole, applyFilter]);
+
+  // Re-apply filter when allOrders changes (for optimistic updates)
+  useEffect(() => {
+    if (ordersLoaded && userRole && allOrders.length > 0) {
+      applyFilter();
+    }
+  }, [allOrders, filter, searchQuery, ordersLoaded, userRole, applyFilter]);
+
+  // Handle order confirmation from checkout
+  useEffect(() => {
+    if (location.state?.orders && location.state?.message) {
+      setConfirmationData({
+        orders: location.state.orders,
+        message: location.state.message
+      });
+      setShowConfirmation(true);
+      // Clear the state to prevent showing again on refresh
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Handle selected order from profile navigation
+    if (location.state?.selectedOrderId) {
+      const selectedOrder = orders.find(order => order._id === location.state.selectedOrderId);
+      if (selectedOrder) {
+        setSelectedOrder(selectedOrder);
+        setShowOrderDetails(true);
+      }
+      // Clear the state to prevent showing again on refresh
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Handle selected order from URL parameters (e.g., from notifications)
+    const orderIdFromUrl = searchParams.get('orderId');
+    if (orderIdFromUrl) {
+      const selectedOrder = orders.find(order => order._id === orderIdFromUrl);
+      if (selectedOrder) {
+        setSelectedOrder(selectedOrder);
+        setShowOrderDetails(true);
+        // Clear the URL parameter after opening the order
+        setSearchParams(new URLSearchParams());
+      }
+    }
+  }, [location.state, orders, searchParams, setSearchParams]);
 
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
@@ -744,74 +746,75 @@ export default function Orders() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4 shadow-lg">
-            <ShoppingBagIcon className="w-8 h-8 text-orange-600" />
+        {/* Header - Mobile Optimized */}
+        <div className="mb-4 sm:mb-6 lg:mb-8 text-center">
+          {/* Icon - Hidden on Mobile */}
+          <div className="hidden sm:inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4 shadow-lg">
+            <ShoppingBagIcon className="w-7 h-7 sm:w-8 sm:h-8 text-orange-600" />
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            {isArtisan(userRole) ? 'Order Management' : 'My Orders'}
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3">
+            {isArtisan(userRole) ? 'Orders' : 'My Orders'}
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto px-4">
             {isArtisan(userRole) 
-              ? 'Manage your customer orders and track order fulfillment' 
-              : 'Track your order history and delivery status'
+              ? 'Manage customer orders' 
+              : 'Track your orders'
             }
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Stats Cards - Mobile Optimized */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           {isArtisan(userRole) ? (
             <>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Orders Needing Action</p>
-                    <p className="text-3xl font-bold text-red-600">{stats.needsAction}</p>
-                    <p className="text-xs text-gray-500 mt-1">Pending & Confirmed orders</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Needs Action</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-red-600 mt-1">{stats.needsAction}</p>
+                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Pending & Confirmed</p>
                   </div>
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                    <span className="text-red-600 text-2xl">🚨</span>
+                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-red-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
+                    <span className="text-red-600 text-xl lg:text-2xl">🚨</span>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Orders In Progress</p>
-                    <p className="text-3xl font-bold text-orange-600">{stats.inProgress}</p>
-                    <p className="text-xs text-gray-500 mt-1">Preparing & Ready orders</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">In Progress</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-orange-600 mt-1">{stats.inProgress}</p>
+                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Preparing & Ready</p>
                   </div>
-                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-                    <span className="text-orange-600 text-2xl">👨‍🍳</span>
+                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-orange-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
+                    <span className="text-orange-600 text-xl lg:text-2xl">👨‍🍳</span>
                   </div>
                 </div>
               </div>
             </>
           ) : (
             <>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Active Orders</p>
-                    <p className="text-3xl font-bold text-blue-600">{stats.active}</p>
-                    <p className="text-xs text-gray-500 mt-1">Orders in progress</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Active Orders</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">{stats.active}</p>
+                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Orders in progress</p>
                   </div>
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-600 text-2xl">📦</span>
+                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-blue-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
+                    <span className="text-blue-600 text-xl lg:text-2xl">📦</span>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Completed Orders</p>
-                    <p className="text-3xl font-bold text-green-600">{stats.delivered}</p>
-                    <p className="text-xs text-gray-500 mt-1">Delivered & Picked up</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Completed</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1">{stats.delivered}</p>
+                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Delivered & Picked up</p>
                   </div>
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-600 text-2xl">✅</span>
+                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-green-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
+                    <span className="text-green-600 text-xl lg:text-2xl">✅</span>
                   </div>
                 </div>
               </div>
@@ -833,33 +836,35 @@ export default function Orders() {
           />
         )}
 
-        {/* Enhanced Filters and View Toggle */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        {/* Enhanced Filters and View Toggle - Mobile Optimized */}
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
           {/* Sales vs Purchases tabs for Artisans */}
           {isArtisan(userRole) && (
-            <div className="mb-4 pb-4 border-b border-gray-200">
+            <div className="mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-200">
               <div className="flex gap-2">
                 <button
                   onClick={() => setOrderType('sales')}
-                  className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                  className={`flex-1 px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 min-h-[44px] ${
                     orderType === 'sales'
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
                   <span>📦</span>
-                  <span>Sales (Orders I'm Selling)</span>
+                  <span className="hidden sm:inline">Sales (Orders I'm Selling)</span>
+                  <span className="sm:hidden">Sales</span>
                 </button>
                 <button
                   onClick={() => setOrderType('purchases')}
-                  className={`flex-1 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                  className={`flex-1 px-3 sm:px-4 lg:px-6 py-2 sm:py-2.5 lg:py-3 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 min-h-[44px] ${
                     orderType === 'purchases'
                       ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
                   }`}
                 >
                   <span>🛍️</span>
-                  <span>Purchases (Orders I Bought)</span>
+                  <span className="hidden sm:inline">Purchases (Orders I Bought)</span>
+                  <span className="sm:hidden">Purchases</span>
                 </button>
               </div>
             </div>
@@ -893,7 +898,7 @@ export default function Orders() {
                 )}
               </div>
               
-              {/* Filter Buttons */}
+              {/* Filter Buttons - Mobile Optimized */}
               <div className="flex flex-wrap gap-2">
               {isArtisan(userRole) ? (
                 // Simplified artisan filters
@@ -904,7 +909,7 @@ export default function Orders() {
                   <button
                     key={key}
                     onClick={() => setFilter(key)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                    className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 flex items-center gap-1.5 sm:gap-2 min-h-[44px] ${
                       filter === key
                         ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
@@ -924,7 +929,7 @@ export default function Orders() {
                   <button
                     key={key}
                     onClick={() => setFilter(key)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                    className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-200 flex items-center gap-1.5 sm:gap-2 min-h-[44px] ${
                       filter === key
                         ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md'
@@ -1869,48 +1874,49 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-orange-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-              <ShoppingBagIcon className="w-6 h-6 text-white" />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white sm:rounded-xl max-w-4xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-2xl">
+        {/* Header - Mobile Optimized */}
+        <div className="sticky top-0 z-10 flex items-center justify-between p-3 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-orange-50 to-orange-100">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <ShoppingBagIcon className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">
-                Order #{order._id.slice(-8).toUpperCase()}
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-xl font-bold text-gray-900 truncate">
+                #{order._id.slice(-6).toUpperCase()}
               </h3>
-              <p className="text-sm text-gray-600">Order Details</p>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Order Details</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full"
+            className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-full flex-shrink-0"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Order Status */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200">
-            <div className="flex justify-between items-center">
+        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+          {/* Order Status - Mobile Optimized */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 sm:p-6 rounded-xl border border-blue-200">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
               <div>
-                <h4 className="font-bold text-gray-900 text-lg mb-1">Order Status</h4>
-                <p className="text-sm text-gray-600 flex items-center gap-2">
-                  <ClockIcon className="w-4 h-4" />
-                  Created on {formatDate(order.createdAt)}
+                <h4 className="font-bold text-gray-900 text-base sm:text-lg mb-1">Order Status</h4>
+                <p className="text-xs sm:text-sm text-gray-600 flex items-center gap-2">
+                  <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                  {formatDate(order.createdAt)}
                 </p>
               </div>
-              <div className="flex gap-3">
-                <div className="text-center">
-                  <span className={`px-4 py-2 text-sm font-bold rounded-full ${getStatusColor(order.status, order.deliveryMethod)}`}>
+              <div className="flex gap-2 sm:gap-3">
+                <div className="text-center flex-1 sm:flex-initial">
+                  <span className={`px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-bold rounded-full ${getStatusColor(order.status, order.deliveryMethod)} block`}>
                     {getStatusDisplayText(order.status, order.deliveryMethod)}
                   </span>
                   <p className="text-xs text-gray-500 mt-1">Status</p>
                 </div>
-                <div className="text-center">
-                  <span className={`px-4 py-2 text-sm font-bold rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
+                <div className="text-center flex-1 sm:flex-initial">
+                  <span className={`px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm font-bold rounded-full ${getPaymentStatusColor(order.paymentStatus)} block`}>
                     {order.paymentStatus ? order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1) : 'Unknown'}
                   </span>
                   <p className="text-xs text-gray-500 mt-1">Payment</p>
@@ -2246,10 +2252,10 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
             </div>
           </div>
 
-          {/* Order Items */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-4">Order Items</h4>
-            <div className="space-y-3">
+          {/* Order Items - Mobile Optimized */}
+          <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+            <h4 className="font-medium text-gray-900 text-base sm:text-lg mb-3 sm:mb-4">Order Items</h4>
+            <div className="space-y-2 sm:space-y-3">
               {order.items.map((item, index) => {
                 // Debug logging for problematic orders
                 if (!item.product?.name && !item.name && !item.productName) {
@@ -2563,18 +2569,18 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
-            <h4 className="font-bold text-gray-900 mb-4">Order Actions</h4>
+          {/* Action Buttons - Mobile Optimized */}
+          <div className="bg-gray-50 p-3 sm:p-6 rounded-xl border border-gray-200">
+            <h4 className="font-bold text-gray-900 text-base sm:text-lg mb-3 sm:mb-4">Order Actions</h4>
             
-            {/* Patron Confirmation Alert */}
+            {/* Patron Confirmation Alert - Mobile Optimized */}
             {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up' || order.status === 'ready_for_pickup') && !order.walletCredit?.patronConfirmedAt && (
-              <div className="mb-4 p-4 bg-primary-50 border-2 border-primary-300 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
+              <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-primary-50 border-2 border-primary-300 rounded-lg">
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h5 className="font-semibold text-amber-900 mb-1">Confirmation Required</h5>
-                    <p className="text-sm text-primary-800 mb-2">
+                    <h5 className="font-semibold text-amber-900 mb-1 text-sm sm:text-base">Confirmation Required</h5>
+                    <p className="text-xs sm:text-sm text-primary-800 mb-2">
                       {order.deliveryMethod === 'pickup' 
                         ? 'Have you picked up your order? Please confirm once received.'
                         : 'Have you received your delivery? Please confirm once received.'}
@@ -2589,16 +2595,18 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
               </div>
             )}
             
-            <div className="flex flex-wrap justify-end gap-3">
+            {/* Mobile-optimized button layout: stack on mobile, inline on desktop */}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 sm:gap-3">
               {/* Patron: Confirm Receipt Button */}
               {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
                 <button
                   onClick={handleConfirmReceipt}
                   disabled={isLoading}
-                  className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md flex items-center gap-2"
+                  className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md flex items-center justify-center gap-2 text-sm sm:text-base min-h-[48px]"
                 >
-                  <CheckCircleIcon className="w-5 h-5" />
-                  {isLoading ? '⏳ Confirming...' : `✅ Confirm ${order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'}`}
+                  <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">{isLoading ? '⏳ Confirming...' : `✅ Confirm ${order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'}`}</span>
+                  <span className="sm:hidden">{isLoading ? 'Confirming...' : `Confirm ${order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'}`}</span>
                 </button>
               )}
               
@@ -2607,7 +2615,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                 <button
                   onClick={handleCancelOrder}
                   disabled={isLoading}
-                  className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                  className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                 >
                   {isLoading ? '⏳ Cancelling...' : '❌ Cancel Order'}
                 </button>
@@ -2622,7 +2630,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                         onClick={() => handleUpdateStatus('confirmed')}
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Confirm this order'}
-                        className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                        className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                       >
                         {isLoading ? '⏳ Confirming...' : '✅ Confirm Order'}
                       </button>
@@ -2632,7 +2640,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                         }}
                         disabled={isLoading}
                         title={isLoading ? 'Loading...' : 'Click to decline order'}
-                        className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                        className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                       >
                         ❌ Decline Order
                       </button>
@@ -2643,7 +2651,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                       onClick={() => handleUpdateStatus('preparing')}
                       disabled={isLoading}
                       title={isLoading ? 'Loading...' : 'Start preparing the order'}
-                      className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                     >
                       {isLoading ? '⏳ Updating...' : '👨‍🍳 Start Preparing'}
                     </button>
@@ -2652,7 +2660,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                     <button
                       onClick={() => handleUpdateStatus(order.deliveryMethod === 'pickup' ? 'ready_for_pickup' : 'ready_for_delivery')}
                       disabled={isLoading}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                     >
                       {isLoading ? '⏳ Updating...' : '🎯 Mark Ready'}
                     </button>
@@ -2661,7 +2669,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                     <button
                       onClick={() => handleUpdateStatus('picked_up')}
                       disabled={isLoading}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                     >
                       {isLoading ? '⏳ Updating...' : '✅ Mark Picked Up'}
                     </button>
@@ -2670,7 +2678,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                     <button
                       onClick={() => handleUpdateStatus('out_for_delivery')}
                       disabled={isLoading}
-                      className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                     >
                       {isLoading ? '⏳ Updating...' : '🚚 Start Delivery'}
                     </button>
@@ -2679,7 +2687,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
                     <button
                       onClick={() => handleUpdateStatus('delivered')}
                       disabled={isLoading}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
                     >
                       {isLoading ? '⏳ Updating...' : '🎉 Mark Delivered'}
                     </button>
@@ -2689,7 +2697,7 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
               
               <button
                 onClick={onClose}
-                className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
+                className="w-full sm:w-auto px-4 sm:px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 font-medium shadow-sm hover:shadow-md text-sm sm:text-base min-h-[48px]"
               >
                 ✕ Close
               </button>

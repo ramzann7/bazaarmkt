@@ -15,6 +15,7 @@ import { getProfile, logoutUser } from "../../services/authservice";
 import { orderService } from "../../services/orderService";
 import { spotlightService } from "../../services/spotlightService";
 import walletService from "../../services/walletService";
+import { productService } from "../../services/productService";
 import toast from "react-hot-toast";
 import DashboardPriorityQueue from "./DashboardPriorityQueue.jsx";
 import WalletCard from "./WalletCard.jsx";
@@ -42,6 +43,7 @@ export default function DashboardFixed() {
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [showRevenueDetails, setShowRevenueDetails] = useState(false);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -156,13 +158,24 @@ export default function DashboardFixed() {
           totalEarnings
         });
 
+        // Step 2.5: Load total products count
+        let totalProducts = 0;
+        try {
+          const myProducts = await productService.getMyProducts();
+          totalProducts = Array.isArray(myProducts) ? myProducts.length : 0;
+          console.log('📊 Dashboard: Total products loaded:', totalProducts, 'products');
+        } catch (error) {
+          console.error('📊 Dashboard: Error loading products count:', error);
+          totalProducts = 0;
+        }
+
         const stats = {
           totalOrders: ordersArray.length,
           totalRevenue: totalRevenue,
           productRevenue: productRevenue,
           deliveryRevenue: deliveryRevenue,
           totalEarnings: totalEarnings,
-          totalProducts: 0,
+          totalProducts: totalProducts,
           averageRating: ordersArray.length > 0 ? 
             ordersArray.reduce((sum, order) => sum + (order.rating || 0), 0) / ordersArray.length : 0,
           ordersThisMonth: ordersArray.filter(order => {
@@ -385,36 +398,8 @@ export default function DashboardFixed() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header - Mobile Optimized */}
-        <div className="mb-4 sm:mb-6 lg:mb-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-            <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Artisan Dashboard</h1>
-              <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1">Welcome back, {user.firstName}!</p>
-            </div>
-            <div className="flex flex-row gap-2">
-              <button
-                onClick={() => window.location.reload()}
-                className="flex-1 sm:flex-initial px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm min-h-[48px]"
-              >
-                Refresh
-              </button>
-              <button
-                onClick={() => {
-                  logoutUser();
-                  toast.success("Logged out successfully!");
-                  navigate("/");
-                }}
-                className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm min-h-[48px]"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* User Profile Card - Mobile Optimized */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* User Profile Card - Mobile Optimized - Starts at Top */}
         <div className="card p-4 sm:p-6 mb-6 sm:mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Avatar and Info */}
@@ -478,106 +463,186 @@ export default function DashboardFixed() {
           <DashboardPriorityQueue />
         </div>
 
-        {/* Revenue & Earnings */}
-        <div className="card p-6 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-stone-800 font-display">Revenue & Earnings</h2>
+        {/* Revenue & Earnings - Mobile Optimized */}
+        <div className="card p-4 sm:p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold text-stone-800 font-display">Revenue & Earnings</h2>
             <Link
               to="/revenue-dashboard"
-              className="inline-flex items-center text-sm text-accent hover:text-emerald-700 font-medium"
+              className="inline-flex items-center text-xs sm:text-sm text-accent hover:text-emerald-700 font-medium gap-1"
             >
-              View detailed analytics
-              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="hidden sm:inline">View detailed analytics</span>
+              <span className="sm:hidden">Details</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </Link>
           </div>
           
-          <MobileDashboardStatGroup>
-            {/* Product Revenue */}
-            <MobileDashboardStat
-              icon={CurrencyDollarIcon}
-              label="Product Revenue"
-              value={formatCurrency(artisanStats.productRevenue || 0)}
-              changeLabel="From product sales"
-              color="text-green-600"
-              bgColor="bg-green-50"
-            />
-            
-            {/* Delivery Revenue */}
-            <MobileDashboardStat
-              icon={TruckIcon}
-              label="Delivery Revenue"
-              value={formatCurrency(artisanStats.deliveryRevenue || 0)}
-              changeLabel="From personal delivery"
-              color="text-orange-600"
-              bgColor="bg-orange-50"
-            />
-            
-            {/* Total Earnings */}
-            <MobileDashboardStat
-              icon={CurrencyDollarIcon}
-              label="Total Earnings"
-              value={formatCurrency(artisanStats.totalEarnings || 0)}
-              changeLabel="After platform fees"
-              color="text-emerald-600"
-              bgColor="bg-emerald-50"
-            />
+          {/* Mobile: Show primary metric larger, secondary metrics in expandable section */}
+          <div className="space-y-3">
+            {/* Primary Metric - Total Earnings */}
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 sm:p-5 border border-emerald-100">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <CurrencyDollarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-medium text-emerald-900">Total Earnings</span>
+                  </div>
+                  <p className="text-2xl sm:text-3xl font-bold text-emerald-700">
+                    {formatCurrency(artisanStats.totalEarnings || 0)}
+                  </p>
+                  <p className="text-xs text-emerald-600 mt-1">After platform fees</p>
+                </div>
+                <button
+                  onClick={() => setShowRevenueDetails(!showRevenueDetails)}
+                  className="text-emerald-600 hover:text-emerald-700 p-1 rounded-full hover:bg-emerald-100 transition-colors"
+                  aria-label={showRevenueDetails ? 'Hide details' : 'Show details'}
+                >
+                  <svg 
+                    className={`w-5 h-5 transition-transform ${showRevenueDetails ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
 
-            {/* Your Wallet */}
-            <MobileDashboardStat
-              icon={CurrencyDollarIcon}
-              label="Your Wallet"
-              value={formatCurrency(walletBalance)}
-              changeLabel="Available balance"
-              color="text-blue-600"
-              bgColor="bg-blue-50"
-              onClick={() => navigate('/my-wallet')}
-            />
-          </MobileDashboardStatGroup>
+            {/* Expandable Revenue Breakdown */}
+            {showRevenueDetails && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 pt-2 border-t border-gray-100">
+                {/* Product Revenue */}
+                <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <CurrencyDollarIcon className="w-3 h-3 text-green-600" />
+                    </div>
+                    <span className="text-xs font-medium text-green-900 line-clamp-1">Products</span>
+                  </div>
+                  <p className="text-sm sm:text-base font-bold text-green-700">
+                    {formatCurrency(artisanStats.productRevenue || 0)}
+                  </p>
+                  <p className="text-xs text-green-600 mt-0.5">Sales</p>
+                </div>
+
+                {/* Delivery Revenue */}
+                <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <TruckIcon className="w-3 h-3 text-orange-600" />
+                    </div>
+                    <span className="text-xs font-medium text-orange-900 line-clamp-1">Delivery</span>
+                  </div>
+                  <p className="text-sm sm:text-base font-bold text-orange-700">
+                    {formatCurrency(artisanStats.deliveryRevenue || 0)}
+                  </p>
+                  <p className="text-xs text-orange-600 mt-0.5">Revenue</p>
+                </div>
+
+                {/* Wallet Balance */}
+                <div 
+                  className="bg-blue-50 rounded-lg p-3 border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors col-span-2 sm:col-span-1"
+                  onClick={() => navigate('/my-wallet')}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <CurrencyDollarIcon className="w-3 h-3 text-blue-600" />
+                    </div>
+                    <span className="text-xs font-medium text-blue-900 line-clamp-1">Wallet</span>
+                  </div>
+                  <p className="text-sm sm:text-base font-bold text-blue-700">
+                    {formatCurrency(walletBalance)}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-0.5">Available</p>
+                </div>
+              </div>
+            )}
+
+            {/* Mobile hint text */}
+            {!showRevenueDetails && (
+              <p className="text-xs text-gray-500 text-center">
+                Tap arrow to see revenue breakdown
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Key Metrics Grid */}
-        <MobileDashboardStatGroup className="mb-8">
-          {/* Total Orders */}
-          <MobileDashboardStat
-            icon={ShoppingBagIcon}
-            label="Total Orders"
-            value={artisanStats.totalOrders}
-            color="text-amber-600"
-            bgColor="bg-amber-50"
-            onClick={() => navigate('/orders')}
-          />
+        {/* Key Metrics - Compact Grid - Mobile Optimized */}
+        <div className="card p-4 sm:p-6 mb-8">
+          <h2 className="text-base sm:text-lg font-semibold text-stone-800 font-display mb-4">Business Metrics</h2>
+          
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* Total Orders */}
+            <button
+              onClick={() => navigate('/orders')}
+              className="bg-amber-50 hover:bg-amber-100 rounded-lg p-3 sm:p-4 border border-amber-100 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <ShoppingBagIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+                </div>
+                <span className="text-xs sm:text-sm font-medium text-amber-900 line-clamp-1">Orders</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-amber-700">
+                {artisanStats.totalOrders}
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">All time</p>
+            </button>
 
-          {/* Pending Orders */}
-          <MobileDashboardStat
-            icon={ClockIcon}
-            label="Pending Orders"
-            value={artisanStats.pendingOrders}
-            color="text-yellow-600"
-            bgColor="bg-yellow-50"
-            onClick={() => navigate('/orders?filter=pending')}
-          />
+            {/* Pending Orders */}
+            <button
+              onClick={() => navigate('/orders?filter=pending')}
+              className="bg-yellow-50 hover:bg-yellow-100 rounded-lg p-3 sm:p-4 border border-yellow-100 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                  <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-600" />
+                </div>
+                <span className="text-xs sm:text-sm font-medium text-yellow-900 line-clamp-1">Pending</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-yellow-700">
+                {artisanStats.pendingOrders}
+              </p>
+              <p className="text-xs text-yellow-600 mt-0.5">Need action</p>
+            </button>
 
-          {/* Total Patrons */}
-          <MobileDashboardStat
-            icon={UsersIcon}
-            label="Total Patrons"
-            value={artisanStats.totalPatrons}
-            color="text-purple-600"
-            bgColor="bg-purple-50"
-          />
+            {/* Total Patrons */}
+            <div className="bg-purple-50 rounded-lg p-3 sm:p-4 border border-purple-100">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <UsersIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600" />
+                </div>
+                <span className="text-xs sm:text-sm font-medium text-purple-900 line-clamp-1">Patrons</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-purple-700">
+                {artisanStats.totalPatrons}
+              </p>
+              <p className="text-xs text-purple-600 mt-0.5">Customers</p>
+            </div>
 
-          {/* Total Products */}
-          <MobileDashboardStat
-            icon={TagIcon}
-            label="Total Products"
-            value={artisanStats.totalProducts}
-            color="text-blue-600"
-            bgColor="bg-blue-50"
-            onClick={() => navigate('/my-products')}
-          />
-        </MobileDashboardStatGroup>
+            {/* Total Products */}
+            <button
+              onClick={() => navigate('/my-products')}
+              className="bg-blue-50 hover:bg-blue-100 rounded-lg p-3 sm:p-4 border border-blue-100 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <TagIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600" />
+                </div>
+                <span className="text-xs sm:text-sm font-medium text-blue-900 line-clamp-1">Products</span>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-blue-700">
+                {artisanStats.totalProducts}
+              </p>
+              <p className="text-xs text-blue-600 mt-0.5">In catalog</p>
+            </button>
+          </div>
+        </div>
 
         {/* Recent Orders */}
         <div className="card p-6 mb-8">

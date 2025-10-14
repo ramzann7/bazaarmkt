@@ -172,7 +172,7 @@ const ProductCard = ({
               </span>
             </div>
             
-            {/* Visit Shop Button - Bottom Right */}
+            {/* Visit Shop Button - Subtle on Mobile, Prominent on Desktop */}
             {showVisitShop && product.artisan?._id && !outOfStockStatus.isOutOfStock && (() => {
               const artisanSlug = generateUniqueSlug(
                 product.artisan.artisanName || product.artisan.businessName, 
@@ -182,23 +182,42 @@ const ProductCard = ({
                 <Link
                   to={`/artisan/${artisanSlug}`}
                   onClick={(e) => e.stopPropagation()}
-                  className={`btn-primary whitespace-nowrap flex-shrink-0 ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'}`}
+                  className={`
+                    whitespace-nowrap flex-shrink-0 flex items-center gap-0.5 transition-colors
+                    ${compact 
+                      ? 'text-[10px] px-1.5 py-1 sm:px-2 sm:py-1.5 sm:text-xs' 
+                      : 'text-[10px] px-2 py-1.5 sm:px-3 sm:py-2 sm:text-sm'
+                    }
+                    text-primary hover:text-primary-dark font-medium
+                    bg-transparent hover:bg-primary/5
+                    sm:bg-primary sm:text-white sm:hover:bg-primary-dark sm:hover:text-white
+                    border border-primary/20 sm:border-0
+                    rounded-md sm:rounded-lg
+                    min-h-[32px] sm:min-h-[40px]
+                  `}
                 >
-                  Visit Shop →
+                  <span className="hidden sm:inline">Visit Shop</span>
+                  <span className="sm:hidden text-[10px]">Shop</span>
+                  <span className="text-[10px] sm:text-xs">→</span>
                 </Link>
               );
             })()}
             
-            {/* Add to Cart Button (for artisan shop) - Bottom Right */}
+            {/* Add to Cart Button (for artisan shop) - Mobile Optimized */}
             {showAddToCart && !outOfStockStatus.isOutOfStock && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowCartPopup(true);
                 }}
-                className={`btn-primary whitespace-nowrap flex-shrink-0 ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-xs'}`}
+                className={`btn-primary whitespace-nowrap flex-shrink-0 min-h-[40px] ${
+                  compact 
+                    ? 'px-2 py-1.5 text-[10px] sm:text-xs' 
+                    : 'px-2.5 sm:px-3 py-2 text-xs sm:text-sm'
+                }`}
               >
-                Add to Cart
+                <span className="hidden sm:inline">Add to Cart</span>
+                <span className="sm:hidden">Add</span>
               </button>
             )}
           </div>

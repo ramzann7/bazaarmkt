@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
-import { Accordion } from './common/Accordion';
+import Accordion, { AccordionSection } from './common/Accordion';
 import CompactImageUpload from './common/CompactImageUpload';
 import { 
   UserIcon, 

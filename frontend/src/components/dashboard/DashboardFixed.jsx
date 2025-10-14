@@ -479,43 +479,70 @@ export default function DashboardFixed() {
             </Link>
           </div>
           
-          {/* Mobile: Show primary metric larger, secondary metrics in expandable section */}
+          {/* Primary Metrics - Earnings & Wallet Side by Side */}
           <div className="space-y-3">
-            {/* Primary Metric - Total Earnings */}
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 sm:p-5 border border-emerald-100">
-              <div className="flex items-start justify-between">
+            {/* Top Row: Total Earnings & Wallet Balance */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Total Earnings */}
+              <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 sm:p-5 border border-emerald-100">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <CurrencyDollarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                      </div>
+                      <span className="text-xs sm:text-sm font-medium text-emerald-900">Total Earnings</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-emerald-700">
+                      {formatCurrency(artisanStats.totalEarnings || 0)}
+                    </p>
+                    <p className="text-xs text-emerald-600 mt-1">After platform fees</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRevenueDetails(!showRevenueDetails)}
+                    className="text-emerald-600 hover:text-emerald-700 p-1 rounded-full hover:bg-emerald-100 transition-colors"
+                    aria-label={showRevenueDetails ? 'Hide details' : 'Show details'}
+                  >
+                    <svg 
+                      className={`w-5 h-5 transition-transform ${showRevenueDetails ? 'rotate-180' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Wallet Balance - Primary Metric */}
+              <button 
+                onClick={() => navigate('/my-wallet')}
+                className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-5 border border-blue-100 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all text-left"
+              >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                      <CurrencyDollarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <CurrencyDollarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                     </div>
-                    <span className="text-xs sm:text-sm font-medium text-emerald-900">Total Earnings</span>
+                    <span className="text-xs sm:text-sm font-medium text-blue-900">Wallet Balance</span>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-emerald-700">
-                    {formatCurrency(artisanStats.totalEarnings || 0)}
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-700">
+                    {formatCurrency(walletBalance)}
                   </p>
-                  <p className="text-xs text-emerald-600 mt-1">After platform fees</p>
+                  <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                    Available to spend
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </p>
                 </div>
-                <button
-                  onClick={() => setShowRevenueDetails(!showRevenueDetails)}
-                  className="text-emerald-600 hover:text-emerald-700 p-1 rounded-full hover:bg-emerald-100 transition-colors"
-                  aria-label={showRevenueDetails ? 'Hide details' : 'Show details'}
-                >
-                  <svg 
-                    className={`w-5 h-5 transition-transform ${showRevenueDetails ? 'rotate-180' : ''}`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
+              </button>
             </div>
 
             {/* Expandable Revenue Breakdown */}
             {showRevenueDetails && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 pt-2 border-t border-gray-100">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-gray-100">
                 {/* Product Revenue */}
                 <div className="bg-green-50 rounded-lg p-3 border border-green-100">
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -542,23 +569,6 @@ export default function DashboardFixed() {
                     {formatCurrency(artisanStats.deliveryRevenue || 0)}
                   </p>
                   <p className="text-xs text-orange-600 mt-0.5">Revenue</p>
-                </div>
-
-                {/* Wallet Balance */}
-                <div 
-                  className="bg-blue-50 rounded-lg p-3 border border-blue-100 cursor-pointer hover:bg-blue-100 transition-colors col-span-2 sm:col-span-1"
-                  onClick={() => navigate('/my-wallet')}
-                >
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                      <CurrencyDollarIcon className="w-3 h-3 text-blue-600" />
-                    </div>
-                    <span className="text-xs font-medium text-blue-900 line-clamp-1">Wallet</span>
-                  </div>
-                  <p className="text-sm sm:text-base font-bold text-blue-700">
-                    {formatCurrency(walletBalance)}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-0.5">Available</p>
                 </div>
               </div>
             )}

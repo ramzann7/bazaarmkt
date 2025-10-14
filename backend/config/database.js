@@ -159,7 +159,19 @@ const connectToDatabase = async () => {
     await Promise.race([connectPromise, timeoutPromise]);
     
     // Get database (matches MONGODB_URI database name)
-    const dbName = process.env.MONGODB_URI?.split('/').pop()?.split('?')[0] || 'bazaarmkt-prod';
+    let dbName = 'bazaarmkt-prod'; // Default fallback
+    try {
+      const uriParts = process.env.MONGODB_URI?.split('/');
+      if (uriParts && uriParts.length > 3) {
+        const dbPart = uriParts.pop()?.split('?')[0];
+        if (dbPart && dbPart.length > 0) {
+          dbName = dbPart;
+        }
+      }
+    } catch (parseError) {
+      console.warn('⚠️ Could not parse database name from URI, using default:', dbName);
+    }
+    
     cachedDb = cachedClient.db(dbName);
     
     // Verify connection with ping

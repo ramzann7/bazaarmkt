@@ -262,6 +262,50 @@ const recordWalletTransaction = async (db, transactionData) => {
 // Make helper functions available to routes
 app.locals.recordWalletTransaction = recordWalletTransaction;
 
+// Health check endpoint (works without database initialization)
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    message: 'Server is running'
+  });
+});
+
+// Ensure database initialization before handling other API requests (with timeout)
+app.use('/api', async (req, res, next) => {
+  // Skip initialization for health check
+  if (req.path === '/health') {
+    return next();
+  }
+  
+  try {
+    // Add timeout to prevent indefinite blocking (10 seconds max)
+    const initPromise = ensureInitialization();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+    );
+    
+    await Promise.race([initPromise, timeoutPromise]);
+    next();
+  } catch (error) {
+    console.error('❌ Database initialization failed for request:', req.path, error.message);
+    
+    // Check if it's a timeout vs actual database error
+    if (error.message === 'Initialization timeout') {
+      // Continue anyway - database might be working even if initialization is slow
+      console.log('⚠️ Initialization timeout, continuing with request...');
+      next();
+    } else {
+      res.status(503).json({
+        error: 'Service temporarily unavailable',
+        message: 'Database is initializing, please try again in a moment',
+        code: 'DB_INIT_FAILED'
+      });
+    }
+  }
+});
+
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
@@ -417,17 +461,49 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 
-// Initialize search analytics on startup
-const initializeSearchAnalytics = async () => {
+// Initialize database indexes and services
+const initializeDatabaseServices = async () => {
   try {
-    const SearchAnalyticsService = require('./services/searchAnalyticsService');
+    console.log('🔄 Initializing database services...');
     const db = await getDB();
-    const searchAnalyticsService = new SearchAnalyticsService(db);
-    await searchAnalyticsService.createIndexes();
-    console.log('✅ Search analytics initialized');
+    
+    // Initialize search analytics indexes
+    try {
+      const SearchAnalyticsService = require('./services/searchAnalyticsService');
+      const searchAnalyticsService = new SearchAnalyticsService(db);
+      await searchAnalyticsService.createIndexes();
+      console.log('✅ Search analytics indexes created');
+    } catch (error) {
+      console.error('❌ Failed to initialize search analytics:', error);
+    }
+    
+    // Initialize other critical indexes if needed (non-blocking)
+    try {
+      const { createIndexes } = require('./config/database-indexes');
+      // Run index creation in background to avoid blocking API requests
+      createIndexes().then(() => {
+        console.log('✅ Core database indexes verified');
+      }).catch(error => {
+        console.error('⚠️ Core indexes initialization failed (non-blocking):', error);
+      });
+    } catch (error) {
+      console.error('⚠️ Core indexes module not available:', error);
+    }
+    
+    console.log('✅ Database services initialization completed');
   } catch (error) {
-    console.error('❌ Failed to initialize search analytics:', error);
+    console.error('❌ Database services initialization failed:', error);
+    // Don't throw - allow server to start even if some services fail
   }
+};
+
+// Initialize services on app startup (works in both local and serverless)
+let initializationPromise = null;
+const ensureInitialization = async () => {
+  if (!initializationPromise) {
+    initializationPromise = initializeDatabaseServices();
+  }
+  return initializationPromise;
 };
 
 // Start server if this file is run directly
@@ -441,8 +517,8 @@ if (require.main === module) {
     console.log(`📦 Inventory restoration: http://localhost:${PORT}/api/admin/inventory/restore-all`);
     console.log(`⏰ Cron jobs configured for Vercel deployment`);
     
-    // Initialize search analytics
-    await initializeSearchAnalytics();
+    // Initialization will happen via middleware
+    console.log('🔄 Database services will initialize on first request');
   });
 }
 

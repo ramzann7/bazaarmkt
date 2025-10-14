@@ -383,15 +383,33 @@ class SearchAnalyticsService {
    */
   async createIndexes() {
     try {
-      await this.collection.createIndex({ timestamp: -1 });
-      await this.collection.createIndex({ query: 1, timestamp: -1 });
-      await this.collection.createIndex({ userId: 1, timestamp: -1 });
-      await this.collection.createIndex({ zeroResults: 1, timestamp: -1 });
-      await this.collection.createIndex({ responseTime: -1, timestamp: -1 });
+      const indexes = [
+        { key: { timestamp: -1 }, name: 'timestamp_desc' },
+        { key: { query: 1, timestamp: -1 }, name: 'query_timestamp' },
+        { key: { userId: 1, timestamp: -1 }, name: 'user_timestamp' },
+        { key: { zeroResults: 1, timestamp: -1 }, name: 'zero_results_timestamp' },
+        { key: { responseTime: -1, timestamp: -1 }, name: 'response_time_timestamp' }
+      ];
       
-      console.log('✅ Search analytics indexes created');
+      for (const indexSpec of indexes) {
+        try {
+          await this.collection.createIndex(indexSpec.key, { 
+            name: indexSpec.name,
+            background: true, // Don't block other operations
+            sparse: true // Skip documents that don't have the indexed fields
+          });
+        } catch (indexError) {
+          // Log but don't fail if index already exists
+          if (indexError.code !== 85) { // 85 = IndexOptionsConflict (index already exists)
+            console.warn(`⚠️ Could not create index ${indexSpec.name}:`, indexError.message);
+          }
+        }
+      }
+      
+      console.log('✅ Search analytics indexes created/verified');
     } catch (error) {
       console.error('Error creating search analytics indexes:', error);
+      // Don't throw - allow service to continue without indexes
     }
   }
 }

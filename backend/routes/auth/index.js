@@ -100,7 +100,8 @@ const register = async (req, res) => {
       artisanName,
       type,
       description,
-      location // Geographic location for validation
+      location, // Geographic location for validation
+      languagePreference = 'en' // Capture language at registration
     } = req.body;
     
     if (!email || !password || !firstName || !lastName) {
@@ -153,6 +154,10 @@ const register = async (req, res) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     
+    // Validate and set language preference
+    const validLanguages = ['en', 'fr', 'fr-CA'];
+    const userLanguage = validLanguages.includes(languagePreference) ? languagePreference : 'en';
+    
     // Create user with all provided data
     const user = {
       email: email.toLowerCase(),
@@ -179,6 +184,7 @@ const register = async (req, res) => {
         }
       },
       accountSettings: {},
+      languagePreference: userLanguage, // Store language preference from registration
       paymentMethods: [],
       coordinates: null,
       isActive: true,
@@ -370,6 +376,7 @@ const login = async (req, res) => {
           lastName: user.lastName,
           phone: user.phone,
           userType: user.role, // Frontend expects userType
+          languagePreference: user.languagePreference || 'en', // Include language preference for i18n
           isActive: user.isActive,
           isVerified: user.isVerified
         },
@@ -477,6 +484,7 @@ const getProfile = async (req, res) => {
       addresses: user.addresses || [],
       notificationPreferences: user.notificationPreferences || {},
       accountSettings: user.accountSettings || {},
+      languagePreference: user.languagePreference || 'en', // Include language preference
       paymentMethods: syncedPaymentMethods,
       stripeCustomerId: user.stripeCustomerId,
       coordinates: user.coordinates

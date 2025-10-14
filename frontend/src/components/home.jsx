@@ -1,5 +1,6 @@
 // src/components/Home.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import config, { VECTEEZY_ARTISAN_MARKET } from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
@@ -59,6 +60,7 @@ const ProductSkeleton = () => (
 );
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -967,12 +969,12 @@ export default function Home() {
             
             {/* Heading - More compact on mobile */}
             <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-secondary mb-3 sm:mb-4 leading-tight">
-              Discover treasures made by your neighbours
+              {t('home.hero.title')}
             </h1>
             
             {/* Lead Text - Shorter on mobile */}
             <p className="text-sm sm:text-base lg:text-lg text-secondary/70 mb-4 sm:mb-6 leading-relaxed">
-              Shop fresh, homemade food and handcrafted goods from local artisans near you. Each purchase supports a person — not a faceless corporation.
+              {t('home.hero.subtitle')}
             </p>
             
             {/* CTA Buttons - Touch-friendly */}
@@ -981,13 +983,13 @@ export default function Home() {
                 to="/find-artisans"
                 className="btn-primary px-6 py-3 text-center text-sm sm:text-base min-h-[44px]"
               >
-                Explore Artisans
+                {t('home.exploreMarket')}
               </Link>
               <button
                 onClick={handleFindNearMe}
                 className="btn-outline px-6 py-3 text-center text-sm sm:text-base min-h-[44px]"
               >
-                Find Near Me
+                {t('home.hero.cta')}
               </button>
             </div>
           </div>
@@ -1009,7 +1011,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary">Featured Products</h2>
+            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary">{t('home.featuredProducts')}</h2>
             {availableFeaturedProducts.length > 8 && (
               <button
                 onClick={() => setShowAllFeatured(!showAllFeatured)}
@@ -1017,14 +1019,14 @@ export default function Home() {
               >
                 {showAllFeatured ? (
                   <>
-                    <span className="hidden sm:inline">Show Less</span>
-                    <span className="sm:hidden">Less</span>
+                    <span className="hidden sm:inline">{t('common.showLess')}</span>
+                    <span className="sm:hidden">{t('common.less')}</span>
                     <MinusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 ) : (
                   <>
-                    <span className="hidden sm:inline">View All ({availableFeaturedProducts.length})</span>
-                    <span className="sm:hidden">All ({availableFeaturedProducts.length})</span>
+                    <span className="hidden sm:inline">{t('common.viewAll')} ({availableFeaturedProducts.length})</span>
+                    <span className="sm:hidden">{t('common.all')} ({availableFeaturedProducts.length})</span>
                     <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 )}
@@ -1048,7 +1050,7 @@ export default function Home() {
                 ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">No featured products available</p>
+            <p className="text-gray-500 text-center py-6 sm:py-8 text-sm sm:text-base">{t('home.noProducts')}</p>
           )}
         </div>
       </section>
@@ -1058,7 +1060,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary">Popular Products</h2>
+            <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary">{t('home.popularProducts')}</h2>
             {availablePopularProducts.length > 8 && (
               <button
                 onClick={() => setShowAllPopular(!showAllPopular)}
@@ -1066,14 +1068,14 @@ export default function Home() {
               >
                 {showAllPopular ? (
                   <>
-                    <span className="hidden sm:inline">Show Less</span>
-                    <span className="sm:hidden">Less</span>
+                    <span className="hidden sm:inline">{t('common.showLess')}</span>
+                    <span className="sm:hidden">{t('common.less')}</span>
                     <MinusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 ) : (
                   <>
-                    <span className="hidden sm:inline">View All ({availablePopularProducts.length})</span>
-                    <span className="sm:hidden">All ({availablePopularProducts.length})</span>
+                    <span className="hidden sm:inline">{t('common.viewAll')} ({availablePopularProducts.length})</span>
+                    <span className="sm:hidden">{t('common.all')} ({availablePopularProducts.length})</span>
                     <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </>
                 )}
@@ -1105,7 +1107,7 @@ export default function Home() {
       {/* Community Spotlight - Mobile Optimized */}
       <section className="py-4 sm:py-6 lg:py-8 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mb-4 sm:mb-6">Community Spotlight</h2>
+          <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-secondary mb-4 sm:mb-6">{t('home.communitySpotlight')}</h2>
           
           {isLoadingPosts ? (
             <div className="grid md:grid-cols-3 gap-6">
@@ -1201,7 +1203,7 @@ export default function Home() {
               to="/community" 
               className="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-semibold transition-colors"
             >
-              View All Community Posts
+              {t('home.viewAllPosts')}
               <ArrowRightIcon className="w-4 h-4" />
             </Link>
           </div>

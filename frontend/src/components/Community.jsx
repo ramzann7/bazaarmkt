@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   HeartIcon,
   ChatBubbleLeftIcon,
@@ -35,6 +36,7 @@ import { authToken } from '../services/authservice';
 import AuthPopup from './AuthPopup';
 
 export default function Community() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,13 +101,13 @@ export default function Community() {
   const [authAction, setAuthAction] = useState('');
 
   const postTypes = [
-    { id: 'all', name: 'All Posts', icon: '📝' },
-    { id: 'story', name: 'Stories', icon: '📖' },
+    { id: 'all', name: t('community.allPosts'), icon: '📝' },
+    { id: 'story', name: t('community.posts'), icon: '📖' },
     { id: 'recipe', name: 'Recipes', icon: '👨‍🍳' },
     { id: 'tip', name: 'Tips & Tricks', icon: '💡' },
     { id: 'question', name: 'Questions', icon: '❓' },
     { id: 'product_showcase', name: 'Product Showcase', icon: '🛍️' },
-    { id: 'event', name: 'Events', icon: '📅' },
+    { id: 'event', name: t('community.events'), icon: '📅' },
     { id: 'poll', name: 'Polls', icon: '🗳️' }
   ];
 
@@ -927,10 +929,10 @@ export default function Community() {
   };
 
   const renderPost = (post) => (
-    <div id={`post-${post._id}`} key={post._id} className="bg-card rounded-xl shadow-soft border border-gray-100/30 overflow-hidden mb-6">
-      {/* Post Header */}
-      <div className="flex items-center gap-3 p-4">
-        <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500">
+    <div id={`post-${post._id}`} key={post._id} className="bg-card rounded-xl shadow-soft border border-gray-100/30 overflow-hidden mb-4 sm:mb-6">
+      {/* Post Header - Mobile Optimized */}
+      <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500">
           {(post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage || post.authorData?.profilePicture) ? (
             <img 
               src={post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage || post.authorData?.profilePicture} 
@@ -961,21 +963,21 @@ export default function Community() {
         </div>
       </div>
       
-      {/* Post Image */}
+      {/* Post Image - Mobile Optimized */}
       {post.images && post.images.length > 0 && (
         <img 
           src={post.images[0]} 
           alt={post.title}
-          className="w-full h-56 object-cover"
+          className="w-full h-48 sm:h-56 object-cover"
         />
       )}
       
-      {/* Post Title */}
-      <h2 className="text-xl font-semibold text-text px-4 mt-4 mb-2">{post.title}</h2>
+      {/* Post Title - Mobile Optimized */}
+      <h2 className="text-lg sm:text-xl font-semibold text-text px-3 sm:px-4 mt-3 sm:mt-4 mb-2">{post.title}</h2>
       
-      {/* Post Content */}
-      <div className="px-4 pb-4">
-        <p className="text-muted leading-relaxed whitespace-pre-wrap">{post.content}</p>
+      {/* Post Content - Mobile Optimized */}
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+        <p className="text-sm sm:text-base text-muted leading-relaxed whitespace-pre-wrap">{post.content}</p>
         
         {/* Event Details */}
         {post.type === 'event' && post.event && (
@@ -1229,34 +1231,38 @@ export default function Community() {
           </div>
       )}
 
-      {/* Post Footer */}
-      <div className="flex items-center gap-6 px-4 py-4 border-t border-gray-100/50 text-muted">
+      {/* Post Footer - Mobile Optimized */}
+      <div className="flex items-center gap-3 sm:gap-6 px-3 sm:px-4 py-3 sm:py-4 border-t border-gray-100/50 text-muted flex-wrap">
         <button
           onClick={() => handleLikePost(post._id)}
-          className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium transition-colors min-h-[44px] px-2 -mx-2 ${
             post.isLiked ? 'text-red-500' : 'text-muted hover:text-red-500'
           }`}
         >
-          {post.isLiked ? '❤️' : '🤍'} {post.likeCount || 0}
+          <span className="text-base">{post.isLiked ? '❤️' : '🤍'}</span>
+          <span>{post.likeCount || 0}</span>
         </button>
         
         <button
           onClick={() => toggleComments(post._id)}
-          className="flex items-center gap-2 text-sm font-medium text-muted hover:text-accent transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-muted hover:text-accent transition-colors min-h-[44px] px-2 -mx-2"
         >
-          💬 {post.comments?.length || 0}
+          <span className="text-base">💬</span>
+          <span>{post.comments?.length || 0}</span>
         </button>
         
         <button
           onClick={() => handleCopyLink(post)}
-          className="flex items-center gap-2 text-sm font-medium text-muted hover:text-accent transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-muted hover:text-accent transition-colors min-h-[44px] px-2 -mx-2"
           title="Copy formatted post link"
         >
-          🔗 Share
+          <span className="text-base">🔗</span>
+          <span className="hidden sm:inline">Share</span>
         </button>
         
-        <button className="flex items-center gap-2 text-sm font-medium text-muted hover:text-accent transition-colors">
-          📌 Save
+        <button className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-muted hover:text-accent transition-colors min-h-[44px] px-2 -mx-2">
+          <span className="text-base">📌</span>
+          <span className="hidden sm:inline">Save</span>
         </button>
           
           {/* RSVP Button for Event Posts */}
@@ -1379,39 +1385,48 @@ export default function Community() {
   return (
     <div className="min-h-screen bg-background">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-8">
           {/* Main Content */}
           <div className="lg:col-span-3">
-            {/* Filter Tabs - Updated to match marketplace style */}
-            <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
-              <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
-                {/* Category Filters - Horizontal Scroll */}
-                <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide flex-1 min-w-0">
-                  {postTypes.map((type) => (
-                    <button
-                      key={type.id}
-                      onClick={() => setSelectedFilter(type.id)}
-                      className={`px-2.5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
-                        selectedFilter === type.id
-                          ? 'bg-accent text-white border-transparent'
-                          : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
-                      }`}
-                    >
-                      {type.name}
-                    </button>
-                  ))}
+            {/* Filter Tabs - Mobile Optimized */}
+            <div className="sticky top-2 sm:top-4 bg-transparent py-2 sm:py-3 z-10 mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 sm:gap-3 bg-white/85 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl shadow-sm border border-gray-100/30">
+                {/* Category Filters - Horizontal Scroll with Gradient Hints */}
+                <div className="relative flex-1 min-w-0">
+                  {/* Left gradient */}
+                  <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white/85 to-transparent z-10 pointer-events-none" />
+                  {/* Right gradient */}
+                  <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white/85 to-transparent z-10 pointer-events-none" />
+                  
+                  <div className="flex gap-1.5 sm:gap-2 items-center overflow-x-auto scrollbar-hide scroll-smooth">
+                    {postTypes.map((type) => (
+                      <button
+                        key={type.id}
+                        onClick={() => setSelectedFilter(type.id)}
+                        className={`px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 min-h-[36px] sm:min-h-[40px] ${
+                          selectedFilter === type.id
+                            ? 'bg-accent text-white border-transparent'
+                            : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="hidden sm:inline">{type.name}</span>
+                        <span className="sm:hidden">{type.icon}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Create Post Button */}
+                {/* Create Post Button - Mobile Optimized */}
                 {user && (
-                  <div className="flex items-center gap-2.5 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => setShowCreatePost(true)}
-                      className="bg-accent text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center gap-2"
+                      className="bg-accent text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold hover:bg-accent/90 transition-colors flex items-center gap-1.5 sm:gap-2 min-h-[36px] sm:min-h-[40px]"
                     >
-                      <PlusIcon className="w-4 h-4" />
-                      Create Post
+                      <PlusIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Create Post</span>
+                      <span className="sm:hidden">Post</span>
                     </button>
                   </div>
                 )}

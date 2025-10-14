@@ -1,8 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../contexts/AuthContext';
+import { profileService } from '../services/profileService';
+import toast from 'react-hot-toast';
 
 export default function LanguageSwitcher({ className = '' }) {
   const { i18n } = useTranslation();
+  const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -13,9 +17,20 @@ export default function LanguageSwitcher({ className = '' }) {
 
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
-  const handleLanguageChange = (langCode) => {
-    i18n.changeLanguage(langCode);
-    setIsOpen(false);
+  const handleLanguageChange = async (langCode) => {
+    try {
+      // Change language in i18n
+      i18n.changeLanguage(langCode);
+      setIsOpen(false);
+      
+      // If user is authenticated, save preference to profile
+      if (isAuthenticated && user) {
+        await profileService.updateBasicProfile({ languagePreference: langCode });
+      }
+    } catch (error) {
+      console.error('Failed to save language preference:', error);
+      // Don't show error to user as language was already changed locally
+    }
   };
 
   // Close dropdown when clicking outside

@@ -12,6 +12,9 @@ const resources = {
   },
   'fr-CA': {
     translation: frCATranslations
+  },
+  'fr': {
+    translation: frCATranslations // Use fr-CA for base fr fallback
   }
 };
 
@@ -22,7 +25,7 @@ i18n
     resources,
     fallbackLng: 'en',
     lng: localStorage.getItem('language') || 'en', // Default to stored language or English
-    debug: false,
+    debug: false, // Disable debug in production
     
     interpolation: {
       escapeValue: false // React already handles escaping
@@ -33,10 +36,10 @@ i18n
       caches: ['localStorage']
     },
     
-    // Support Canadian French variants
-    load: 'currentOnly',
-    supportedLngs: ['en', 'fr-CA'],
-    nonExplicitSupportedLngs: true
+    // Support Canadian French - include base 'fr' to prevent warnings
+    supportedLngs: ['en', 'fr', 'fr-CA'],
+    load: 'all',
+    nonExplicitSupportedLngs: false
   });
 
 // Listen for language changes and update localStorage

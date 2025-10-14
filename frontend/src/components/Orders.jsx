@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
   ShoppingBagIcon, 
@@ -24,6 +25,7 @@ const isArtisan = (userRole) => {
 };
 
 export default function Orders() {
+  const { t } = useTranslation();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [allOrders, setAllOrders] = useState([]); // Cache all orders

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   UserIcon, 
   MapPinIcon, 
@@ -972,29 +973,26 @@ export default function Profile() {
 
 // Tab Components
 function PersonalInfoTab({ profile, onSave, isSaving }) {
+  const { t, i18n } = useTranslation();
   const [formData, setFormData] = useState({
     firstName: profile?.firstName || '',
     lastName: profile?.lastName || '',
-    phone: profile?.phone || ''
+    phone: profile?.phone || '',
+    languagePreference: profile?.languagePreference || 'en'
   });
 
   // Update form data when profile changes
   useEffect(() => {
-    console.log('🔄 PersonalInfoTab: Profile updated, syncing form data:', {
-      firstName: profile?.firstName,
-      lastName: profile?.lastName,
-      phone: profile?.phone
-    });
-    
     // Ensure we have valid profile data
     if (profile && typeof profile === 'object') {
       setFormData({
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
-        phone: profile.phone || ''
+        phone: profile.phone || '',
+        languagePreference: profile.languagePreference || 'en'
       });
     }
-  }, [profile, profile?.firstName, profile?.lastName, profile?.phone, profile?.updatedAt]);
+  }, [profile, profile?.firstName, profile?.lastName, profile?.phone, profile?.languagePreference, profile?.updatedAt]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1004,13 +1002,13 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
       <div className="border-b border-gray-200 pb-4">
-        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Personal Information</h3>
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{t('profile.personalInfo')}</h3>
         <p className="text-sm text-gray-600 mt-1">Update your personal details</p>
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('auth.firstName')}</label>
           <input
             type="text"
             value={formData.firstName}
@@ -1022,7 +1020,7 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('auth.lastName')}</label>
           <input
             type="text"
             value={formData.lastName}
@@ -1035,7 +1033,7 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('auth.phoneNumber')}</label>
         <input
           type="tel"
           inputMode="tel"
@@ -1044,6 +1042,25 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
           className="block w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-gray-300 shadow-sm 
                    focus:border-orange-500 focus:ring-orange-500 text-sm sm:text-base"
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('language.selectLanguage')}</label>
+        <select
+          value={formData.languagePreference}
+          onChange={(e) => {
+            const newLang = e.target.value;
+            setFormData({ ...formData, languagePreference: newLang });
+            // Also update i18n immediately for better UX
+            i18n.changeLanguage(newLang);
+          }}
+          className="block w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-gray-300 shadow-sm 
+                   focus:border-orange-500 focus:ring-orange-500 text-sm sm:text-base"
+        >
+          <option value="en">{t('language.english')}</option>
+          <option value="fr-CA">{t('language.frenchCanadian')}</option>
+        </select>
+        <p className="text-xs text-gray-500 mt-1">Your preferred language for the interface</p>
       </div>
 
       <div className="flex justify-end pt-4 border-t border-gray-200">
@@ -1059,7 +1076,7 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
               <span>Saving...</span>
             </div>
           ) : (
-            'Save Changes'
+            t('common.saveChanges')
           )}
         </button>
       </div>

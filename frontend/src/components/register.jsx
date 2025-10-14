@@ -1,6 +1,7 @@
 // src/components/Register.jsx
 import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon, UserIcon } from "@heroicons/react/24/outline";
 import Logo from "./Logo";
 import { registerUser, getProfile } from "../services/authservice";
@@ -12,6 +13,7 @@ import geographicSettingsService from "../services/geographicSettingsService";
 import { ADDRESS_CONFIG } from "../config/addressConfig";
 
 export default function Register() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const defaultRole = searchParams.get('type') === 'artisan' ? 'artisan' : 'patron';
@@ -249,6 +251,9 @@ export default function Register() {
     try {
       const { confirmPassword, ...registerData } = formData;
       
+      // Capture current language preference at registration
+      registerData.languagePreference = i18n.language || 'en';
+      
       // Add address to user data
       registerData.addresses = [{
         type: 'home',
@@ -314,8 +319,8 @@ export default function Register() {
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <Logo showText={false} className="w-20 h-20" />
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Join BazaarMkt</h2>
-          <p className="text-gray-600 text-lg">Create your account and start your journey</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">{t('auth.joinBazaar')}</h2>
+          <p className="text-gray-600 text-lg">{t('auth.createYourAccount')}</p>
         </div>
 
         {/* Register Form */}
@@ -323,7 +328,7 @@ export default function Register() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* Role Selection */}
             <div className="form-group">
-              <label className="form-label">Account Type</label>
+              <label className="form-label">{t('auth.selectRole')}</label>
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
@@ -335,8 +340,8 @@ export default function Register() {
                   }`}
                 >
                   <UserIcon className="w-8 h-8 mx-auto mb-2" />
-                  <div className="text-sm font-semibold">Patron</div>
-                  <div className="text-xs">Shop local products</div>
+                  <div className="text-sm font-semibold">{t('auth.patron')}</div>
+                  <div className="text-xs">{t('auth.patronDescription')}</div>
                 </button>
                 <button
                   type="button"
@@ -348,8 +353,8 @@ export default function Register() {
                   }`}
                 >
                   <Logo showText={false} className="w-12 h-12 mx-auto mb-2" />
-                  <div className="text-sm font-semibold">Artisan</div>
-                  <div className="text-xs">Sell your products</div>
+                  <div className="text-sm font-semibold">{t('auth.artisan')}</div>
+                  <div className="text-xs">{t('auth.artisanDescription')}</div>
                 </button>
               </div>
             </div>
@@ -358,7 +363,7 @@ export default function Register() {
             <div className="grid grid-cols-2 gap-4">
               <div className="form-group">
                 <label htmlFor="firstName" className="form-label">
-                  First Name
+                  {t('auth.firstName')}
                 </label>
                 <input
                   id="firstName"
@@ -378,7 +383,7 @@ export default function Register() {
               </div>
               <div className="form-group">
                 <label htmlFor="lastName" className="form-label">
-                  Last Name
+                  {t('auth.lastName')}
                 </label>
                 <input
                   id="lastName"
@@ -401,7 +406,7 @@ export default function Register() {
             {/* Email Field */}
             <div className="form-group">
               <label htmlFor="email" className="form-label">
-                Email Address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -423,7 +428,7 @@ export default function Register() {
             {/* Phone Field */}
             <div className="form-group">
               <label htmlFor="phone" className="form-label">
-                Phone Number
+                {t('auth.phoneNumber')}
               </label>
               <input
                 id="phone"
@@ -563,15 +568,14 @@ export default function Register() {
                     <option value="Canada">Canada</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    🇨🇦 Currently available in Canada only
+                    🇨🇦 {t('auth.canadaOnly')}
                   </p>
                 </div>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <p className="text-blue-800 text-sm">
-                  <strong>Note:</strong> BazaarMkt is currently available in Canada. 
-                  Please provide a complete and accurate Canadian address to register.
+                  <strong>{t('common.required')}:</strong> {t('auth.canadaOnly')} {t('auth.provideAddress')}
                 </p>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
@@ -25,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function OrderConfirmation() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -333,27 +335,27 @@ export default function OrderConfirmation() {
           </div>
         </div>
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:max-w-none print:px-0 print:py-0">
-        {/* Success Header */}
-        <div className="text-center mb-8 print:mb-4 print:border-b print:border-gray-300 print:pb-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg print:hidden">
-            <CheckCircleIcon className="w-12 h-12 text-white" />
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8 print:max-w-none print:px-0 print:py-0">
+        {/* Success Header - Mobile Optimized */}
+        <div className="text-center mb-6 sm:mb-8 print:mb-4 print:border-b print:border-gray-300 print:pb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-4 sm:mb-6 shadow-lg print:hidden">
+            <CheckCircleIcon className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display print:text-2xl print:mb-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-800 mb-2 sm:mb-3 font-display print:text-2xl print:mb-2 px-4">
             Order Confirmed! 🎉
           </h1>
-          <p className="text-xl text-stone-600 max-w-2xl mx-auto print:text-base print:max-w-none">
+          <p className="text-base sm:text-lg lg:text-xl text-stone-600 max-w-2xl mx-auto print:text-base print:max-w-none px-4">
             Thank you for your order! We've received your request and our artisans are getting started.
           </p>
         </div>
 
-        {/* Order Summary Card */}
-        <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4">
-          <div className="flex items-center justify-between mb-6 print:mb-4">
-            <h2 className="text-2xl font-bold text-stone-800 font-display print:text-xl">Order Summary</h2>
-            <div className="text-right">
-              <p className="text-sm text-stone-600 print:text-xs">Total Orders</p>
-              <p className="text-3xl font-bold text-amber-600 print:text-2xl">{totalOrders}</p>
+        {/* Order Summary Card - Mobile Optimized */}
+        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0 print:mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-stone-800 font-display print:text-xl">Order Summary</h2>
+            <div className="text-left sm:text-right">
+              <p className="text-xs sm:text-sm text-stone-600 print:text-xs">Total Orders</p>
+              <p className="text-2xl sm:text-3xl font-bold text-amber-600 print:text-2xl">{totalOrders}</p>
             </div>
           </div>
 
@@ -630,14 +632,14 @@ export default function OrderConfirmation() {
           </div>
         </div>
 
-        {/* Delivery Information Card - Always show for delivery orders */}
+        {/* Delivery Information Card - Mobile Optimized */}
         {(orders[0]?.deliveryMethod === 'personalDelivery' || orders[0]?.deliveryMethod === 'delivery' || orders[0]?.deliveryMethod === 'professionalDelivery') && (
-          <div className="card p-8 mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
-            <div className="flex items-center gap-3 mb-6 print:mb-4">
-              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center print:hidden">
-                <TruckIcon className="w-6 h-6 text-amber-600" />
+          <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 print:rounded-none print:shadow-none print:border print:border-gray-300 print:p-4 print:mb-4 print:break-inside-avoid">
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 print:mb-4">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 rounded-full flex items-center justify-center print:hidden">
+                <TruckIcon className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
               </div>
-              <h2 className="text-2xl font-bold text-stone-800 print:text-lg font-display">Delivery Information</h2>
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-stone-800 print:text-lg font-display">Delivery Information</h2>
             </div>
 
             <div className="space-y-4 print:space-y-2">
@@ -1197,22 +1199,22 @@ export default function OrderConfirmation() {
         </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center print:hidden">
+        {/* Action Buttons - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center print:hidden px-4 sm:px-0">
           <Link
             to="/"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[48px]"
           >
             <HomeIcon className="w-5 h-5" />
-            Continue Shopping
+            <span>Continue Shopping</span>
           </Link>
           
           <button
             onClick={() => window.print()}
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-stone-600 text-white rounded-xl hover:bg-stone-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-stone-600 text-white rounded-xl hover:bg-stone-700 transition-colors font-semibold text-base sm:text-lg shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[48px]"
           >
             <CreditCardIcon className="w-5 h-5" />
-            Print Receipt
+            <span>Print Receipt</span>
           </button>
         </div>
 

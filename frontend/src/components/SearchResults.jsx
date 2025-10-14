@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -36,6 +37,7 @@ import MobileSearchBar from './mobile/MobileSearchBar';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -689,9 +691,9 @@ export default function SearchResults() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Search Bar - Mobile Optimized */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <div className="lg:hidden">
             {/* Mobile Search Bar */}
             <MobileSearchBar 
@@ -720,29 +722,29 @@ export default function SearchResults() {
           </div>
         </div>
 
-        {/* Subtle Filter Bar */}
-        <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
-          <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
+        {/* Subtle Filter Bar - Mobile Optimized */}
+        <div className="sticky top-2 sm:top-4 bg-transparent py-2 sm:py-3 z-10 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2 sm:gap-3 bg-white/85 backdrop-blur-sm p-2 sm:p-2.5 rounded-xl shadow-sm border border-gray-100/30">
             {/* Filter Toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold transition-all ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all min-h-[36px] sm:min-h-[40px] ${
                 showFilters 
                   ? 'bg-accent text-white border-transparent' 
                   : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
               }`}
             >
-              <FunnelIcon className="w-4 h-4" />
-              Filters
+              <FunnelIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Filters</span>
             </button>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center bg-white px-2.5 py-2 rounded-full border border-gray-100">
-              <span className="text-sm font-semibold text-gray-600">Sort:</span>
+            <div className="flex items-center bg-white px-2 sm:px-2.5 py-2 rounded-full border border-gray-100 flex-1 sm:flex-initial">
+              <span className="text-xs sm:text-sm font-semibold text-gray-600 hidden sm:inline">Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="border-none bg-transparent text-sm font-semibold text-gray-900 focus:outline-none cursor-pointer ml-1.5"
+                className="border-none bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none cursor-pointer sm:ml-1.5 w-full sm:w-auto"
               >
                 <option value="distance">Distance</option>
                 <option value="price-low">Price: Low to High</option>
@@ -751,8 +753,8 @@ export default function SearchResults() {
               </select>
             </div>
 
-            {/* Results Count */}
-            <div className="flex items-center gap-2.5 flex-shrink-0 ml-auto">
+            {/* Results Count - Hidden on Mobile */}
+            <div className="hidden sm:flex items-center gap-2.5 flex-shrink-0 ml-auto">
               <span className="text-sm text-muted">
                 {filteredProducts.length} result{filteredProducts.length !== 1 ? 's' : ''}
               </span>
@@ -760,14 +762,14 @@ export default function SearchResults() {
           </div>
         </div>
 
-        {/* Filters Panel */}
+        {/* Filters Panel - Mobile Optimized */}
         {showFilters && (
-          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100/30 p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm border border-gray-100/30 p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
               {/* Categories */}
               <div>
                 <h3 className="text-sm font-semibold text-text mb-3">Categories</h3>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-2 max-h-48 sm:max-h-40 overflow-y-auto">
                   {availableCategories.map((category) => (
                     <label key={category.id} className="flex items-center">
                       <input
@@ -823,9 +825,9 @@ export default function SearchResults() {
           </div>
         )}
 
-        {/* Results */}
+        {/* Results - Mobile Optimized Grid */}
         {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
             {filteredProducts.map((product, index) => (
               <ProductCard
                 key={product._id}

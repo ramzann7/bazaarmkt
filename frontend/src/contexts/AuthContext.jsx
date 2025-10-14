@@ -5,8 +5,16 @@ import { getProfileFast, updateProfileCache } from '../services/profileService';
 import { cacheService, CACHE_KEYS, CACHE_TTL } from '../services/cacheService';
 import toast from 'react-hot-toast';
 import { getUserIdFromToken, getUserEmailFromToken } from '../utils/tokenUtils';
+import i18n from '../i18n';
 
 const AuthContext = createContext();
+
+// Helper function to sync language preference from user profile
+const syncLanguagePreference = (profile) => {
+  if (profile && profile.languagePreference && profile.languagePreference !== i18n.language) {
+    i18n.changeLanguage(profile.languagePreference);
+  }
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -81,6 +89,7 @@ export const AuthProvider = ({ children }) => {
             if (cachedProfile._id && cachedProfile._id.toString() === userId) {
               console.log('✅ AuthContext: Cache match - using cached profile');
               setUser(cachedProfile);
+              syncLanguagePreference(cachedProfile);
               
               // Load fresh profile in background (non-blocking) - but only if not already loading
               if (!this.isRefreshing) {
@@ -91,6 +100,7 @@ export const AuthProvider = ({ children }) => {
                     const profile = await getProfile();
                     console.log('🔍 AuthContext: Fresh profile loaded:', { userId: profile._id, email: profile.email });
                     setUser(profile);
+                    syncLanguagePreference(profile);
                     console.log('✅ AuthContext: Background profile refresh completed');
                   } catch (error) {
                     console.error('❌ AuthContext: Background profile refresh failed:', error);
@@ -111,6 +121,7 @@ export const AuthProvider = ({ children }) => {
               const profile = await getProfile();
               console.log('🔍 AuthContext: Fresh profile loaded after cache clear:', { userId: profile._id, email: profile.email });
               setUser(profile);
+              syncLanguagePreference(profile);
             }
             
             const endTime = performance.now();
@@ -127,6 +138,7 @@ export const AuthProvider = ({ children }) => {
           
           const profile = await Promise.race([profilePromise, timeoutPromise]);
           setUser(profile);
+          syncLanguagePreference(profile);
           
           const endTime = performance.now();
         } else {
@@ -182,6 +194,7 @@ export const AuthProvider = ({ children }) => {
             const profile = await getProfile();
             console.log('🔍 AuthContext: Manual init - Profile loaded:', { userId: profile._id, email: profile.email });
             setUser(profile);
+            syncLanguagePreference(profile);
             
             const endTime = performance.now();
             console.log(`✅ AuthContext: Manual initialization completed in ${(endTime - startTime).toFixed(2)}ms`);
@@ -236,6 +249,7 @@ export const AuthProvider = ({ children }) => {
       
       // Set user immediately for instant UI response
       setUser(user);
+      syncLanguagePreference(user);
       setIsAuthenticated(true);
       
       // Clear all existing caches to prevent stale data
@@ -289,6 +303,7 @@ export const AuthProvider = ({ children }) => {
           
           
           setUser(normalizedProfile);
+          syncLanguagePreference(normalizedProfile);
         } catch (error) {
           // Don't throw error here as it's a background operation
         }
@@ -364,6 +379,7 @@ export const AuthProvider = ({ children }) => {
       };
       
       setUser(normalizedProfile);
+      syncLanguagePreference(normalizedProfile);
       return normalizedProfile;
     } catch (error) {
       console.error('❌ Profile update error:', error);
@@ -428,6 +444,7 @@ export const AuthProvider = ({ children }) => {
       
       
       setUser(normalizedProfile);
+      syncLanguagePreference(normalizedProfile);
       setIsAuthenticated(true);
       return normalizedProfile;
     } catch (error) {

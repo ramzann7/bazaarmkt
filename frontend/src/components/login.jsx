@@ -1,6 +1,7 @@
 // src/components/Login.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 import { EyeIcon, EyeSlashIcon, BuildingStorefrontIcon } from "@heroicons/react/24/outline";
 import Logo from "./Logo";
 import { loginUser } from "../services/authservice";
@@ -9,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";
 
 export default function Login() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { login } = useAuth();
   const [formData, setFormData] = useState({
@@ -53,8 +55,8 @@ export default function Login() {
           <div className="mx-auto w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-lg">
             <Logo showText={false} className="w-20 h-20" />
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">Welcome Back</h2>
-          <p className="text-gray-600 text-lg">Sign in to your account to continue shopping</p>
+          <h2 className="text-4xl font-bold text-gray-900 mb-2 font-serif">{t('auth.loginTitle')}</h2>
+          <p className="text-gray-600 text-lg">{t('auth.loginSubtitle')}</p>
         </div>
 
         {/* Login Form */}
@@ -63,7 +65,7 @@ export default function Login() {
             {/* Email Field */}
             <div className="form-group">
               <label htmlFor="email" className="form-label">
-                Email Address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -74,14 +76,14 @@ export default function Login() {
                 value={formData.email}
                 onChange={handleChange}
                 className="form-input focus-luxury"
-                placeholder="Enter your email address"
+                placeholder={t('auth.emailPlaceholder')}
               />
             </div>
 
             {/* Password Field */}
             <div className="form-group">
               <label htmlFor="password" className="form-label">
-                Password
+                {t('auth.password')}
               </label>
               <div className="relative">
                 <input
@@ -93,7 +95,7 @@ export default function Login() {
                   value={formData.password}
                   onChange={handleChange}
                   className="form-input pr-12 focus-luxury"
-                  placeholder="Enter your password"
+                  placeholder={t('auth.passwordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -115,7 +117,7 @@ export default function Login() {
               disabled={isLoading}
               className="w-full btn-primary btn-large disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading ? `${t('common.loading')}...` : t('common.signIn')}
             </button>
           </form>
 
@@ -133,12 +135,12 @@ export default function Login() {
 
           {/* Business CTA */}
           <div className="text-center">
-            <p className="text-gray-600 mb-4">Ready to grow your business?</p>
+            <p className="text-gray-600 mb-4">{t('auth.whySell')}</p>
             <Link
               to="/register?type=business"
               className="btn-outline w-full"
             >
-              Become an Artisan
+              {t('nav.becomeArtisan')}
             </Link>
           </div>
         </div>
@@ -146,12 +148,12 @@ export default function Login() {
         {/* Footer */}
         <div className="text-center">
           <p className="text-gray-600">
-            Don't have an account?{" "}
+            {t('auth.newTo')}{" "}
             <Link
               to="/register"
               className="font-semibold text-primary hover:text-primary-dark transition-colors duration-300"
             >
-              Create one now
+              {t('auth.createAccount')}
             </Link>
           </p>
         </div>

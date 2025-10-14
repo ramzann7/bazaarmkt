@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { 
@@ -42,6 +43,7 @@ const ArtisanSkeleton = () => (
 );
 
 export default function FindArtisans() {
+  const { t } = useTranslation();
   const [artisans, setArtisans] = useState([]);
   const [filteredArtisans, setFilteredArtisans] = useState([]);
   const [favoriteArtisans, setFavoriteArtisans] = useState([]);
@@ -808,33 +810,35 @@ export default function FindArtisans() {
 
   return (
     <div className="min-h-screen bg-[#F5F1EA]">
-      {/* Search Section */}
+      {/* Search Section - Mobile Optimized */}
       <div className="bg-white shadow-sm border-b border-[#E6B655]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 font-serif mb-2">Find Local Artisans</h1>
-              <p className="text-lg text-gray-600">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+          <div className="flex flex-col gap-4 sm:gap-6">
+            {/* Header */}
+            <div className="text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 font-serif mb-1 sm:mb-2">Find Local Artisans</h1>
+              <p className="text-sm sm:text-base lg:text-lg text-gray-600">
                 Discover exceptional local artisans and their premium products
               </p>
             </div>
           
-            {/* Enhanced Search Bar */}
-            <div className="flex items-center space-x-4">
-              <form onSubmit={handleSearch} className="relative">
+            {/* Enhanced Search Bar - Mobile Optimized */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
+              <form onSubmit={handleSearch} className="relative flex-1">
                 <input
-                  type="text"
+                  type="search"
+                  inputMode="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search artisans..."
-                  className="w-80 pl-12 pr-6 py-3 border-2 border-[#E6B655] rounded-xl focus:ring-4 focus:ring-[#E6B655]/20 focus:border-[#3C6E47] transition-all duration-200 text-lg placeholder-gray-500 shadow-lg"
+                  className="w-full h-12 sm:h-14 pl-10 sm:pl-12 pr-4 sm:pr-6 py-3 border-2 border-[#E6B655] rounded-xl focus:ring-4 focus:ring-[#E6B655]/20 focus:border-[#3C6E47] transition-all duration-200 text-base sm:text-lg placeholder-gray-500 shadow-lg"
                 />
-                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-[#E6B655]" />
+                <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-[#E6B655]" />
               </form>
               
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-6 py-3 border-2 border-[#E6B655] rounded-xl hover:bg-[#E6B655] hover:text-white transition-all duration-200 font-medium shadow-lg"
+                className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 border-2 border-[#E6B655] rounded-xl hover:bg-[#E6B655] hover:text-white transition-all duration-200 font-medium shadow-lg min-h-[48px] whitespace-nowrap"
               >
                 <FunnelIcon className="w-5 h-5" />
                 <span>Filters</span>
@@ -844,34 +848,119 @@ export default function FindArtisans() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Horizontal Scrollable Category Section (Uber Eats Style) */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Explore by Category</h2>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Spotlight Artisans Section - Featured First! */}
+        {spotlightArtisans && spotlightArtisans.length > 0 && (
+          <div className="mb-8 sm:mb-12">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-[#D77A61]" />
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 font-serif">✨ Spotlight Artisans</h2>
+              </div>
+              <span className="text-xs sm:text-sm text-gray-600 bg-amber-50 px-2 sm:px-3 py-1 rounded-full">Featured</span>
+            </div>
+            
+            {/* Spotlight Cards - Horizontal Scroll */}
+            <div className="relative">
+              {/* Left gradient */}
+              <div className="absolute left-0 top-0 bottom-0 w-4 sm:w-8 bg-gradient-to-r from-[#F5F1EA] to-transparent z-10 pointer-events-none" />
+              {/* Right gradient */}
+              <div className="absolute right-0 top-0 bottom-0 w-4 sm:w-8 bg-gradient-to-l from-[#F5F1EA] to-transparent z-10 pointer-events-none" />
+              
+              <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
+                {spotlightArtisans.map((spotlight) => {
+                  const artisan = spotlight.artisan;
+                  if (!artisan || !artisan.id) return null;
+                  
+                  // Find the full artisan data
+                  const fullArtisan = artisans.find(a => a._id === artisan.id) || artisan;
+                  const artisanImages = getArtisanImages(fullArtisan);
+                  const primaryImage = artisanImages.length > 0 ? artisanImages[0] : getDefaultArtisanImage(fullArtisan.type);
+                  
+                  return (
+                    <div
+                      key={artisan.id}
+                      className="flex-shrink-0 w-[280px] sm:w-[320px] snap-center"
+                      onClick={() => navigate(`/artisan/${artisan.id}`)}
+                    >
+                      <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border-2 border-[#D77A61] relative group">
+                        {/* Spotlight Badge */}
+                        <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-amber-400 to-amber-600 text-white px-2 sm:px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
+                          <SparklesIcon className="w-3 h-3" />
+                          <span>SPOTLIGHT</span>
+                        </div>
+                        
+                        {/* Artisan Image */}
+                        <div className="relative h-40 sm:h-48 overflow-hidden">
+                          <img
+                            src={primaryImage}
+                            alt={fullArtisan.artisanName}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                        </div>
+                        
+                        {/* Artisan Info */}
+                        <div className="p-3 sm:p-4">
+                          <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-1 line-clamp-1">
+                            {fullArtisan.artisanName}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-[#D77A61] font-medium mb-2 capitalize">
+                            {fullArtisan.type?.replace('_', ' ')}
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mb-3">
+                            {fullArtisan.description || 'Discover amazing local products'}
+                          </p>
+                          
+                          {/* Quick Stats */}
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center gap-1">
+                              <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 fill-amber-400 text-amber-400" />
+                              <span className="font-medium">{fullArtisan.metrics?.rating?.toFixed(1) || 'New'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MapPinIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span>{fullArtisan.address?.city || 'Local'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Horizontal Scrollable Category Section - Mobile Optimized */}
+        <div className="mb-8 sm:mb-12">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 font-serif">Explore by Category</h2>
           <div className="relative">
             {/* Horizontal Scrollable Container */}
-            <div className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="flex gap-2 sm:gap-3 lg:gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory scroll-smooth">
               {artisanTypeCards.map((type) => (
                 <button
                   key={type.id}
                   onClick={() => handleArtisanTypeSelect(type.id)}
-                  className={`group flex-shrink-0 bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 min-w-[140px] ${
+                  className={`group flex-shrink-0 bg-white rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 min-w-[110px] sm:min-w-[140px] snap-start ${
                     selectedType === type.id
                       ? 'ring-2 ring-[#D77A61] bg-[#F5F1EA]'
                       : 'hover:border-[#E6B655]'
                   }`}
                 >
-                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform text-center">{type.icon}</div>
-                  <h3 className="font-medium text-gray-900 group-hover:text-[#D77A61] transition-colors text-sm text-center">
+                  <div className="text-2xl sm:text-3xl mb-1 sm:mb-2 group-hover:scale-110 transition-transform text-center">{type.icon}</div>
+                  <h3 className="font-medium text-gray-900 group-hover:text-[#D77A61] transition-colors text-xs sm:text-sm text-center line-clamp-1">
                     {type.name}
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1 text-center line-clamp-2">{type.description}</p>
+                  <p className="text-xs text-gray-500 mt-1 text-center line-clamp-2 hidden sm:block">{type.description}</p>
                 </button>
               ))}
             </div>
             
-            {/* Gradient Overlay for Scroll Indication */}
-            <div className="absolute right-0 top-0 bottom-4 w-8 bg-gradient-to-l from-[#F5F1EA] to-transparent pointer-events-none"></div>
+            {/* Gradient Overlays for Scroll Indication */}
+            <div className="absolute left-0 top-0 bottom-4 w-4 sm:w-8 bg-gradient-to-r from-[#F5F1EA] to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-4 w-4 sm:w-8 bg-gradient-to-l from-[#F5F1EA] to-transparent pointer-events-none" />
           </div>
         </div>
 
@@ -967,12 +1056,12 @@ export default function FindArtisans() {
           </div>
         )}
 
-        {/* Filters and Results */}
-        <div className="flex gap-8">
-          {/* Filters Sidebar */}
+        {/* Filters and Results - Mobile Optimized */}
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
+          {/* Filters Sidebar - Mobile Responsive */}
           {showFilters && (
-            <div className="w-64 flex-shrink-0">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-24">
+            <div className="w-full lg:w-64 flex-shrink-0">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
                   <button
@@ -1072,9 +1161,9 @@ export default function FindArtisans() {
             ) : (
               <div className="text-center py-12">
                 <BuildingStorefrontIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No artisans found</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('products.noArtisansFound')}</h3>
                 <p className="text-gray-600 mb-6">
-                  Try adjusting your search criteria or select a different category
+                  {t('products.adjustSearch')}
                 </p>
                 <button
                   onClick={clearFilters}

@@ -136,6 +136,7 @@ const buildArtisanProfileResponse = async (db, userId, artisanId) => {
     addresses: updatedUser.addresses || [],
     notificationPreferences: updatedUser.notificationPreferences || {},
     accountSettings: updatedUser.accountSettings || {},
+    languagePreference: updatedUser.languagePreference || 'en',
     paymentMethods: updatedUser.paymentMethods || [],
     stripeCustomerId: updatedUser.stripeCustomerId,
     coordinates: updatedUser.coordinates,
@@ -158,7 +159,7 @@ const updateProfile = async (req, res) => {
     const jwt = require('jsonwebtoken');
     const { ObjectId } = require('mongodb');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { firstName, lastName, phone, bio, profileImage, notificationPreferences, accountSettings } = req.body;
+    const { firstName, lastName, phone, bio, profileImage, notificationPreferences, accountSettings, languagePreference } = req.body;
     
     const db = req.db; // Use shared connection from middleware
     const usersCollection = db.collection('users');
@@ -211,6 +212,14 @@ const updateProfile = async (req, res) => {
     }
     
     if (accountSettings !== undefined) updateData.accountSettings = accountSettings;
+    
+    // Add language preference support (en, fr, or fr-CA)
+    if (languagePreference !== undefined) {
+      const validLanguages = ['en', 'fr', 'fr-CA'];
+      if (validLanguages.includes(languagePreference)) {
+        updateData.languagePreference = languagePreference;
+      }
+    }
     
     const result = await usersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(decoded.userId) },

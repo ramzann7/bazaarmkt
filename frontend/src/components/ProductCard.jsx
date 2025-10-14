@@ -12,6 +12,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import AddToCart from './AddToCart';
 import ProductTypeBadge from './ProductTypeBadge';
 import InventoryModel from '../models/InventoryModel';
+import OptimizedImage from './OptimizedImage';
 import toast from 'react-hot-toast';
 
 const ProductCard = ({ 
@@ -100,7 +101,7 @@ const ProductCard = ({
       >
         {/* Product Image */}
         <div className={`relative w-full ${compact ? 'h-40' : 'h-56'} overflow-hidden`}>
-          <img
+          <OptimizedImage
             src={getImageUrl(
               (() => {
                 // Filter out invalid images (empty objects, nulls, non-strings)
@@ -118,9 +119,10 @@ const ProductCard = ({
               { width: 300, height: 224, quality: 80 }
             )}
             alt={product.name}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
-            loading="lazy"
-            onError={(e) => handleImageError(e, 'product')}
+            className={`group-hover:scale-105 transition-transform duration-300 ${outOfStockStatus.isOutOfStock ? 'grayscale brightness-75' : ''}`}
+            aspectRatio={compact ? '1/1' : '4/3'}
+            objectFit="cover"
+            fallbackSrc="/images/product-placeholder.png"
           />
           {/* Out of stock overlay */}
           {outOfStockStatus.isOutOfStock && (
@@ -224,14 +226,13 @@ const ProductCard = ({
             <div className="p-4 pb-2">
               <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden mb-4">
                 {(product.images && product.images.length > 0) || product.image ? (
-                  <img
+                  <OptimizedImage
                     src={getImageUrl(product.images && product.images.length > 0 ? product.images[0] : product.image, { width: 300, height: 224, quality: 80 })}
                     alt={product.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.nextSibling.style.display = 'flex';
-                    }}
+                    aspectRatio="2/1"
+                    objectFit="cover"
+                    priority={true}
+                    fallbackSrc="/images/product-placeholder.png"
                   />
                 ) : null}
                 <div className={`w-full h-full bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center ${(product.images && product.images.length > 0) || product.image ? 'hidden' : 'flex'}`}>

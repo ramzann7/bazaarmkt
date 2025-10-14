@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import OrderTimeline from './OrderTimeline';
 import { geocodingService } from '../services/geocodingService';
 import PriorityOrderQueue from './PriorityOrderQueue';
+import MobileOrderCard from './mobile/MobileOrderCard';
 
 // Helper function to check if user is artisan (compatible with both role and userType)
 const isArtisan = (userRole) => {
@@ -1007,26 +1008,35 @@ export default function Orders() {
             </button>
           </div>
         ) : (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4 lg:space-y-6'}>
             {filteredOrders.map((order, index) => {
               // Get priority information for artisans
               const priorityInfo = isArtisan(userRole) ? getPriorityInfo(order) : null;
               const orderIsUrgent = isArtisan(userRole) ? isUrgent(order) : false;
               
               return (
-                <div
-                  key={`${order._id}-${order.status}-${refreshKey}`}
-                  className={`bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
-                    orderIsUrgent 
-                      ? 'border-red-300 bg-red-50 shadow-red-100' 
-                      : priorityInfo?.level === 'high'
-                        ? 'border-orange-300 bg-orange-50 shadow-orange-100'
-                        : priorityInfo?.level === 'medium'
-                          ? 'border-yellow-300 bg-yellow-50 shadow-yellow-100'
-                          : 'border-gray-200'
-                  }`}
-                  onClick={() => handleOrderClick(order)}
-                >
+                <React.Fragment key={`${order._id}-${order.status}-${refreshKey}`}>
+                  {/* Mobile Order Card */}
+                  <div className="lg:hidden">
+                    <MobileOrderCard
+                      order={order}
+                      onClick={() => handleOrderClick(order)}
+                    />
+                  </div>
+
+                  {/* Desktop Order Card */}
+                  <div
+                    className={`hidden lg:block bg-white border rounded-xl p-6 hover:shadow-lg transition-all duration-200 cursor-pointer transform hover:scale-[1.02] ${
+                      orderIsUrgent 
+                        ? 'border-red-300 bg-red-50 shadow-red-100' 
+                        : priorityInfo?.level === 'high'
+                          ? 'border-orange-300 bg-orange-50 shadow-orange-100'
+                          : priorityInfo?.level === 'medium'
+                            ? 'border-yellow-300 bg-yellow-50 shadow-yellow-100'
+                            : 'border-gray-200'
+                    }`}
+                    onClick={() => handleOrderClick(order)}
+                  >
                 {/* Order Header */}
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -1238,7 +1248,8 @@ export default function Orders() {
                     </p>
                   </div>
                 )}
-              </div>
+                  </div>
+                </React.Fragment>
               );
             })}
           </div>

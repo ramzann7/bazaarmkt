@@ -105,6 +105,13 @@
     font-family: 'Inter', sans-serif;
   }
   
+  /* Mobile bottom navigation spacing */
+  @media (max-width: 1023px) {
+    body {
+      padding-bottom: 64px; /* Space for mobile bottom navigation */
+    }
+  }
+  
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', serif;
     @apply font-semibold tracking-tight;

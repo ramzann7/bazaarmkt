@@ -8,7 +8,8 @@ import {
   UsersIcon,
   ShoppingCartIcon,
   TagIcon,
-  SparklesIcon
+  SparklesIcon,
+  TruckIcon
 } from "@heroicons/react/24/outline";
 import { getProfile, logoutUser } from "../../services/authservice";
 import { orderService } from "../../services/orderService";
@@ -17,6 +18,8 @@ import walletService from "../../services/walletService";
 import toast from "react-hot-toast";
 import DashboardPriorityQueue from "./DashboardPriorityQueue.jsx";
 import WalletCard from "./WalletCard.jsx";
+import MobileDashboardStat, { MobileDashboardStatGroup } from "../mobile/MobileDashboardStat";
+import MobileOrderCard from "../mobile/MobileOrderCard";
 
 export default function DashboardFixed() {
   const navigate = useNavigate();
@@ -383,17 +386,17 @@ export default function DashboardFixed() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        {/* Header - Mobile Optimized */}
+        <div className="mb-4 sm:mb-6 lg:mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
             <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Artisan Dashboard</h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-1 sm:mt-2">Welcome back, {user.firstName}! Here's your business overview.</p>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Artisan Dashboard</h1>
+              <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1">Welcome back, {user.firstName}!</p>
             </div>
-            <div className="flex flex-row gap-2 sm:gap-3">
+            <div className="flex flex-row gap-2">
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm sm:text-base"
+                className="flex-1 sm:flex-initial px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm min-h-[48px]"
               >
                 Refresh
               </button>
@@ -403,7 +406,7 @@ export default function DashboardFixed() {
                   toast.success("Logged out successfully!");
                   navigate("/");
                 }}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm min-h-[48px]"
               >
                 Logout
               </button>
@@ -411,59 +414,60 @@ export default function DashboardFixed() {
           </div>
         </div>
 
-        {/* User Profile Card */}
-        <div className="card p-6 mb-8">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
-              <UserIcon className="w-8 h-8 text-amber-600" />
+        {/* User Profile Card - Mobile Optimized */}
+        <div className="card p-4 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Avatar and Info */}
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <UserIcon className="w-8 h-8 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl font-semibold text-stone-800 font-display truncate">
+                  {artisanProfile?.artisanName || `${user.firstName} ${user.lastName}`}
+                </h2>
+                <p className="text-sm text-stone-600 truncate">{user.email}</p>
+                <p className="text-xs sm:text-sm text-stone-500 capitalize">Artisan • {user.role}</p>
+                
+                {/* Spotlight Status */}
+                {spotlightStatus?.hasActiveSpotlight && spotlightStatus?.spotlight ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <SparklesIcon className="w-4 h-4 text-amber-500" />
+                    <span className="text-xs sm:text-sm text-amber-700">
+                      Spotlight active • {spotlightStatus.spotlight.remainingDays} day{spotlightStatus.spotlight.remainingDays !== 1 ? 's' : ''} left
+                    </span>
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-center gap-2">
+                    <SparklesIcon className="w-4 h-4 text-stone-400" />
+                    <span className="text-xs sm:text-sm text-stone-500">No active spotlight</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-stone-800 font-display">
-                {artisanProfile?.artisanName || `${user.firstName} ${user.lastName}`}
-              </h2>
-              <p className="text-stone-600">{user.email}</p>
-              <p className="text-sm text-stone-500 capitalize">Artisan • {user.role}</p>
-              
-              {/* Spotlight Status */}
-              {spotlightStatus?.hasActiveSpotlight && spotlightStatus?.spotlight ? (
-                <div className="mt-2 flex items-center gap-2">
-                  <SparklesIcon className="w-4 h-4 text-amber-500" />
-                  <span className="text-sm text-amber-700">
-                    Spotlight active • {spotlightStatus.spotlight.remainingDays} day{spotlightStatus.spotlight.remainingDays !== 1 ? 's' : ''} left
-                  </span>
-                </div>
-              ) : (
-                <div className="mt-2 flex items-center gap-2">
-                  <SparklesIcon className="w-4 h-4 text-stone-400" />
-                  <span className="text-sm text-stone-500">No active spotlight</span>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3">
+            
+            {/* Action Buttons - Stack on mobile */}
+            <div className="flex flex-col sm:flex-row gap-2 lg:ml-auto">
               <button
                 onClick={() => setShowSpotlightModal(true)}
-                className={`px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 text-sm font-medium min-h-[48px] ${
                   spotlightStatus?.hasActiveSpotlight 
-                    ? 'bg-stone-400 text-white cursor-not-allowed' 
-                    : 'btn-primary'
+                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-white hover:from-amber-600 hover:to-yellow-600 shadow-md hover:shadow-lg'
                 }`}
                 disabled={spotlightStatus?.hasActiveSpotlight}
                 title={spotlightStatus?.hasActiveSpotlight ? 'You already have an active spotlight subscription' : 'Get featured at the top of search results'}
               >
                 <SparklesIcon className="w-4 h-4" />
-                {spotlightStatus?.hasActiveSpotlight ? 'Spotlight Active' : 'Get Spotlight'}
+                <span className="hidden sm:inline">{spotlightStatus?.hasActiveSpotlight ? 'Spotlight Active' : 'Get Spotlight'}</span>
+                <span className="sm:hidden">{spotlightStatus?.hasActiveSpotlight ? 'Active' : 'Spotlight'}</span>
               </button>
               <Link
-                to="/profile"
-                className="btn-secondary"
-              >
-                Edit Profile
-              </Link>
-              <Link
                 to="/my-products"
-                className="btn-primary"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg bg-gradient-to-r from-orange-600 to-orange-700 text-white hover:from-orange-700 hover:to-orange-800 text-center text-sm font-medium min-h-[48px] flex items-center justify-center shadow-md hover:shadow-lg transition-all"
               >
-                Manage Products
+                <TagIcon className="w-4 h-4 mr-2" />
+                <span>Manage Products</span>
               </Link>
             </div>
           </div>
@@ -489,101 +493,91 @@ export default function DashboardFixed() {
             </Link>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MobileDashboardStatGroup>
             {/* Product Revenue */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Product Revenue</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(artisanStats.productRevenue || 0)}</p>
-              <p className="text-xs text-gray-500">From product sales</p>
-            </div>
+            <MobileDashboardStat
+              icon={CurrencyDollarIcon}
+              label="Product Revenue"
+              value={formatCurrency(artisanStats.productRevenue || 0)}
+              changeLabel="From product sales"
+              color="text-green-600"
+              bgColor="bg-green-50"
+            />
             
             {/* Delivery Revenue */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                </svg>
-              </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Delivery Revenue</p>
-              <p className="text-2xl font-bold text-orange-600">{formatCurrency(artisanStats.deliveryRevenue || 0)}</p>
-              <p className="text-xs text-gray-500">From personal delivery</p>
-            </div>
+            <MobileDashboardStat
+              icon={TruckIcon}
+              label="Delivery Revenue"
+              value={formatCurrency(artisanStats.deliveryRevenue || 0)}
+              changeLabel="From personal delivery"
+              color="text-orange-600"
+              bgColor="bg-orange-50"
+            />
             
             {/* Total Earnings */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CurrencyDollarIcon className="w-6 h-6 text-accent" />
-              </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Earnings</p>
-              <p className="text-2xl font-bold text-accent">{formatCurrency(artisanStats.totalEarnings || 0)}</p>
-              <p className="text-xs text-gray-500">After platform fees</p>
-            </div>
+            <MobileDashboardStat
+              icon={CurrencyDollarIcon}
+              label="Total Earnings"
+              value={formatCurrency(artisanStats.totalEarnings || 0)}
+              changeLabel="After platform fees"
+              color="text-emerald-600"
+              bgColor="bg-emerald-50"
+            />
 
             {/* Your Wallet */}
-            <div className="text-center p-6 bg-gray-50 rounded-xl">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CurrencyDollarIcon className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Your Wallet</p>
-              <p className="text-2xl font-bold text-blue-600">{formatCurrency(walletBalance)}</p>
-              <p className="text-xs text-gray-500 mb-3">Available balance</p>
-              <Link
-                to="/my-wallet"
-                className="inline-flex items-center text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                View more details
-                <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-          </div>
+            <MobileDashboardStat
+              icon={CurrencyDollarIcon}
+              label="Your Wallet"
+              value={formatCurrency(walletBalance)}
+              changeLabel="Available balance"
+              color="text-blue-600"
+              bgColor="bg-blue-50"
+              onClick={() => navigate('/my-wallet')}
+            />
+          </MobileDashboardStatGroup>
         </div>
 
         {/* Key Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <MobileDashboardStatGroup className="mb-8">
           {/* Total Orders */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-stone-600">Total Orders</p>
-                <p className="text-3xl font-bold text-stone-800">{artisanStats.totalOrders}</p>
-              </div>
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                <ShoppingBagIcon className="w-6 h-6 text-amber-600" />
-              </div>
-            </div>
-          </div>
+          <MobileDashboardStat
+            icon={ShoppingBagIcon}
+            label="Total Orders"
+            value={artisanStats.totalOrders}
+            color="text-amber-600"
+            bgColor="bg-amber-50"
+            onClick={() => navigate('/orders')}
+          />
 
           {/* Pending Orders */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Orders</p>
-                <p className="text-3xl font-bold text-gray-900">{artisanStats.pendingOrders}</p>
-              </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                <ClockIcon className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
+          <MobileDashboardStat
+            icon={ClockIcon}
+            label="Pending Orders"
+            value={artisanStats.pendingOrders}
+            color="text-yellow-600"
+            bgColor="bg-yellow-50"
+            onClick={() => navigate('/orders?filter=pending')}
+          />
 
           {/* Total Patrons */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Patrons</p>
-                <p className="text-3xl font-bold text-gray-900">{artisanStats.totalPatrons}</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <UsersIcon className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-        </div>
+          <MobileDashboardStat
+            icon={UsersIcon}
+            label="Total Patrons"
+            value={artisanStats.totalPatrons}
+            color="text-purple-600"
+            bgColor="bg-purple-50"
+          />
+
+          {/* Total Products */}
+          <MobileDashboardStat
+            icon={TagIcon}
+            label="Total Products"
+            value={artisanStats.totalProducts}
+            color="text-blue-600"
+            bgColor="bg-blue-50"
+            onClick={() => navigate('/my-products')}
+          />
+        </MobileDashboardStatGroup>
 
         {/* Recent Orders */}
         <div className="card p-6 mb-8">
@@ -636,26 +630,39 @@ export default function DashboardFixed() {
                 </div>
               )}
 
-              {/* All Recent Orders */}
-              {recentOrders.map((order) => (
-                <div key={order._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                      <ShoppingCartIcon className="w-5 h-5 text-orange-600" />
+              {/* All Recent Orders - Mobile optimized */}
+              <div className="space-y-3">
+                {recentOrders.map((order) => (
+                  <React.Fragment key={order._id}>
+                    {/* Mobile Order Card */}
+                    <div className="lg:hidden">
+                      <MobileOrderCard
+                        order={order}
+                        onClick={() => navigate('/orders')}
+                      />
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Order #{order._id.slice(-6)}</p>
-                      <p className="text-sm text-gray-600">{formatDate(order.createdAt)}</p>
+
+                    {/* Desktop Order Row */}
+                    <div className="hidden lg:flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                         onClick={() => navigate('/orders')}>
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                          <ShoppingCartIcon className="w-5 h-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">Order #{order._id.slice(-6)}</p>
+                          <p className="text-sm text-gray-600">{formatDate(order.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</p>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</p>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  </React.Fragment>
+                ))}</div>
             </div>
           ) : (
             <div className="text-center py-8">
@@ -665,71 +672,6 @@ export default function DashboardFixed() {
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Link
-            to="/my-products"
-            className="card p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                <TagIcon className="w-6 h-6 text-amber-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-stone-800 font-display">Manage Products</h3>
-                <p className="text-sm text-stone-600">Add, edit, or remove your products</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/orders"
-            className="card p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <ShoppingCartIcon className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-stone-800 font-display">View Orders</h3>
-                <p className="text-sm text-stone-600">Check and manage your orders</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            to="/profile"
-            className="card p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                <UserIcon className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-stone-800 font-display">Edit Profile</h3>
-                <p className="text-sm text-stone-600">Update your business information</p>
-              </div>
-            </div>
-          </Link>
-
-          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-sm border border-primary-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-full flex items-center justify-center">
-                <SparklesIcon className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Spotlight Feature</h3>
-                <p className="text-sm text-gray-600">Get featured in search results</p>
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                <SparklesIcon className="w-3 h-3 mr-1" />
-                Premium Feature
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Spotlight Purchase Modal */}

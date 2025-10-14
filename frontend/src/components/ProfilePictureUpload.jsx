@@ -3,6 +3,7 @@ import { CameraIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { updateProfile } from '../services/authservice';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import OptimizedImage from './OptimizedImage';
 
 const ProfilePictureUpload = ({ currentPicture, onUpdate, className = '' }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -92,12 +93,15 @@ const ProfilePictureUpload = ({ currentPicture, onUpdate, className = '' }) => {
     <>
       <div className={`relative inline-block ${className}`}>
         {/* Profile Picture Display */}
-        <div className="relative w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg">
+        <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg">
           {currentPicture ? (
-            <img
+            <OptimizedImage
               src={currentPicture}
               alt="Profile"
-              className="w-full h-full object-cover"
+              aspectRatio="1/1"
+              objectFit="cover"
+              priority={true}
+              fallbackSrc="/images/default-avatar.png"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -123,6 +127,7 @@ const ProfilePictureUpload = ({ currentPicture, onUpdate, className = '' }) => {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          capture="user"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -146,10 +151,13 @@ const ProfilePictureUpload = ({ currentPicture, onUpdate, className = '' }) => {
             {/* Preview Image */}
             <div className="mb-6">
               <div className="w-full aspect-square rounded-2xl overflow-hidden bg-gray-100">
-                <img
+                <OptimizedImage
                   src={previewUrl}
                   alt="Preview"
-                  className="w-full h-full object-cover"
+                  aspectRatio="1/1"
+                  objectFit="cover"
+                  priority={true}
+                  fallbackSrc="/images/default-avatar.png"
                 />
               </div>
             </div>

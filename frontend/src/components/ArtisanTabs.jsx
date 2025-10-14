@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
+import { Accordion } from './common/Accordion';
+import CompactImageUpload from './common/CompactImageUpload';
+import { 
+  UserIcon, 
+  PhotoIcon, 
+  TagIcon, 
+  MapPinIcon, 
+  PhoneIcon,
+  ClockIcon,
+  TrashIcon
+} from '@heroicons/react/24/outline';
 
 // Function to get all subcategories grouped by main category
 const getGroupedSubcategories = () => {
@@ -293,204 +304,133 @@ export function OverviewTab({ profile, onSave, isSaving }) {
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Business Overview</h3>
-        <p className="text-gray-600">Manage your business information and contact details</p>
-      </div>
-      
-      {/* Artisan Name - Critical Element */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 border border-primary-200">
-        <div className="max-w-2xl">
-          <label className="block text-lg font-bold text-gray-900 mb-2">
-            🎨 Your Artisan Name *
-          </label>
-          <p className="text-sm text-gray-600 mb-4">
-            This is your brand identity - how customers will know and remember you
-          </p>
-          <input
-            type="text"
-            value={overview.artisanName}
-            readOnly
-            disabled
-            className="block w-full rounded-lg border-2 border-gray-300 shadow-sm bg-gray-50 text-lg font-medium py-3 px-4 cursor-not-allowed"
-            placeholder="e.g., Sarah's Sweet Creations, Artisan Bread Co."
-            required
-          />
-          <p className="text-xs text-gray-500 mt-2">
-            🔒 Artisan name cannot be changed once created
-          </p>
-        </div>
-      </div>
+  // Check completion status for accordion badges
+  const hasBasicInfo = overview.artisanName && overview.description;
+  const hasImage = overview.businessImage;
+  const hasAddress = overview.address?.street && overview.address?.city;
+  const hasContact = overview.contactInfo?.phone && overview.contactInfo?.email;
+  const hasCategories = overview.category?.length > 0;
 
-      {/* Business Type Display */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-        <div className="max-w-2xl">
-          <label className="block text-lg font-bold text-gray-900 mb-2">
-            🏷️ Business Type
-          </label>
-          <p className="text-sm text-gray-600 mb-4">
-            Your business category helps customers find you and understand what you offer
-          </p>
-          <div className="bg-white rounded-lg border-2 border-green-300 p-4">
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">
+  // Create accordion sections
+  const accordionSections = [
+    {
+      id: 'basics',
+      title: 'Basic Information',
+      description: 'Artisan name and business description',
+      icon: UserIcon,
+      required: true,
+      badge: hasBasicInfo ? '✓' : null,
+      content: (
+        <div className="space-y-4">
+          {/* Artisan Name - Read-only */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Artisan Name <span className="text-red-500">*</span>
+            </label>
+            <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs sm:text-sm text-amber-800 mb-2">
+                🎨 This is your brand identity - how customers will know you
+              </p>
+              <input
+                type="text"
+                value={overview.artisanName}
+                readOnly
+                disabled
+                className="block w-full rounded-lg border border-gray-300 shadow-sm bg-gray-50 py-2 px-3 text-sm sm:text-base font-medium cursor-not-allowed"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                🔒 Artisan name cannot be changed once created
+              </p>
+            </div>
+          </div>
+
+          {/* Business Type Display */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Business Type
+            </label>
+            <div className="flex items-center gap-3 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <span className="text-xl sm:text-2xl flex-shrink-0">
                 {PRODUCT_CATEGORIES[profile.type]?.icon || '🏪'}
               </span>
-              <div>
-                <p className="text-lg font-semibold text-gray-900">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm sm:text-base font-semibold text-gray-900">
                   {PRODUCT_CATEGORIES[profile.type]?.name || 'Business Type'}
                 </p>
-                <p className="text-sm text-gray-600">
-                  {PRODUCT_CATEGORIES[profile.type]?.description || 'Business category description'}
+                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                  {PRODUCT_CATEGORIES[profile.type]?.description || 'Business category'}
                 </p>
               </div>
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Business type is set during registration
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            ℹ️ Business type is set during registration and cannot be changed here
-          </p>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              About Your Business <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={overview.description}
+              onChange={(e) => setOverview({ ...overview, description: e.target.value })}
+              rows={4}
+              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+              placeholder="Describe your business, what makes you unique..."
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Help customers understand what you offer
+            </p>
+          </div>
         </div>
-      </div>
-
-
-      {/* Business Image Upload */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-        <div className="max-w-2xl">
-          <label className="block text-lg font-bold text-gray-900 mb-2">
-            🖼️ Business Image
+      )
+    },
+    {
+      id: 'image',
+      title: 'Business Image',
+      description: 'Photo that represents your business',
+      icon: PhotoIcon,
+      badge: hasImage ? '✓' : null,
+      content: (
+        <CompactImageUpload
+          preview={overview.businessImagePreview}
+          onUpload={handleBusinessImageChange}
+          onRemove={removeBusinessImage}
+          label="Business Image"
+          maxSizeMB={5}
+        />
+      )
+    },
+    {
+      id: 'categories',
+      title: 'Product Categories',
+      description: `${overview.category?.length || 0} selected`,
+      icon: TagIcon,
+      badge: hasCategories ? '✓' : null,
+      content: (
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Select the types of products you create
           </label>
-          <p className="text-sm text-gray-600 mb-4">
-            This image will be displayed on your artisan card and shop page. Choose a high-quality image that represents your business.
-          </p>
-          
-          <div className="space-y-4">
-            {/* Drag & Drop Zone */}
-            <div
-              className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
-                overview.businessImagePreview 
-                  ? 'border-green-300 bg-green-50' 
-                  : 'border-blue-300 hover:border-blue-400 hover:bg-blue-50'
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                if (!overview.businessImagePreview) {
-                  e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
-                }
-              }}
-              onDrop={handleBusinessImageDrop}
-            >
-              {overview.businessImagePreview ? (
-                <div className="relative inline-block">
-                  <img 
-                    src={overview.businessImagePreview} 
-                    alt="Business Preview"
-                    className="w-32 h-32 object-cover rounded-lg border border-gray-300 shadow-md"
-                  />
-                  <button
-                    type="button"
-                    onClick={removeBusinessImage}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-medium text-gray-700 mb-2">Upload Business Image</p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Drag and drop an image here, or click to browse
-                  </p>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBusinessImageChange}
-                    className="hidden"
-                    id="business-image-upload"
-                  />
-                  <label
-                    htmlFor="business-image-upload"
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Choose Image
-                  </label>
-                </div>
-              )}
-            </div>
-            
-            {/* Image Tips */}
-            <div className="bg-white p-4 rounded-lg border border-blue-200">
-              <h6 className="font-medium text-gray-900 mb-2">📸 Image Tips</h6>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Use a high-quality image (minimum 400x400 pixels)</li>
-                <li>• Show your workspace, products, or business logo</li>
-                <li>• Ensure good lighting and clear focus</li>
-                <li>• Keep file size under 5MB for faster loading</li>
-                <li>• Square or landscape images work best</li>
-              </ul>
-            </div>
-            
-            {/* Image warning if no image */}
-            {!overview.businessImagePreview && (
-              <div className="flex items-center p-4 bg-primary-50 border border-primary-200 rounded-lg">
-                <svg className="w-5 h-5 text-primary mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <div className="text-sm text-primary-800">
-                  <strong>Image Recommended:</strong> Adding a business image helps customers recognize your brand and builds trust.
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Business Description */}
-      <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">📖 About Your Business</h4>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Tell customers about your business</label>
-          <textarea
-            value={overview.description}
-            onChange={(e) => setOverview({ ...overview, description: e.target.value })}
-            rows={4}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-            placeholder="Describe your business, what makes you unique, and why customers should choose your products..."
-          />
-          <p className="text-xs text-gray-500 mt-1">This helps customers understand what you offer and why they should choose you</p>
-        </div>
-      </div>
-
-      {/* Product Categories */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">🏷️ Types of Products You Make</h4>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">Select the types of products you create:</label>
-          <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-4 bg-gray-50">
-            <div className="space-y-4">
+          <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <div className="space-y-3">
               {getGroupedSubcategories().map((categoryGroup) => (
-                <div key={categoryGroup.categoryKey} className="border-b border-gray-200 pb-3 last:border-b-0">
-                  <div className="flex items-center space-x-2 mb-3">
-                    <span className="text-lg">{categoryGroup.categoryIcon}</span>
-                    <h4 className="font-semibold text-gray-800 text-sm">{categoryGroup.categoryName}</h4>
+                <div key={categoryGroup.categoryKey} className="border-b border-gray-200 pb-2 last:border-b-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-base">{categoryGroup.categoryIcon}</span>
+                    <h5 className="font-semibold text-gray-800 text-xs sm:text-sm">
+                      {categoryGroup.categoryName}
+                    </h5>
                   </div>
-                  <div className="grid grid-cols-1 gap-2 ml-6">
+                  <div className="grid grid-cols-1 gap-1.5 ml-5 sm:ml-6">
                     {categoryGroup.subcategories.map((subcategory) => (
-                      <label key={subcategory.key} className="flex items-center space-x-3 cursor-pointer hover:bg-white hover:shadow-sm rounded-lg p-2 transition-colors">
+                      <label 
+                        key={subcategory.key} 
+                        className="flex items-center gap-2 cursor-pointer hover:bg-white hover:shadow-sm rounded-lg p-2 transition-colors min-h-[44px]"
+                      >
                         <input
                           type="checkbox"
                           checked={overview.category.includes(subcategory.key)}
@@ -507,11 +447,11 @@ export function OverviewTab({ profile, onSave, isSaving }) {
                               });
                             }
                           }}
-                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4 h-4 flex-shrink-0"
                         />
-                        <span className="text-sm">
-                          <span className="text-base">{subcategory.icon}</span>
-                          <span className="font-medium ml-1">{subcategory.name}</span>
+                        <span className="text-xs sm:text-sm flex items-center gap-1">
+                          <span className="text-sm">{subcategory.icon}</span>
+                          <span className="font-medium">{subcategory.name}</span>
                         </span>
                       </label>
                     ))}
@@ -520,18 +460,24 @@ export function OverviewTab({ profile, onSave, isSaving }) {
               ))}
             </div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">
-            💡 Select all categories that apply to your products. This helps customers find your offerings.
+          <p className="text-xs text-gray-500 mt-2">
+            💡 This helps customers find your products
           </p>
         </div>
-      </div>
-
-      {/* Business Address */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">📍 Business Address</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+      )
+    },
+    {
+      id: 'address',
+      title: 'Business Address',
+      description: 'Where customers can find you',
+      icon: MapPinIcon,
+      badge: hasAddress ? '✓' : null,
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Street Address
+            </label>
             <input
               type="text"
               value={overview.address.street}
@@ -539,7 +485,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
                 ...overview, 
                 address: { ...overview.address, street: e.target.value } 
               })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="123 Main Street"
             />
           </div>
@@ -552,7 +498,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
                 ...overview, 
                 address: { ...overview.address, city: e.target.value } 
               })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="Toronto"
             />
           </div>
@@ -565,7 +511,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
                 ...overview, 
                 address: { ...overview.address, state: e.target.value } 
               })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="Ontario"
             />
           </div>
@@ -578,136 +524,152 @@ export function OverviewTab({ profile, onSave, isSaving }) {
                 ...overview, 
                 address: { ...overview.address, zipCode: e.target.value } 
               })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="M5V 3A8"
             />
           </div>
         </div>
-        <p className="text-sm text-gray-500 mt-3">
-          📍 Your business address helps customers find you and understand your location.
-        </p>
-      </div>
+      )
+    },
+    {
+      id: 'contact',
+      title: 'Contact Information',
+      description: 'Phone, email, website, social media',
+      icon: PhoneIcon,
+      badge: hasContact ? '✓' : null,
+      content: (
+        <div className="space-y-4">
+          {/* Phone and Email */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Phone</label>
+              <input
+                type="tel"
+                value={overview.contactInfo.phone}
+                onChange={handlePhoneChange}
+                className={`block w-full rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 py-2 px-3 text-sm sm:text-base ${
+                  overview.contactInfo.phone && overview.contactInfo.phone.replace(/\D/g, '').length !== 10 
+                    ? 'border-red-300' 
+                    : 'border-gray-300'
+                }`}
+                placeholder="(555) 123-4567"
+                maxLength="14"
+              />
+              {overview.contactInfo.phone && overview.contactInfo.phone.replace(/\D/g, '').length !== 10 && (
+                <p className="text-xs text-red-500 mt-1">Enter complete 10-digit phone</p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Email</label>
+              <input
+                type="email"
+                value={overview.contactInfo.email}
+                onChange={handleEmailChange}
+                className={`block w-full rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 py-2 px-3 text-sm sm:text-base ${
+                  overview.contactInfo.email && !validateEmail(overview.contactInfo.email)
+                    ? 'border-red-300' 
+                    : 'border-gray-300'
+                }`}
+                placeholder="hello@yourartisan.com"
+              />
+              {overview.contactInfo.email && !validateEmail(overview.contactInfo.email) && (
+                <p className="text-xs text-red-500 mt-1">Invalid email format</p>
+              )}
+            </div>
+          </div>
 
-      {/* Contact Information */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">📞 Contact Information</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Website */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Business Phone</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Website (Optional)</label>
             <input
-              type="tel"
-              value={overview.contactInfo.phone}
-              onChange={handlePhoneChange}
-              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 ${
-                overview.contactInfo.phone && overview.contactInfo.phone.replace(/\D/g, '').length !== 10 
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+              type="url"
+              value={overview.contactInfo.website}
+              onChange={handleWebsiteChange}
+              className={`block w-full rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 py-2 px-3 text-sm sm:text-base ${
+                overview.contactInfo.website && !validateWebsite(overview.contactInfo.website)
+                  ? 'border-red-300' 
                   : 'border-gray-300'
               }`}
-              placeholder="(555) 123-4567"
-              maxLength="14"
+              placeholder="your-website.com"
             />
-            {overview.contactInfo.phone && overview.contactInfo.phone.replace(/\D/g, '').length !== 10 && (
-              <p className="text-xs text-red-500 mt-1">Please enter a complete 10-digit phone number</p>
+            {overview.contactInfo.website && !validateWebsite(overview.contactInfo.website) && (
+              <p className="text-xs text-red-500 mt-1">Invalid URL</p>
             )}
-            <p className="text-xs text-gray-500 mt-1">Format: (XXX) XXX-XXXX</p>
+            <p className="text-xs text-gray-500 mt-1">https:// will be added automatically</p>
           </div>
-          
+
+          {/* Social Media */}
           <div>
-            <label className="block text-sm font-medium text-gray-700">Business Email</label>
-            <input
-              type="email"
-              value={overview.contactInfo.email}
-              onChange={handleEmailChange}
-              className={`mt-1 block w-full rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 ${
-                overview.contactInfo.email && !validateEmail(overview.contactInfo.email)
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                  : 'border-gray-300'
-              }`}
-              placeholder="hello@yourartisan.com"
-            />
-            {overview.contactInfo.email && !validateEmail(overview.contactInfo.email) && (
-              <p className="text-xs text-red-500 mt-1">Please enter a valid email address</p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">Format: name@domain.com</p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Social Media (Optional)</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Instagram</label>
+                <input
+                  type="text"
+                  value={overview.contactInfo.socialMedia.instagram}
+                  onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-xs sm:text-sm"
+                  placeholder="yourhandle"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Facebook</label>
+                <input
+                  type="text"
+                  value={overview.contactInfo.socialMedia.facebook}
+                  onChange={(e) => handleSocialMediaChange('facebook', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-xs sm:text-sm"
+                  placeholder="Your Page"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Twitter/X</label>
+                <input
+                  type="text"
+                  value={overview.contactInfo.socialMedia.twitter}
+                  onChange={(e) => handleSocialMediaChange('twitter', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-xs sm:text-sm"
+                  placeholder="yourhandle"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              @ will be added automatically for Instagram and Twitter
+            </p>
           </div>
         </div>
+      )
+    }
+  ];
 
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700">Website</label>
-          <input
-            type="url"
-            value={overview.contactInfo.website}
-            onChange={handleWebsiteChange}
-            className={`mt-1 block w-full rounded-md shadow-sm focus:ring-orange-500 focus:border-orange-500 ${
-              overview.contactInfo.website && !validateWebsite(overview.contactInfo.website)
-                ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-                : 'border-gray-300'
-            }`}
-            placeholder="your-website.com"
-          />
-          {overview.contactInfo.website && !validateWebsite(overview.contactInfo.website) && (
-            <p className="text-xs text-red-500 mt-1">Please enter a valid website URL</p>
-          )}
-          <p className="text-xs text-gray-500 mt-1">Format: your-website.com (https:// will be added automatically)</p>
-        </div>
-
-        {/* Social Media */}
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">Social Media (Optional)</label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Instagram</label>
-              <input
-                type="text"
-                value={overview.contactInfo.socialMedia.instagram}
-                onChange={(e) => handleSocialMediaChange('instagram', e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="yourhandle"
-              />
-              <p className="text-xs text-gray-500 mt-1">@ will be added automatically</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Facebook</label>
-              <input
-                type="text"
-                value={overview.contactInfo.socialMedia.facebook}
-                onChange={(e) => handleSocialMediaChange('facebook', e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="Your Page Name"
-              />
-              <p className="text-xs text-gray-500 mt-1">Your Facebook page name</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Twitter/X</label>
-              <input
-                type="text"
-                value={overview.contactInfo.socialMedia.twitter}
-                onChange={(e) => handleSocialMediaChange('twitter', e.target.value)}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="yourhandle"
-              />
-              <p className="text-xs text-gray-500 mt-1">@ will be added automatically</p>
-            </div>
-          </div>
-        </div>
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <div className="border-b border-gray-200 pb-4">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Business Overview</h3>
+        <p className="text-sm text-gray-600 mt-1">Manage your business information and contact details</p>
       </div>
       
-      <div className="flex justify-end pt-6 border-t border-gray-200">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-        >
-          {isSaving ? (
-            <div className="flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Saving...</span>
-            </div>
-          ) : (
-            'Save Overview'
-          )}
-        </button>
+      <Accordion sections={accordionSections} defaultExpanded={['basics']} />
+      
+      {/* Sticky Save Button */}
+      <div className="sticky bottom-0 left-0 right-0 bg-white p-4 border-t shadow-lg z-10 -mx-4 sm:-mx-6 lg:-mx-8">
+        <div className="max-w-7xl mx-auto flex justify-end">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg hover:shadow-xl min-h-[48px]"
+          >
+            {isSaving ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Saving...</span>
+              </div>
+            ) : (
+              'Save Overview'
+            )}
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -729,24 +691,24 @@ export function OperationsTab({ profile, onSave, isSaving }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">🛠️ Your Creative Process & Operations</h3>
-        <p className="text-gray-600">Share your unique approach to creating products and managing your craft</p>
+    <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+      <div className="border-b border-gray-200 pb-4 sm:pb-6">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">🛠️ Your Creative Process & Operations</h3>
+        <p className="text-sm text-gray-600">Share your unique approach to creating products and managing your craft</p>
       </div>
       
       {/* Production & Quality */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">🏭 Production & Quality</h4>
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+        <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">🏭 Production & Quality</h4>
         
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Production Methods</label>
             <textarea
               value={operations.productionMethods}
               onChange={(e) => setOperations({ ...operations, productionMethods: e.target.value })}
               rows={3}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="How do you make your products? What methods, techniques, or processes do you use?"
             />
             <p className="text-xs text-gray-500 mt-1">This helps customers understand how your products are made</p>
@@ -758,7 +720,7 @@ export function OperationsTab({ profile, onSave, isSaving }) {
               value={operations.ingredients}
               onChange={(e) => setOperations({ ...operations, ingredients: e.target.value })}
               rows={3}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="What ingredients or materials do you use? Do you source locally, use organic ingredients, or have special suppliers?"
             />
           </div>
@@ -769,7 +731,7 @@ export function OperationsTab({ profile, onSave, isSaving }) {
               value={operations.qualityStandards}
               onChange={(e) => setOperations({ ...operations, qualityStandards: e.target.value })}
               rows={3}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="How do you ensure quality? What standards do you follow?"
             />
           </div>
@@ -777,8 +739,8 @@ export function OperationsTab({ profile, onSave, isSaving }) {
       </div>
 
       {/* Certifications */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">🏆 Certifications</h4>
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+        <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">🏆 Certifications</h4>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Certifications & Training</label>
@@ -786,29 +748,27 @@ export function OperationsTab({ profile, onSave, isSaving }) {
             type="text"
             value={operations.certifications.join(', ')}
             onChange={(e) => setOperations({ ...operations, certifications: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
             placeholder="e.g., Food Safety, Organic, Local Workshops"
           />
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-xs sm:text-sm text-gray-500 mt-2">
             💡 Separate multiple certifications with commas. This builds customer trust.
           </p>
         </div>
       </div>
 
-
-
       {/* Experience */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">📈 Experience</h4>
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+        <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">📈 Experience</h4>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Years of Experience</label>
             <input
               type="number"
               value={operations.yearsInBusiness || 0}
               onChange={(e) => setOperations({ ...operations, yearsInBusiness: parseInt(e.target.value) || 0 })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               min="0"
               placeholder="e.g., 3"
             />
@@ -821,24 +781,22 @@ export function OperationsTab({ profile, onSave, isSaving }) {
               type="text"
               value={operations.productionCapacity}
               onChange={(e) => setOperations({ ...operations, productionCapacity: e.target.value })}
-              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
               placeholder="e.g., 20 items per week, 5 batches per month"
             />
             <p className="text-xs text-gray-500 mt-1">What's your typical production volume?</p>
           </div>
         </div>
       </div>
-
-
       
-      <div className="flex justify-end pt-6 border-t border-gray-200">
+      <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200">
         <button
           type="submit"
           disabled={isSaving}
-          className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[48px]"
         >
           {isSaving ? (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               <span>Saving...</span>
             </div>
@@ -877,24 +835,61 @@ export function HoursTab({ profile, onSave, isSaving }) {
     { key: 'sunday', name: 'Sunday' }
   ];
 
+  // Preset configurations
+  const presets = [
+    { label: '9 AM - 5 PM', open: '09:00', close: '17:00' },
+    { label: '10 AM - 6 PM', open: '10:00', close: '18:00' },
+    { label: '8 AM - 4 PM', open: '08:00', close: '16:00' },
+    { label: '11 AM - 7 PM', open: '11:00', close: '19:00' }
+  ];
+
+  const applyPresetToAllDays = (preset) => {
+    const updatedHours = {};
+    days.forEach(day => {
+      updatedHours[day.key] = {
+        open: preset.open,
+        close: preset.close,
+        closed: false
+      };
+    });
+    setHours(updatedHours);
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">🕒 Your Availability & Hours</h3>
-        <p className="text-gray-600">Set your availability for orders and customer inquiries</p>
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <div className="border-b border-gray-200 pb-4">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">🕒 Your Availability & Hours</h3>
+        <p className="text-sm text-gray-600 mt-1">Set your availability for orders and customer inquiries</p>
       </div>
       
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">📅 Weekly Schedule</h4>
-        
-        <div className="space-y-4">
-          {days.map((day) => (
-            <div key={day.key} className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="w-24">
-                <label className="block text-sm font-medium text-gray-700">{day.name}</label>
-              </div>
-              
-              <div className="flex items-center space-x-3">
+      {/* Quick Presets */}
+      <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+        <p className="text-sm font-medium text-gray-900 mb-3">Quick presets:</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {presets.map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => applyPresetToAllDays(preset)}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs sm:text-sm font-medium hover:bg-gray-50 transition-colors min-h-[44px]"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">Apply to all days at once</p>
+      </div>
+
+      {/* Day Cards - Mobile Optimized */}
+      <div className="space-y-3">
+        {days.map((day) => (
+          <div
+            key={day.key}
+            className="border border-gray-200 rounded-lg overflow-hidden bg-white"
+          >
+            {/* Day Header */}
+            <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+              <label className="flex items-center gap-3 flex-1">
                 <input
                   type="checkbox"
                   checked={!hours[day.key].closed}
@@ -902,51 +897,75 @@ export function HoursTab({ profile, onSave, isSaving }) {
                     ...hours,
                     [day.key]: { ...hours[day.key], closed: !e.target.checked }
                   })}
-                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                 />
-                <span className="text-sm text-gray-600 font-medium">Available</span>
-              </div>
+                <span className="text-sm sm:text-base font-medium text-gray-900">
+                  {day.name}
+                </span>
+              </label>
               
               {!hours[day.key].closed && (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="time"
-                    value={hours[day.key].open}
-                    onChange={(e) => setHours({
-                      ...hours,
-                      [day.key]: { ...hours[day.key], open: e.target.value }
-                    })}
-                    className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                  />
-                  <span className="text-gray-500 font-medium">to</span>
-                  <input
-                    type="time"
-                    value={hours[day.key].close}
-                    onChange={(e) => setHours({
-                      ...hours,
-                      [day.key]: { ...hours[day.key], close: e.target.value }
-                    })}
-                    className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                  />
-                </div>
+                <span className="text-xs text-gray-500">
+                  {hours[day.key].open} - {hours[day.key].close}
+                </span>
               )}
             </div>
-          ))}
-        </div>
-        
-        <p className="text-sm text-gray-500 mt-4">
-          💡 Set your availability so customers know when they can reach you and when you'll be processing orders.
-        </p>
+
+            {/* Time Inputs - Stack on mobile */}
+            {!hours[day.key].closed && (
+              <div className="p-4 bg-white">
+                <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center max-w-md">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Open</label>
+                    <input
+                      type="time"
+                      value={hours[day.key].open}
+                      onChange={(e) => setHours({
+                        ...hours,
+                        [day.key]: { ...hours[day.key], open: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 pt-5">to</span>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Close</label>
+                    <input
+                      type="time"
+                      value={hours[day.key].close}
+                      onChange={(e) => setHours({
+                        ...hours,
+                        [day.key]: { ...hours[day.key], close: e.target.value }
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Closed Message */}
+            {hours[day.key].closed && (
+              <div className="px-4 py-3 bg-white">
+                <p className="text-sm text-gray-500">Closed</p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
       
-      <div className="flex justify-end pt-6 border-t border-gray-200">
+      <p className="text-xs sm:text-sm text-gray-500 bg-gray-50 p-3 sm:p-4 rounded-lg">
+        💡 Set your availability so customers know when they can reach you and when you'll be processing orders.
+      </p>
+      
+      <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200">
         <button
           type="submit"
           disabled={isSaving}
-          className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[48px]"
         >
           {isSaving ? (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               <span>Saving...</span>
             </div>
@@ -960,25 +979,115 @@ export function HoursTab({ profile, onSave, isSaving }) {
 }
 
 export function DeliveryTab({ profile, onSave, isSaving }) {
-  // CSS styles for enhanced UI
+  // Enhanced CSS styles for beautiful, user-friendly sliders
   const sliderStyles = `
-    .slider::-webkit-slider-thumb {
+    /* Base slider styling */
+    .delivery-slider {
+      -webkit-appearance: none;
       appearance: none;
-      height: 20px;
-      width: 20px;
-      border-radius: 50%;
-      background: #f97316;
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #f97316 0%, #f97316 var(--value), #e5e7eb var(--value), #e5e7eb 100%);
+      outline: none;
       cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: background 0.15s ease;
     }
-    .slider::-moz-range-thumb {
-      height: 20px;
-      width: 20px;
+    
+    .delivery-slider:hover {
+      background: linear-gradient(to right, #ea580c 0%, #ea580c var(--value), #d1d5db var(--value), #d1d5db 100%);
+    }
+    
+    /* WebKit (Chrome, Safari, Edge) - Thumb */
+    .delivery-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
-      background: #f97316;
+      background: white;
+      border: 3px solid #f97316;
       cursor: pointer;
-      border: none;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s ease;
+    }
+    
+    .delivery-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      border-color: #ea580c;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+    
+    .delivery-slider::-webkit-slider-thumb:active {
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+    }
+    
+    /* Firefox - Thumb */
+    .delivery-slider::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: white;
+      border: 3px solid #f97316;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s ease;
+    }
+    
+    .delivery-slider::-moz-range-thumb:hover {
+      transform: scale(1.1);
+      border-color: #ea580c;
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+    
+    .delivery-slider::-moz-range-thumb:active {
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(249, 115, 22, 0.4);
+    }
+    
+    /* Firefox - Track */
+    .delivery-slider::-moz-range-track {
+      height: 8px;
+      border-radius: 4px;
+      background: #e5e7eb;
+    }
+    
+    .delivery-slider::-moz-range-progress {
+      height: 8px;
+      border-radius: 4px;
+      background: #f97316;
+    }
+    
+    /* Professional delivery slider (blue variant) */
+    .professional-slider {
+      background: linear-gradient(to right, #3b82f6 0%, #3b82f6 var(--value), #e5e7eb var(--value), #e5e7eb 100%);
+    }
+    
+    .professional-slider:hover {
+      background: linear-gradient(to right, #2563eb 0%, #2563eb var(--value), #d1d5db var(--value), #d1d5db 100%);
+    }
+    
+    .professional-slider::-webkit-slider-thumb {
+      border-color: #3b82f6;
+    }
+    
+    .professional-slider::-webkit-slider-thumb:hover {
+      border-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .professional-slider::-moz-range-thumb {
+      border-color: #3b82f6;
+    }
+    
+    .professional-slider::-moz-range-thumb:hover {
+      border-color: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .professional-slider::-moz-range-progress {
+      background: #3b82f6;
     }
   `;
 
@@ -1273,106 +1382,117 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
     await onSave(deliveryOptions);
   };
 
+  // Track which sections are expanded
+  const [expandedSections, setExpandedSections] = useState({
+    pickup: true,
+    personal: false,
+    professional: false
+  });
+
+  const toggleSection = (section) => {
+    setExpandedSections({
+      ...expandedSections,
+      [section]: !expandedSections[section]
+    });
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
       <style dangerouslySetInnerHTML={{ __html: sliderStyles }} />
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">🚚 Delivery Options</h3>
-        <p className="text-gray-600">Configure how customers can receive your products. You can offer multiple delivery methods to reach more customers.</p>
-        
-        {/* Quick Guide */}
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h4 className="font-semibold text-blue-900 mb-2">💡 Delivery Options Guide</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-            <div>
-              <span className="font-medium">🏪 Pickup:</span> Customers collect from your location
-            </div>
-            <div>
-              <span className="font-medium">🚚 Personal Delivery:</span> You deliver within your area
-            </div>
-            <div>
-              <span className="font-medium">🚛 Professional Delivery:</span> Uber Direct for wider reach
-            </div>
-          </div>
-        </div>
+      <div className="border-b border-gray-200 pb-4">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">🚚 Delivery Options</h3>
+        <p className="text-sm text-gray-600 mt-1">Configure how customers can receive your products</p>
       </div>
       
-      {/* Pickup Section */}
-      <div className="border border-gray-200 rounded-lg p-6 hover:border-orange-300 transition-colors">
-        <div className="flex items-start space-x-4 mb-4">
-          <input
-            type="checkbox"
-            checked={delivery.pickup.enabled}
-            onChange={(e) => setDelivery({ 
-              ...delivery, 
-              pickup: { ...delivery.pickup, enabled: e.target.checked } 
-            })}
-            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mt-1"
-          />
-          <div className="flex-1">
-            <label className="block text-lg font-semibold text-gray-900">🏪 Pickup Available</label>
-            <p className="text-sm text-gray-600 mb-2">Customers collect orders directly from your location</p>
-            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              💡 <strong>Recommended:</strong> Most artisans start with pickup as it's simple and cost-effective
+      {/* Pickup Section - Collapsible */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="flex items-center justify-between p-4 bg-gray-50">
+          <div className="flex items-center gap-3 flex-1">
+            <input
+              type="checkbox"
+              checked={delivery.pickup.enabled}
+              onChange={(e) => {
+                e.stopPropagation();
+                setDelivery({ 
+                  ...delivery, 
+                  pickup: { ...delivery.pickup, enabled: e.target.checked } 
+                });
+              }}
+              className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900">🏪 Pickup Available</h4>
+              <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Customers collect orders from your location</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => toggleSection('pickup')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg 
+              className={`w-5 h-5 text-gray-500 transition-transform ${expandedSections.pickup ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
-        
-        {delivery.pickup.enabled && (
-          <div className="space-y-6 ml-8 p-4 bg-orange-50 rounded-lg border border-orange-200">
+
+        {/* Pickup Content */}
+        {expandedSections.pickup && delivery.pickup.enabled && (
+          <div className="p-4 space-y-4 border-t border-gray-200 animate-fadeIn">
             {/* Address Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 📍 Pickup Address <span className="text-red-500">*</span>
               </label>
               
-              {/* Address Type Selection */}
-              <div className="mb-4">
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="pickupAddressType"
-                      value="business"
-                      checked={delivery.pickup.useBusinessAddress}
-                      onChange={(e) => setDelivery({
-                        ...delivery,
-                        pickup: {
-                          ...delivery.pickup,
-                          useBusinessAddress: true,
-                          address: profile.address || { street: '', city: '', state: '', zipCode: '' }
-                        }
-                      })}
-                      className="text-orange-600 focus:ring-orange-500"
-                    />
-                    <span className="ml-2 text-sm font-medium text-gray-700">Use Business Address</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="pickupAddressType"
-                      value="custom"
-                      checked={!delivery.pickup.useBusinessAddress}
-                      onChange={(e) => setDelivery({
-                        ...delivery,
-                        pickup: {
-                          ...delivery.pickup,
-                          useBusinessAddress: false,
-                          address: { street: '', city: '', state: '', zipCode: '' }
-                        }
-                      })}
-                      className="text-orange-600 focus:ring-orange-500"
-                    />
-                    <span className="ml-2 text-sm font-medium text-gray-700">Use Different Address</span>
-                  </label>
-                </div>
+              <div className="mb-4 flex flex-col sm:flex-row gap-3">
+                <label className="flex items-center min-h-[44px]">
+                  <input
+                    type="radio"
+                    name="pickupAddressType"
+                    value="business"
+                    checked={delivery.pickup.useBusinessAddress}
+                    onChange={(e) => setDelivery({
+                      ...delivery,
+                      pickup: {
+                        ...delivery.pickup,
+                        useBusinessAddress: true,
+                        address: profile.address || { street: '', city: '', state: '', zipCode: '' }
+                      }
+                    })}
+                    className="text-orange-600 focus:ring-orange-500 w-4 h-4"
+                  />
+                  <span className="ml-2 text-xs sm:text-sm font-medium text-gray-700">Use Business Address</span>
+                </label>
+                <label className="flex items-center min-h-[44px]">
+                  <input
+                    type="radio"
+                    name="pickupAddressType"
+                    value="custom"
+                    checked={!delivery.pickup.useBusinessAddress}
+                    onChange={(e) => setDelivery({
+                      ...delivery,
+                      pickup: {
+                        ...delivery.pickup,
+                        useBusinessAddress: false,
+                        address: { street: '', city: '', state: '', zipCode: '' }
+                      }
+                    })}
+                    className="text-orange-600 focus:ring-orange-500 w-4 h-4"
+                  />
+                  <span className="ml-2 text-xs sm:text-sm font-medium text-gray-700">Use Different Address</span>
+                </label>
               </div>
 
-              {/* Business Address Display */}
-              {delivery.pickup.useBusinessAddress && (
+              {delivery.pickup.useBusinessAddress ? (
                 <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="text-sm font-medium text-green-800 mb-1">🏢 Using Business Address:</div>
-                  <div className="text-sm text-green-700">
+                  <div className="text-xs sm:text-sm font-medium text-green-800 mb-1">🏢 Using Business Address:</div>
+                  <div className="text-xs sm:text-sm text-green-700">
                     {profile.address?.street && profile.address?.city ? (
                       `${profile.address.street}, ${profile.address.city}, ${profile.address.state} ${profile.address.zipCode}`
                     ) : (
@@ -1380,10 +1500,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                     )}
                   </div>
                 </div>
-              )}
-
-              {/* Custom Address Input */}
-              {!delivery.pickup.useBusinessAddress && (
+              ) : (
                 <div className="space-y-3">
                   <input
                     type="text"
@@ -1395,11 +1512,11 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                         address: { ...delivery.pickup.address, street: e.target.value }
                       } 
                     })}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                    placeholder="Street address (e.g., 123 Main Street)"
+                    className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
+                    placeholder="Street address"
                     required
                   />
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <input
                       type="text"
                       value={delivery.pickup.address?.city || ''}
@@ -1410,7 +1527,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                           address: { ...delivery.pickup.address, city: e.target.value }
                         } 
                       })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
                       placeholder="City"
                       required
                     />
@@ -1424,8 +1541,8 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                           address: { ...delivery.pickup.address, state: e.target.value }
                         } 
                       })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                      placeholder="Province/State"
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
+                      placeholder="Province"
                       required
                     />
                     <input
@@ -1438,99 +1555,121 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                           address: { ...delivery.pickup.address, zipCode: e.target.value }
                         } 
                       })}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                      className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
                       placeholder="Postal Code"
                       required
                     />
                   </div>
-                  <p className="text-xs text-gray-500">Complete address for geolocation and customer directions</p>
                 </div>
               )}
             </div>
             
-            {/* Schedule Picker */}
+            {/* Pickup Schedule - Match Hours Format */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 🕒 Pickup Schedule <span className="text-red-500">*</span>
               </label>
               
-              <div className="space-y-3">
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                  <div key={day} className="flex items-center space-x-4 p-3 border border-gray-200 rounded-lg bg-white">
-                    <div className="w-20">
-                      <span className="text-sm font-medium text-gray-700">{day}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={delivery.pickup.schedule?.[day.toLowerCase()]?.enabled || false}
-                        onChange={(e) => setDelivery({
-                          ...delivery,
-                          pickup: {
-                            ...delivery.pickup,
-                            schedule: {
-                              ...delivery.pickup.schedule,
-                              [day.toLowerCase()]: {
-                                ...delivery.pickup.schedule?.[day.toLowerCase()],
-                                enabled: e.target.checked
-                              }
-                            }
-                          }
-                        })}
-                        className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                      />
-                      <span className="text-sm text-gray-600">Open</span>
-                    </div>
-                    {delivery.pickup.schedule?.[day.toLowerCase()]?.enabled && (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="time"
-                          value={delivery.pickup.schedule?.[day.toLowerCase()]?.open || '09:00'}
-                          onChange={(e) => setDelivery({
-                            ...delivery,
-                            pickup: {
-                              ...delivery.pickup,
-                              schedule: {
-                                ...delivery.pickup.schedule,
-                                [day.toLowerCase()]: {
-                                  ...delivery.pickup.schedule?.[day.toLowerCase()],
-                                  open: e.target.value
+              <div className="space-y-2">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                  const dayKey = day.toLowerCase();
+                  const isEnabled = delivery.pickup.schedule?.[dayKey]?.enabled || false;
+                  return (
+                    <div key={day} className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                        <label className="flex items-center gap-3 flex-1">
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) => setDelivery({
+                              ...delivery,
+                              pickup: {
+                                ...delivery.pickup,
+                                schedule: {
+                                  ...delivery.pickup.schedule,
+                                  [dayKey]: {
+                                    ...delivery.pickup.schedule?.[dayKey],
+                                    enabled: e.target.checked
+                                  }
                                 }
                               }
-                            }
-                          })}
-                          className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                        />
-                        <span className="text-gray-500">to</span>
-                        <input
-                          type="time"
-                          value={delivery.pickup.schedule?.[day.toLowerCase()]?.close || '17:00'}
-                          onChange={(e) => setDelivery({
-                            ...delivery,
-                            pickup: {
-                              ...delivery.pickup,
-                              schedule: {
-                                ...delivery.pickup.schedule,
-                                [day.toLowerCase()]: {
-                                  ...delivery.pickup.schedule?.[day.toLowerCase()],
-                                  close: e.target.value
-                                }
-                              }
-                            }
-                          })}
-                          className="rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                        />
+                            })}
+                            className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                          />
+                          <span className="text-sm sm:text-base font-medium text-gray-900">{day}</span>
+                        </label>
+                        
+                        {isEnabled && (
+                          <span className="text-xs text-gray-500">
+                            {delivery.pickup.schedule?.[dayKey]?.open || '09:00'} - {delivery.pickup.schedule?.[dayKey]?.close || '17:00'}
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {isEnabled && (
+                        <div className="p-4 bg-white">
+                          <div className="grid grid-cols-[1fr,auto,1fr] gap-2 items-center max-w-md">
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Open</label>
+                              <input
+                                type="time"
+                                value={delivery.pickup.schedule?.[dayKey]?.open || '09:00'}
+                                onChange={(e) => setDelivery({
+                                  ...delivery,
+                                  pickup: {
+                                    ...delivery.pickup,
+                                    schedule: {
+                                      ...delivery.pickup.schedule,
+                                      [dayKey]: {
+                                        ...delivery.pickup.schedule?.[dayKey],
+                                        open: e.target.value
+                                      }
+                                    }
+                                  }
+                                })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 pt-5">to</span>
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Close</label>
+                              <input
+                                type="time"
+                                value={delivery.pickup.schedule?.[dayKey]?.close || '17:00'}
+                                onChange={(e) => setDelivery({
+                                  ...delivery,
+                                  pickup: {
+                                    ...delivery.pickup,
+                                    schedule: {
+                                      ...delivery.pickup.schedule,
+                                      [dayKey]: {
+                                        ...delivery.pickup.schedule?.[dayKey],
+                                        close: e.target.value
+                                      }
+                                    }
+                                  }
+                                })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {!isEnabled && (
+                        <div className="px-4 py-3 bg-white">
+                          <p className="text-sm text-gray-500">Closed</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-xs text-gray-500 mt-2">Set your pickup availability for each day of the week</p>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                📋 Pickup Instructions
+                📋 Pickup Instructions (Optional)
               </label>
               <textarea
                 value={delivery.pickup.instructions}
@@ -1539,48 +1678,57 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                   pickup: { ...delivery.pickup, instructions: e.target.value } 
                 })}
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="e.g., Ring doorbell #3, call 15 minutes before arrival, bring ID for pickup..."
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
+                placeholder="e.g., Ring doorbell #3, call before arrival..."
               />
-              <p className="text-xs text-gray-500 mt-1">Any special instructions for customers (optional)</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Personal Delivery Section */}
-      <div className="border border-gray-200 rounded-lg p-6 hover:border-orange-300 transition-colors">
-        <div className="flex items-start space-x-4 mb-4">
-          <input
-            type="checkbox"
-            checked={delivery.personalDelivery.enabled}
-            onChange={(e) => setDelivery({ 
-              ...delivery, 
-              personalDelivery: { ...delivery.personalDelivery, enabled: e.target.checked } 
-            })}
-            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mt-1"
-          />
-          <div className="flex-1">
-            <label className="block text-lg font-semibold text-gray-900">🚚 Personal Delivery</label>
-            <p className="text-sm text-gray-600 mb-2">You personally deliver orders to customers within your area</p>
-            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              💡 <strong>Great for:</strong> Building relationships with customers and ensuring product quality during delivery
+      {/* Personal Delivery Section - Collapsible */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="flex items-center justify-between p-4 bg-gray-50">
+          <div className="flex items-center gap-3 flex-1">
+            <input
+              type="checkbox"
+              checked={delivery.personalDelivery.enabled}
+              onChange={(e) => {
+                e.stopPropagation();
+                setDelivery({ 
+                  ...delivery, 
+                  personalDelivery: { ...delivery.personalDelivery, enabled: e.target.checked } 
+                });
+              }}
+              className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900">🚚 Personal Delivery</h4>
+              <p className="text-xs sm:text-sm text-gray-600 mt-0.5">You personally deliver orders to customers</p>
             </div>
-            {!delivery.personalDelivery.enabled && (
-              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-xs text-yellow-800">
-                  ⚠️ <strong>Currently disabled:</strong> Enable this option to offer personal delivery to your customers
-                </p>
-              </div>
-            )}
           </div>
+          <button
+            type="button"
+            onClick={() => toggleSection('personal')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg 
+              className={`w-5 h-5 text-gray-500 transition-transform ${expandedSections.personal ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
-        
-        {delivery.personalDelivery.enabled && (
-          <div className="space-y-6 ml-8 p-4 bg-green-50 rounded-lg border border-green-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        {/* Personal Delivery Content */}
+        {expandedSections.personal && delivery.personalDelivery.enabled && (
+          <div className="p-4 space-y-4 border-t border-gray-200 animate-fadeIn">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   📏 Delivery Radius <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -1589,17 +1737,21 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                     min="1"
                     max="50"
                     value={delivery.personalDelivery.radius || 10}
-                    onChange={(e) => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, radius: parseInt(e.target.value) || 10 } 
-                    })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    onChange={(e) => {
+                      const newValue = parseInt(e.target.value) || 10;
+                      setDelivery({ 
+                        ...delivery, 
+                        personalDelivery: { ...delivery.personalDelivery, radius: newValue } 
+                      });
+                    }}
+                    style={{ '--value': `${((delivery.personalDelivery.radius - 1) / 49) * 100}%` }}
+                    className="delivery-slider"
                     required
                   />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>1 km</span>
-                    <span className="font-medium text-orange-600">{delivery.personalDelivery.radius} km</span>
-                    <span>50 km</span>
+                  <div className="flex justify-between text-xs text-gray-500 mt-2">
+                    <span className="text-gray-400">1 km</span>
+                    <span className="font-semibold text-lg text-orange-600">{delivery.personalDelivery.radius} km</span>
+                    <span className="text-gray-400">50 km</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -1615,7 +1767,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">$</span>
+                    <span className="text-gray-500 text-xs sm:text-sm">$</span>
                   </div>
                   <input
                     type="number"
@@ -1624,61 +1776,12 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                       ...delivery, 
                       personalDelivery: { ...delivery.personalDelivery, fee: parseFloat(e.target.value) || 0 } 
                     })}
-                    className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                    className="block w-full pl-7 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
                     min="0"
                     step="0.50"
                     required
                   />
                 </div>
-                <div className="mt-2 flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, fee: 0 } 
-                    })}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      delivery.personalDelivery.fee === 0 
-                        ? 'bg-green-100 text-green-800 border border-green-300' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    Free
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, fee: 5 } 
-                    })}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      delivery.personalDelivery.fee === 5 
-                        ? 'bg-orange-100 text-orange-800 border border-orange-300' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    $5
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, fee: 10 } 
-                    })}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      delivery.personalDelivery.fee === 10 
-                        ? 'bg-orange-100 text-orange-800 border border-orange-300' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    $10
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {delivery.personalDelivery.fee === 0 && "🟢 Free delivery - great for customer attraction"}
-                  {delivery.personalDelivery.fee > 0 && delivery.personalDelivery.fee <= 5 && "🟡 Low fee - competitive pricing"}
-                  {delivery.personalDelivery.fee > 5 && "🔴 Higher fee - ensure value for customers"}
-                </p>
               </div>
               
               <div>
@@ -1687,7 +1790,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">$</span>
+                    <span className="text-gray-500 text-xs sm:text-sm">$</span>
                   </div>
                   <input
                     type="number"
@@ -1696,65 +1799,17 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                       ...delivery, 
                       personalDelivery: { ...delivery.personalDelivery, freeThreshold: parseFloat(e.target.value) || 0 } 
                     })}
-                    className="mt-1 block w-full pl-7 rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                    className="block w-full pl-7 rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
                     min="0"
                     step="5"
                   />
                 </div>
-                <div className="mt-2 flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, freeThreshold: 0 } 
-                    })}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      delivery.personalDelivery.freeThreshold === 0 
-                        ? 'bg-red-100 text-red-800 border border-red-300' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    No Free
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, freeThreshold: 25 } 
-                    })}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      delivery.personalDelivery.freeThreshold === 25 
-                        ? 'bg-green-100 text-green-800 border border-green-300' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    $25
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDelivery({ 
-                      ...delivery, 
-                      personalDelivery: { ...delivery.personalDelivery, freeThreshold: 50 } 
-                    })}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      delivery.personalDelivery.freeThreshold === 50 
-                        ? 'bg-green-100 text-green-800 border border-green-300' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-300 hover:bg-gray-200'
-                    }`}
-                  >
-                    $50
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {delivery.personalDelivery.freeThreshold > 0 && `Orders over $${delivery.personalDelivery.freeThreshold} get free delivery`}
-                  {delivery.personalDelivery.freeThreshold === 0 && "No free delivery threshold set"}
-                </p>
               </div>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                📋 Personal Delivery Instructions
+                📋 Delivery Instructions (Optional)
               </label>
               <textarea
                 value={delivery.personalDelivery.instructions}
@@ -1763,154 +1818,112 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                   personalDelivery: { ...delivery.personalDelivery, instructions: e.target.value } 
                 })}
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="e.g., Call 30 minutes before arrival, prefer cash payment, need gate code for access, delivery time windows..."
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
+                placeholder="e.g., Call 30 minutes before arrival..."
               />
-              <p className="text-xs text-gray-500 mt-1">Special instructions for personal delivery (optional)</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Professional Delivery Section */}
-      <div className="border border-gray-200 rounded-lg p-6 hover:border-orange-300 transition-colors">
-        <div className="flex items-start space-x-4 mb-4">
-          <input
-            type="checkbox"
-            checked={delivery.professionalDelivery.enabled}
-            onChange={(e) => setDelivery({ 
-              ...delivery, 
-              professionalDelivery: { 
-                ...delivery.professionalDelivery, 
-                enabled: e.target.checked,
-                uberDirectEnabled: e.target.checked // Auto-enable Uber Direct
-              } 
-            })}
-            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 mt-1"
-          />
-          <div className="flex-1">
-            <label className="block text-lg font-semibold text-gray-900">🚛 Professional Delivery (Uber Direct)</label>
-            <p className="text-sm text-gray-600 mb-2">Offer Uber Direct delivery for customers with automated tracking and professional service</p>
-            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              💡 <strong>Perfect for:</strong> Reaching customers in wider areas, automated delivery tracking, and premium service
+      {/* Professional Delivery Section - Collapsible */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="flex items-center justify-between p-4 bg-gray-50">
+          <div className="flex items-center gap-3 flex-1">
+            <input
+              type="checkbox"
+              checked={delivery.professionalDelivery.enabled}
+              onChange={(e) => {
+                e.stopPropagation();
+                setDelivery({ 
+                  ...delivery, 
+                  professionalDelivery: { 
+                    ...delivery.professionalDelivery, 
+                    enabled: e.target.checked,
+                    uberDirectEnabled: e.target.checked 
+                  } 
+                });
+              }}
+              className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900">🚛 Professional Delivery (Uber Direct)</h4>
+              <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Automated professional delivery service</p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => toggleSection('professional')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg 
+              className={`w-5 h-5 text-gray-500 transition-transform ${expandedSections.professional ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
-        
-        {delivery.professionalDelivery.enabled && (
-          <div className="space-y-6 ml-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="p-4 bg-white rounded-lg border border-blue-200">
+
+        {/* Professional Delivery Content */}
+        {expandedSections.professional && delivery.professionalDelivery.enabled && (
+          <div className="p-4 space-y-4 border-t border-gray-200 animate-fadeIn">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                🌍 Service Regions <span className="text-red-500">*</span>
+                📏 Service Radius (km)
               </label>
-              
-              {/* Business Address Display */}
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="text-sm font-medium text-gray-700 mb-1">📍 Your Business Address:</div>
-                <div className="text-sm text-gray-600">
-                  {profile.address?.street && profile.address?.city ? (
-                    `${profile.address.street}, ${profile.address.city}, ${profile.address.state} ${profile.address.zipCode}`
-                  ) : (
-                    <span className="text-orange-600">Please set your business address in the Business Overview tab first</span>
-                  )}
-                </div>
-              </div>
-              
-              {/* Service Radius */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📏 Professional Delivery Radius (km)
-                </label>
-                <div className="relative">
-                  <input
-                    type="range"
-                    min="5"
-                    max="100"
-                    value={delivery.professionalDelivery.serviceRadius || 25}
-                    onChange={(e) => setDelivery({ 
-                      ...delivery, 
-                      professionalDelivery: { 
-                        ...delivery.professionalDelivery, 
-                        serviceRadius: parseInt(e.target.value) || 25 
-                      } 
-                    })}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>5 km</span>
-                    <span className="font-medium text-blue-600">{delivery.professionalDelivery.serviceRadius || 25} km</span>
-                    <span>100 km</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Professional delivery will be available within this radius from your business address (set in Business Overview)
-                </p>
-              </div>
-              
-              {/* Manual Regions Input (Optional) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🎯 Specific Cities/Regions (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={delivery.professionalDelivery.regions.join(', ')}
-                  onChange={(e) => setDelivery({ 
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={delivery.professionalDelivery.serviceRadius || 25}
+                onChange={(e) => {
+                  const newValue = parseInt(e.target.value) || 25;
+                  setDelivery({ 
                     ...delivery, 
                     professionalDelivery: { 
                       ...delivery.professionalDelivery, 
-                      regions: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                      serviceRadius: newValue 
                     } 
-                  })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                  placeholder="e.g., Downtown Toronto, North York, Scarborough (leave empty to use radius-based delivery)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Specify exact cities/regions if you prefer manual control over radius-based delivery
-                </p>
-                
-                {/* Nearby Cities Suggestions */}
-                {profile.address?.city && (
-                  <div className="mt-3">
-                    <div className="text-xs text-gray-600 mb-2">
-                      💡 Nearby cities to {profile.address.city}:
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {getNearbyCities(profile.address).map((city) => (
-                        <button
-                          key={city}
-                          type="button"
-                          onClick={() => {
-                            const currentRegions = delivery.professionalDelivery.regions;
-                            const newRegions = currentRegions.includes(city) 
-                              ? currentRegions.filter(r => r !== city)
-                              : [...currentRegions, city];
-                            setDelivery({
-                              ...delivery,
-                              professionalDelivery: {
-                                ...delivery.professionalDelivery,
-                                regions: newRegions
-                              }
-                            });
-                          }}
-                          className={`px-3 py-1 text-xs rounded-full border ${
-                            delivery.professionalDelivery.regions.includes(city)
-                              ? 'bg-blue-100 text-blue-800 border-blue-300'
-                              : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
-                          }`}
-                        >
-                          {city}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  });
+                }}
+                style={{ '--value': `${((delivery.professionalDelivery.serviceRadius - 5) / 95) * 100}%` }}
+                className="delivery-slider professional-slider"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span className="text-gray-400">5 km</span>
+                <span className="font-semibold text-lg text-blue-600">{delivery.professionalDelivery.serviceRadius || 25} km</span>
+                <span className="text-gray-400">100 km</span>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Professional delivery will be available within this radius from your business address
+              </p>
             </div>
             
-            <div className="p-4 bg-white rounded-lg border border-blue-200">
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                📦 Packaging Requirements
+                🎯 Service Regions (Optional)
+              </label>
+              <input
+                type="text"
+                value={delivery.professionalDelivery.regions.join(', ')}
+                onChange={(e) => setDelivery({ 
+                  ...delivery, 
+                  professionalDelivery: { 
+                    ...delivery.professionalDelivery, 
+                    regions: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+                  } 
+                })}
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-xs sm:text-sm"
+                placeholder="e.g., Downtown, North York, Scarborough"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📦 Packaging Requirements (Optional)
               </label>
               <textarea
                 value={delivery.professionalDelivery.packaging}
@@ -1919,40 +1932,22 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                   professionalDelivery: { ...delivery.professionalDelivery, packaging: e.target.value } 
                 })}
                 rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="e.g., Insulated packaging for temperature-sensitive items, secure containers for fragile products, special handling instructions..."
+                className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
+                placeholder="e.g., Insulated packaging, secure containers..."
               />
-              <p className="text-xs text-gray-500 mt-1">Describe your packaging methods and any special requirements for professional delivery</p>
-            </div>
-            
-            <div className="p-4 bg-white rounded-lg border border-blue-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                ⚠️ Delivery Restrictions
-              </label>
-              <textarea
-                value={delivery.professionalDelivery.restrictions}
-                onChange={(e) => setDelivery({ 
-                  ...delivery, 
-                  professionalDelivery: { ...delivery.professionalDelivery, restrictions: e.target.value } 
-                })}
-                rows={3}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="e.g., No delivery on holidays, requires signature, must be delivered within 2 hours, no delivery to apartments without elevator..."
-              />
-              <p className="text-xs text-gray-500 mt-1">Any restrictions or special requirements for professional delivery</p>
             </div>
           </div>
         )}
       </div>
       
-      <div className="flex justify-end pt-6 border-t border-gray-200">
+      <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200">
         <button
           type="submit"
           disabled={isSaving}
-          className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[48px]"
         >
           {isSaving ? (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               <span>Saving...</span>
             </div>
@@ -1987,10 +1982,10 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
   ];
   
   return (
-    <div className="space-y-8">
-      <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Profile Setup</h3>
-        <p className="text-gray-600">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="border-b border-gray-200 pb-4 sm:pb-6">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Complete Your Profile Setup</h3>
+        <p className="text-sm text-gray-600">
           {isArtisan 
             ? "Welcome! Let's get your business profile set up and ready to go" 
             : "Welcome! Let's get your account set up so you can start shopping"
@@ -1998,9 +1993,9 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
         </p>
       </div>
       
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h4 className="font-medium text-blue-900 mb-2">Welcome to BazaarMkt!</h4>
-        <p className="text-blue-700 mb-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+        <h4 className="text-sm sm:text-base font-medium text-blue-900 mb-2">Welcome to BazaarMkt!</h4>
+        <p className="text-xs sm:text-sm text-blue-700 mb-4">
           {isArtisan 
             ? "Complete your profile setup to start selling your products. Please fill in the following sections:"
             : "Complete your profile setup to start shopping from local artisans. Please fill in the following sections:"
@@ -2010,7 +2005,7 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
         <div className="space-y-3">
           {completionSteps.map((step, index) => (
             <div key={step.id} className="flex items-center space-x-3">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
                 step.completed 
                   ? 'bg-green-100' 
                   : 'bg-blue-100'
@@ -2020,10 +2015,10 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 ) : (
-                  <span className="text-blue-600 text-sm font-medium">{index + 1}</span>
+                  <span className="text-blue-600 text-xs sm:text-sm font-medium">{index + 1}</span>
                 )}
               </div>
-              <span className={`${step.completed ? 'text-green-900' : 'text-blue-900'}`}>
+              <span className={`text-xs sm:text-sm ${step.completed ? 'text-green-900' : 'text-blue-900'}`}>
                 {step.name}
                 {step.completed && <span className="ml-2 text-green-600 text-sm">✓</span>}
               </span>
@@ -2032,19 +2027,19 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
         </div>
       </div>
       
-      <div className="flex justify-end pt-6 border-t border-gray-200">
+      <div className="flex justify-end pt-4 sm:pt-6 border-t border-gray-200">
         <button
           onClick={() => setActiveTab('personal')}
-          className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 min-h-[48px]"
         >
           Start Setup
         </button>
       </div>
       
       {/* Setup Progress Guide */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-        <h5 className="font-medium text-gray-900 mb-3">Setup Progress Guide</h5>
-        <div className="space-y-2 text-sm text-gray-600">
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-6">
+        <h5 className="text-sm sm:text-base font-medium text-gray-900 mb-3">Setup Progress Guide</h5>
+        <div className="space-y-2 text-xs sm:text-sm text-gray-600">
           <p className={isPersonalComplete ? 'text-green-700' : ''}>
             <strong>Step 1 - Personal Information:</strong> Complete your basic profile details
             {isPersonalComplete && <span className="ml-2 text-green-600">✓ Completed</span>}
@@ -2066,8 +2061,8 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
         {/* Overall completion status */}
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Overall Progress:</span>
-            <span className="text-sm font-medium text-gray-900">
+            <span className="text-xs sm:text-sm font-medium text-gray-700">Overall Progress:</span>
+            <span className="text-xs sm:text-sm font-medium text-gray-900">
               {completionSteps.filter(step => step.completed).length} of {completionSteps.length} completed
             </span>
           </div>

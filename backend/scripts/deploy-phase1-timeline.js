@@ -32,13 +32,14 @@ class Phase1Deployment {
       console.log('\n✅ Step 3: Validating system integration...');
       await this.validateSystem();
       
-      console.log('\n🎉 Phase 1 Timeline System deployed successfully!');
+      console.log('\n🎉 Phase 1 Simplified Timeline System deployed successfully!');
       console.log('📊 System capabilities:');
-      console.log('  ✅ Comprehensive order timeline calculation');
-      console.log('  ✅ Production queue management');
+      console.log('  ✅ Simplified order timeline calculation based on lead times');
+      console.log('  ✅ Direct artisan-to-order workflow (no complex queues)');
       console.log('  ✅ Automatic timeline generation on order creation');
       console.log('  ✅ Frontend timeline display components');
       console.log('  ✅ API endpoints for timeline management');
+      console.log('  ✅ Customer-friendly completion dates (3 days = 3 days)');
       
     } catch (error) {
       console.error('❌ Phase 1 deployment failed:', error);
@@ -51,7 +52,7 @@ class Phase1Deployment {
    */
   async testServices() {
     const { MongoClient } = require('mongodb');
-    const { createOrderTimelineService, createProductionQueueService } = require('../services');
+    const { createOrderTimelineService } = require('../services');
     
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
     const dbName = process.env.DB_NAME || 'bazarmkt';
@@ -97,17 +98,8 @@ class Phase1Deployment {
       
       console.log('  ✅ OrderTimelineService working correctly');
       
-      console.log('  🔍 Testing ProductionQueueService...');
-      const productionQueueService = await createProductionQueueService();
-      
-      // Test queue estimation
-      const estimation = await productionQueueService.estimateQueuePosition(sampleOrder);
-      
-      if (!estimation || typeof estimation.queuePosition !== 'number') {
-        throw new Error('Production queue service failed to estimate position');
-      }
-      
-      console.log('  ✅ ProductionQueueService working correctly');
+      console.log('  🔍 ProductionQueueService removed - working directly with orders');
+      console.log('  ✅ Simplified timeline system working correctly');
       
     } finally {
       await client.close();
@@ -130,15 +122,15 @@ class Phase1Deployment {
     try {
       console.log('  🔍 Validating database collections...');
       
-      // Check production queue collection exists
+      // Check that production queue collection was NOT created (since we removed it)
       const collections = await db.listCollections().toArray();
       const hasProductionQueue = collections.some(c => c.name === 'production_queue');
       
-      if (!hasProductionQueue) {
-        throw new Error('Production queue collection not found');
+      if (hasProductionQueue) {
+        console.log('  ⚠️ Production queue collection exists (legacy - should be cleaned up manually)');
+      } else {
+        console.log('  ✅ Production queue collection correctly not created (simplified system)');
       }
-      
-      console.log('  ✅ Production queue collection exists');
       
       // Check orders have timeline schema
       const sampleOrder = await db.collection('orders').findOne({});
@@ -152,11 +144,10 @@ class Phase1Deployment {
       }
       
       // Check indexes exist
-      const queueIndexes = await db.collection('production_queue').indexes();
       const orderIndexes = await db.collection('orders').indexes();
       
-      console.log(`  ✅ Production queue has ${queueIndexes.length} indexes`);
       console.log(`  ✅ Orders collection has ${orderIndexes.length} indexes`);
+      console.log('  ✅ Simplified system validation complete');
       
     } finally {
       await client.close();

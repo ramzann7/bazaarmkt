@@ -29,6 +29,7 @@ import { useOptimizedEffect, useAsyncOperation } from '../hooks/useOptimizedEffe
 import { OverviewTab, OperationsTab, HoursTab, DeliveryTab, SetupTab } from './ArtisanTabs';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
 import config from '../config/environment';
+import MobileTabs from './mobile/MobileTabs';
 
 export default function Profile() {
   const location = useLocation();
@@ -854,121 +855,85 @@ export default function Profile() {
       )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Enhanced Header */}
-        <div className="mb-6 sm:mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-4 sm:mb-6 shadow-lg">
-            <UserIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-800 mb-2 sm:mb-3 font-display">My Profile</h1>
-          <p className="text-sm sm:text-base lg:text-lg text-stone-600 max-w-2xl mx-auto px-4">
-            {isArtisan 
-              ? "Manage your artisan business profile, operations, and customer information"
-              : "Manage your account settings, preferences, and personal information"
-            }
-          </p>
-        </div>
-
-        {/* Enhanced Profile Header */}
-        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 transform hover:scale-[1.02] transition-transform duration-300">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
-            {/* Editable Profile Picture */}
-            <div className="relative group">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleProfilePictureUpload}
-                className="hidden"
-                id="header-profile-picture-upload"
-                disabled={isUploadingProfilePic}
-              />
-              <label
-                htmlFor="header-profile-picture-upload"
-                className="cursor-pointer block relative"
-                title={isUploadingProfilePic ? "Uploading..." : profile?.profilePicture ? "Click to change profile picture" : "Click to upload profile picture"}
-              >
-                {profile?.profilePicture ? (
-                  <img
-                    src={profile.profilePicture}
-                    alt="Profile"
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shadow-lg border-4 border-white"
-                  />
-                ) : (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0 border-4 border-white relative">
-                    <span className="text-2xl sm:text-3xl font-bold text-white">
-                      {getInitials() || <UserIcon className="w-8 h-8 sm:w-10 sm:h-10" />}
-                    </span>
-                    {/* Always visible camera icon badge when no picture */}
-                    {!isUploadingProfilePic && (
-                      <div className="absolute bottom-0 right-0 bg-white rounded-full p-1.5 shadow-lg ring-2 ring-amber-400">
-                        <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {/* Upload Overlay */}
-                {profile?.profilePicture && (
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-full transition-all duration-200 flex items-center justify-center">
-                    {isUploadingProfilePic ? (
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                    ) : (
-                      <svg className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    )}
-                  </div>
-                )}
-                {/* Loading spinner when uploading */}
-                {isUploadingProfilePic && (
-                  <div className="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                  </div>
-                )}
-              </label>
-            </div>
-            <div className="flex-1 text-center sm:text-left w-full">
-              <div className="flex flex-col sm:flex-row items-center sm:items-start sm:justify-between mb-2 gap-2">
-                <div className="w-full sm:w-auto">
-                  {isArtisan && artisanProfile?.artisanName ? (
-                    <h2 className="text-2xl font-bold text-amber-600 font-display">
-                      🏪 {artisanProfile.artisanName}
-                    </h2>
+        {/* Enhanced Header - Mobile Optimized */}
+        <div className="mb-4 sm:mb-6">
+          <div className="card p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+              {/* Editable Profile Picture */}
+              <div className="relative group flex-shrink-0">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePictureUpload}
+                  className="hidden"
+                  id="header-profile-picture-upload"
+                  disabled={isUploadingProfilePic}
+                />
+                <label
+                  htmlFor="header-profile-picture-upload"
+                  className="cursor-pointer block relative"
+                  title={isUploadingProfilePic ? "Uploading..." : profile?.profilePicture ? "Click to change profile picture" : "Click to upload profile picture"}
+                >
+                  {profile?.profilePicture ? (
+                    <img
+                      src={profile.profilePicture}
+                      alt="Profile"
+                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-lg border-4 border-white"
+                    />
                   ) : (
-                    <h2 className="text-2xl font-bold text-stone-800 font-display">
-                      {profile.firstName} {profile.lastName}
-                    </h2>
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white relative">
+                      <span className="text-2xl sm:text-3xl font-bold text-white">
+                        {getInitials() || <UserIcon className="w-10 h-10 sm:w-12 sm:h-12" />}
+                      </span>
+                      {!isUploadingProfilePic && (
+                        <div className="absolute bottom-0 right-0 bg-white rounded-full p-1.5 shadow-lg ring-2 ring-amber-400">
+                          <CameraIcon className="w-4 h-4 text-amber-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Upload Overlay */}
+                  {profile?.profilePicture && (
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-full transition-all duration-200 flex items-center justify-center">
+                      {isUploadingProfilePic ? (
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      ) : (
+                        <CameraIcon className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      )}
+                    </div>
+                  )}
+                  {isUploadingProfilePic && (
+                    <div className="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Profile Info */}
+              <div className="flex-1 text-center sm:text-left w-full min-w-0">
+                {isArtisan && artisanProfile?.artisanName ? (
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-amber-600 font-display mb-1 truncate">
+                    {artisanProfile.artisanName}
+                  </h1>
+                ) : (
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-stone-800 font-display mb-1 truncate">
+                    {profile.firstName} {profile.lastName}
+                  </h1>
+                )}
+                <p className="text-sm sm:text-base text-gray-600 mb-2 truncate">{profile.email}</p>
+                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-amber-100 text-amber-800">
+                    <span className="capitalize">{profile.role}</span>
+                  </div>
+                  {isArtisan && (
+                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-green-100 text-green-800">
+                      <span>✨ Business Owner</span>
+                    </div>
                   )}
                 </div>
-                <button
-                  onClick={forceRefreshProfile}
-                  disabled={isRefreshing}
-                  className={`p-2 text-gray-500 hover:text-[#D77A61] hover:bg-[#F5F1EA] rounded-full transition-colors duration-200 ${
-                    isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  title={isRefreshing ? "Refreshing..." : "Refresh profile data"}
-                >
-                  <ArrowPathIcon className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </button>
-              </div>
-              <p className="text-lg text-gray-600 mb-1">{profile.email}</p>
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#E6B655] text-[#2E2E2E]">
-                <span className="capitalize">{profile.role}</span>
-                {isArtisan && (
-                  <span className="ml-2 text-xs bg-[#D77A61] text-white px-2 py-0.5 rounded-full">
-                    Business Owner
-                  </span>
-                )}
               </div>
             </div>
-            {isArtisan && (
-              <div className="text-right">
-                <div className="text-sm text-gray-500">Business Status</div>
-                <div className="text-lg font-semibold text-[#3C6E47]">Active</div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -976,37 +941,25 @@ export default function Profile() {
 
         {/* Enhanced Tabs */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-[#F5F1EA] to-[#E6B655] border-b border-[#E6B655]">
-            <nav className="flex space-x-1 px-6 overflow-x-auto scrollbar-hide" aria-label="Tabs">
-              {tabs
-                .filter(tab => {
+          <div className="bg-gray-50 border-b border-gray-200">
+            {/* Tab Navigation - Responsive */}
+            <div className="px-4 sm:px-6">
+              <MobileTabs
+                tabs={tabs.filter(tab => {
                   // Hide setup tab once profile is complete
                   if (tab.id === 'setup' && !needsSetup) {
                     return false;
                   }
                   return true;
-                })
-                .map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    py-4 px-6 font-medium text-sm rounded-t-lg transition-all duration-200 flex items-center space-x-2 whitespace-nowrap flex-shrink-0
-                    ${activeTab === tab.id
-                      ? 'bg-white text-[#D77A61] shadow-sm border-b-2 border-[#D77A61]'
-                      : 'text-gray-600 hover:text-[#D77A61] hover:bg-[#F5F1EA]'
-                    }
-                  `}
-                >
-                  <tab.icon className="w-5 h-5" />
-                  <span>{tab.name}</span>
-                </button>
-              ))}
-            </nav>
+                })}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+              />
+            </div>
           </div>
 
-          {/* Enhanced Tab Content */}
-          <div className="p-8">
+          {/* Enhanced Tab Content - Mobile responsive padding */}
+          <div className="p-4 sm:p-6 lg:p-8">
             <div className="animate-fadeIn">
               {renderTabContent()}
             </div>
@@ -1049,50 +1002,65 @@ function PersonalInfoTab({ profile, onSave, isSaving }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <div className="border-b border-gray-200 pb-4">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Personal Information</h3>
+        <p className="text-sm text-gray-600 mt-1">Update your personal details</p>
+      </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700">First Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
           <input
             type="text"
             value={formData.firstName}
             onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-gray-300 shadow-sm 
+                     focus:border-orange-500 focus:ring-orange-500 text-sm sm:text-base"
             required
           />
         </div>
         
         <div>
-          <label className="block text-sm font-medium text-gray-700">Last Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
           <input
             type="text"
             value={formData.lastName}
             onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+            className="block w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-gray-300 shadow-sm 
+                     focus:border-orange-500 focus:ring-orange-500 text-sm sm:text-base"
             required
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
         <input
           type="tel"
+          inputMode="tel"
           value={formData.phone}
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+          className="block w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-gray-300 shadow-sm 
+                   focus:border-orange-500 focus:ring-orange-500 text-sm sm:text-base"
         />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-4 border-t border-gray-200">
         <button
           type="submit"
           disabled={isSaving}
-          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 
+                   disabled:opacity-50 font-medium transition-all shadow-lg hover:shadow-xl min-h-[48px]"
         >
-          {isSaving ? 'Saving...' : 'Save Changes'}
+          {isSaving ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Saving...</span>
+            </div>
+          ) : (
+            'Save Changes'
+          )}
         </button>
       </div>
     </form>
@@ -1141,141 +1109,156 @@ function AddressesTab({ profile, onSave, isSaving }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium text-gray-900">Delivery Addresses</h3>
-        <button
-          type="button"
-          onClick={addAddress}
-          className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200"
-        >
-          <PlusIcon className="w-4 h-4 inline mr-1" />
-          Add Address
-        </button>
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+      <div className="border-b border-gray-200 pb-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Delivery Addresses</h3>
+            <p className="text-sm text-gray-600 mt-1">Manage where you receive your orders</p>
+          </div>
+          <button
+            type="button"
+            onClick={addAddress}
+            className="w-full sm:w-auto px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors min-h-[44px] flex items-center justify-center gap-2"
+          >
+            <PlusIcon className="w-4 h-4" />
+            <span>Add Address</span>
+          </button>
+        </div>
       </div>
 
-      {addresses.map((address, index) => (
-        <div key={index} className="border border-gray-200 rounded-lg p-4">
-          <div className="flex justify-between items-start mb-4">
-            <h4 className="font-medium">Address {index + 1}</h4>
-            <button
-              type="button"
-              onClick={() => removeAddress(index)}
-              className="text-red-600 hover:text-red-700"
-            >
-              <TrashIcon className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Type</label>
-              <select
-                value={address.type}
-                onChange={(e) => updateAddress(index, 'type', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+      <div className="space-y-4">
+        {addresses.map((address, index) => (
+          <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white">
+            <div className="flex justify-between items-start mb-4">
+              <h4 className="text-base font-semibold text-gray-900">Address {index + 1}</h4>
+              <button
+                type="button"
+                onClick={() => removeAddress(index)}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                title="Remove address"
               >
-                <option value="home">Home</option>
-                <option value="work">Work</option>
-                <option value="other">Other</option>
-              </select>
+                <TrashIcon className="w-5 h-5" />
+              </button>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Label</label>
-              <input
-                type="text"
-                value={address.label}
-                onChange={(e) => updateAddress(index, 'label', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                placeholder="e.g., Main Address"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={address.type}
+                  onChange={(e) => updateAddress(index, 'type', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                >
+                  <option value="home">Home</option>
+                  <option value="work">Work</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Label</label>
+                <input
+                  type="text"
+                  value={address.label}
+                  onChange={(e) => updateAddress(index, 'label', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                  placeholder="e.g., Main Address"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                <input
+                  type="text"
+                  value={address.street}
+                  onChange={(e) => updateAddress(index, 'street', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input
+                  type="text"
+                  value={address.city}
+                  onChange={(e) => updateAddress(index, 'city', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
+                <input
+                  type="text"
+                  value={address.state}
+                  onChange={(e) => updateAddress(index, 'state', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ZIP/Postal Code</label>
+                <input
+                  type="text"
+                  value={address.zipCode}
+                  onChange={(e) => updateAddress(index, 'zipCode', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <input
+                  type="text"
+                  value={address.country}
+                  onChange={(e) => updateAddress(index, 'country', e.target.value)}
+                  className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm sm:text-base"
+                  required
+                />
+              </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Street Address</label>
-              <input
-                type="text"
-                value={address.street}
-                onChange={(e) => updateAddress(index, 'street', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">City</label>
-              <input
-                type="text"
-                value={address.city}
-                onChange={(e) => updateAddress(index, 'city', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">State/Province</label>
-              <input
-                type="text"
-                value={address.state}
-                onChange={(e) => updateAddress(index, 'state', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">ZIP/Postal Code</label>
-              <input
-                type="text"
-                value={address.zipCode}
-                onChange={(e) => updateAddress(index, 'zipCode', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Country</label>
-              <input
-                type="text"
-                value={address.country}
-                onChange={(e) => updateAddress(index, 'country', e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
-                required
-              />
+            <div className="mt-4">
+              <label className="flex items-center min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={address.isDefault}
+                  onChange={(e) => {
+                    const newAddresses = addresses.map((addr, i) => ({
+                      ...addr,
+                      isDefault: i === index ? e.target.checked : false
+                    }));
+                    setAddresses(newAddresses);
+                  }}
+                  className="w-5 h-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">Set as default address</span>
+              </label>
             </div>
           </div>
-
-          <div className="mt-4">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={address.isDefault}
-                onChange={(e) => {
-                  const newAddresses = addresses.map((addr, i) => ({
-                    ...addr,
-                    isDefault: i === index ? e.target.checked : false
-                  }));
-                  setAddresses(newAddresses);
-                }}
-                className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Set as default address</span>
-            </label>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {addresses.length > 0 && (
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-4 border-t border-gray-200">
           <button
             type="submit"
             disabled={isSaving}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 disabled:opacity-50 font-medium transition-all shadow-lg hover:shadow-xl min-h-[48px]"
           >
-            {isSaving ? 'Saving...' : 'Save Addresses'}
+            {isSaving ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Saving...</span>
+              </div>
+            ) : (
+              'Save Addresses'
+            )}
           </button>
         </div>
       )}

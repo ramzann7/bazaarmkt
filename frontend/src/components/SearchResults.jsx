@@ -32,6 +32,7 @@ import AddToCart from './AddToCart';
 import InventoryModel from '../models/InventoryModel';
 import LocationPrompt from './LocationPrompt';
 import { locationService } from '../services/locationService';
+import MobileSearchBar from './mobile/MobileSearchBar';
 import toast from 'react-hot-toast';
 
 export default function SearchResults() {
@@ -50,6 +51,7 @@ export default function SearchResults() {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [productQuantities, setProductQuantities] = useState({});
   const [addingToCart, setAddingToCart] = useState({});
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
 
   // Ref to track search analytics to prevent duplicates
   const lastTrackedSearch = useRef(null);
@@ -87,40 +89,41 @@ export default function SearchResults() {
   const urlLat = searchParams.get('lat');
   const urlLng = searchParams.get('lng');
 
-  const categories = [
-    { id: 'Bakery', name: 'Bakery', icon: '🥖' },
-    { id: 'Dairy & Eggs', name: 'Dairy & Eggs', icon: '🥛' },
-    { id: 'Fresh Produce', name: 'Fresh Produce', icon: '🍎' },
-    { id: 'Meat & Poultry', name: 'Meat & Poultry', icon: '🍗' },
-    { id: 'Honey & Jams', name: 'Honey & Jams', icon: '🍯' },
-    { id: 'Herbs & Spices', name: 'Herbs & Spices', icon: '🌿' },
-    { id: 'Artisan Cakes', name: 'Artisan Cakes', icon: '🎂' },
-    { id: 'Small-Batch Coffee', name: 'Small-Batch Coffee', icon: '☕' },
-    { id: 'Artisan Tea', name: 'Artisan Tea', icon: '🫖' },
-    { id: 'Homemade Jams', name: 'Homemade Jams', icon: '🍓' },
-    { id: 'Pickles & Preserves', name: 'Pickles & Preserves', icon: '🥒' },
-    { id: 'Artisan Sauces', name: 'Artisan Sauces', icon: '🍅' },
-    { id: 'Fresh Spices', name: 'Fresh Spices', icon: '🧂' },
-    { id: 'Nuts & Seeds', name: 'Nuts & Seeds', icon: '🥜' },
-    { id: 'Grains & Flour', name: 'Grains & Flour', icon: '🌾' },
-    { id: 'Fresh Pasta', name: 'Fresh Pasta', icon: '🍝' },
-    { id: 'Artisan Oils', name: 'Artisan Oils', icon: '🫒' },
-    { id: 'Specialty Vinegars', name: 'Specialty Vinegars', icon: '🍷' },
-    { id: 'Artisan Cheese', name: 'Artisan Cheese', icon: '🧀' },
-    { id: 'Fresh Yogurt', name: 'Fresh Yogurt', icon: '🥛' },
-    { id: 'Handmade Butter', name: 'Handmade Butter', icon: '🧈' },
-    { id: 'Artisan Ice Cream', name: 'Artisan Ice Cream', icon: '🍦' },
-    { id: 'Handcrafted Chocolate', name: 'Handcrafted Chocolate', icon: '🍫' },
-    { id: 'Homemade Candies', name: 'Homemade Candies', icon: '🍬' },
-    { id: 'Artisan Snacks', name: 'Artisan Snacks', icon: '🥨' },
-    { id: 'Craft Beverages', name: 'Craft Beverages', icon: '🥤' },
-    { id: 'Small-Batch Alcohol', name: 'Small-Batch Alcohol', icon: '🍺' },
-    { id: 'Fresh Flowers', name: 'Fresh Flowers', icon: '🌸' },
-    { id: 'Plants & Herbs', name: 'Plants & Herbs', icon: '🌱' },
-    { id: 'Garden Seeds', name: 'Garden Seeds', icon: '🌱' },
-    { id: 'Organic Fertilizers', name: 'Organic Fertilizers', icon: '🌿' },
-    { id: 'Other', name: 'Other', icon: '📦' }
-  ];
+  // Sync local search query with URL parameter
+  useEffect(() => {
+    setLocalSearchQuery(query);
+  }, [query]);
+
+  // Use product reference data for categories
+  const [availableCategories, setAvailableCategories] = useState([]);
+
+  // Load categories from reference data
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { getAllCategories } = await import('../data/productReference');
+        const referenceCategories = getAllCategories();
+        setAvailableCategories(referenceCategories.map(cat => ({
+          id: cat.key,
+          name: cat.name,
+          icon: cat.icon
+        })));
+        console.log('📂 Loaded categories from reference data:', referenceCategories.length);
+      } catch (error) {
+        console.warn('⚠️ Failed to load reference categories, using fallback');
+        // Fallback categories based on common product categories
+        setAvailableCategories([
+          { id: 'food_beverages', name: 'Food & Beverages', icon: '🍽️' },
+          { id: 'handmade_crafts', name: 'Handmade Crafts', icon: '🎨' },
+          { id: 'clothing_accessories', name: 'Clothing & Accessories', icon: '👕' },
+          { id: 'home_garden', name: 'Home & Garden', icon: '🏡' },
+          { id: 'health_beauty', name: 'Health & Beauty', icon: '💄' },
+          { id: 'services', name: 'Services', icon: '⚙️' }
+        ]);
+      }
+    };
+    loadCategories();
+  }, []);
 
   // Helper functions - must be defined BEFORE useEffects that use them
   const calculateDistance = useCallback((product) => {
@@ -539,12 +542,28 @@ export default function SearchResults() {
     let filtered = [...products];
     console.log('   Starting with:', filtered.length, 'products');
 
-    // Apply category filter
+    // Apply category filter with flexible matching
     if (selectedCategories.length > 0) {
       console.log('   Applying category filter:', selectedCategories);
-      filtered = filtered.filter(product => 
-        selectedCategories.includes(product.category)
-      );
+      console.log('   Sample product categories:', filtered.slice(0, 3).map(p => p.category));
+      
+      filtered = filtered.filter(product => {
+        if (!product.category) return false;
+        
+        // Direct match (for reference data keys like 'food_beverages')
+        if (selectedCategories.includes(product.category)) return true;
+        
+        // Partial match for subcategories or related categories
+        return selectedCategories.some(selectedCat => {
+          const categoryMap = availableCategories.find(c => c.id === selectedCat);
+          if (categoryMap) {
+            // Check if product category contains the category name
+            return product.category.toLowerCase().includes(categoryMap.name.toLowerCase()) ||
+                   categoryMap.name.toLowerCase().includes(product.category.toLowerCase());
+          }
+          return false;
+        });
+      });
       console.log('   After category filter:', filtered.length, 'products');
     }
 
@@ -623,6 +642,14 @@ export default function SearchResults() {
     }
   };
 
+  // Handle search from input
+  const handleSearchInput = (searchQuery) => {
+    if (searchQuery.trim()) {
+      // Navigate to search results with new query
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
@@ -663,6 +690,36 @@ export default function SearchResults() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Bar - Mobile Optimized */}
+        <div className="mb-6">
+          <div className="lg:hidden">
+            {/* Mobile Search Bar */}
+            <MobileSearchBar 
+              onSearch={handleSearchInput}
+              initialQuery={query}
+              placeholder="Search products and artisans..."
+            />
+          </div>
+          <div className="hidden lg:block">
+            {/* Desktop Search Bar */}
+            <div className="relative">
+              <input
+                type="search"
+                inputMode="search"
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchInput(localSearchQuery)}
+                placeholder="Search products and artisans..."
+                className="w-full h-12 pl-12 pr-4 text-base bg-white rounded-lg border-2 border-gray-200 
+                          focus:outline-none focus:ring-2 focus:ring-[#D77A61] focus:border-transparent
+                          placeholder:text-gray-500 transition-all duration-200"
+                aria-label="Search"
+              />
+              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            </div>
+          </div>
+        </div>
+
         {/* Subtle Filter Bar */}
         <div className="sticky top-4 bg-transparent py-3 z-10 mb-6">
           <div className="flex items-center gap-3 bg-white/85 backdrop-blur-sm p-2.5 rounded-xl shadow-sm border border-gray-100/30">
@@ -711,7 +768,7 @@ export default function SearchResults() {
               <div>
                 <h3 className="text-sm font-semibold text-text mb-3">Categories</h3>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {categories.map((category) => (
+                  {availableCategories.map((category) => (
                     <label key={category.id} className="flex items-center">
                       <input
                         type="checkbox"

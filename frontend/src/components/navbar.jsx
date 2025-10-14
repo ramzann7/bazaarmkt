@@ -5,6 +5,8 @@ import OptimizedLink from "./OptimizedLink";
 import Logo from "./Logo";
 import CartDropdown from "./CartDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
+import MobileNavigation from "./mobile/MobileNavigation";
+import MobileSearchBar from "./mobile/MobileSearchBar";
 import { 
   ShoppingBagIcon, 
   UserIcon, 
@@ -221,6 +223,12 @@ export default function Navbar() {
         if (query) searchParams.append('q', query);
         if (category !== 'all') searchParams.append('category', category);
         navigate(`/search?${searchParams.toString()}`);
+        
+        // Clear search query after navigation
+        setTimeout(() => {
+          setSearchQuery('');
+          setShowPopularSearches(false);
+        }, 100);
       }
     };
   }, [searchQuery, selectedCategory, selectedSubcategory, navigate]);
@@ -289,8 +297,22 @@ export default function Navbar() {
       searchParams.append('q', searchTerm);
       if (category !== 'all') searchParams.append('category', category);
       navigate(`/search?${searchParams.toString()}`);
+      
+      // Clear search query after navigation
+      setTimeout(() => {
+        setSearchQuery('');
+      }, 100);
     };
   }, [selectedCategory, selectedSubcategory, navigate]);
+
+  // Clear search query when navigating away from search page
+  useEffect(() => {
+    const currentPath = location.pathname;
+    if (currentPath !== '/search' && searchQuery) {
+      setSearchQuery('');
+      setShowPopularSearches(false);
+    }
+  }, [location.pathname, searchQuery]);
 
   // Memoized logout handler
   const handleLogout = useMemo(() => {
@@ -418,17 +440,18 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className={`sticky top-0 z-50 transition-all duration-300 ${
+    <>
+    <nav className={`sticky top-0 z-50 transition-all duration-300 hidden lg:block ${
       scrolled 
         ? 'bg-white shadow-md' 
         : 'bg-gradient-to-r from-accent/8 to-orange-200/30 backdrop-blur-sm border-b border-black/5'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo + BazaarMkt Text - Smaller on mobile */}
-          <OptimizedLink to="/" className="flex items-center gap-2 md:gap-3 flex-shrink-0 h-full">
-            <Logo showText={false} className="w-8 h-8 md:w-10 md:h-10" />
-            <span className="text-base md:text-xl font-display font-bold text-amber-600 leading-none">BazaarMkt</span>
+          {/* Logo with text on desktop */}
+          <OptimizedLink to="/" className="flex items-center gap-3 flex-shrink-0 h-full">
+            <Logo showText={false} className="w-10 h-10" />
+            <span className="text-xl font-display font-bold text-amber-600 leading-none">BazaarMkt</span>
           </OptimizedLink>
 
           {/* Search Bar (Desktop) */}
@@ -583,10 +606,10 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Right side CTAs */}
-          <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0 h-full">
+          {/* Right side CTAs - Hidden on mobile, shown on desktop */}
+          <div className="hidden lg:flex items-center gap-1.5 md:gap-3 flex-shrink-0 h-full">
             {/* Language Switcher - Desktop only, moved to mobile menu */}
-            <div className="hidden lg:flex items-center">
+            <div className="flex items-center">
               <LanguageSwitcher />
             </div>
             
@@ -691,136 +714,35 @@ export default function Navbar() {
           </button>
           </div>
         </div>
-
-          {/* Mobile Search */}
-        <div className="md:hidden py-3 px-1 search-container">
-          <form onSubmit={handleSearch} className="w-full">
-            <div className="relative">
-              <div className="flex">
-                {/* Mobile Category Dropdown */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={toggleCategoryDropdown}
-                    className={`flex items-center space-x-1 px-2 py-2 border border-r-0 border-gray-300 rounded-l-lg text-sm ${
-                      selectedCategory !== 'all' || selectedSubcategory 
-                        ? 'bg-amber-50 border-amber-300' 
-                        : 'bg-gray-50'
-                    }`}
-                  >
-                    <span className="text-base">
-                      {selectedSubcategory ? selectedSubcategory.icon : 
-                       selectedCategory === 'all' ? '🌟' : 
-                       categories.find(c => c.key === selectedCategory)?.icon || '🌟'}
-                    </span>
-                    <span className="text-xs font-medium text-gray-700 truncate max-w-[50px]">
-                      {selectedSubcategory ? selectedSubcategory.name : 
-                       selectedCategory === 'all' ? 'All' : 
-                       categories.find(c => c.key === selectedCategory)?.name || 'All'}
-                    </span>
-                    <ChevronDownIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
-                  </button>
-                  
-                  {/* Mobile Main Categories Dropdown */}
-                  {showCategoryDropdown && (
-                    <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                      {productCategories.map((category) => (
-                        <button
-                          key={category.id}
-                          onClick={() => handleCategoryChange(category.id)}
-                          className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                        >
-                          <span className="text-lg">{category.icon}</span>
-                          <div className="flex-1 text-left">
-                            <div className="text-sm font-medium text-gray-700">{category.name}</div>
-                            <div className="text-xs text-gray-500">{category.description}</div>
-                          </div>
-                          {category.id !== 'all' && getSubcategoriesForCategory(category.id).length > 0 && (
-                            <ChevronDownIcon className="w-4 h-4 text-gray-400" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Mobile Subcategory Dropdown */}
-                  {showSubcategoryDropdown && selectedCategory !== 'all' && (
-                    <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                      {/* Back to main categories */}
-                      <button
-                        onClick={() => {
-                          setShowSubcategoryDropdown(false);
-                          setShowCategoryDropdown(true);
-                        }}
-                        className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-200"
-                      >
-                        <span className="text-lg">←</span>
-                        <span className="text-sm font-medium text-gray-700">Back</span>
-                      </button>
-                      
-                      {/* Category header */}
-                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-lg">{categories.find(c => c.key === selectedCategory)?.icon}</span>
-                          <span className="text-sm font-semibold text-gray-700">
-                            {categories.find(c => c.key === selectedCategory)?.name}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* Subcategories */}
-                      {getSubcategoriesForCategory(selectedCategory).map((subcategory) => (
-                        <button
-                          key={subcategory.id}
-                          onClick={() => handleSubcategoryChange(subcategory)}
-                          className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors pl-6"
-                        >
-                          <span className="text-lg">{subcategory.icon}</span>
-                          <span className="text-sm font-medium text-gray-700">{subcategory.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Mobile Search Input */}
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={togglePopularSearches}
-                  placeholder="Search products..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-              </div>
-              
-              {/* Mobile Popular Searches */}
-              {showPopularSearches && searchQuery === '' && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
-                  <div className="p-3">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Popular searches:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {deduplicatedPopularSearches.map((search, index) => (
-                        <button
-                          key={`mobile-${search}-${index}`}
-                          onClick={() => handlePopularSearch(search)}
-                            className="px-2 py-1 bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-800 rounded text-xs transition-colors"
-                        >
-                          {search}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </form>
-        </div>
       </div>
+    </nav>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-[#D77A61]/20 absolute top-full left-0 right-0 shadow-lg z-40">
+    {/* Mobile Menu - Full screen overlay */}
+    {isMobileMenuOpen && (
+      <>
+        {/* Backdrop */}
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-50 animate-fadeIn"
+          onClick={toggleMobileMenu}
+        />
+        
+        {/* Menu Panel */}
+        <div className="lg:hidden bg-white fixed top-0 left-0 right-0 bottom-16 shadow-2xl z-50 animate-slideDown overflow-y-auto">
+          {/* Menu Header */}
+          <div className="sticky top-0 bg-gradient-to-r from-accent/8 to-orange-200/30 px-4 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Logo showText={false} className="w-8 h-8" />
+              <span className="text-lg font-display font-bold text-amber-600">Menu</span>
+            </div>
+            <button
+              onClick={toggleMobileMenu}
+              className="p-2 text-gray-600 hover:text-amber-600 transition-colors"
+              aria-label="Close menu"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+          
           <div className="px-2 pt-2 pb-3 space-y-1">
             {/* Language Switcher in mobile menu */}
             <div className="px-3 py-2 border-b border-gray-200 mb-2">
@@ -968,13 +890,20 @@ export default function Navbar() {
             )}
           </div>
         </div>
-      )}
+      </>
+    )}
 
-      {/* Cart Dropdown */}
-      <CartDropdown 
-        isOpen={showCartDropdown} 
-        onClose={() => setShowCartDropdown(false)} 
-      />
-    </nav>
+    {/* Cart Dropdown */}
+    <CartDropdown 
+      isOpen={showCartDropdown} 
+      onClose={() => setShowCartDropdown(false)} 
+    />
+    
+    {/* Mobile Bottom Navigation */}
+    <MobileNavigation 
+      cartCount={cartCount}
+      onMenuClick={toggleMobileMenu}
+    />
+    </>
   );
 }

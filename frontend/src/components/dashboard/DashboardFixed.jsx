@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { 
   UserIcon, 
   ShoppingBagIcon, 
@@ -23,6 +24,7 @@ import MobileDashboardStat, { MobileDashboardStatGroup } from "../mobile/MobileD
 import MobileOrderCard from "../mobile/MobileOrderCard";
 
 export default function DashboardFixed() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [artisanProfile, setArtisanProfile] = useState(null);
@@ -54,7 +56,7 @@ export default function DashboardFixed() {
         
         if (!userData) {
           console.error('DashboardFixed: No user data received');
-          toast.error('Failed to load user profile');
+          toast.error(t('dashboard.loadingError'));
           navigate('/login');
           return;
         }
@@ -66,7 +68,7 @@ export default function DashboardFixed() {
                          userData.role === 'producer' || userData.role === 'food_maker';
         
         if (!isArtisan) {
-          toast.error("Dashboard is only available for artisans");
+          toast.error(t('dashboard.artisansOnly'));
           navigate("/");
           return;
         }

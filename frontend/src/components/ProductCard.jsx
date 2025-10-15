@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { generateUniqueSlug } from '../utils/slugUtils';
@@ -26,6 +27,7 @@ const ProductCard = ({
   className = '',
   compact = false // Compact mode for smaller cards
 }) => {
+  const { t } = useTranslation();
   const [showCartPopup, setShowCartPopup] = useState(false);
   
 
@@ -97,7 +99,7 @@ const ProductCard = ({
       <div 
         className={`card product-card group relative bg-surface ${outOfStockStatus.isOutOfStock ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${compact ? 'p-3' : ''} ${className}`}
         onClick={handleProductClick}
-        title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : "Click to add to cart"}
+        title={outOfStockStatus.isOutOfStock ? outOfStockStatus.reason : t('productDetails.clickToAddToCart')}
       >
         {/* Product Image */}
         <div className={`relative w-full ${compact ? 'h-40' : 'h-56'} overflow-hidden`}>
@@ -147,7 +149,7 @@ const ProductCard = ({
           {/* Artisan name */}
           {product.artisan && (product.artisan.artisanName || product.artisan.businessName) ? (
             <p className={`${compact ? 'text-[10px] mb-1' : 'text-xs sm:text-sm mb-2'} text-secondary/60 line-clamp-1`}>
-              by {product.artisan.artisanName || product.artisan.businessName}
+              {t('productDetails.by')} {product.artisan.artisanName || product.artisan.businessName}
             </p>
           ) : (
             <div className={`h-4 w-24 bg-gray-200 animate-pulse rounded ${compact ? 'mb-1' : 'mb-2'}`}></div>
@@ -168,7 +170,7 @@ const ProductCard = ({
             {/* Price */}
             <div className="flex-1">
               <span className={`font-bold ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg'} ${outOfStockStatus.isOutOfStock ? 'text-secondary/40 line-through' : 'text-primary'}`}>
-                {outOfStockStatus.isOutOfStock ? 'Sold Out' : formatPrice(product.price)}
+                {outOfStockStatus.isOutOfStock ? t('productDetails.soldOut') : formatPrice(product.price)}
               </span>
             </div>
             
@@ -196,8 +198,8 @@ const ProductCard = ({
                     min-h-[32px] sm:min-h-[40px]
                   `}
                 >
-                  <span className="hidden sm:inline">Visit Shop</span>
-                  <span className="sm:hidden text-[10px]">Shop</span>
+                  <span className="hidden sm:inline">{t('productDetails.visitShop')}</span>
+                  <span className="sm:hidden text-[10px]">{t('productDetails.shop')}</span>
                   <span className="text-[10px] sm:text-xs">→</span>
                 </Link>
               );
@@ -216,8 +218,8 @@ const ProductCard = ({
                     : 'px-2.5 sm:px-3 py-2 text-xs sm:text-sm'
                 }`}
               >
-                <span className="hidden sm:inline">Add to Cart</span>
-                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">{t('productDetails.addToCart')}</span>
+                <span className="sm:hidden">{t('productDetails.addToCartShort')}</span>
               </button>
             )}
           </div>
@@ -230,7 +232,7 @@ const ProductCard = ({
           <div className="bg-white rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add to Cart</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('productDetails.addToCart')}</h3>
               <button
                 onClick={closeCartPopup}
                 className="p-1 hover:bg-gray-100 rounded-full transition-colors"
@@ -264,7 +266,7 @@ const ProductCard = ({
             <div className="px-4 pb-2">
               <h4 className="font-semibold text-gray-900 text-xl leading-tight mb-1 line-clamp-2">{product.name}</h4>
               <p className="text-sm text-gray-600 mb-3 line-clamp-1">
-                by {product.artisan?.artisanName || product.artisan?.businessName || 'Unknown Artisan'}
+                {t('productDetails.by')} {product.artisan?.artisanName || product.artisan?.businessName || t('artisan.title')}
               </p>
               <div className="flex items-center justify-between">
                 <span className="text-2xl font-bold text-gray-900">{formatPrice(product.price)}</span>
@@ -278,7 +280,7 @@ const ProductCard = ({
                   {/* Ready to Ship Products */}
                   {product.productType === 'ready_to_ship' && (
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Stock available:</span>
+                      <span className="text-gray-600">{t('productDetails.stockAvailable')}</span>
                       <span className={`font-medium ${(product.stock || 0) <= 5 ? 'text-orange-600' : 'text-green-600'}`}>
                         {product.stock || 0}
                       </span>
@@ -289,15 +291,15 @@ const ProductCard = ({
                   {product.productType === 'made_to_order' && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Capacity available:</span>
+                        <span className="text-gray-600">{t('productDetails.capacityAvailable')}</span>
                         <span className={`font-medium ${(product.remainingCapacity || 0) <= 2 ? 'text-orange-600' : 'text-green-600'}`}>
                           {product.remainingCapacity || 0}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Ready in:</span>
+                        <span className="text-gray-600">{t('productDetails.readyIn')}</span>
                         <span className="font-medium text-gray-900">
-                          {product.leadTime || 1} {product.leadTime === 1 ? 'day' : 'days'}
+                          {product.leadTime || 1} {product.leadTime === 1 ? t('productDetails.day') : t('productDetails.days')}
                         </span>
                       </div>
                     </div>
@@ -307,19 +309,19 @@ const ProductCard = ({
                   {product.productType === 'scheduled_order' && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Available:</span>
+                        <span className="text-gray-600">{t('productDetails.available')}</span>
                         <span className={`font-medium ${(product.availableQuantity || 0) <= 3 ? 'text-orange-600' : 'text-green-600'}`}>
                           {product.availableQuantity || 0}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-gray-600">Ready:</span>
+                        <span className="text-gray-600">{t('productDetails.ready')}</span>
                         <span className="font-medium text-gray-900">
                           {product.nextAvailableDate ? 
-                            (Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24)) === 0 ? 'Today' :
-                             Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24)) === 1 ? 'Tomorrow' :
-                             `In ${Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24))} days`) 
-                            : 'TBD'}
+                            (Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24)) === 0 ? t('productDetails.today') :
+                             Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24)) === 1 ? t('productDetails.tomorrow') :
+                             t('productDetails.inDays', { count: Math.ceil((new Date(product.nextAvailableDate) - new Date()) / (1000 * 60 * 60 * 24)) })) 
+                            : t('productDetails.tbd')}
                         </span>
                       </div>
                     </div>
@@ -331,7 +333,7 @@ const ProductCard = ({
                     (product.productType === 'scheduled_order' && (product.availableQuantity || 0) <= 3 && (product.availableQuantity || 0) > 0)) && (
                     <div className="mt-2 pt-2 border-t border-gray-200">
                       <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                        ⚠️ Limited quantity available
+                        ⚠️ {t('productDetails.limitedQuantity')}
                       </span>
                     </div>
                   )}
@@ -354,11 +356,12 @@ const ProductCard = ({
                   variant="modal"
                   onSuccess={(product, quantity) => {
                     setShowCartPopup(false);
-                    toast.success(`Added ${quantity} ${quantity === 1 ? (product.unit || 'piece') : ((product.unit || 'piece') + 's')} to cart!`);
+                    const unit = quantity === 1 ? (product.unit || t('productDetails.piece')) : ((product.unit || t('productDetails.piece')) + 's');
+                    toast.success(t('productDetails.addedToCart', { quantity, unit }));
                   }}
                   onError={(error) => {
                     console.error('Add to cart error:', error);
-                    toast.error('Failed to add item to cart');
+                    toast.error(t('productDetails.addToCartFailed'));
                   }}
                 />
               )}

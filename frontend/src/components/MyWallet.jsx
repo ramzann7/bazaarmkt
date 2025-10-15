@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   WalletIcon,
   CreditCardIcon,
@@ -10,19 +11,20 @@ import WalletTransactions from './WalletTransactions';
 import WalletTopUp from './WalletTopUp';
 
 const MyWallet = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTopUp, setShowTopUp] = useState(false);
 
   const tabs = [
     {
       id: 'dashboard',
-      name: 'Dashboard',
+      name: t('wallet.dashboard'),
       icon: WalletIcon,
       component: WalletDashboard
     },
     {
       id: 'transactions',
-      name: 'Transactions',
+      name: t('wallet.transactions'),
       icon: ChartBarIcon,
       component: WalletTransactions
     }
@@ -44,9 +46,9 @@ const MyWallet = () => {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
             <WalletIcon className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">My Wallet</h1>
+          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">{t('wallet.title')}</h1>
           <p className="text-lg text-stone-600 max-w-2xl mx-auto">
-            Manage your wallet balance, view transactions, and track your earnings.
+            {t('wallet.subtitle')}
           </p>
         </div>
 
@@ -70,7 +72,7 @@ const MyWallet = () => {
             className="btn-primary inline-flex items-center"
           >
             <CreditCardIcon className="w-5 h-5 mr-2" />
-            Top Up Wallet
+            {t('wallet.topUp')}
           </button>
           
           <button
@@ -78,7 +80,7 @@ const MyWallet = () => {
             className="btn-secondary inline-flex items-center"
           >
             <ClockIcon className="w-5 h-5 mr-2" />
-            View Transactions
+            {t('wallet.viewTransactions')}
           </button>
         </div>
       </div>
@@ -115,23 +117,23 @@ const MyWallet = () => {
 
       {/* Help Section */}
       <div className="mt-12 card p-6">
-        <h3 className="text-lg font-medium text-stone-800 mb-4 font-display">How Your Wallet Works</h3>
+        <h3 className="text-lg font-medium text-stone-800 mb-4 font-display">{t('wallet.overview')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h4 className="font-medium text-stone-800 mb-2">Earning Money</h4>
+            <h4 className="font-medium text-stone-800 mb-2">{t('wallet.totalEarnings')}</h4>
             <ul className="text-sm text-stone-600 space-y-1">
-              <li>• Revenue from product sales is automatically added to your wallet</li>
-              <li>• Platform fees are deducted before crediting your wallet</li>
-              <li>• You can track all earnings in the transactions tab</li>
+              <li>• {t('artisan.revenue.earnings')}</li>
+              <li>• {t('transparency.platformFee')}</li>
+              <li>• {t('wallet.viewTransactions')}</li>
             </ul>
           </div>
           
           <div>
-            <h4 className="font-medium text-stone-800 mb-2">Spending Money</h4>
+            <h4 className="font-medium text-stone-800 mb-2">{t('wallet.topUp')}</h4>
             <ul className="text-sm text-stone-600 space-y-1">
-              <li>• Use your wallet balance to purchase promotional features</li>
-              <li>• Top up your wallet anytime using Stripe</li>
-              <li>• Set up automatic payouts to your bank account</li>
+              <li>• {t('wallet.available')}</li>
+              <li>• {t('checkout.securePayment')}</li>
+              <li>• {t('wallet.payoutSchedule')}</li>
             </ul>
           </div>
         </div>

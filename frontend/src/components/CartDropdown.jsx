@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { XMarkIcon, ShoppingBagIcon, TrashIcon, PlusIcon, MinusIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { cartService } from '../services/cartService';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +8,7 @@ import { getImageUrl } from '../utils/imageUtils.js';
 import toast from 'react-hot-toast';
 
 export default function CartDropdown({ isOpen, onClose }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [cart, setCart] = useState([]);
@@ -78,10 +80,10 @@ export default function CartDropdown({ isOpen, onClose }) {
         const maxAllowed = getMaxAllowedQuantity(item);
         
         if (newQuantity > maxAllowed) {
-          const limitType = item.productType === 'ready_to_ship' ? 'in stock' 
-            : item.productType === 'made_to_order' ? 'capacity available'
-            : 'available';
-          toast.error(`Only ${maxAllowed} ${limitType} for this item`, { duration: 3000 });
+          const limitType = item.productType === 'ready_to_ship' ? t('products.inStock')
+            : item.productType === 'made_to_order' ? t('productDetails.capacityAvailable')
+            : t('productDetails.available');
+          toast.error(`${t('common.only')} ${maxAllowed} ${limitType}`, { duration: 3000 });
           return;
         }
       }
@@ -116,7 +118,7 @@ export default function CartDropdown({ isOpen, onClose }) {
       const updatedCartResult = cartService.updateQuantity(productId, newQuantity, userId);
       
       if (updatedCartResult && Array.isArray(updatedCartResult)) {
-        toast.success('Quantity updated', { duration: 1500 });
+        toast.success(t('cart.quantityUpdated'), { duration: 1500 });
         
         // Reload cart to show updated data
         loadCart();
@@ -129,12 +131,12 @@ export default function CartDropdown({ isOpen, onClose }) {
       } else {
         // Revert on failure
         loadCart();
-        toast.error('Failed to update quantity');
+        toast.error(t('cart.updateFailed'));
       }
     } catch (error) {
       console.error('Error updating quantity:', error);
       loadCart(); // Reload to ensure consistency
-      toast.error('Failed to update quantity');
+      toast.error(t('cart.updateFailed'));
     } finally {
       // Remove from updating set after a short delay for smooth animation
       setTimeout(() => {
@@ -201,7 +203,7 @@ export default function CartDropdown({ isOpen, onClose }) {
       const updatedCartResult = cartService.removeFromCart(productId, userId);
       
       if (updatedCartResult && Array.isArray(updatedCartResult)) {
-        toast.success('Item removed from cart', { duration: 1500 });
+        toast.success(t('cart.removedFromCart'), { duration: 1500 });
         
         // Reload cart to show updated data
         loadCart();
@@ -214,12 +216,12 @@ export default function CartDropdown({ isOpen, onClose }) {
       } else {
         // Revert on failure
         loadCart();
-        toast.error('Failed to remove item');
+        toast.error(t('cart.removeFailed'));
       }
     } catch (error) {
       console.error('Error removing item:', error);
       loadCart(); // Reload to ensure consistency
-      toast.error('Failed to remove item');
+      toast.error(t('cart.removeFailed'));
     } finally {
       // Remove from updating set
       setUpdatingItems(prev => {

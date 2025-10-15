@@ -130,7 +130,7 @@ export default function CategoryScroll() {
   const subcategories = selectedCategory ? getSubcategories(selectedCategory.key) : [];
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 sticky top-0 lg:top-16 z-40 category-scroll">
+    <div className="w-full bg-white border-b border-gray-200 sticky top-0 lg:top-16 z-30 category-scroll">
       {/* Main Categories */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3">
         <div className="relative">

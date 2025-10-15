@@ -238,7 +238,7 @@ export default function Navbar() {
       setSearchQuery('');
       setShowPopularSearches(false);
     }
-  }, [location.pathname, searchQuery]);
+  }, [location.pathname]); // Removed searchQuery dependency to prevent loop
 
   // Optimized logout handler
   const handleLogout = useCallback(() => {
@@ -344,25 +344,24 @@ export default function Navbar() {
             <div className="flex-1 max-w-md ml-8 search-container">
             <form onSubmit={handleSearch} className="w-full">
               <div className="relative">
-                <div className="flex shadow-lg">
-                  {/* Search Input - Full width with icon */}
-                  <div className="relative flex-1">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onFocus={() => setShowPopularSearches(true)}
-                      onBlur={() => {
-                        // Delay to allow popular search clicks to register
-                        setTimeout(() => setShowPopularSearches(false), 200);
-                      }}
-                      placeholder="Search for bread, jam, jewelry, artisans..."
-                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 bg-white"
-                      autoComplete="off"
-                      autoFocus={false}
-                    />
-                  </div>
+                {/* Search Input - Simplified structure */}
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => setShowPopularSearches(true)}
+                    onBlur={() => {
+                      // Delay to allow popular search clicks to register
+                      setTimeout(() => setShowPopularSearches(false), 200);
+                    }}
+                    placeholder="Search for bread, jam, jewelry, artisans..."
+                    className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 bg-white shadow-lg"
+                    autoComplete="off"
+                    autoFocus={false}
+                    style={{ zIndex: 10 }}
+                  />
                 </div>
                 
                 {/* Popular Searches Dropdown */}

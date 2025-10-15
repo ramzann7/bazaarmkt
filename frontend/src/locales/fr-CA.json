@@ -829,7 +829,13 @@
     "addTimeSlot": "Ajouter une plage horaire",
     "removeTimeSlot": "Supprimer la plage horaire",
     "noCategories": "Aucune catégorie sélectionnée",
-    "selectAtLeastOne": "Veuillez sélectionner au moins une catégorie"
+    "selectAtLeastOne": "Veuillez sélectionner au moins une catégorie",
+    "businessImage": "Image d'entreprise",
+    "streetAddressPlaceholder": "Adresse civique",
+    "postalCodePlaceholder": "Code postal",
+    "businessOperations": "Opérations commerciales",
+    "deliveryAddress": "Adresse de livraison",
+    "step2": "Étape 2"
   },
   "inventory": {
     "title": "Gestion des stocks",

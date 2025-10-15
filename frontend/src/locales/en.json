@@ -829,7 +829,13 @@
     "addTimeSlot": "Add time slot",
     "removeTimeSlot": "Remove time slot",
     "noCategories": "No categories selected",
-    "selectAtLeastOne": "Please select at least one category"
+    "selectAtLeastOne": "Please select at least one category",
+    "businessImage": "Business Image",
+    "streetAddressPlaceholder": "Street address",
+    "postalCodePlaceholder": "Postal Code",
+    "businessOperations": "Business Operations",
+    "deliveryAddress": "Delivery Address",
+    "step2": "Step 2"
   },
   "inventory": {
     "title": "Inventory Management",

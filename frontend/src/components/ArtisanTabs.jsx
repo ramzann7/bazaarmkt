@@ -400,7 +400,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
           preview={overview.businessImagePreview}
           onUpload={handleBusinessImageChange}
           onRemove={removeBusinessImage}
-          label="Business Image"
+          label={t('artisanTabs.businessImage')}
           maxSizeMB={5}
         />
       )
@@ -1514,7 +1514,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                       } 
                     })}
                     className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
-                    placeholder="Street address"
+                    placeholder={t('artisanTabs.streetAddressPlaceholder')}
                     required
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1557,7 +1557,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
                         } 
                       })}
                       className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-2 px-3 text-sm"
-                      placeholder="Postal Code"
+                      placeholder={t('artisanTabs.postalCodePlaceholder')}
                       required
                     />
                   </div>
@@ -2046,7 +2046,7 @@ export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
             {isPersonalComplete && <span className="ml-2 text-green-600">✓ Completed</span>}
           </p>
           <p className={isAddressComplete ? 'text-green-700' : ''}>
-            <strong>Step 2 - {isArtisan ? "Business Operations" : "Delivery Address"}:</strong> 
+            <strong>{t('artisanTabs.step2')} - {isArtisan ? t('artisanTabs.businessOperations') : t('artisanTabs.deliveryAddress')}:</strong> 
             {isArtisan 
               ? " Set up your business hours, delivery options, and operational details" 
               : " Add your delivery address so artisans can deliver to you"

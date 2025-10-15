@@ -14,14 +14,11 @@ import {
   Bars3Icon,
   XMarkIcon,
   BuildingStorefrontIcon,
-  ChevronDownIcon,
   SparklesIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../contexts/AuthContext";
 import { cartService } from "../services/cartService";
 import { guestService } from "../services/guestService";
-import enhancedSearchService from "../services/enhancedSearchService";
-import { getAllCategories, getAllSubcategories, PRODUCT_CATEGORIES } from "../data/productReference";
 import { cacheService, CACHE_KEYS, CACHE_TTL } from "../services/cacheService";
 import { useOptimizedEffect, useDebounce } from "../hooks/useOptimizedEffect";
 import searchAnalyticsService from "../services/searchAnalyticsService";
@@ -39,24 +36,11 @@ export default function Navbar() {
   
   const [cartCount, setCartCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedSubcategory, setSelectedSubcategory] = useState(null);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showPopularSearches, setShowPopularSearches] = useState(false);
-  const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
   const [popularSearches, setPopularSearches] = useState([]);
 
   // Debounce search query to reduce API calls
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
-  // Memoize categories to prevent unnecessary re-renders
-  const categories = useMemo(() => {
-    return getAllCategories();
-  }, []);
-
-  const subcategories = useMemo(() => {
-    return getAllSubcategories();
-  }, []);
 
   // Deduplicate popular searches to prevent React key warnings
   const deduplicatedPopularSearches = useMemo(() => {
@@ -209,73 +193,25 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, [user, isGuest, cartCount]);
 
-  // Optimized search handler - Supports 3 use cases:
-  // 1. Search with "All Products" (default)
-  // 2. Select category + type search term (e.g., baked goods -> "bread")
-  // 3. Just select category and press Enter (no search term needed)
+  // Optimized search handler - Keyword search only
   const handleSearch = useCallback((e) => {
     e.preventDefault();
     const query = searchQuery.trim();
-    const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
     
-    // Allow search if either query OR category is selected (not just default 'all')
-    if (query || category !== 'all') {
+    // Only search if there's a query
+    if (query) {
       const searchParams = new URLSearchParams();
-      if (query) searchParams.append('q', query);
-      if (category !== 'all') {
-        if (selectedSubcategory) {
-          searchParams.append('subcategory', selectedSubcategory.id);
-          searchParams.append('category', selectedSubcategory.categoryKey);
-        } else {
-          searchParams.append('category', category);
-        }
-      }
+      searchParams.append('q', query);
       navigate(`/search?${searchParams.toString()}`);
       
-      // Clear search query and dropdowns after navigation
+      // Clear search query after navigation
       setTimeout(() => {
         setSearchQuery('');
         setShowPopularSearches(false);
-        setShowCategoryDropdown(false);
-        setShowSubcategoryDropdown(false);
-        setSelectedCategory('all');
-        setSelectedSubcategory(null);
       }, 100);
     }
-  }, [searchQuery, selectedCategory, selectedSubcategory, navigate]);
+  }, [searchQuery, navigate]);
 
-  // Optimized category change handler - Allow combining with search input
-  const handleCategoryChange = useCallback((category) => {
-    setSelectedCategory(category);
-    setSelectedSubcategory(null);
-    setShowCategoryDropdown(false);
-    
-    // Show subcategory dropdown if category has subcategories
-    if (category !== 'all' && getSubcategoriesForCategory(category).length > 0) {
-      setShowSubcategoryDropdown(true);
-    } else {
-      setShowSubcategoryDropdown(false);
-    }
-    
-    // Don't auto-navigate - let user combine category with search term or press Enter
-  }, []);
-
-  // Optimized subcategory change handler - Allow combining with search input
-  const handleSubcategoryChange = useCallback((subcategory) => {
-    setSelectedSubcategory(subcategory);
-    setShowCategoryDropdown(false);
-    setShowSubcategoryDropdown(false);
-    
-    // Don't auto-navigate - let user combine subcategory with search term or press Enter
-  }, []);
-
-  // Clear category selection
-  const clearCategorySelection = useCallback(() => {
-    setSelectedCategory('all');
-    setSelectedSubcategory(null);
-    setShowCategoryDropdown(false);
-    setShowSubcategoryDropdown(false);
-  }, []);
 
   // Handle popular search selection
   const handlePopularSearch = useCallback((searchTerm) => {
@@ -287,17 +223,13 @@ export default function Navbar() {
     // Navigate to search with the popular search term
     const searchParams = new URLSearchParams();
     searchParams.append('q', searchTerm);
-    const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
-    if (category !== 'all') searchParams.append('category', category);
     navigate(`/search?${searchParams.toString()}`);
     
-    // Clear search query and categories after navigation
+    // Clear search query after navigation
     setTimeout(() => {
       setSearchQuery('');
-      setSelectedCategory('all');
-      setSelectedSubcategory(null);
     }, 100);
-  }, [selectedCategory, selectedSubcategory, navigate]);
+  }, [navigate]);
 
   // Clear search query when navigating away from search page
   useEffect(() => {
@@ -319,45 +251,6 @@ export default function Navbar() {
     setIsMobileMenuOpen(prev => !prev);
   }, []);
 
-  // Optimized category dropdown toggle
-  const toggleCategoryDropdown = useCallback(() => {
-    setShowCategoryDropdown(prev => {
-      if (prev) {
-        setShowSubcategoryDropdown(false);
-      }
-      return !prev;
-    });
-  }, []);
-
-  // Optimized popular searches toggle
-  const togglePopularSearches = useCallback(() => {
-    setShowPopularSearches(true);
-  }, []);
-
-  // Helper function to get subcategories for a specific category
-  const getSubcategoriesForCategory = (categoryKey) => {
-    if (categoryKey === 'all') return [];
-    const category = PRODUCT_CATEGORIES[categoryKey];
-    if (!category || !category.subcategories) return [];
-    
-    return Object.keys(category.subcategories).map(subcategoryKey => ({
-      id: subcategoryKey,
-      name: category.subcategories[subcategoryKey].name,
-      icon: category.subcategories[subcategoryKey].icon,
-      categoryKey: categoryKey
-    }));
-  };
-
-  // Product Categories from reference data only
-  const productCategories = [
-    { id: 'all', name: 'All Products', icon: '🌟', description: 'Search across all categories' },
-    ...categories.map(category => ({
-      id: category.key,
-      name: category.name,
-      icon: category.icon,
-      description: category.description || `Search ${category.name.toLowerCase()}`
-    }))
-  ];
 
   // Load popular searches from tracking service
   useOptimizedEffect(() => {
@@ -400,7 +293,7 @@ export default function Navbar() {
     loadPopularSearches();
   }, []);
 
-  // Close dropdowns when clicking outside - Improved to not interfere with input
+  // Close popular searches when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       const searchContainer = event.target.closest('.search-container');
@@ -408,8 +301,6 @@ export default function Navbar() {
       
       // Don't close if clicking on input or inside search container
       if (!searchContainer) {
-        setShowCategoryDropdown(false);
-        setShowSubcategoryDropdown(false);
         setShowPopularSearches(false);
       } else if (!isInput) {
         // Only close popular searches if not clicking input
@@ -419,8 +310,6 @@ export default function Navbar() {
 
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
-        setShowCategoryDropdown(false);
-        setShowSubcategoryDropdown(false);
         setShowPopularSearches(false);
       }
     };
@@ -451,116 +340,24 @@ export default function Navbar() {
 
           {/* Search Bar (Desktop) */}
           <div className="hidden lg:flex items-center flex-1 ml-12">
-            {/* Compact Search */}
+            {/* Simplified Keyword Search */}
             <div className="flex-1 max-w-md ml-8 search-container">
             <form onSubmit={handleSearch} className="w-full">
               <div className="relative">
                 <div className="flex shadow-lg">
-                  {/* Category Dropdown - More Subtle */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={toggleCategoryDropdown}
-                      className={`flex items-center space-x-1.5 px-3 py-1.5 border border-r-0 rounded-l-lg transition-all duration-200 min-w-[110px] ${
-                        selectedCategory !== 'all' || selectedSubcategory 
-                          ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100' 
-                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="text-sm font-medium truncate">
-                        {selectedSubcategory ? selectedSubcategory.name : 
-                         selectedCategory === 'all' ? 'All Categories' : 
-                         categories.find(c => c.key === selectedCategory)?.name || 'All Categories'}
-                      </span>
-                      <ChevronDownIcon className={`w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 ${
-                        showCategoryDropdown ? 'rotate-180' : ''
-                      }`} />
-                    </button>
-                    
-                    {/* Clear selection button */}
-                    {(selectedCategory !== 'all' || selectedSubcategory) && (
-                      <button
-                        type="button"
-                        onClick={clearCategorySelection}
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
-                        title="Clear selection"
-                      >
-                        ×
-                      </button>
-                    )}
-                    
-                    {/* Main Categories Dropdown */}
-                    {showCategoryDropdown && (
-                      <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto animate-fadeIn">
-                        {productCategories.map((category) => (
-                          <button
-                            key={category.id}
-                            onClick={() => handleCategoryChange(category.id)}
-                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150 border-b border-gray-100 last:border-b-0"
-                          >
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                              {category.description && (
-                                <div className="text-xs text-gray-500 mt-0.5">{category.description}</div>
-                              )}
-                            </div>
-                            {category.id !== 'all' && getSubcategoriesForCategory(category.id).length > 0 && (
-                              <ChevronDownIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                  {/* Search Input - Full width with icon */}
+                  <div className="relative flex-1">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={() => setShowPopularSearches(true)}
+                      placeholder="Search for bread, jam, jewelry, artisans..."
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 bg-white"
+                      autoComplete="off"
+                    />
                   </div>
-                  
-                  {/* Subcategory Dropdown - appears when main category is selected */}
-                  {showSubcategoryDropdown && selectedCategory !== 'all' && (
-                    <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto animate-fadeIn">
-                      {/* Back to main categories */}
-                      <button
-                        onClick={() => {
-                          setShowSubcategoryDropdown(false);
-                          setShowCategoryDropdown(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150 border-b border-gray-200 sticky top-0 bg-white z-10"
-                      >
-                        <ChevronDownIcon className="w-4 h-4 text-gray-500 rotate-90" />
-                        <span className="text-sm font-medium text-gray-700">Back to Categories</span>
-                      </button>
-                      
-                      {/* Category header */}
-                      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {categories.find(c => c.key === selectedCategory)?.name}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-0.5">Select a subcategory</div>
-                      </div>
-                      
-                      {/* Subcategories */}
-                      {getSubcategoriesForCategory(selectedCategory).map((subcategory) => (
-                        <button
-                          key={subcategory.id}
-                          onClick={() => handleSubcategoryChange(subcategory)}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150 border-b border-gray-50 last:border-b-0"
-                        >
-                          <span className="text-sm font-medium text-gray-900">{subcategory.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Search Input - Compact, no icon */}
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setShowPopularSearches(true)}
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder="Search for bread, jam, jewelry, artisans..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-primary-100 focus:border-gray-400 transition-all duration-200 placeholder-gray-400 bg-white relative z-10"
-                    autoComplete="off"
-                    tabIndex={0}
-                  />
                 </div>
                 
                 {/* Popular Searches Dropdown */}

@@ -46,6 +46,7 @@ import AddToCart from './AddToCart';
 import ProductCard from './ProductCard';
 import InventoryModel from '../models/InventoryModel';
 import toast from 'react-hot-toast';
+import CategoryScroll from './CategoryScroll';
 
 // Skeleton loading component
 const ProductSkeleton = () => (
@@ -955,6 +956,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Category Navigation - Horizontal Scroll */}
+      <CategoryScroll />
+      
       {/* Hero Section - Mobile Optimized */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-10">
         <div className="grid lg:grid-cols-[1fr_420px] gap-4 sm:gap-6 lg:gap-8 items-stretch">

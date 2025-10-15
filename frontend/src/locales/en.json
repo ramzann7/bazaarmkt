@@ -862,5 +862,23 @@
     "delivering": "Delivering",
     "markDelivered": "Mark Delivered",
     "confirmOrder": "Confirm Order"
+  },
+  "addToCart": {
+    "scheduled": "Scheduled",
+    "readyInDays": "Ready in {{count}} days",
+    "readyToday": "Ready today",
+    "available": "available",
+    "scheduleTBD": "Schedule TBD",
+    "contactArtisan": "Contact artisan for availability",
+    "loginToSave": "Please log in to save favorites",
+    "removedFromFavorites": "Removed from favorites",
+    "addedToFavorites": "Added to favorites",
+    "adding": "Adding...",
+    "outOfStock": "Out of Stock",
+    "addToCart": "Add to Cart",
+    "distanceNotAvailable": "Distance not available"
+  },
+  "walletDashboard": {
+    "failedToLoad": "Failed to load wallet data"
   }
 }

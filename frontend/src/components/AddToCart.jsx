@@ -69,15 +69,15 @@ const AddToCart = ({
           
           return {
             icon: '📅',
-            status: 'Scheduled',
-            description: `${daysUntil > 0 ? `Ready in ${daysUntil} days` : 'Ready today'} • ${availableQty} available • Max ${product.maxOrderQuantity || 10} per order`,
+            status: t('addToCart.scheduled'),
+            description: `${daysUntil > 0 ? t('addToCart.readyInDays', { count: daysUntil }) : t('addToCart.readyToday')} • ${availableQty} ${t('addToCart.available')} • ${t('productDetails.max')} ${product.maxOrderQuantity || 10} ${t('productDetails.perOrder')}`,
             color: 'text-purple-600'
           };
         } else {
           return {
             icon: '❓',
-            status: 'Schedule TBD',
-            description: `Contact artisan for availability • Max ${product.maxOrderQuantity || 10} per order`,
+            status: t('addToCart.scheduleTBD'),
+            description: `${t('addToCart.contactArtisan')} • ${t('productDetails.max')} ${product.maxOrderQuantity || 10} ${t('productDetails.perOrder')}`,
             color: 'text-gray-600'
           };
         }
@@ -197,12 +197,12 @@ const AddToCart = ({
 
   const handleFavorite = async () => {
     if (!user) {
-      toast.error('Please log in to save favorites');
+      toast.error(t('addToCart.loginToSave'));
       return;
     }
     // Simple favorite toggle - you can implement actual favorite logic later
     setIsFavorite(!isFavorite);
-    toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
+    toast.success(isFavorite ? t('addToCart.removedFromFavorites') : t('addToCart.addedToFavorites'));
   };
 
   // Compact variant for product cards
@@ -215,7 +215,7 @@ const AddToCart = ({
           className="flex items-center justify-center px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
-          {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
+          {isAdding ? t('addToCart.adding') : (isOutOfStock() ? t('addToCart.outOfStock') : t('addToCart.addToCart'))}
         </button>
         <div className={`text-xs text-center ${isOutOfStock() ? 'text-red-500' : 'text-stone-500'}`}>
 {getStockMessage() || `Max ${maxQuantity} per order`}
@@ -258,7 +258,7 @@ const AddToCart = ({
           className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors"
         >
           <ShoppingCartIcon className="w-4 h-4 mr-1" />
-          {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
+          {isAdding ? t('addToCart.adding') : (isOutOfStock() ? t('addToCart.outOfStock') : t('addToCart.addToCart'))}
         </button>
       </div>
     );
@@ -300,7 +300,7 @@ const AddToCart = ({
                   {product.formattedDistance || 
                    (product.distance !== undefined && product.distance !== null 
                      ? `${product.distance.toFixed(1)} km away` 
-                     : 'Distance not available')}
+                     : t('addToCart.distanceNotAvailable'))}
                 </p>
               </div>
             </div>
@@ -365,7 +365,7 @@ const AddToCart = ({
           className="w-full flex items-center justify-center px-6 py-4 bg-amber-600 text-white text-lg font-bold rounded-lg hover:bg-amber-700 disabled:bg-stone-300 disabled:cursor-not-allowed transition-colors shadow-lg"
         >
           <ShoppingCartIcon className="w-6 h-6 mr-2" />
-          {isAdding ? 'Adding...' : (isOutOfStock() ? 'Out of Stock' : 'Add to Cart')}
+          {isAdding ? t('addToCart.adding') : (isOutOfStock() ? t('addToCart.outOfStock') : t('addToCart.addToCart'))}
         </button>
       </div>
 

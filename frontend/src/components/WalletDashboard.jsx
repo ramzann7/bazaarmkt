@@ -108,8 +108,8 @@ const WalletDashboard = () => {
       }
     } catch (error) {
       console.error('Error loading wallet data:', error);
-      setError('Failed to load wallet data');
-      toast.error('Failed to load wallet data');
+      setError(t('walletDashboard.failedToLoad'));
+      toast.error(t('walletDashboard.failedToLoad'));
     } finally {
       setLoading(false);
     }

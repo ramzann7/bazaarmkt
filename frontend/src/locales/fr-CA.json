@@ -779,7 +779,18 @@
     "addedToCart": "{{quantity}} {{unit}} ajouté au panier!",
     "addToCartFailed": "Échec de l'ajout au panier",
     "piece": "pièce",
-    "pieces": "pièces"
+    "pieces": "pièces",
+    "readyNow": "Prêt maintenant",
+    "availableForPickup": "disponible pour ramassage immédiat",
+    "currentlyUnavailable": "Actuellement indisponible",
+    "madeToOrder": "Fabriqué sur commande",
+    "leadTime": "délai de livraison",
+    "max": "Max",
+    "perOrder": "par commande",
+    "totalCapacity": "Capacité totale",
+    "scheduled": "Prévu",
+    "scheduleTBD": "Horaire à déterminer",
+    "contactArtisan": "Contacter l'artisan pour la disponibilité"
   },
   "artisanTabs": {
     "overview": "Aperçu",
@@ -851,5 +862,23 @@
     "delivering": "En livraison",
     "markDelivered": "Marquer comme livré",
     "confirmOrder": "Confirmer la commande"
+  },
+  "addToCart": {
+    "scheduled": "Prévu",
+    "readyInDays": "Prêt dans {{count}} jours",
+    "readyToday": "Prêt aujourd'hui",
+    "available": "disponible",
+    "scheduleTBD": "Horaire à déterminer",
+    "contactArtisan": "Contactez l'artisan pour la disponibilité",
+    "loginToSave": "Veuillez vous connecter pour sauvegarder les favoris",
+    "removedFromFavorites": "Retiré des favoris",
+    "addedToFavorites": "Ajouté aux favoris",
+    "adding": "Ajout en cours...",
+    "outOfStock": "Rupture de stock",
+    "addToCart": "Ajouter au panier",
+    "distanceNotAvailable": "Distance non disponible"
+  },
+  "walletDashboard": {
+    "failedToLoad": "Échec du chargement des données du portefeuille"
   }
 }

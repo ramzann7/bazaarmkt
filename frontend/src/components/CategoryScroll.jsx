@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeftIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { getAllCategories, PRODUCT_CATEGORIES } from '../data/productReference';
 
 export default function CategoryScroll() {
@@ -78,7 +78,7 @@ export default function CategoryScroll() {
     }));
   };
 
-  // Set up scroll event listeners
+  // Set up scroll event listeners and click-away functionality
   useEffect(() => {
     const mainContainer = scrollContainerRef.current;
     const subContainer = subcategoryScrollRef.current;
@@ -110,10 +110,25 @@ export default function CategoryScroll() {
     };
   }, [selectedCategory]);
 
+  // Click away to close subcategories
+  useEffect(() => {
+    const handleClickAway = (event) => {
+      const categoryScroll = event.target.closest('.category-scroll');
+      if (!categoryScroll && selectedCategory) {
+        setSelectedCategory(null);
+      }
+    };
+
+    if (selectedCategory) {
+      document.addEventListener('mousedown', handleClickAway);
+      return () => document.removeEventListener('mousedown', handleClickAway);
+    }
+  }, [selectedCategory]);
+
   const subcategories = selectedCategory ? getSubcategories(selectedCategory.key) : [];
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 sticky top-0 lg:top-16 z-40">
+    <div className="w-full bg-white border-b border-gray-200 sticky top-0 lg:top-16 z-40 category-scroll">
       {/* Main Categories */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3">
         <div className="relative">
@@ -165,18 +180,9 @@ export default function CategoryScroll() {
 
       {/* Subcategories Section - Slides down when category selected */}
       {selectedCategory && subcategories.length > 0 && (
-        <div className="bg-amber-50 border-t border-amber-100 transition-all duration-300 ease-out">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-t border-amber-200 transition-all duration-300 ease-out">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4">
             <div className="relative">
-              {/* Close button */}
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className="absolute -top-1 right-2 sm:right-4 z-10 bg-amber-600 text-white rounded-full p-1 hover:bg-amber-700 transition-colors"
-                aria-label="Close subcategories"
-              >
-                <XMarkIcon className="w-4 h-4" />
-              </button>
-
               {/* Left Arrow for subcategories */}
               {showSubLeftArrow && (
                 <button
@@ -188,21 +194,18 @@ export default function CategoryScroll() {
                 </button>
               )}
 
-              {/* Category title and subcategories */}
-              <div className="pr-8">
-                <h3 className="text-xs font-semibold text-amber-900 mb-2 px-8 sm:px-10">
-                  {selectedCategory.name}
-                </h3>
+              {/* Subcategories - No category title, cleaner design */}
+              <div className="px-8 sm:px-10">
                 <div
                   ref={subcategoryScrollRef}
-                  className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth px-8 sm:px-10"
+                  className="flex gap-3 overflow-x-auto scrollbar-hide scroll-smooth"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {subcategories.map((subcategory) => (
                     <button
                       key={subcategory.id}
                       onClick={() => handleSubcategoryClick(subcategory, subcategory.categoryKey)}
-                      className="flex-shrink-0 px-3 py-2 rounded-full text-xs sm:text-sm font-medium bg-white text-amber-900 hover:bg-amber-100 active:bg-amber-200 transition-all duration-200 whitespace-nowrap shadow-sm border border-amber-200 touch-manipulation"
+                      className="flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-medium bg-white text-amber-900 hover:bg-amber-100 active:bg-amber-200 transition-all duration-200 whitespace-nowrap shadow-md border border-amber-200 hover:shadow-lg touch-manipulation"
                     >
                       <span>{subcategory.name}</span>
                     </button>

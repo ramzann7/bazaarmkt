@@ -2587,8 +2587,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
           <div className="bg-gray-50 p-3 sm:p-6 rounded-xl border border-gray-200">
             <h4 className="font-bold text-gray-900 text-base sm:text-lg mb-3 sm:mb-4">Order Actions</h4>
             
-            {/* Patron Confirmation Alert - Mobile Optimized */}
-            {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up' || order.status === 'ready_for_pickup') && !order.walletCredit?.patronConfirmedAt && (
+            {/* Patron/Buying Artisan Confirmation Alert - Mobile Optimized */}
+            {(userRole === 'patron' || (isArtisan(userRole) && !isSellerArtisan)) && (order.status === 'delivered' || order.status === 'picked_up' || order.status === 'ready_for_pickup') && !order.walletCredit?.patronConfirmedAt && (
               <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-primary-50 border-2 border-primary-300 rounded-lg">
                 <div className="flex items-start gap-2 sm:gap-3">
                   <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0 mt-0.5" />
@@ -2612,7 +2612,8 @@ function OrderDetailsModal({ order, userRole, onClose, onRefresh, orderType }) {
             {/* Mobile-optimized button layout: stack on mobile, inline on desktop */}
             <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 sm:gap-3">
               {/* Patron: Confirm Receipt Button */}
-              {userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
+              {/* Confirm Receipt/Pickup Button - For Patrons AND Buying Artisans */}
+              {(userRole === 'patron' || (isArtisan(userRole) && !isSellerArtisan)) && (order.status === 'delivered' || order.status === 'picked_up') && !order.walletCredit?.patronConfirmedAt && (
                 <button
                   onClick={handleConfirmReceipt}
                   disabled={isLoading}

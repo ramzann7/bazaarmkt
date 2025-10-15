@@ -148,8 +148,10 @@ class OrderNotificationService {
       }
       
       if (['artisan', 'producer', 'food_maker'].includes(userRole)) {
-        // Handle artisan notifications for new orders
+        // Handle artisan notifications for new sales orders
         await this.checkForNewArtisanOrders(isLoginTriggered);
+        // ALSO check for updates on purchase orders (when artisan is buyer)
+        await this.checkForPurchaseOrderUpdates(isLoginTriggered);
       } else if (userRole === 'patron') {
         // Handle patron notifications for order updates
         await this.checkForOrderUpdates(isLoginTriggered);
@@ -201,6 +203,72 @@ class OrderNotificationService {
 
     } catch (error) {
       console.error('Error checking for new artisan orders:', error);
+    }
+  }
+
+  // Check for purchase order updates (artisan as buyer)
+  async checkForPurchaseOrderUpdates(isLoginTriggered = false) {
+    try {
+      // Get artisan's purchase orders
+      const { orderService } = await import('./orderService');
+      const purchases = await orderService.getArtisanOrders(false, 'purchases');
+      
+      if (!purchases || purchases.length === 0) {
+        return; // No purchases to track
+      }
+      
+      // Filter for orders that might have status updates
+      const trackableOrders = purchases.filter(order => 
+        ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery', 'delivered', 'picked_up', 'completed', 'cancelled', 'declined'].includes(order.status)
+      );
+
+      // Check for status changes
+      const currentOrderStatuses = new Map(trackableOrders.map(order => [order._id, order.status]));
+      const previousStatuses = this.previousPurchaseStatuses || new Map();
+      
+      const updatedOrders = trackableOrders.filter(order => {
+        const previousStatus = previousStatuses.get(order._id);
+        return previousStatus && previousStatus !== order.status;
+      });
+
+      // Update our tracking
+      this.previousPurchaseStatuses = currentOrderStatuses;
+
+      // Determine which orders to notify about
+      let ordersToNotify = [];
+      
+      if (isLoginTriggered && trackableOrders.length > 0) {
+        // For login-triggered notifications, show orders that REQUIRE action
+        const actionRequiredOrders = trackableOrders.filter(order => {
+          // Delivered/Picked up orders that haven't been confirmed yet
+          if ((order.status === 'delivered' || order.status === 'picked_up') && 
+              !order.walletCredit?.patronConfirmedAt) return true;
+          
+          // Ready for pickup (buyer needs to know)
+          if (order.status === 'ready_for_pickup') return true;
+          
+          // Declined or cancelled orders
+          if (['declined', 'cancelled'].includes(order.status)) return true;
+          
+          return false;
+        });
+        
+        if (actionRequiredOrders.length > 0) {
+          console.log(`🔔 Found ${actionRequiredOrders.length} purchase orders requiring artisan buyer attention on login`);
+          ordersToNotify = actionRequiredOrders;
+        }
+      } else if (updatedOrders.length > 0) {
+        // For regular polling, show all status updates
+        ordersToNotify = updatedOrders;
+      }
+
+      // Notify about order updates
+      if (ordersToNotify.length > 0) {
+        this.notifyOrderUpdates(ordersToNotify, 'purchases');
+      }
+
+    } catch (error) {
+      console.error('Error checking for purchase order updates:', error);
     }
   }
 
@@ -349,8 +417,8 @@ class OrderNotificationService {
     this.updateNotificationBadge();
   }
 
-  // Notify about order updates (for patrons)
-  notifyOrderUpdates(updatedOrders) {
+  // Notify about order updates (for patrons and buying artisans)
+  notifyOrderUpdates(updatedOrders, orderType = 'patron') {
     // Filter for critical notifications only (action required or negative outcomes)
     const criticalStatuses = ['ready_for_pickup', 'delivered', 'picked_up', 'cancelled', 'declined'];
     const criticalOrders = updatedOrders.filter(order => criticalStatuses.includes(order.status) || order.costAbsorption?.required);
@@ -360,15 +428,17 @@ class OrderNotificationService {
       this.notificationSound();
     }
 
-    // Show toast notifications ONLY for critical actions that require patron attention
+    // Show toast notifications ONLY for critical actions that require attention
     import('react-hot-toast').then(({ default: toast }) => {
       criticalOrders.forEach(order => {
+        const isPurchase = orderType === 'purchases';
+        
         const statusMessages = {
-          'ready_for_pickup': '🎉 Your order is ready for pickup!',
-          'delivered': '📬 Your order has been delivered!',
-          'picked_up': '✅ Your order has been picked up!',
-          'cancelled': '❌ Your order has been cancelled.',
-          'declined': '⚠️ Your order was declined by the artisan.'
+          'ready_for_pickup': isPurchase ? '🎉 Your purchase is ready for pickup!' : '🎉 Your order is ready for pickup!',
+          'delivered': isPurchase ? '📬 Your purchase has been delivered!' : '📬 Your order has been delivered!',
+          'picked_up': isPurchase ? '✅ Your purchase has been picked up!' : '✅ Your order has been picked up!',
+          'cancelled': isPurchase ? '❌ Your purchase has been cancelled.' : '❌ Your order has been cancelled.',
+          'declined': isPurchase ? '⚠️ Your purchase was declined by the artisan.' : '⚠️ Your order was declined by the artisan.'
         };
 
         const actionRequiredMessages = {

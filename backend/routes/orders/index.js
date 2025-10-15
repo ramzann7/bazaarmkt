@@ -2480,20 +2480,41 @@ const updateOrderStatus = async (req, res) => {
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
     
-    // CRITICAL: Capture payment when order is delivered/picked_up to prevent authorization expiry
-    // Stripe authorizations expire after 7 days, so we must capture before confirmation window
-    if ((status === 'delivered' || status === 'picked_up') && updatedOrder.paymentStatus === 'authorized') {
-      console.log('💳 CRITICAL: Order delivered/picked_up - capturing payment to prevent expiration');
-      console.log('Payment hold expires:', updatedOrder.paymentHold?.expiresAt);
+    // CRITICAL: Process revenue when order is delivered/picked_up
+    if (status === 'delivered' || status === 'picked_up') {
       
-      try {
-        // Calculate platform fee
-        const platformSettingsService = new PlatformSettingsService(db);
-        const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
-        const { platformFee, artisanAmount } = feeCalculation;
+      // WALLET PAYMENTS: Recognize revenue immediately on delivery/pickup
+      // Payment already taken from buyer, seller fulfilled obligation
+      if (updatedOrder.paymentMethod === 'wallet' && updatedOrder.paymentStatus === 'paid') {
+        console.log('💰 Wallet order delivered/picked_up - processing revenue recognition');
         
-        // Capture the payment from Stripe
-        const paymentIntent = await stripe.paymentIntents.capture(updatedOrder.paymentIntentId);
+        try {
+          const { createWalletService } = require('../../services');
+          const walletService = await createWalletService();
+          
+          const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+          console.log('✅ Wallet order revenue recognized on delivery/pickup:', revenueResult.data);
+        } catch (revenueError) {
+          console.error('❌ Error processing wallet order revenue:', revenueError);
+          // Don't fail the status update if revenue processing fails
+          // Will retry on confirmation if needed
+        }
+      }
+      
+      // CARD PAYMENTS: Capture authorized payment to prevent expiration
+      // Only attempt if payment is still in 'authorized' state (not already captured)
+      if (updatedOrder.paymentStatus === 'authorized' && updatedOrder.paymentMethod !== 'wallet') {
+        console.log('💳 CRITICAL: Order delivered/picked_up - capturing payment to prevent expiration');
+        console.log('Payment hold expires:', updatedOrder.paymentHold?.expiresAt);
+        
+        try {
+          // Calculate platform fee
+          const platformSettingsService = new PlatformSettingsService(db);
+          const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
+          const { platformFee, artisanAmount } = feeCalculation;
+          
+          // Capture the payment from Stripe
+          const paymentIntent = await stripe.paymentIntents.capture(updatedOrder.paymentIntentId);
         
         if (paymentIntent.status === 'succeeded') {
           console.log('✅ Payment captured successfully on delivery');
@@ -2564,6 +2585,7 @@ const updateOrderStatus = async (req, res) => {
       } catch (captureError) {
         console.error('❌ CRITICAL: Failed to capture payment on delivery:', captureError);
         // Don't fail status update, log for manual intervention
+      }
       }
     }
     
@@ -2978,7 +3000,9 @@ const updateOrderStatus = async (req, res) => {
       };
 
       console.log('📧 Sending patron notification for status update:', {
-        userId: patronNotificationData.userId,
+        buyerUserId: patronNotificationData.userId,
+        buyerEmail: patronNotificationData.userEmail,
+        sellerArtisanId: updatedOrder.artisan?.toString(),
         type: patronNotificationData.type,
         status: finalStatus
       });

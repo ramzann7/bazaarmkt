@@ -1962,6 +1962,7 @@ export function DeliveryTab({ profile, onSave, isSaving }) {
 }
 
 export function SetupTab({ profile, onSave, isSaving, setActiveTab }) {
+  const { t } = useTranslation();
   const isArtisan = profile?.role === 'artisan' || profile?.role === 'producer' || profile?.role === 'food_maker';
   
   // Check completion status for each step

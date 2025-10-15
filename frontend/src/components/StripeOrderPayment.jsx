@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { CreditCardIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { orderPaymentService } from '../services/orderPaymentService';
@@ -31,6 +32,7 @@ const StripeOrderPayment = ({
   isGuest = false,
   savedPaymentMethods = []
 }) => {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);

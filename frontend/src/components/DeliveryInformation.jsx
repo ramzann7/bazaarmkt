@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   MapPinIcon, 
   TruckIcon, 
@@ -49,6 +50,7 @@ const DeliveryInformation = ({
   enhancedProducts,
   embedded = false // New prop to hide header/artisan card when embedded
 }) => {
+  const { t } = useTranslation();
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showDeliveryAddress, setShowDeliveryAddress] = useState(false);
   const [addressValidation, setAddressValidation] = useState({});

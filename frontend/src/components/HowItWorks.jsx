@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { 
   UserPlusIcon,
@@ -22,6 +23,7 @@ import {
 import { getPlatformSettings } from '../services/adminService';
 
 export default function HowItWorks() {
+  const { t } = useTranslation();
   const [platformFee, setPlatformFee] = useState(10); // Default 10%
   const [paymentFee, setPaymentFee] = useState(2.9); // Default 2.9%
   const [loading, setLoading] = useState(true);

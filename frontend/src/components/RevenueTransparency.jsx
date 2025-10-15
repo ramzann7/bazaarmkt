@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { 
   InformationCircleIcon, 
@@ -19,6 +20,7 @@ import { getPlatformSettings } from '../services/adminService';
 import { VECTEEZY_SPINNING_WHEEL } from '../config/environment';
 
 export default function RevenueTransparency() {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   const [platformFee, setPlatformFee] = useState(10); // Default 10%
   const [paymentFee, setPaymentFee] = useState(2.9); // Default 2.9%

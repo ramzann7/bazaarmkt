@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MapPinIcon, XMarkIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
 import { geocodingService } from '../services/geocodingService';
 import { locationService } from '../services/locationService';
@@ -6,6 +7,7 @@ import { ipGeolocationService } from '../services/ipGeolocationService';
 import toast from 'react-hot-toast';
 
 export default function LocationPrompt({ onLocationSet, onDismiss }) {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState('');

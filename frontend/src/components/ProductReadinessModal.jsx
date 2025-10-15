@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { XMarkIcon, ClockIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 const ProductReadinessModal = ({ product, isOpen, onClose, onAddToCart }) => {
+  const { t } = useTranslation();
   if (!isOpen || !product) return null;
 
   const getReadinessDetails = (product) => {

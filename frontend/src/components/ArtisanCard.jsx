@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { StarIcon, HeartIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { getImageUrl } from '../utils/imageUtils';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
 
 const ArtisanCard = ({ artisan, onFavorite, onMessage, showDistance = true }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 

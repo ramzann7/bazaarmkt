@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useBrevoIntegration } from '../hooks/useBrevoIntegration';
 import { 
   CheckCircleIcon, 
@@ -10,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 
 const BrevoSettings = () => {
+  const { t } = useTranslation();
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   

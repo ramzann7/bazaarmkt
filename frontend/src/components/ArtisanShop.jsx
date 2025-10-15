@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import config from '../config/environment.js';
 import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -42,6 +43,7 @@ import AuthPopup from './AuthPopup';
 import toast from 'react-hot-toast';
 
 export default function ArtisanShop() {
+  const { t } = useTranslation();
   const { id: slugOrId } = useParams();
   const navigate = useNavigate();
   const [artisan, setArtisan] = useState(null);

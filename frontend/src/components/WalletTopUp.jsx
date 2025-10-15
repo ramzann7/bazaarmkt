@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { 
@@ -25,6 +26,7 @@ console.log('Stripe configuration:', {
 });
 
 const WalletTopUpForm = ({ onSuccess, onCancel }) => {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [amount, setAmount] = useState('');

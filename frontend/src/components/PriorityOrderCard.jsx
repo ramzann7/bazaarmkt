@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { getPriorityStatuses, URGENCY_COLORS, getTimeAgo } from '../utils/orderPriority';
 
 const PriorityOrderCard = ({ order, onClick, onQuickAction, userRole, isUpdating = false }) => {
+  const { t } = useTranslation();
   const PRIORITY_STATUSES = getPriorityStatuses(userRole);
   const statusConfig = PRIORITY_STATUSES[order.status];
   const urgencyColor = order.urgency || 'normal';

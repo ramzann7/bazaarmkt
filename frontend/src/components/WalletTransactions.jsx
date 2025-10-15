@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   ChevronLeftIcon, 
   ChevronRightIcon,
@@ -9,6 +10,7 @@ import walletService from '../services/walletService';
 import toast from 'react-hot-toast';
 
 const WalletTransactions = () => {
+  const { t } = useTranslation();
   const [transactions, setTransactions] = useState([]);
   const [pagination, setPagination] = useState({
     current: 1,

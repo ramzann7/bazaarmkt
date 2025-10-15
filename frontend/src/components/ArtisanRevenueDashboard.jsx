@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   CurrencyDollarIcon, 
   ChartBarIcon, 
@@ -14,6 +15,7 @@ import { revenueService } from '../services/revenueService';
 import toast from 'react-hot-toast';
 
 export default function ArtisanRevenueDashboard() {
+  const { t } = useTranslation();
   const [revenueData, setRevenueData] = useState(null);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function ArtisanRevenueDashboard() {
       setRevenueData(data);
     } catch (error) {
       console.error('Error loading revenue data:', error);
-      toast.error('Failed to load revenue data');
+      toast.error(t('revenueDashboard.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +53,7 @@ export default function ArtisanRevenueDashboard() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500 mx-auto mb-4"></div>
-          <p className="text-stone-600">Loading revenue data...</p>
+          <p className="text-stone-600">{t('revenueDashboard.loading')}</p>
         </div>
       </div>
     );
@@ -62,7 +64,7 @@ export default function ArtisanRevenueDashboard() {
       <div className="min-h-screen bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center py-12">
-            <p className="text-stone-500">No revenue data available for this period.</p>
+            <p className="text-stone-500">{t('revenueDashboard.noDataAvailable')}</p>
           </div>
         </div>
       </div>
@@ -79,8 +81,8 @@ export default function ArtisanRevenueDashboard() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
             <ChartBarIcon className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">Revenue Management</h1>
-          <p className="text-lg text-stone-600 max-w-2xl mx-auto">Track your earnings and sales performance</p>
+          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">{t('revenueDashboard.title')}</h1>
+          <p className="text-lg text-stone-600 max-w-2xl mx-auto">{t('revenueDashboard.subtitle')}</p>
         </div>
 
       {/* Period Selector */}
@@ -96,7 +98,7 @@ export default function ArtisanRevenueDashboard() {
                   : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
               }`}
             >
-              {period.charAt(0).toUpperCase() + period.slice(1)}
+              {t(`revenueDashboard.${period}`)}
             </button>
           ))}
         </div>
@@ -108,11 +110,11 @@ export default function ArtisanRevenueDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-stone-600">Total Revenue</p>
+              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.totalRevenue')}</p>
               <p className="text-2xl font-bold text-stone-800 mt-1">
                 {formatCurrency(revenue.totalGrossAmount)}
               </p>
-              <p className="text-xs text-stone-500 mt-1">Products + Delivery</p>
+              <p className="text-xs text-stone-500 mt-1">Products + {t('revenueDashboard.deliveryRevenue')}</p>
             </div>
             <div className="p-3 bg-amber-100 rounded-lg">
               <CurrencyDollarIcon className="h-8 w-8 text-amber-600" />
@@ -124,11 +126,11 @@ export default function ArtisanRevenueDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-stone-600">Product Revenue</p>
+              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.productRevenue')}</p>
               <p className="text-2xl font-bold text-stone-800 mt-1">
                 {formatCurrency(revenue.productRevenue)}
               </p>
-              <p className="text-xs text-stone-500 mt-1">Before commission</p>
+              <p className="text-xs text-stone-500 mt-1">{t('revenueDashboard.beforeCommission')}</p>
             </div>
             <div className="p-3 bg-emerald-100 rounded-lg">
               <ShoppingCartIcon className="h-8 w-8 text-emerald-600" />
@@ -140,11 +142,11 @@ export default function ArtisanRevenueDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-stone-600">Delivery Revenue</p>
+              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.deliveryRevenue')}</p>
               <p className="text-2xl font-bold text-stone-800 mt-1">
                 {formatCurrency(revenue.deliveryRevenue)}
               </p>
-              <p className="text-xs text-stone-500 mt-1">100% yours</p>
+              <p className="text-xs text-stone-500 mt-1">{t('revenueDashboard.deliveryRevenuePercent')}</p>
             </div>
             <div className="p-3 bg-blue-100 rounded-lg">
               <TruckIcon className="h-8 w-8 text-blue-600" />
@@ -156,11 +158,11 @@ export default function ArtisanRevenueDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-stone-600">Platform Commission</p>
+              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.platformCommission')}</p>
               <p className="text-2xl font-bold text-stone-800 mt-1">
                 {formatCurrency(revenue.totalCommission)}
               </p>
-              <p className="text-xs text-stone-500 mt-1">{platformFeePercentage}% on products</p>
+              <p className="text-xs text-stone-500 mt-1">{platformFeePercentage}% {t('revenueDashboard.onProducts')}</p>
             </div>
             <div className="p-3 bg-red-100 rounded-lg">
               <ReceiptPercentIcon className="h-8 w-8 text-red-600" />
@@ -175,11 +177,11 @@ export default function ArtisanRevenueDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-stone-600">Net Earnings</p>
+              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.netEarnings')}</p>
               <p className="text-2xl font-bold text-stone-800 mt-1">
                 {formatCurrency(revenue.totalEarnings)}
               </p>
-              <p className="text-xs text-stone-500 mt-1">After commission</p>
+              <p className="text-xs text-stone-500 mt-1">{t('revenueDashboard.afterCommission')}</p>
             </div>
             <div className="p-3 bg-emerald-100 rounded-lg">
               <BanknotesIcon className="h-8 w-8 text-emerald-600" />
@@ -191,7 +193,7 @@ export default function ArtisanRevenueDashboard() {
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-stone-600">Total Orders</p>
+              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.totalOrders')}</p>
               <p className="text-2xl font-bold text-stone-800 mt-1">
                 {formatNumber(revenue.orderCount)}
               </p>

@@ -879,6 +879,56 @@
     "distanceNotAvailable": "Distance non disponible"
   },
   "walletDashboard": {
-    "failedToLoad": "Échec du chargement des données du portefeuille"
+    "failedToLoad": "Échec du chargement des données du portefeuille",
+    "noTransactionData": "Aucune donnée de transaction disponible",
+    "addBankAccount": "Ajoutez votre compte bancaire pour recevoir les paiements hebdomadaires",
+    "seeCompleteActivity": "Voir l'activité complète du portefeuille"
+  },
+  "priorityQueue": {
+    "failedToLoad": "Échec du chargement des commandes prioritaires",
+    "loading": "Chargement des commandes prioritaires...",
+    "updateFailed": "Échec de la mise à jour du statut de la commande",
+    "noHighPriorityOrders": "Aucune commande haute priorité",
+    "allCaughtUp": "Vous êtes à jour! 🎉",
+    "salesOrders": "Commandes de vente",
+    "purchaseOrders": "Commandes d'achat",
+    "needsAttention": "commandes nécessitent votre attention",
+    "viewAllOrders": "Voir toutes les commandes",
+    "allOrdersUpToDate": "Toutes les commandes sont à jour!",
+    "noOrdersRequireAttention": "Vous n'avez aucune commande nécessitant une attention immédiate. Excellent travail pour rester au courant des choses!",
+    "failedToUpdate": "Échec de la mise à jour de la commande"
+  },
+  "revenueDashboard": {
+    "title": "Gestion des revenus",
+    "subtitle": "Suivez vos gains et performances de vente",
+    "loading": "Chargement des données de revenus...",
+    "noDataAvailable": "Aucune donnée de revenus disponible pour cette période.",
+    "week": "Semaine",
+    "month": "Mois",
+    "quarter": "Trimestre",
+    "year": "Année",
+    "totalRevenue": "Revenus totaux",
+    "grossRevenue": "Revenus bruts",
+    "netRevenue": "Revenus nets",
+    "platformFee": "Frais de plateforme",
+    "totalOrders": "Total des commandes",
+    "averageOrderValue": "Valeur moyenne des commandes",
+    "deliveryRevenue": "Revenus de livraison",
+    "pickupRevenue": "Revenus de ramassage",
+    "topSellingProducts": "Produits les plus vendus",
+    "revenueBreakdown": "Répartition des revenus",
+    "deliveryBreakdown": "Répartition par mode de livraison",
+    "orders": "Commandes",
+    "revenue": "Revenus",
+    "failedToLoad": "Échec du chargement des données de revenus",
+    "productRevenue": "Revenus des produits",
+    "beforeCommission": "Avant commission",
+    "deliveryRevenuePercent": "100% à vous",
+    "platformCommission": "Commission de plateforme",
+    "onProducts": "sur les produits",
+    "netEarnings": "Gains nets",
+    "afterCommission": "Après commission",
+    "ordersCompleted": "commandes complétées",
+    "avgPerOrder": "moyenne par commande"
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   BellIcon, 
   ShoppingBagIcon,
@@ -11,6 +12,7 @@ import PriorityOrderCard from '../PriorityOrderCard';
 import toast from 'react-hot-toast';
 
 export default function DashboardPriorityQueue() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [priorityOrders, setPriorityOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +90,7 @@ export default function DashboardPriorityQueue() {
       setPriorityOrders(processedOrders);
     } catch (error) {
       console.error('Error loading priority orders:', error);
-      toast.error('Failed to load priority orders');
+      toast.error(t('priorityQueue.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -222,7 +224,7 @@ export default function DashboardPriorityQueue() {
       
     } catch (error) {
       console.error('❌ Error processing quick action:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to update order';
+      const errorMessage = error.response?.data?.message || error.message || t('priorityQueue.failedToUpdate');
       toast.error(errorMessage);
       setUpdatingOrderId(null);
     }
@@ -272,16 +274,16 @@ export default function DashboardPriorityQueue() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircleIcon className="w-8 h-8 text-green-600" />
           </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">All Orders Up to Date!</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{t('priorityQueue.allOrdersUpToDate')}</h3>
           <p className="text-gray-600 mb-4">
-            You have no orders requiring immediate attention. Great job staying on top of things!
+            {t('priorityQueue.noOrdersRequireAttention')}
           </p>
           <button
             onClick={handleViewAllOrders}
             className="inline-flex items-center px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition-colors"
           >
             <ShoppingBagIcon className="w-4 h-4 mr-2" />
-            View All Orders
+            {t('priorityQueue.viewAllOrders')}
           </button>
         </div>
       </div>

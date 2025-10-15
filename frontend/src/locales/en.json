@@ -879,6 +879,56 @@
     "distanceNotAvailable": "Distance not available"
   },
   "walletDashboard": {
-    "failedToLoad": "Failed to load wallet data"
+    "failedToLoad": "Failed to load wallet data",
+    "noTransactionData": "No transaction data available",
+    "addBankAccount": "Add your bank account to receive weekly payouts",
+    "seeCompleteActivity": "See complete wallet activity"
+  },
+  "priorityQueue": {
+    "failedToLoad": "Failed to load priority orders",
+    "loading": "Loading priority orders...",
+    "updateFailed": "Failed to update order status",
+    "noHighPriorityOrders": "No high priority orders",
+    "allCaughtUp": "You're all caught up! 🎉",
+    "salesOrders": "Sales Orders",
+    "purchaseOrders": "Purchase Orders",
+    "needsAttention": "orders need your attention",
+    "viewAllOrders": "View All Orders",
+    "allOrdersUpToDate": "All Orders Up to Date!",
+    "noOrdersRequireAttention": "You have no orders requiring immediate attention. Great job staying on top of things!",
+    "failedToUpdate": "Failed to update order"
+  },
+  "revenueDashboard": {
+    "title": "Revenue Management",
+    "subtitle": "Track your earnings and sales performance",
+    "loading": "Loading revenue data...",
+    "noDataAvailable": "No revenue data available for this period.",
+    "week": "Week",
+    "month": "Month",
+    "quarter": "Quarter",
+    "year": "Year",
+    "totalRevenue": "Total Revenue",
+    "grossRevenue": "Gross Revenue",
+    "netRevenue": "Net Revenue",
+    "platformFee": "Platform Fee",
+    "totalOrders": "Total Orders",
+    "averageOrderValue": "Average Order Value",
+    "deliveryRevenue": "Delivery Revenue",
+    "pickupRevenue": "Pickup Revenue",
+    "topSellingProducts": "Top Selling Products",
+    "revenueBreakdown": "Revenue Breakdown",
+    "deliveryBreakdown": "Delivery Method Breakdown",
+    "orders": "Orders",
+    "revenue": "Revenue",
+    "failedToLoad": "Failed to load revenue data",
+    "productRevenue": "Product Revenue",
+    "beforeCommission": "Before commission",
+    "deliveryRevenuePercent": "100% yours",
+    "platformCommission": "Platform Commission",
+    "onProducts": "on products",
+    "netEarnings": "Net Earnings",
+    "afterCommission": "After commission",
+    "ordersCompleted": "orders completed",
+    "avgPerOrder": "avg per order"
   }
 }

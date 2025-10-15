@@ -610,6 +610,22 @@ export const getAllSubcategories = () => {
   return subcategories;
 };
 
+// Helper function to get category name by key
+export const getCategoryName = (categoryKey) => {
+  if (!categoryKey || categoryKey === 'all') return 'All Products';
+  const category = PRODUCT_CATEGORIES[categoryKey];
+  return category ? category.name : categoryKey;
+};
+
+// Helper function to get subcategory name by key
+export const getSubcategoryName = (subcategoryKey, categoryKey) => {
+  if (!subcategoryKey || !categoryKey) return subcategoryKey;
+  const category = PRODUCT_CATEGORIES[categoryKey];
+  if (!category || !category.subcategories) return subcategoryKey;
+  const subcategory = category.subcategories[subcategoryKey];
+  return subcategory ? subcategory.name : subcategoryKey;
+};
+
 // Popular product names for search suggestions
 export const getPopularProducts = () => [
   "Handmade Jewelry",

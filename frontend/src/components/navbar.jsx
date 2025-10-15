@@ -353,9 +353,14 @@ export default function Navbar() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onFocus={() => setShowPopularSearches(true)}
+                      onBlur={() => {
+                        // Delay to allow popular search clicks to register
+                        setTimeout(() => setShowPopularSearches(false), 200);
+                      }}
                       placeholder="Search for bread, jam, jewelry, artisans..."
                       className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 bg-white"
                       autoComplete="off"
+                      autoFocus={false}
                     />
                   </div>
                 </div>

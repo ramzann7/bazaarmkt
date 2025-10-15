@@ -114,6 +114,8 @@ export default function CategoryScroll() {
   useEffect(() => {
     const handleClickAway = (event) => {
       const categoryScroll = event.target.closest('.category-scroll');
+      
+      // Only close if clicking completely outside the category scroll area
       if (!categoryScroll && selectedCategory) {
         setSelectedCategory(null);
       }

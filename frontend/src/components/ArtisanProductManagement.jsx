@@ -447,111 +447,118 @@ export default function ArtisanProductManagement() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header */}
-        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-4">
-            <div className="text-center sm:text-left w-full sm:w-auto">
-              <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-3 sm:mb-6 shadow-lg">
-                <CubeIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-stone-800 mb-2 sm:mb-3 font-display">My Product Management</h2>
-              <p className="text-sm sm:text-base lg:text-lg text-stone-600">
-                Manage your products and promotional features
-              </p>
-            </div>
-            <div className="flex items-center space-x-2 sm:space-x-3 w-full sm:w-auto">
-              <button
-                onClick={loadProducts}
-                className="flex-1 sm:flex-initial btn-secondary flex items-center justify-center space-x-2 text-sm sm:text-base py-2 sm:py-2.5"
-                title="Refresh Products"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-              <button
-                onClick={handleAddProduct}
-                className="flex-1 sm:flex-initial btn-primary flex items-center justify-center space-x-2 text-sm sm:text-base py-2 sm:py-2.5"
-              >
-                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Add Product</span>
-              </button>
-            </div>
-          </div>
-          
-          {/* Promotional Features Info */}
-          <div className="bg-gradient-to-r from-amber-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-amber-200">
-            <h3 className="text-base sm:text-lg font-semibold text-stone-800 mb-3 sm:mb-4 text-center">Promotional Features</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
-              <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 bg-white rounded-lg border border-amber-200">
-                <StarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 flex-shrink-0" />
-                <div>
-                  <span className="font-semibold text-amber-700 text-sm sm:text-base">Featured Product</span>
-                  <p className="text-xs sm:text-sm text-stone-600">$5/day - Homepage visibility with distance-based ranking</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 bg-white rounded-lg border border-emerald-200">
-                <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 flex-shrink-0" />
-                <div>
-                  <span className="font-semibold text-emerald-700 text-sm sm:text-base">Sponsored Product</span>
-                  <p className="text-xs sm:text-sm text-stone-600">$10/day - Enhanced search visibility</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Search and Filters - Subtle Design */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 items-start lg:items-center">
-            {/* Search Input - Subtle like navbar */}
-            <div className="flex-1 w-full lg:max-w-md">
-              <div className="relative">
-                <div className="flex shadow-sm">
-                  <div className="flex items-center px-2 sm:px-3 py-2 bg-stone-50 text-stone-600 border border-r-0 border-stone-300 rounded-l-lg">
-                    <MagnifyingGlassIcon className="h-4 w-4" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Search, Filters and Actions - Mobile Optimized */}
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+          <div className="flex flex-col space-y-4">
+            {/* Top Row - Search and Add Product */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              {/* Search Input */}
+              <div className="flex-1">
+                <div className="relative">
+                  <div className="flex shadow-sm">
+                    <div className="flex items-center px-3 py-2.5 bg-gray-50 text-gray-600 border border-r-0 border-gray-300 rounded-l-lg">
+                      <MagnifyingGlassIcon className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 bg-white"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm border border-stone-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-amber-100 focus:border-amber-400 transition-all duration-200 placeholder-stone-400 bg-white"
-                  />
                 </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2 sm:gap-3">
+                <button
+                  onClick={loadProducts}
+                  className="px-3 sm:px-4 py-2.5 text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors flex items-center justify-center"
+                  title="Refresh Products"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="hidden sm:inline ml-2">Refresh</span>
+                </button>
+                <button
+                  onClick={handleAddProduct}
+                  className="px-4 sm:px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors flex items-center justify-center font-medium"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span className="ml-2">Add Product</span>
+                </button>
               </div>
             </div>
             
-            {/* Category Filter - Mobile Optimized */}
-            <div className="flex gap-2 w-full lg:w-auto">
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="flex-1 lg:flex-initial px-4 py-3 text-base sm:text-sm border-2 border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition-all duration-200 bg-white text-stone-700 font-medium shadow-sm hover:border-stone-400"
-                style={{ 
-                  minHeight: '48px', 
-                  fontSize: '16px',
-                  WebkitAppearance: 'menulist',
-                  MozAppearance: 'menulist',
-                  appearance: 'menulist'
-                }}
-              >
-                <option value="all" style={{ fontSize: '16px' }}>All Categories</option>
-                <option value="bakery" style={{ fontSize: '16px' }}>Bakery</option>
-                <option value="dairy" style={{ fontSize: '16px' }}>Dairy</option>
-                <option value="produce" style={{ fontSize: '16px' }}>Produce</option>
-                <option value="meat" style={{ fontSize: '16px' }}>Meat</option>
-                <option value="beverages" style={{ fontSize: '16px' }}>Beverages</option>
-                <option value="snacks" style={{ fontSize: '16px' }}>Snacks</option>
-              </select>
+            {/* Bottom Row - Filters and Promotional Info */}
+            <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-700 min-h-[42px]"
+                  style={{ fontSize: '16px' }}
+                >
+                  <option value="all">All Categories</option>
+                  <option value="bakery">Bakery</option>
+                  <option value="dairy">Dairy</option>
+                  <option value="produce">Produce</option>
+                  <option value="meat">Meat</option>
+                  <option value="beverages">Beverages</option>
+                  <option value="snacks">Snacks</option>
+                </select>
+                
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-700 min-h-[42px]"
+                  style={{ fontSize: '16px' }}
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                
+                <select
+                  value={`${sortBy}-${sortOrder}`}
+                  onChange={(e) => {
+                    const [newSortBy, newSortOrder] = e.target.value.split('-');
+                    setSortBy(newSortBy);
+                    setSortOrder(newSortOrder);
+                  }}
+                  className="px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white text-gray-700 min-h-[42px]"
+                  style={{ fontSize: '16px' }}
+                >
+                  <option value="createdAt-desc">Newest First</option>
+                  <option value="createdAt-asc">Oldest First</option>
+                  <option value="name-asc">Name A-Z</option>
+                  <option value="name-desc">Name Z-A</option>
+                  <option value="price-asc">Price Low-High</option>
+                  <option value="price-desc">Price High-Low</option>
+                </select>
+              </div>
+              
+              {/* Subtle Promotional Info */}
+              <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-1">
+                  <StarIcon className="w-3 h-3 text-amber-500" />
+                  <span>Featured $5/day</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <SparklesIcon className="w-3 h-3 text-emerald-500" />
+                  <span>Sponsored $10/day</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Products List */}
-        <div className="card p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-2xl font-bold text-stone-800 font-display">

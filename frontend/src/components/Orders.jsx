@@ -747,77 +747,60 @@ export default function Orders() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header - Mobile Optimized */}
-        <div className="mb-4 sm:mb-6 lg:mb-8 text-center">
-          {/* Icon - Hidden on Mobile */}
-          <div className="hidden sm:inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4 shadow-lg">
-            <ShoppingBagIcon className="w-7 h-7 sm:w-8 sm:h-8 text-orange-600" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3">
-            {isArtisan(userRole) ? 'Orders' : 'My Orders'}
-          </h1>
-          <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto px-4">
-            {isArtisan(userRole) 
-              ? 'Manage customer orders' 
-              : 'Track your orders'
-            }
-          </p>
-        </div>
-
-        {/* Stats Cards - Mobile Optimized */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Quick Stats - Simplified and Mobile Optimized */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {isArtisan(userRole) ? (
             <>
-              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Needs Action</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-red-600 mt-1">{stats.needsAction}</p>
-                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Pending & Confirmed</p>
-                  </div>
-                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-red-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
-                    <span className="text-red-600 text-xl lg:text-2xl">🚨</span>
-                  </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.needsAction}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Urgent</p>
                 </div>
               </div>
-              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">In Progress</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-orange-600 mt-1">{stats.inProgress}</p>
-                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Preparing & Ready</p>
-                  </div>
-                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-orange-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
-                    <span className="text-orange-600 text-xl lg:text-2xl">👨‍🍳</span>
-                  </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-orange-600">{stats.inProgress}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">In Progress</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.completed}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Completed</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-gray-600">{stats.total}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Total</p>
                 </div>
               </div>
             </>
           ) : (
             <>
-              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Active Orders</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">{stats.active}</p>
-                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Orders in progress</p>
-                  </div>
-                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-blue-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
-                    <span className="text-blue-600 text-xl lg:text-2xl">📦</span>
-                  </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-blue-600">{stats.active}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Active</p>
                 </div>
               </div>
-              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Completed</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1">{stats.delivered}</p>
-                    <p className="text-xs text-gray-500 mt-1 hidden sm:block">Delivered & Picked up</p>
-                  </div>
-                  <div className="hidden sm:flex w-12 h-12 lg:w-16 lg:h-16 bg-green-100 rounded-full items-center justify-center flex-shrink-0 ml-2">
-                    <span className="text-green-600 text-xl lg:text-2xl">✅</span>
-                  </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.delivered}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Delivered</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-red-600">{stats.cancelled}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Cancelled</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="text-center">
+                  <p className="text-lg sm:text-2xl font-bold text-gray-600">{stats.total}</p>
+                  <p className="text-xs sm:text-sm text-gray-600">Total</p>
                 </div>
               </div>
             </>
@@ -838,8 +821,8 @@ export default function Orders() {
           />
         )}
 
-        {/* Enhanced Filters and View Toggle - Mobile Optimized */}
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+        {/* Filters and Controls - Mobile Optimized */}
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
           {/* Sales vs Purchases tabs for Artisans */}
           {isArtisan(userRole) && (
             <div className="mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-200">

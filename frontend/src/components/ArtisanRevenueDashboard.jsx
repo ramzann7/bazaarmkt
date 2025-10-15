@@ -75,201 +75,124 @@ export default function ArtisanRevenueDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
-            <ChartBarIcon className="w-10 h-10 text-white" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {/* Period Selector - Mobile Optimized */}
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
+            <div className="flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{t('revenueDashboard.title')}</h1>
+              <p className="text-sm text-gray-600">{t('revenueDashboard.subtitle')}</p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {['week', 'month', 'quarter', 'year'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm ${
+                    selectedPeriod === period
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t(`revenueDashboard.${period}`)}
+                </button>
+              ))}
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">{t('revenueDashboard.title')}</h1>
-          <p className="text-lg text-stone-600 max-w-2xl mx-auto">{t('revenueDashboard.subtitle')}</p>
         </div>
 
-      {/* Period Selector */}
-      <div className="mb-6">
-        <div className="flex space-x-2">
-          {['week', 'month', 'quarter', 'year'].map((period) => (
-            <button
-              key={period}
-              onClick={() => setSelectedPeriod(period)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedPeriod === period
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              {t(`revenueDashboard.${period}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Revenue Summary Cards - Row 1 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      {/* Key Revenue Stats - Mobile Optimized */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {/* Total Revenue */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.totalRevenue')}</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatCurrency(revenue.totalGrossAmount)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">Products + {t('revenueDashboard.deliveryRevenue')}</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="text-center">
+            <div className="hidden sm:flex w-8 h-8 bg-amber-100 rounded-lg items-center justify-center mx-auto mb-2">
+              <CurrencyDollarIcon className="h-5 w-5 text-amber-600" />
             </div>
-            <div className="p-3 bg-amber-100 rounded-lg">
-              <CurrencyDollarIcon className="h-8 w-8 text-amber-600" />
-            </div>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{t('revenueDashboard.totalRevenue')}</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900">
+              {formatCurrency(revenue.totalGrossAmount)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">Products + Delivery</p>
           </div>
         </div>
 
-        {/* Product Revenue */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.productRevenue')}</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatCurrency(revenue.productRevenue)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">{t('revenueDashboard.beforeCommission')}</p>
-            </div>
-            <div className="p-3 bg-emerald-100 rounded-lg">
-              <ShoppingCartIcon className="h-8 w-8 text-emerald-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Delivery Revenue */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.deliveryRevenue')}</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatCurrency(revenue.deliveryRevenue)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">{t('revenueDashboard.deliveryRevenuePercent')}</p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <TruckIcon className="h-8 w-8 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Platform Commission */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.platformCommission')}</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatCurrency(revenue.totalCommission)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">{platformFeePercentage}% {t('revenueDashboard.onProducts')}</p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-lg">
-              <ReceiptPercentIcon className="h-8 w-8 text-red-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Revenue Summary Cards - Row 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {/* Net Earnings */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.netEarnings')}</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatCurrency(revenue.totalEarnings)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">{t('revenueDashboard.afterCommission')}</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="text-center">
+            <div className="hidden sm:flex w-8 h-8 bg-emerald-100 rounded-lg items-center justify-center mx-auto mb-2">
+              <BanknotesIcon className="h-5 w-5 text-emerald-600" />
             </div>
-            <div className="p-3 bg-emerald-100 rounded-lg">
-              <BanknotesIcon className="h-8 w-8 text-emerald-600" />
-            </div>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{t('revenueDashboard.netEarnings')}</p>
+            <p className="text-lg sm:text-2xl font-bold text-emerald-600">
+              {formatCurrency(revenue.totalEarnings)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">{t('revenueDashboard.afterCommission')}</p>
           </div>
         </div>
 
         {/* Orders Count */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">{t('revenueDashboard.totalOrders')}</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatNumber(revenue.orderCount)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">This {selectedPeriod}</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="text-center">
+            <div className="hidden sm:flex w-8 h-8 bg-blue-100 rounded-lg items-center justify-center mx-auto mb-2">
+              <ShoppingCartIcon className="h-5 w-5 text-blue-600" />
             </div>
-            <div className="p-3 bg-amber-100 rounded-lg">
-              <ChartBarIcon className="h-8 w-8 text-amber-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Products Sold */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">Products Sold</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatNumber(revenue.totalProductsSold)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">
-                Avg {revenue.averageItemsPerOrder?.toFixed(1) || 0} per order
-              </p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <CubeIcon className="h-8 w-8 text-purple-600" />
-            </div>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{t('revenueDashboard.orders')}</p>
+            <p className="text-lg sm:text-2xl font-bold text-blue-600">
+              {formatNumber(revenue.orderCount)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">{t(`revenueDashboard.${selectedPeriod}`)}</p>
           </div>
         </div>
 
         {/* Average Order Value */}
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-stone-600">Avg Order Value</p>
-              <p className="text-2xl font-bold text-stone-800 mt-1">
-                {formatCurrency(averageOrderValue)}
-              </p>
-              <p className="text-xs text-stone-500 mt-1">Per order</p>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+          <div className="text-center">
+            <div className="hidden sm:flex w-8 h-8 bg-purple-100 rounded-lg items-center justify-center mx-auto mb-2">
+              <CalendarIcon className="h-5 w-5 text-purple-600" />
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
-              <CalendarIcon className="h-8 w-8 text-green-600" />
-            </div>
+            <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{t('revenueDashboard.averageOrderValue')}</p>
+            <p className="text-lg sm:text-2xl font-bold text-purple-600">
+              {formatCurrency(averageOrderValue)}
+            </p>
+            <p className="text-xs text-gray-500 mt-1 hidden sm:block">{t('revenueDashboard.avgPerOrder')}</p>
           </div>
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      {/* Two Column Layout - Mobile Optimized */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         {/* Top Selling Products */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center font-display">
-            <ChartBarIcon className="h-6 w-6 text-amber-600 mr-2" />
-            Top Selling Products
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+            <ChartBarIcon className="h-5 w-5 sm:h-6 sm:w-6 text-amber-600 mr-2" />
+            {t('revenueDashboard.topSellingProducts')}
           </h2>
           
           {topProducts && topProducts.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {topProducts.slice(0, 5).map((product) => (
-                <div key={product.productId} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg hover:bg-stone-100 transition-colors">
-                  <div className="flex items-center space-x-3 flex-1">
+                <div key={product.productId} className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                        <span className="text-amber-600 font-bold">{product.rank}</span>
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-amber-100 rounded-full flex items-center justify-center">
+                        <span className="text-amber-600 font-bold text-xs sm:text-sm">{product.rank}</span>
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-800 truncate">
+                      <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">
                         {product.productName}
                       </p>
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-gray-500 hidden sm:block">
                         {formatNumber(product.quantitySold)} sold • {formatNumber(product.orderCount)} orders
+                      </p>
+                      <p className="text-xs text-gray-500 sm:hidden">
+                        {formatNumber(product.quantitySold)} sold
                       </p>
                     </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-semibold text-emerald-600">
+                  <div className="ml-2 sm:ml-4 text-right">
+                    <p className="text-xs sm:text-sm font-semibold text-emerald-600">
                       {formatCurrency(product.revenue)}
                     </p>
                   </div>
@@ -277,92 +200,93 @@ export default function ArtisanRevenueDashboard() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-stone-500">
-              <p>No product sales in this period</p>
+            <div className="text-center py-6 sm:py-8 text-gray-500">
+              <p className="text-sm">{t('revenueDashboard.noRevenueMessage')}</p>
             </div>
           )}
         </div>
 
         {/* Commission & Fees Breakdown */}
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center font-display">
-            <ReceiptPercentIcon className="h-6 w-6 text-purple-600 mr-2" />
-            Commission & Earnings
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+            <ReceiptPercentIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600 mr-2" />
+            {t('revenueDashboard.revenueBreakdown')}
           </h2>
           
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {/* Visual breakdown */}
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {/* Your Earnings */}
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-emerald-700">Your Earnings</span>
-                  <span className="text-lg font-bold text-emerald-900">
+                  <span className="text-xs sm:text-sm font-medium text-emerald-700">{t('revenueDashboard.netEarnings')}</span>
+                  <span className="text-sm sm:text-lg font-bold text-emerald-900">
                     {100 - platformFeePercentage}%
                   </span>
                 </div>
-                <div className="w-full bg-emerald-200 rounded-full h-3">
+                <div className="w-full bg-emerald-200 rounded-full h-2 sm:h-3">
                   <div 
-                    className="bg-emerald-500 h-3 rounded-full" 
+                    className="bg-emerald-500 h-2 sm:h-3 rounded-full" 
                     style={{ width: `${100 - platformFeePercentage}%` }}
                   ></div>
                 </div>
-                <p className="text-xs text-emerald-600 mt-2">
-                  {formatCurrency(revenue.productEarnings)} from products
+                <p className="text-xs text-emerald-600 mt-1 sm:mt-2">
+                  {formatCurrency(revenue.productEarnings)} {t('revenueDashboard.onProducts')}
                 </p>
               </div>
 
               {/* Platform Commission */}
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-red-700">Platform Commission</span>
-                  <span className="text-lg font-bold text-red-900">
+                  <span className="text-xs sm:text-sm font-medium text-red-700">{t('revenueDashboard.platformCommission')}</span>
+                  <span className="text-sm sm:text-lg font-bold text-red-900">
                     {platformFeePercentage}%
                   </span>
                 </div>
-                <div className="w-full bg-red-200 rounded-full h-3">
+                <div className="w-full bg-red-200 rounded-full h-2 sm:h-3">
                   <div 
-                    className="bg-red-500 h-3 rounded-full" 
+                    className="bg-red-500 h-2 sm:h-3 rounded-full" 
                     style={{ width: `${platformFeePercentage}%` }}
                   ></div>
                 </div>
-                <p className="text-xs text-red-600 mt-2">
-                  {formatCurrency(revenue.totalCommission)} on products
+                <p className="text-xs text-red-600 mt-1 sm:mt-2">
+                  {formatCurrency(revenue.totalCommission)} {t('revenueDashboard.onProducts')}
                 </p>
               </div>
 
-              {/* Delivery Revenue */}
-              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-cyan-700">Delivery Fees</span>
-                  <span className="text-lg font-bold text-cyan-900">100%</span>
+              {revenue.deliveryRevenue > 0 && (
+                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs sm:text-sm font-medium text-cyan-700">{t('revenueDashboard.deliveryRevenue')}</span>
+                    <span className="text-sm sm:text-lg font-bold text-cyan-900">100%</span>
+                  </div>
+                  <div className="w-full bg-cyan-200 rounded-full h-2 sm:h-3">
+                    <div className="bg-cyan-500 h-2 sm:h-3 rounded-full" style={{ width: '100%' }}></div>
+                  </div>
+                  <p className="text-xs text-cyan-600 mt-1 sm:mt-2">
+                    {formatCurrency(revenue.deliveryRevenue)} ({t('revenueDashboard.deliveryRevenuePercent')})
+                  </p>
                 </div>
-                <div className="w-full bg-cyan-200 rounded-full h-3">
-                  <div className="bg-cyan-500 h-3 rounded-full" style={{ width: '100%' }}></div>
-                </div>
-                <p className="text-xs text-cyan-600 mt-2">
-                  {formatCurrency(revenue.deliveryRevenue)} (no commission)
-                </p>
-              </div>
+              )}
             </div>
 
             {/* Summary */}
-            <div className="border-t border-gray-200 pt-4 mt-4">
+            <div className="border-t border-gray-200 pt-3 sm:pt-4 mt-3 sm:mt-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-stone-600">Total Revenue</span>
-                <span className="text-sm font-semibold text-stone-800">
+                <span className="text-xs sm:text-sm text-gray-600">{t('revenueDashboard.totalRevenue')}</span>
+                <span className="text-xs sm:text-sm font-semibold text-gray-800">
                   {formatCurrency(revenue.totalGrossAmount)}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-stone-600">Platform Commission</span>
-                <span className="text-sm font-semibold text-red-600">
+                <span className="text-xs sm:text-sm text-gray-600">{t('revenueDashboard.platformCommission')}</span>
+                <span className="text-xs sm:text-sm font-semibold text-red-600">
                   -{formatCurrency(revenue.totalCommission)}
                 </span>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-stone-200">
-                <span className="text-base font-semibold text-stone-800">Your Total Earnings</span>
-                <span className="text-lg font-bold text-emerald-600">
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                <span className="text-sm sm:text-base font-semibold text-gray-800">{t('revenueDashboard.netEarnings')}</span>
+                <span className="text-base sm:text-lg font-bold text-emerald-600">
                   {formatCurrency(revenue.totalEarnings)}
                 </span>
               </div>
@@ -373,99 +297,99 @@ export default function ArtisanRevenueDashboard() {
 
       {/* Delivery Breakdown */}
       {revenue.deliveryRevenue > 0 && (
-        <div className="card p-6 mb-8">
-          <h2 className="text-xl font-semibold text-stone-800 mb-4 flex items-center font-display">
-            <TruckIcon className="h-6 w-6 text-blue-600 mr-2" />
-            Delivery Revenue Breakdown
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+            <TruckIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 mr-2" />
+            {t('revenueDashboard.deliveryBreakdown')}
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             {/* Pickup Orders */}
-            <div className="bg-stone-50 rounded-lg p-4 border border-stone-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-stone-700">Pickup Orders</span>
-                <span className="text-2xl font-bold text-stone-800">
+            <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+              <div className="text-center sm:text-left">
+                <p className="text-xs sm:text-sm font-medium text-gray-700 mb-1">Pickup Orders</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-800 mb-1">
                   {formatNumber(revenue.pickupOrders)}
-                </span>
+                </p>
+                <p className="text-xs text-gray-500">No delivery fee</p>
+                <p className="text-sm sm:text-lg font-semibold text-gray-600 mt-1 sm:mt-2">$0.00</p>
               </div>
-              <p className="text-xs text-stone-500">No delivery fee</p>
-              <p className="text-lg font-semibold text-stone-600 mt-2">$0.00</p>
             </div>
 
             {/* Personal Delivery */}
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-blue-700">Personal Delivery</span>
-                <span className="text-2xl font-bold text-blue-900">
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 border border-blue-200">
+              <div className="text-center sm:text-left">
+                <p className="text-xs sm:text-sm font-medium text-blue-700 mb-1">Personal Delivery</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-900 mb-1">
                   {formatNumber(revenue.personalDeliveryOrders)}
-                </span>
+                </p>
+                <p className="text-xs text-blue-600">100% to you</p>
+                <p className="text-sm sm:text-lg font-semibold text-blue-600 mt-1 sm:mt-2">
+                  {formatCurrency(deliveryBreakdown.personal?.revenue || revenue.deliveryRevenue)}
+                </p>
               </div>
-              <p className="text-xs text-blue-600">100% to you</p>
-              <p className="text-lg font-semibold text-blue-600 mt-2">
-                {formatCurrency(deliveryBreakdown.personal?.revenue || revenue.deliveryRevenue)}
-              </p>
             </div>
 
             {/* Professional Delivery */}
-            <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-emerald-700">Professional Delivery</span>
-                <span className="text-2xl font-bold text-emerald-900">
+            <div className="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200">
+              <div className="text-center sm:text-left">
+                <p className="text-xs sm:text-sm font-medium text-emerald-700 mb-1">Professional Delivery</p>
+                <p className="text-lg sm:text-2xl font-bold text-emerald-900 mb-1">
                   {formatNumber(revenue.professionalDeliveryOrders)}
-                </span>
+                </p>
+                <p className="text-xs text-emerald-600">Handled by service</p>
+                <p className="text-sm sm:text-lg font-semibold text-emerald-600 mt-1 sm:mt-2">$0.00</p>
               </div>
-              <p className="text-xs text-emerald-600">Handled by service</p>
-              <p className="text-lg font-semibold text-emerald-600 mt-2">$0.00</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Revenue Trends */}
+      {/* Revenue Trends - Mobile Optimized */}
       {trends && trends.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-            <ArrowTrendingUpIcon className="h-6 w-6 text-green-600 mr-2" />
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+            <ArrowTrendingUpIcon className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 mr-2" />
             Revenue Trends
           </h2>
           
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-3 sm:mx-0">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Period
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Orders
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Product Revenue
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                    Product Rev.
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Delivery Revenue
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                    Delivery Rev.
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Revenue
+                  <th className="px-3 sm:px-6 py-2 sm:py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {trends.map((trend, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
                       {trend.date}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-right text-gray-500">
                       {formatNumber(trend.orders)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-purple-600 font-medium">
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-right text-purple-600 font-medium hidden sm:table-cell">
                       {formatCurrency(trend.productRevenue)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-cyan-600 font-medium">
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-right text-cyan-600 font-medium hidden sm:table-cell">
                       {formatCurrency(trend.deliveryRevenue)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-accent font-semibold">
+                    <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-right text-green-600 font-semibold">
                       {formatCurrency(trend.totalRevenue)}
                     </td>
                   </tr>

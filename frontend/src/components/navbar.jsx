@@ -209,18 +209,27 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, [user, isGuest, cartCount]);
 
-  // Memoized search handler
+  // Optimized search handler - Supports 3 use cases:
+  // 1. Search with "All Products" (default)
+  // 2. Select category + type search term (e.g., baked goods -> "bread")
+  // 3. Just select category and press Enter (no search term needed)
   const handleSearch = useCallback((e) => {
     e.preventDefault();
     const query = searchQuery.trim();
     const category = selectedSubcategory ? selectedSubcategory.id : selectedCategory;
     
+    // Allow search if either query OR category is selected (not just default 'all')
     if (query || category !== 'all') {
-      // Note: Search tracking will be handled by SearchResults component after search is performed
-      
       const searchParams = new URLSearchParams();
       if (query) searchParams.append('q', query);
-      if (category !== 'all') searchParams.append('category', category);
+      if (category !== 'all') {
+        if (selectedSubcategory) {
+          searchParams.append('subcategory', selectedSubcategory.id);
+          searchParams.append('category', selectedSubcategory.categoryKey);
+        } else {
+          searchParams.append('category', category);
+        }
+      }
       navigate(`/search?${searchParams.toString()}`);
       
       // Clear search query and dropdowns after navigation
@@ -235,7 +244,7 @@ export default function Navbar() {
     }
   }, [searchQuery, selectedCategory, selectedSubcategory, navigate]);
 
-  // Optimized category change handler
+  // Optimized category change handler - Allow combining with search input
   const handleCategoryChange = useCallback((category) => {
     setSelectedCategory(category);
     setSelectedSubcategory(null);
@@ -246,31 +255,19 @@ export default function Navbar() {
       setShowSubcategoryDropdown(true);
     } else {
       setShowSubcategoryDropdown(false);
-      
-      // If no subcategories, automatically search for the main category
-      if (category !== 'all') {
-        // Automatically navigate to search with the category
-        const searchParams = new URLSearchParams();
-        searchParams.append('category', category);
-        searchParams.append('autoSearch', 'true'); // Flag to indicate automatic search
-        navigate(`/search?${searchParams.toString()}`);
-      }
     }
-  }, [navigate]);
+    
+    // Don't auto-navigate - let user combine category with search term or press Enter
+  }, []);
 
-  // Optimized subcategory change handler with automatic search
+  // Optimized subcategory change handler - Allow combining with search input
   const handleSubcategoryChange = useCallback((subcategory) => {
     setSelectedSubcategory(subcategory);
     setShowCategoryDropdown(false);
     setShowSubcategoryDropdown(false);
     
-    // Automatically navigate to search with the subcategory
-    const searchParams = new URLSearchParams();
-    searchParams.append('subcategory', subcategory.id);
-    searchParams.append('category', subcategory.categoryKey);
-    searchParams.append('autoSearch', 'true'); // Flag to indicate automatic search
-    navigate(`/search?${searchParams.toString()}`);
-  }, [navigate]);
+    // Don't auto-navigate - let user combine subcategory with search term or press Enter
+  }, []);
 
   // Clear category selection
   const clearCategorySelection = useCallback(() => {
@@ -403,12 +400,19 @@ export default function Navbar() {
     loadPopularSearches();
   }, []);
 
-  // Close dropdowns when clicking outside
+  // Close dropdowns when clicking outside - Improved to not interfere with input
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.search-container')) {
+      const searchContainer = event.target.closest('.search-container');
+      const isInput = event.target.tagName === 'INPUT';
+      
+      // Don't close if clicking on input or inside search container
+      if (!searchContainer) {
         setShowCategoryDropdown(false);
         setShowSubcategoryDropdown(false);
+        setShowPopularSearches(false);
+      } else if (!isInput) {
+        // Only close popular searches if not clicking input
         setShowPopularSearches(false);
       }
     };
@@ -551,9 +555,11 @@ export default function Navbar() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onFocus={() => setShowPopularSearches(true)}
+                    onClick={(e) => e.stopPropagation()}
                     placeholder="Search for bread, jam, jewelry, artisans..."
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-primary-100 focus:border-gray-400 transition-all duration-200 placeholder-gray-400 bg-white"
+                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-r-lg focus:outline-none focus:ring-1 focus:ring-primary-100 focus:border-gray-400 transition-all duration-200 placeholder-gray-400 bg-white relative z-10"
                     autoComplete="off"
+                    tabIndex={0}
                   />
                 </div>
                 

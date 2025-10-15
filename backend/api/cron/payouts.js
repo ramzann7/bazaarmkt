@@ -97,7 +97,7 @@ const processScheduledPayouts = async () => {
         }
         
         // Verify Stripe Connect account exists
-        if (!artisan.stripeConnectAccountId) {
+        if (!artisan.financial?.stripeConnectAccountId) {
           console.log(`⚠️ Artisan ${artisan.artisanName} has no Stripe Connect account - skipping payout`);
           errorCount++;
           results.push({
@@ -114,7 +114,7 @@ const processScheduledPayouts = async () => {
         
         try {
           // Verify Stripe Connect account status
-          const accountStatus = await stripeService.getAccountStatus(artisan.stripeConnectAccountId);
+          const accountStatus = await stripeService.getAccountStatus(artisan.financial.stripeConnectAccountId);
           
           if (!accountStatus.payouts_enabled) {
             console.log(`⚠️ Payouts not enabled for ${artisan.artisanName} - account may need verification`);
@@ -131,7 +131,7 @@ const processScheduledPayouts = async () => {
           
           // Create actual Stripe payout to artisan's bank account
           const payout = await stripeService.createPayout(
-            artisan.stripeConnectAccountId,
+            artisan.financial.stripeConnectAccountId,
             payoutAmount,
             'cad',
             {
@@ -160,7 +160,7 @@ const processScheduledPayouts = async () => {
               payoutDate: now,
               schedule: wallet.payoutSettings.schedule,
               originalBalance: payoutAmount,
-              stripeAccount: artisan.stripeConnectAccountId,
+              stripeAccount: artisan.financial.stripeConnectAccountId,
               expectedArrival: new Date(payout.arrival_date * 1000), // Convert Unix timestamp
               payoutMethod: payout.method
             },

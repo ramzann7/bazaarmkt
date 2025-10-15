@@ -2526,11 +2526,11 @@ const updateOrderStatus = async (req, res) => {
           
           // Transfer to artisan's Connect account if set up
           let transferId = null;
-          if (artisan && artisan.stripeConnectAccountId) {
+          if (artisan && artisan.financial?.stripeConnectAccountId) {
             const transfer = await stripe.transfers.create({
               amount: Math.round(artisanAmount * 100),
               currency: 'cad',
-              destination: artisan.stripeConnectAccountId,
+              destination: artisan.financial.stripeConnectAccountId,
               metadata: {
                 orderId: updatedOrder._id.toString(),
                 platformFee: platformFee.toString(),
@@ -4502,7 +4502,7 @@ const capturePaymentAndTransfer = async (req, res) => {
         _id: new (require('mongodb')).ObjectId(order.artisan)
       });
       
-      if (!artisan || !artisan.stripeConnectAccountId) {
+      if (!artisan || !artisan.financial?.stripeConnectAccountId) {
         return res.status(400).json({
           success: false,
           message: 'Artisan Stripe Connect account not found'
@@ -4513,7 +4513,7 @@ const capturePaymentAndTransfer = async (req, res) => {
       const transfer = await stripe.transfers.create({
         amount: Math.round(artisanAmount * 100), // Convert to cents
         currency: 'cad',
-        destination: artisan.stripeConnectAccountId,
+        destination: artisan.financial.stripeConnectAccountId,
         metadata: {
           orderId: order._id.toString(),
           platformFee: platformFee.toString(),
@@ -4631,12 +4631,12 @@ const autoCapturePayment = async (req, res) => {
             _id: new (require('mongodb')).ObjectId(order.artisan)
           });
           
-          if (artisan && artisan.stripeConnectAccountId) {
+          if (artisan && artisan.financial?.stripeConnectAccountId) {
             // Create transfer to artisan
             const transfer = await stripe.transfers.create({
               amount: Math.round(artisanAmount * 100),
               currency: 'cad',
-              destination: artisan.stripeConnectAccountId,
+              destination: artisan.financial.stripeConnectAccountId,
               metadata: {
                 orderId: order._id.toString(),
                 platformFee: platformFee.toString(),
@@ -4858,11 +4858,11 @@ const confirmOrderReceipt = async (req, res) => {
           const artisan = await artisansCollection.findOne({ _id: order.artisan });
           let transferId = null;
           
-          if (artisan && artisan.stripeConnectAccountId) {
+          if (artisan && artisan.financial?.stripeConnectAccountId) {
             const transfer = await stripe.transfers.create({
               amount: Math.round(artisanAmount * 100),
               currency: 'cad',
-              destination: artisan.stripeConnectAccountId,
+              destination: artisan.financial.stripeConnectAccountId,
               metadata: {
                 orderId: order._id.toString(),
                 platformFee: platformFee.toString(),

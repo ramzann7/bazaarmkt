@@ -1610,7 +1610,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
   });
   
   // State for artisans (bank information)
-  const [bankInfo, setBankInfo] = useState(profile.artisan?.bankInfo || {
+  const [bankInfo, setBankInfo] = useState(profile.artisan?.financial?.bankInfo || {
     accountHolderName: '',
     bankName: '',
     institutionNumber: '',
@@ -1643,7 +1643,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         setPaymentMethods([]);
       }
     } else {
-      setBankInfo(profile.artisan?.bankInfo || {
+      setBankInfo(profile.artisan?.financial?.bankInfo || {
         accountHolderName: '',
         bankName: '',
         institutionNumber: '',
@@ -1652,14 +1652,14 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         accountType: 'checking'
       });
     }
-  }, [profile.paymentMethods, profile.artisan?.bankInfo, isArtisan]);
+  }, [profile.paymentMethods, profile.artisan?.financial?.bankInfo, isArtisan]);
 
   // Update Stripe Connect status when profile changes
   useEffect(() => {
-    if (profile.artisan?.stripeConnectStatus) {
-      setStripeConnectStatus(profile.artisan.stripeConnectStatus);
+    if (profile.artisan?.financial?.stripeConnectStatus) {
+      setStripeConnectStatus(profile.artisan.financial.stripeConnectStatus);
     }
-  }, [profile.artisan?.stripeConnectStatus]);
+  }, [profile.artisan?.financial?.stripeConnectStatus]);
   
 
 
@@ -1744,7 +1744,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
 
   // Local state for Stripe Connect setup
   const [isSettingUpStripe, setIsSettingUpStripe] = useState(false);
-  const [stripeConnectStatus, setStripeConnectStatus] = useState(profile.artisan?.stripeConnectStatus || 'not_setup');
+  const [stripeConnectStatus, setStripeConnectStatus] = useState(profile.artisan?.financial?.stripeConnectStatus || 'not_setup');
   
   // Local state for editing bank info
   const [isEditingBankInfo, setIsEditingBankInfo] = useState(false);
@@ -1808,16 +1808,19 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
       }
 
       
-      // Save bank info to artisan profile
+      // Save bank info to artisan profile (in financial object)
       await profileService.updateArtisanProfile({
-        bankInfo: {
-          accountHolderName: bankInfo.accountHolderName.trim(),
-          bankName: bankInfo.bankName.trim(),
-          institutionNumber: bankInfo.institutionNumber.trim(),
-          transitNumber: bankInfo.transitNumber.trim(),
-          accountNumber: bankInfo.accountNumber.trim(), // Backend will encrypt this
-          accountType: bankInfo.accountType,
-          lastUpdated: new Date()
+        financial: {
+          ...profile.artisan?.financial,
+          bankInfo: {
+            accountHolderName: bankInfo.accountHolderName.trim(),
+            bankName: bankInfo.bankName.trim(),
+            institutionNumber: bankInfo.institutionNumber.trim(),
+            transitNumber: bankInfo.transitNumber.trim(),
+            accountNumber: bankInfo.accountNumber.trim(), // Backend will encrypt this
+            accountType: bankInfo.accountType,
+            lastUpdated: new Date()
+          }
         }
       });
       
@@ -2001,7 +2004,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
         )}
 
         {/* Current Bank Info Display (if saved) */}
-        {profile.artisan?.bankInfo && profile.artisan.bankInfo.accountNumber && !isEditingBankInfo && (
+        {profile.artisan?.financial?.bankInfo && profile.artisan.financial.bankInfo.accountNumber && !isEditingBankInfo && (
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start">
@@ -2009,11 +2012,11 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
                     <div className="text-sm">
                       <p className="font-medium text-emerald-900 mb-2">Bank Account Configured</p>
                       <div className="space-y-1 text-gray-700">
-                        <p><span className="font-medium">Bank:</span> {profile.artisan.bankInfo.bankName || 'Not specified'}</p>
-                        <p><span className="font-medium">Account Holder:</span> {profile.artisan.bankInfo.accountHolderName}</p>
-                        <p><span className="font-medium">Account:</span> ****{profile.artisan.bankInfo.accountNumber?.slice(-4)}</p>
-                        <p><span className="font-medium">Institution:</span> {profile.artisan.bankInfo.institutionNumber}</p>
-                        <p><span className="font-medium">Transit:</span> {profile.artisan.bankInfo.transitNumber}</p>
+                        <p><span className="font-medium">Bank:</span> {profile.artisan.financial.bankInfo.bankName || 'Not specified'}</p>
+                        <p><span className="font-medium">Account Holder:</span> {profile.artisan.financial.bankInfo.accountHolderName}</p>
+                        <p><span className="font-medium">Account:</span> ****{profile.artisan.financial.bankInfo.accountNumber?.slice(-4)}</p>
+                        <p><span className="font-medium">Institution:</span> {profile.artisan.financial.bankInfo.institutionNumber}</p>
+                        <p><span className="font-medium">Transit:</span> {profile.artisan.financial.bankInfo.transitNumber}</p>
                       </div>
                     </div>
                   </div>

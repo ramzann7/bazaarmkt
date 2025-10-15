@@ -58,26 +58,26 @@ const setupStripeConnect = async (req, res) => {
     }
     
     // Check if already set up
-    if (artisan.stripeConnectAccountId) {
+    if (artisan.financial?.stripeConnectAccountId) {
       // Verify account status
       const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-      const account = await stripe.accounts.retrieve(artisan.stripeConnectAccountId);
+      const account = await stripe.accounts.retrieve(artisan.financial.stripeConnectAccountId);
       
       return res.json({
         success: true,
         message: 'Stripe Connect already set up',
         data: {
-          accountId: artisan.stripeConnectAccountId,
+          accountId: artisan.financial.stripeConnectAccountId,
           payoutsEnabled: account.payouts_enabled,
           chargesEnabled: account.charges_enabled,
-          status: artisan.stripeConnectStatus || 'active'
+          status: artisan.financial.stripeConnectStatus || 'active'
         }
       });
     }
     
     // Decrypt bank info
     const { decryptBankInfo } = require('../../utils/encryption');
-    const decryptedBankInfo = decryptBankInfo(artisan.bankInfo);
+    const decryptedBankInfo = decryptBankInfo(artisan.financial?.bankInfo);
     
     const StripeService = require('../../services/stripeService');
     const stripeService = new StripeService();
@@ -107,10 +107,10 @@ const setupStripeConnect = async (req, res) => {
       { _id: artisan._id },
       { 
         $set: { 
-          stripeConnectAccountId: connectAccount.id,
-          stripeExternalAccountId: externalAccount.id,
-          stripeConnectStatus: 'active',
-          stripeConnectSetupAt: new Date(),
+          'financial.stripeConnectAccountId': connectAccount.id,
+          'financial.stripeExternalAccountId': externalAccount.id,
+          'financial.stripeConnectStatus': 'active',
+          'financial.stripeConnectSetupAt': new Date(),
           updatedAt: new Date()
         }
       }
@@ -268,14 +268,14 @@ const getStripeConnectStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Artisan profile not found' });
     }
     
-    if (!artisan.stripeConnectAccountId) {
+    if (!artisan.financial?.stripeConnectAccountId) {
       return res.json({
         success: true,
         data: {
           isSetup: false,
-          hasBankInfo: !!(artisan.bankInfo && artisan.bankInfo.accountNumber),
+          hasBankInfo: !!(artisan.financial?.bankInfo && artisan.financial.bankInfo.accountNumber),
           status: 'not_setup',
-          message: artisan.bankInfo ? 
+          message: artisan.financial?.bankInfo ? 
             'Bank info available. Ready to setup Stripe Connect.' :
             'Please add bank information first.'
         }
@@ -284,17 +284,17 @@ const getStripeConnectStatus = async (req, res) => {
     
     // Get live status from Stripe
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-    const account = await stripe.accounts.retrieve(artisan.stripeConnectAccountId);
+    const account = await stripe.accounts.retrieve(artisan.financial.stripeConnectAccountId);
     
     res.json({
       success: true,
       data: {
         isSetup: true,
-        accountId: artisan.stripeConnectAccountId,
+        accountId: artisan.financial.stripeConnectAccountId,
         payoutsEnabled: account.payouts_enabled,
         chargesEnabled: account.charges_enabled,
-        status: artisan.stripeConnectStatus || 'active',
-        setupAt: artisan.stripeConnectSetupAt,
+        status: artisan.financial.stripeConnectStatus || 'active',
+        setupAt: artisan.financial.stripeConnectSetupAt,
         requirements: account.requirements,
         detailsSubmitted: account.details_submitted
       }

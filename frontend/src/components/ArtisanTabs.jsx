@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PRODUCT_CATEGORIES } from '../data/productReference';
 import Accordion, { AccordionSection } from './common/Accordion';
 import CompactImageUpload from './common/CompactImageUpload';

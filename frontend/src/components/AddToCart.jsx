@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   ShoppingCartIcon, 
   PlusIcon, 
@@ -22,6 +23,7 @@ const AddToCart = ({
   showQuantity = true,
   showReadinessInfo = true
 }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
@@ -37,15 +39,15 @@ const AddToCart = ({
         if (product.stock > 0) {
           return {
             icon: '📦',
-            status: 'Ready Now',
-            description: `${product.stock} available for immediate pickup`,
+            status: t('productDetails.readyNow'),
+            description: `${product.stock} ${t('productDetails.availableForPickup')}`,
             color: 'text-green-600'
           };
         } else {
           return {
             icon: '❌',
-            status: 'Out of Stock',
-            description: 'Currently unavailable',
+            status: t('productDetails.outOfStock'),
+            description: t('productDetails.currentlyUnavailable'),
             color: 'text-red-600'
           };
         }
@@ -53,8 +55,8 @@ const AddToCart = ({
       case 'made_to_order':
         return {
           icon: '⚙️',
-          status: 'Made to Order',
-          description: `${product.leadTime || 1} ${product.leadTimeUnit || 'days'} lead time • Max ${product.maxOrderQuantity || 10} per order • Total capacity: ${product.totalCapacity || 10}`,
+          status: t('productDetails.madeToOrder'),
+          description: `${product.leadTime || 1} ${product.leadTimeUnit || t('productDetails.days')} ${t('productDetails.leadTime')} • ${t('productDetails.max')} ${product.maxOrderQuantity || 10} ${t('productDetails.perOrder')} • ${t('productDetails.totalCapacity')}: ${product.totalCapacity || 10}`,
           color: 'text-blue-600'
         };
       

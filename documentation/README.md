@@ -1,4 +1,4 @@
-# BazaarMKT Documentation
+# BazaarMKT - Local Artisan Marketplace
 
 ## 🎉 **NEW: Mobile Optimization Project Complete!**
 

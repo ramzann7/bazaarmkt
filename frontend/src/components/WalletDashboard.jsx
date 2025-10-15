@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   CreditCardIcon, 
   ArrowUpIcon, 
@@ -15,6 +16,7 @@ import toast from 'react-hot-toast';
 import WalletTopUp from './WalletTopUp';
 
 const WalletDashboard = () => {
+  const { t } = useTranslation();
   const [walletData, setWalletData] = useState(null);
   const [stats, setStats] = useState(null);
   const [artisanProfile, setArtisanProfile] = useState(null);

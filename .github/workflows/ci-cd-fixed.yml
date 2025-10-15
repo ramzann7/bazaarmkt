@@ -164,17 +164,21 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Check if Vercel secrets are configured
+      id: check-secrets
       run: |
         if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
           echo "⚠️ Vercel secrets not configured - skipping deployment"
           echo "To enable automatic deployments:"
           echo "1. Get Vercel token from https://vercel.com/account/tokens"
           echo "2. Add VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID to GitHub secrets"
-          exit 0
+          echo "configured=false" >> $GITHUB_OUTPUT
+        else
+          echo "✅ Vercel secrets configured"
+          echo "configured=true" >> $GITHUB_OUTPUT
         fi
 
     - name: Deploy to Vercel
-      if: secrets.VERCEL_TOKEN != ''
+      if: steps.check-secrets.outputs.configured == 'true'
       uses: amondnet/vercel-action@v25
       with:
         vercel-token: ${{ secrets.VERCEL_TOKEN }}

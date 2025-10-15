@@ -96,6 +96,7 @@ export default function SearchResults() {
     setLocalSearchQuery(query);
   }, [query]);
 
+
   // Use product reference data for categories
   const [availableCategories, setAvailableCategories] = useState([]);
 
@@ -652,7 +653,6 @@ export default function SearchResults() {
     }
   };
 
-
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -703,21 +703,21 @@ export default function SearchResults() {
             />
           </div>
           <div className="hidden lg:block">
-            {/* Desktop Search Bar */}
-            <div className="relative">
+            {/* Desktop Search Bar - Subtle */}
+            <div className="relative max-w-md">
               <input
                 type="search"
                 inputMode="search"
                 value={localSearchQuery}
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearchInput(localSearchQuery)}
-                placeholder="Search products and artisans..."
-                className="w-full h-12 pl-12 pr-4 text-base bg-white rounded-lg border-2 border-gray-200 
-                          focus:outline-none focus:ring-2 focus:ring-[#D77A61] focus:border-transparent
+                placeholder="Refine your search..."
+                className="w-full h-10 pl-10 pr-4 text-sm bg-gray-50 rounded-lg border border-gray-200 
+                          focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500
                           placeholder:text-gray-500 transition-all duration-200"
-                aria-label="Search"
+                aria-label="Refine search"
               />
-              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
+              <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
           </div>
         </div>

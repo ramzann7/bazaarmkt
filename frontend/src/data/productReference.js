@@ -627,6 +627,14 @@ export const getSubcategoryName = (subcategoryKey, categoryKey) => {
 };
 
 // Popular product names for search suggestions
+export const getFeaturedCategories = () => {
+  return [
+    { key: 'food_beverages', name: 'Food & Beverages', icon: '🍽️' },
+    { key: 'handmade_crafts', name: 'Handmade Crafts', icon: '🎨' },
+    { key: 'clothing_accessories', name: 'Clothing & Accessories', icon: '👕' }
+  ];
+};
+
 export const getPopularProducts = () => [
   "Handmade Jewelry",
   "Artisan Bread",

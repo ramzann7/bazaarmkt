@@ -495,6 +495,51 @@ export default function Navbar() {
               </div>
             )}
 
+          {/* Mobile Search Bar */}
+          <div className="lg:hidden flex-1 mx-4">
+            <form onSubmit={handleSearch} className="w-full">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setShowPopularSearches(true)}
+                  onBlur={() => {
+                    // Delay to allow popular search clicks to register
+                    setTimeout(() => setShowPopularSearches(false), 200);
+                  }}
+                  placeholder="Search products..."
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all duration-200 placeholder-gray-400 bg-white"
+                  autoComplete="off"
+                  autoFocus={false}
+                />
+              </div>
+              
+              {/* Popular Searches Dropdown - Mobile */}
+              {showPopularSearches && searchQuery === '' && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl z-50 mx-4">
+                  <div className="p-3">
+                    <p className="text-xs font-semibold text-secondary mb-2">
+                      Popular searches:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {deduplicatedPopularSearches.map((search, index) => (
+                        <button
+                          key={`${search}-${index}`}
+                          onClick={() => handlePopularSearch(search)}
+                          className="px-2 py-1 bg-gray-100 hover:bg-amber-600 text-gray-700 hover:text-white rounded text-xs font-medium transition-all duration-200"
+                        >
+                          {search}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+
           {/* Mobile menu button */}
           <button
             onClick={toggleMobileMenu}

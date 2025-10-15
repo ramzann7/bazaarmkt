@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ClockIcon,
   CheckCircleIcon,
@@ -29,7 +30,9 @@ const MobileOrderCard = ({
   className = '',
   defaultExpanded = false
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  
   // Status configuration
   const statusConfig = {
     pending: {
@@ -37,49 +40,49 @@ const MobileOrderCard = ({
       color: 'text-yellow-600',
       bg: 'bg-yellow-50',
       border: 'border-yellow-200',
-      label: 'Pending'
+      label: t('orders.statuses.pending')
     },
     confirmed: {
       icon: CheckCircleIcon,
       color: 'text-blue-600',
       bg: 'bg-blue-50',
       border: 'border-blue-200',
-      label: 'Confirmed'
+      label: t('orders.statuses.confirmed')
     },
     preparing: {
       icon: ShoppingBagIcon,
       color: 'text-purple-600',
       bg: 'bg-purple-50',
       border: 'border-purple-200',
-      label: 'Preparing'
+      label: t('orders.statuses.processing')
     },
     ready_for_pickup: {
       icon: CheckCircleIcon,
       color: 'text-green-600',
       bg: 'bg-green-50',
       border: 'border-green-200',
-      label: 'Ready'
+      label: t('mobile.ready')
     },
     out_for_delivery: {
       icon: TruckIcon,
       color: 'text-blue-600',
       bg: 'bg-blue-50',
       border: 'border-blue-200',
-      label: 'Delivering'
+      label: t('mobile.delivering')
     },
     completed: {
       icon: CheckCircleIcon,
       color: 'text-green-600',
       bg: 'bg-green-50',
       border: 'border-green-200',
-      label: 'Completed'
+      label: t('orders.statuses.completed')
     },
     cancelled: {
       icon: XCircleIcon,
       color: 'text-red-600',
       bg: 'bg-red-50',
       border: 'border-red-200',
-      label: 'Cancelled'
+      label: t('orders.statuses.cancelled')
     }
   };
 
@@ -141,7 +144,7 @@ const MobileOrderCard = ({
               #{order.orderNumber || order._id?.slice(-6)}
             </p>
             <p className="text-xs text-gray-500 truncate">
-              {itemCount} {itemCount === 1 ? 'item' : 'items'} • {formatDate(order.createdAt)}
+              {t('checkout.itemCount', { count: itemCount })} • {formatDate(order.createdAt)}
             </p>
           </div>
         </div>
@@ -206,12 +209,12 @@ const MobileOrderCard = ({
               {order.deliveryMethod === 'delivery' ? (
                 <>
                   <TruckIcon className="w-4 h-4 flex-shrink-0" />
-                  <span>Delivery</span>
+                  <span>{t('checkout.delivery')}</span>
                 </>
               ) : (
                 <>
                   <MapPinIcon className="w-4 h-4 flex-shrink-0" />
-                  <span>Pickup</span>
+                  <span>{t('checkout.pickup')}</span>
                 </>
               )}
             </div>
@@ -219,7 +222,7 @@ const MobileOrderCard = ({
           
           {/* Order Total */}
           <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-            <span className="text-sm font-medium text-gray-700">Total</span>
+            <span className="text-sm font-medium text-gray-700">{t('common.total')}</span>
             <span className="text-base font-bold text-gray-900">
               {formatPrice(order.totalAmount || order.totalPrice || 0)}
             </span>
@@ -234,18 +237,18 @@ const MobileOrderCard = ({
               }}
               className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 active:bg-gray-300 transition-colors min-h-[40px]"
             >
-              View Details
+              {t('orders.viewDetails')}
             </button>
             
-            {onQuickAction && (status.label === 'Ready' || status.label === 'Pending') && (
+            {onQuickAction && (status.label === t('mobile.ready') || status.label === t('orders.statuses.pending')) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onQuickAction(order, status.label === 'Ready' ? 'mark_delivered' : 'confirm');
+                  onQuickAction(order, status.label === t('mobile.ready') ? 'mark_delivered' : 'confirm');
                 }}
                 className="px-3 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 active:bg-green-700 transition-colors min-h-[40px]"
               >
-                {status.label === 'Ready' ? 'Mark Delivered' : 'Confirm Order'}
+                {status.label === t('mobile.ready') ? t('mobile.markDelivered') : t('mobile.confirmOrder')}
               </button>
             )}
           </div>

@@ -113,7 +113,8 @@
     "reachCustomers": "Rejoindre de nouveaux clients locaux",
     "flexibleDelivery": "Options de livraison flexibles",
     "simpleOnboarding": "Intégration et paiements simples",
-    "analyticsInsights": "Analytiques et aperçus"
+    "analyticsInsights": "Analytiques et aperçus",
+    "sessionExpired": "Session expirée. Veuillez vous reconnecter."
   },
   "home": {
     "hero": {
@@ -645,6 +646,9 @@
   "account": {
     "title": "Mon compte",
     "settings": "Paramètres du compte",
+    "subtitle": "Gérez votre compte, commandes et préférences",
+    "loggedOutSuccess": "Déconnexion réussie!",
+    "signOut": "Déconnexion",
     "personalInfo": "Informations personnelles",
     "profileSettings": "Paramètres du profil",
     "accountDetails": "Détails du compte",
@@ -655,9 +659,10 @@
     "confirmNewPassword": "Confirmer le nouveau mot de passe",
     "updatePassword": "Mettre à jour le mot de passe",
     "passwordUpdated": "Mot de passe mis à jour avec succès",
-    "addresses": "Adresses",
+    "addresses": "Adresses de livraison",
     "savedAddresses": "Adresses enregistrées",
     "addNewAddress": "Ajouter une nouvelle adresse",
+    "addAddress": "Ajouter une adresse",
     "defaultAddress": "Adresse par défaut",
     "setDefault": "Définir par défaut",
     "deleteAddress": "Supprimer l'adresse",
@@ -677,7 +682,43 @@
     "deleteAccount": "Supprimer le compte",
     "deleteAccountWarning": "Cette action ne peut pas être annulée",
     "confirmDelete": "Confirmer la suppression",
-    "accountDeleted": "Compte supprimé avec succès"
+    "accountDeleted": "Compte supprimé avec succès",
+    "favoriteArtisans": "Artisans favoris",
+    "paymentMethods": "Modes de paiement",
+    "artisanDashboardAccess": "Tableau de bord artisan",
+    "artisanDashboardDescription": "Les artisans ont accès à un tableau de bord dédié avec des analyses d'affaires.",
+    "goToArtisanDashboard": "Aller au tableau de bord artisan",
+    "welcomeBack": "Bon retour, {{name}}!",
+    "dashboardSubtitle": "Voici ce qui se passe avec votre compte de marché local aujourd'hui.",
+    "totalOrders": "Total des commandes",
+    "totalSpent": "Total dépensé",
+    "avgRating": "Note moyenne",
+    "recentOrders": "Commandes récentes",
+    "noAddressesYet": "Aucune adresse ajoutée pour le moment.",
+    "addAddressesHelp": "Ajoutez vos adresses de livraison pour faciliter vos commandes.",
+    "addressType": "Type d'adresse",
+    "label": "Libellé",
+    "streetAddress": "Adresse civique",
+    "home": "Domicile",
+    "work": "Travail",
+    "other": "Autre",
+    "addressAdded": "Adresse ajoutée avec succès!",
+    "addressRemoved": "Adresse supprimée avec succès!",
+    "remove": "Supprimer",
+    "orderNotifications": "Mises à jour des commandes",
+    "orderNotificationsDesc": "Recevez des notifications sur le statut de vos commandes",
+    "newProducts": "Nouveaux produits",
+    "newProductsDesc": "Soyez le premier à connaître les nouveaux produits de vos artisans favoris",
+    "communityEvents": "Événements communautaires",
+    "communityEventsDesc": "Recevez des notifications sur les événements et ateliers d'artisans locaux",
+    "seasonalOffers": "Offres saisonnières",
+    "seasonalOffersDesc": "Recevez des offres spéciales et des promotions saisonnières",
+    "addPaymentMethod": "Ajouter un mode de paiement",
+    "noPaymentMethods": "Aucun mode de paiement ajouté pour le moment.",
+    "addPaymentMethodHelp": "Ajoutez un mode de paiement pour un paiement plus rapide.",
+    "twoFactorAuth": "Authentification à deux facteurs",
+    "twoFactorAuthDesc": "Ajoutez une couche de sécurité supplémentaire",
+    "visit": "Visiter"
   },
   "productDetails": {
     "title": "Détails du produit",
@@ -804,5 +845,11 @@
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce produit?",
     "productDeleted": "Produit supprimé avec succès",
     "productDeleteFailed": "Échec de la suppression du produit"
+  },
+  "mobile": {
+    "ready": "Prêt",
+    "delivering": "En livraison",
+    "markDelivered": "Marquer comme livré",
+    "confirmOrder": "Confirmer la commande"
   }
 }

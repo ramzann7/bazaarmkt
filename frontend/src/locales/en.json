@@ -113,7 +113,8 @@
     "reachCustomers": "Reach new local customers",
     "flexibleDelivery": "Flexible delivery options",
     "simpleOnboarding": "Simple onboarding & payments",
-    "analyticsInsights": "Analytics & insights"
+    "analyticsInsights": "Analytics & insights",
+    "sessionExpired": "Session expired. Please login again."
   },
   "home": {
     "hero": {
@@ -645,6 +646,9 @@
   "account": {
     "title": "My Account",
     "settings": "Account Settings",
+    "subtitle": "Manage your account, orders, and preferences",
+    "loggedOutSuccess": "Logged out successfully!",
+    "signOut": "Sign Out",
     "personalInfo": "Personal Information",
     "profileSettings": "Profile Settings",
     "accountDetails": "Account Details",
@@ -655,9 +659,10 @@
     "confirmNewPassword": "Confirm New Password",
     "updatePassword": "Update Password",
     "passwordUpdated": "Password updated successfully",
-    "addresses": "Addresses",
+    "addresses": "Delivery Addresses",
     "savedAddresses": "Saved Addresses",
     "addNewAddress": "Add New Address",
+    "addAddress": "Add Address",
     "defaultAddress": "Default Address",
     "setDefault": "Set as Default",
     "deleteAddress": "Delete Address",
@@ -677,7 +682,43 @@
     "deleteAccount": "Delete Account",
     "deleteAccountWarning": "This action cannot be undone",
     "confirmDelete": "Confirm Deletion",
-    "accountDeleted": "Account deleted successfully"
+    "accountDeleted": "Account deleted successfully",
+    "favoriteArtisans": "Favorite Artisans",
+    "paymentMethods": "Payment Methods",
+    "artisanDashboardAccess": "Artisan Dashboard",
+    "artisanDashboardDescription": "Artisans have access to a dedicated dashboard with business analytics.",
+    "goToArtisanDashboard": "Go to Artisan Dashboard",
+    "welcomeBack": "Welcome back, {{name}}!",
+    "dashboardSubtitle": "Here's what's happening with your local marketplace account today.",
+    "totalOrders": "Total Orders",
+    "totalSpent": "Total Spent",
+    "avgRating": "Avg Rating",
+    "recentOrders": "Recent Orders",
+    "noAddressesYet": "No addresses added yet.",
+    "addAddressesHelp": "Add your delivery addresses to make ordering easier.",
+    "addressType": "Address Type",
+    "label": "Label",
+    "streetAddress": "Street Address",
+    "home": "Home",
+    "work": "Work",
+    "other": "Other",
+    "addressAdded": "Address added successfully!",
+    "addressRemoved": "Address removed successfully!",
+    "remove": "Remove",
+    "orderNotifications": "Order Updates",
+    "orderNotificationsDesc": "Get notified about your order status",
+    "newProducts": "New Products",
+    "newProductsDesc": "Be the first to know about new products from your favorite artisans",
+    "communityEvents": "Community Events",
+    "communityEventsDesc": "Get notified about local artisan events and workshops",
+    "seasonalOffers": "Seasonal Offers",
+    "seasonalOffersDesc": "Receive special offers and seasonal promotions",
+    "addPaymentMethod": "Add Payment Method",
+    "noPaymentMethods": "No payment methods added yet.",
+    "addPaymentMethodHelp": "Add a payment method for faster checkout.",
+    "twoFactorAuth": "Two-Factor Authentication",
+    "twoFactorAuthDesc": "Add an extra layer of security",
+    "visit": "Visit"
   },
   "productDetails": {
     "title": "Product Details",
@@ -815,5 +856,11 @@
     "confirmDelete": "Are you sure you want to delete this product?",
     "productDeleted": "Product deleted successfully",
     "productDeleteFailed": "Failed to delete product"
+  },
+  "mobile": {
+    "ready": "Ready",
+    "delivering": "Delivering",
+    "markDelivered": "Mark Delivered",
+    "confirmOrder": "Confirm Order"
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   UserIcon, 
   ShoppingBagIcon, 
@@ -24,6 +25,7 @@ import { getImageUrl, handleImageError } from '../utils/imageUtils.js';
 import toast from 'react-hot-toast';
 
 export default function Account() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -99,25 +101,25 @@ export default function Account() {
     
     if (isArtisan) {
       return [
-        { id: 'dashboard', name: 'Dashboard', icon: UserIcon, action: () => navigate('/dashboard') },
-        { id: 'personal', name: 'Personal Info', icon: UserIcon },
-        { id: 'orders', name: 'My Orders', icon: ShoppingBagIcon },
-        { id: 'notifications', name: 'Notifications', icon: BellIcon },
-        { id: 'payment', name: 'Payment Methods', icon: CreditCardIcon },
-        { id: 'security', name: 'Security', icon: ShieldCheckIcon },
-        { id: 'settings', name: 'Account Settings', icon: CogIcon }
+        { id: 'dashboard', name: t('nav.dashboard'), icon: UserIcon, action: () => navigate('/dashboard') },
+        { id: 'personal', name: t('account.personalInfo'), icon: UserIcon },
+        { id: 'orders', name: t('nav.myOrders'), icon: ShoppingBagIcon },
+        { id: 'notifications', name: t('account.notifications'), icon: BellIcon },
+        { id: 'payment', name: t('account.paymentMethods'), icon: CreditCardIcon },
+        { id: 'security', name: t('account.security'), icon: ShieldCheckIcon },
+        { id: 'settings', name: t('account.settings'), icon: CogIcon }
       ];
     } else {
       return [
-        { id: 'dashboard', name: 'Dashboard', icon: UserIcon },
-        { id: 'personal', name: 'Personal Info', icon: UserIcon },
-        { id: 'addresses', name: 'Delivery Addresses', icon: MapPinIcon },
-        { id: 'orders', name: 'My Orders', icon: ShoppingBagIcon },
-        { id: 'favorites', name: 'Favorite Artisans', icon: HeartIcon },
-        { id: 'notifications', name: 'Notifications', icon: BellIcon },
-        { id: 'payment', name: 'Payment Methods', icon: CreditCardIcon },
-        { id: 'security', name: 'Security', icon: ShieldCheckIcon },
-        { id: 'settings', name: 'Account Settings', icon: CogIcon }
+        { id: 'dashboard', name: t('nav.dashboard'), icon: UserIcon },
+        { id: 'personal', name: t('account.personalInfo'), icon: UserIcon },
+        { id: 'addresses', name: t('account.addresses'), icon: MapPinIcon },
+        { id: 'orders', name: t('nav.myOrders'), icon: ShoppingBagIcon },
+        { id: 'favorites', name: t('account.favoriteArtisans'), icon: HeartIcon },
+        { id: 'notifications', name: t('account.notifications'), icon: BellIcon },
+        { id: 'payment', name: t('account.paymentMethods'), icon: CreditCardIcon },
+        { id: 'security', name: t('account.security'), icon: ShieldCheckIcon },
+        { id: 'settings', name: t('account.settings'), icon: CogIcon }
       ];
     }
   };
@@ -140,7 +142,7 @@ export default function Account() {
           }
         }
       } catch (err) {
-        toast.error("Session expired. Please login again.");
+        toast.error(t('auth.sessionExpired'));
         logoutUser();
         navigate("/login");
       } finally {
@@ -162,7 +164,7 @@ export default function Account() {
 
   const handleLogout = () => {
     logoutUser();
-    toast.success("Logged out successfully!");
+    toast.success(t('account.loggedOutSuccess'));
     navigate("/");
   };
 
@@ -196,15 +198,15 @@ export default function Account() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-stone-900 mb-2">My Account</h1>
-              <p className="text-gray-600">Manage your account, orders, and preferences</p>
+              <h1 className="text-3xl font-bold text-stone-900 mb-2">{t('account.title')}</h1>
+              <p className="text-gray-600">{t('account.subtitle')}</p>
             </div>
             <button
               onClick={handleLogout}
               className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
               <ArrowLeftIcon className="w-4 h-4" />
-              <span>Sign Out</span>
+              <span>{t('account.signOut')}</span>
             </button>
           </div>
         </div>
@@ -243,42 +245,42 @@ export default function Account() {
           <div className="p-6">
             {activeTab === 'dashboard' && user && user.role === 'artisan' && (
               <div className="text-center py-8">
-                <h3 className="text-lg font-semibold text-stone-900 mb-2">Artisan Dashboard</h3>
-                <p className="text-gray-600 mb-4">Artisans have access to a dedicated dashboard with business analytics.</p>
+                <h3 className="text-lg font-semibold text-stone-900 mb-2">{t('account.artisanDashboardAccess')}</h3>
+                <p className="text-gray-600 mb-4">{t('account.artisanDashboardDescription')}</p>
                 <button
                   onClick={() => navigate('/dashboard')}
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
                 >
-                  Go to Artisan Dashboard
+                  {t('account.goToArtisanDashboard')}
                 </button>
               </div>
             )}
             {activeTab === 'dashboard' && user && user.role !== 'artisan' && (
-              <DashboardTab user={user} stats={stats} recentOrders={recentOrders} favoriteArtisans={favoriteArtisans} getStatusColor={getStatusColor} />
+              <DashboardTab user={user} stats={stats} recentOrders={recentOrders} favoriteArtisans={favoriteArtisans} getStatusColor={getStatusColor} t={t} />
             )}
             {activeTab === 'personal' && (
-              <PersonalInfoTab user={user} />
+              <PersonalInfoTab user={user} t={t} />
             )}
             {activeTab === 'addresses' && (
-              <AddressesTab user={user} />
+              <AddressesTab user={user} t={t} />
             )}
             {activeTab === 'orders' && (
-              <OrdersTab recentOrders={recentOrders} getStatusColor={getStatusColor} />
+              <OrdersTab recentOrders={recentOrders} getStatusColor={getStatusColor} t={t} />
             )}
             {activeTab === 'favorites' && (
-              <FavoritesTab favoriteArtisans={favoriteArtisans} />
+              <FavoritesTab favoriteArtisans={favoriteArtisans} t={t} />
             )}
             {activeTab === 'notifications' && (
-              <NotificationsTab user={user} />
+              <NotificationsTab user={user} t={t} />
             )}
             {activeTab === 'payment' && (
-              <PaymentTab user={user} />
+              <PaymentTab user={user} t={t} />
             )}
             {activeTab === 'security' && (
-              <SecurityTab />
+              <SecurityTab t={t} />
             )}
             {activeTab === 'settings' && (
-              <SettingsTab user={user} />
+              <SettingsTab user={user} t={t} />
             )}
           </div>
         </div>
@@ -288,16 +290,16 @@ export default function Account() {
 }
 
 // Dashboard Tab Component
-function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusColor }) {
+function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusColor, t }) {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-amber-50 to-stone-50 rounded-xl p-6">
         <h2 className="text-2xl font-bold text-stone-900 mb-2">
-          Welcome back, {user.firstName}!
+          {t('account.welcomeBack', { name: user.firstName })}
         </h2>
         <p className="text-gray-600">
-          Here's what's happening with your local marketplace account today.
+          {t('account.dashboardSubtitle')}
         </p>
       </div>
 
@@ -309,7 +311,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
               <ShoppingBagIcon className="w-6 h-6 text-primary" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Orders</p>
+              <p className="text-sm font-medium text-gray-600">{t('account.totalOrders')}</p>
               <p className="text-2xl font-bold text-stone-900">{stats.totalOrders}</p>
             </div>
           </div>
@@ -321,7 +323,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
               <CreditCardIcon className="w-6 h-6 text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Spent</p>
+              <p className="text-sm font-medium text-gray-600">{t('account.totalSpent')}</p>
               <p className="text-2xl font-bold text-stone-900">${stats.totalSpent}</p>
             </div>
           </div>
@@ -333,7 +335,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
               <HeartIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Favorite Artisans</p>
+              <p className="text-sm font-medium text-gray-600">{t('account.favoriteArtisans')}</p>
               <p className="text-2xl font-bold text-stone-900">{stats.favoriteArtisans}</p>
             </div>
           </div>
@@ -345,7 +347,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
               <StarIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Avg Rating</p>
+              <p className="text-sm font-medium text-gray-600">{t('account.avgRating')}</p>
               <p className="text-2xl font-bold text-stone-900">{stats.averageRating}</p>
             </div>
           </div>
@@ -355,7 +357,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
       {/* Recent Orders */}
       <div className="bg-white border border-gray-200 rounded-xl">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-stone-900">Recent Orders</h3>
+          <h3 className="text-lg font-semibold text-stone-900">{t('account.recentOrders')}</h3>
         </div>
         <div className="divide-y divide-stone-200">
           {recentOrders.map((order) => (
@@ -381,7 +383,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
       {/* Favorite Artisans */}
       <div className="bg-white border border-gray-200 rounded-xl">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-stone-900">Favorite Artisans</h3>
+          <h3 className="text-lg font-semibold text-stone-900">{t('account.favoriteArtisans')}</h3>
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -419,7 +421,7 @@ function DashboardTab({ user, stats, recentOrders, favoriteArtisans, getStatusCo
 }
 
 // Personal Info Tab Component
-function PersonalInfoTab({ user }) {
+function PersonalInfoTab({ user, t }) {
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
     lastName: user.lastName || '',
@@ -430,17 +432,17 @@ function PersonalInfoTab({ user }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // TODO: Implement profile update functionality
-    toast.success('Profile updated successfully!');
+    toast.success(t('profile.profileUpdated'));
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-stone-900 mb-4">Personal Information</h3>
+        <h3 className="text-lg font-semibold text-stone-900 mb-4">{t('account.personalInfo')}</h3>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">First Name</label>
+              <label className="block text-sm font-medium text-secondary mb-2">{t('auth.firstName')}</label>
               <input
                 type="text"
                 value={formData.firstName}
@@ -449,7 +451,7 @@ function PersonalInfoTab({ user }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Last Name</label>
+              <label className="block text-sm font-medium text-secondary mb-2">{t('auth.lastName')}</label>
               <input
                 type="text"
                 value={formData.lastName}
@@ -458,7 +460,7 @@ function PersonalInfoTab({ user }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Email</label>
+              <label className="block text-sm font-medium text-secondary mb-2">{t('common.email')}</label>
               <input
                 type="email"
                 value={formData.email}
@@ -467,7 +469,7 @@ function PersonalInfoTab({ user }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Phone</label>
+              <label className="block text-sm font-medium text-secondary mb-2">{t('common.phone')}</label>
               <input
                 type="tel"
                 value={formData.phone}
@@ -478,7 +480,7 @@ function PersonalInfoTab({ user }) {
           </div>
           <div>
             <button type="submit" className="btn-primary">
-              Save Changes
+              {t('common.saveChanges')}
             </button>
           </div>
         </form>
@@ -488,7 +490,7 @@ function PersonalInfoTab({ user }) {
 }
 
 // Addresses Tab Component
-function AddressesTab({ user }) {
+function AddressesTab({ user, t }) {
   const [addresses, setAddresses] = useState(user.addresses || []);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
@@ -516,47 +518,47 @@ function AddressesTab({ user }) {
       zipCode: ''
     });
     setShowAddForm(false);
-    toast.success('Address added successfully!');
+    toast.success(t('account.addressAdded'));
   };
 
   const handleDeleteAddress = (id) => {
     setAddresses(addresses.filter(addr => addr.id !== id));
-    toast.success('Address removed successfully!');
+    toast.success(t('account.addressRemoved'));
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-stone-900">Delivery Addresses</h3>
+        <h3 className="text-lg font-semibold text-stone-900">{t('account.addresses')}</h3>
         <button 
           onClick={() => setShowAddForm(!showAddForm)}
           className="btn-primary btn-small"
         >
           <PlusIcon className="w-4 h-4 mr-2" />
-          Add Address
+          {t('account.addAddress')}
         </button>
       </div>
 
       {/* Add Address Form */}
       {showAddForm && (
         <div className="bg-gray-50 rounded-lg p-6">
-          <h4 className="text-lg font-medium text-stone-900 mb-4">Add New Address</h4>
+          <h4 className="text-lg font-medium text-stone-900 mb-4">{t('account.addNewAddress')}</h4>
           <form onSubmit={handleAddAddress} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">Address Type</label>
+                <label className="block text-sm font-medium text-secondary mb-2">{t('account.addressType')}</label>
                 <select
                   value={newAddress.type}
                   onChange={(e) => setNewAddress({...newAddress, type: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
-                  <option value="home">Home</option>
-                  <option value="work">Work</option>
-                  <option value="other">Other</option>
+                  <option value="home">{t('account.home')}</option>
+                  <option value="work">{t('account.work')}</option>
+                  <option value="other">{t('account.other')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">Label</label>
+                <label className="block text-sm font-medium text-secondary mb-2">{t('account.label')}</label>
                 <input
                   type="text"
                   value={newAddress.label}
@@ -567,7 +569,7 @@ function AddressesTab({ user }) {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-secondary mb-2">Street Address</label>
+              <label className="block text-sm font-medium text-secondary mb-2">{t('account.streetAddress')}</label>
               <input
                 type="text"
                 required
@@ -579,7 +581,7 @@ function AddressesTab({ user }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">City</label>
+                <label className="block text-sm font-medium text-secondary mb-2">{t('common.city')}</label>
                 <input
                   type="text"
                   required
@@ -589,7 +591,7 @@ function AddressesTab({ user }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">State</label>
+                <label className="block text-sm font-medium text-secondary mb-2">{t('common.province')}</label>
                 <input
                   type="text"
                   required
@@ -599,7 +601,7 @@ function AddressesTab({ user }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-secondary mb-2">ZIP Code</label>
+                <label className="block text-sm font-medium text-secondary mb-2">{t('common.postalCode')}</label>
                 <input
                   type="text"
                   required
@@ -611,14 +613,14 @@ function AddressesTab({ user }) {
             </div>
             <div className="flex space-x-3">
               <button type="submit" className="btn-primary">
-                Add Address
+                {t('account.addAddress')}
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}
                 className="btn-secondary"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </form>
@@ -651,7 +653,7 @@ function AddressesTab({ user }) {
                 onClick={() => handleDeleteAddress(address.id)}
                 className="text-red-500 hover:text-red-700"
               >
-                Remove
+                {t('account.remove')}
               </button>
             </div>
           ))}
@@ -659,8 +661,8 @@ function AddressesTab({ user }) {
       ) : (
         <div className="text-center py-8 text-stone-500">
           <MapPinIcon className="w-12 h-12 mx-auto mb-4 text-stone-300" />
-          <p>No addresses added yet.</p>
-          <p className="text-sm">Add your delivery addresses to make ordering easier.</p>
+          <p>{t('account.noAddressesYet')}</p>
+          <p className="text-sm">{t('account.addAddressesHelp')}</p>
         </div>
       )}
     </div>
@@ -668,10 +670,10 @@ function AddressesTab({ user }) {
 }
 
 // Orders Tab Component
-function OrdersTab({ recentOrders, getStatusColor }) {
+function OrdersTab({ recentOrders, getStatusColor, t }) {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-stone-900">My Orders</h3>
+      <h3 className="text-lg font-semibold text-stone-900">{t('orders.title')}</h3>
       <div className="bg-white border border-gray-200 rounded-xl">
         <div className="divide-y divide-stone-200">
           {recentOrders.map((order) => (
@@ -698,10 +700,10 @@ function OrdersTab({ recentOrders, getStatusColor }) {
 }
 
 // Favorites Tab Component
-function FavoritesTab({ favoriteArtisans }) {
+function FavoritesTab({ favoriteArtisans, t }) {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-stone-900">Favorite Artisans</h3>
+      <h3 className="text-lg font-semibold text-stone-900">{t('account.favoriteArtisans')}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {favoriteArtisans.map((artisan) => (
           <div key={artisan.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
@@ -733,7 +735,7 @@ function FavoritesTab({ favoriteArtisans }) {
                   <span className="text-sm text-stone-500">{artisan.products} products</span>
                 </div>
                 <button className="btn-primary btn-small">
-                  Visit
+                  {t('account.visit')}
                 </button>
               </div>
             </div>
@@ -745,36 +747,36 @@ function FavoritesTab({ favoriteArtisans }) {
 }
 
 // Notifications Tab Component
-function NotificationsTab({ user }) {
+function NotificationsTab({ user, t }) {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-stone-900">Notification Preferences</h3>
+      <h3 className="text-lg font-semibold text-stone-900">{t('account.notifications')}</h3>
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">Order Updates</h4>
-            <p className="text-sm text-stone-500">Get notified about your order status</p>
+            <h4 className="font-medium text-stone-900">{t('account.orderNotifications')}</h4>
+            <p className="text-sm text-stone-500">{t('account.orderNotificationsDesc')}</p>
           </div>
           <input type="checkbox" defaultChecked className="rounded" />
         </div>
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">New Products</h4>
-            <p className="text-sm text-stone-500">Be the first to know about new products from your favorite artisans</p>
+            <h4 className="font-medium text-stone-900">{t('account.newProducts')}</h4>
+            <p className="text-sm text-stone-500">{t('account.newProductsDesc')}</p>
           </div>
           <input type="checkbox" defaultChecked className="rounded" />
         </div>
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">Community Events</h4>
-            <p className="text-sm text-stone-500">Get notified about local artisan events and workshops</p>
+            <h4 className="font-medium text-stone-900">{t('account.communityEvents')}</h4>
+            <p className="text-sm text-stone-500">{t('account.communityEventsDesc')}</p>
           </div>
           <input type="checkbox" className="rounded" />
         </div>
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">Seasonal Offers</h4>
-            <p className="text-sm text-stone-500">Receive special offers and seasonal promotions</p>
+            <h4 className="font-medium text-stone-900">{t('account.seasonalOffers')}</h4>
+            <p className="text-sm text-stone-500">{t('account.seasonalOffersDesc')}</p>
           </div>
           <input type="checkbox" defaultChecked className="rounded" />
         </div>
@@ -784,51 +786,51 @@ function NotificationsTab({ user }) {
 }
 
 // Payment Tab Component
-function PaymentTab({ user }) {
+function PaymentTab({ user, t }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-stone-900">Payment Methods</h3>
+        <h3 className="text-lg font-semibold text-stone-900">{t('account.paymentMethods')}</h3>
         <button className="btn-primary btn-small">
           <PlusIcon className="w-4 h-4 mr-2" />
-          Add Payment Method
+          {t('account.addPaymentMethod')}
         </button>
       </div>
       <div className="text-center py-8 text-stone-500">
         <CreditCardIcon className="w-12 h-12 mx-auto mb-4 text-stone-300" />
-        <p>No payment methods added yet.</p>
-        <p className="text-sm">Add a payment method for faster checkout.</p>
+        <p>{t('account.noPaymentMethods')}</p>
+        <p className="text-sm">{t('account.addPaymentMethodHelp')}</p>
       </div>
     </div>
   );
 }
 
 // Security Tab Component
-function SecurityTab() {
+function SecurityTab({ t }) {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-stone-900">Security Settings</h3>
+      <h3 className="text-lg font-semibold text-stone-900">{t('account.security')}</h3>
       <div className="space-y-4">
         <div className="p-4 border border-gray-200 rounded-lg">
-          <h4 className="font-medium text-stone-900 mb-2">Change Password</h4>
+          <h4 className="font-medium text-stone-900 mb-2">{t('account.changePassword')}</h4>
           <div className="space-y-3">
             <input
               type="password"
-              placeholder="Current Password"
+              placeholder={t('account.currentPassword')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <input
               type="password"
-              placeholder="New Password"
+              placeholder={t('account.newPassword')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <input
               type="password"
-              placeholder="Confirm New Password"
+              placeholder={t('account.confirmNewPassword')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
             <button className="btn-primary">
-              Update Password
+              {t('account.updatePassword')}
             </button>
           </div>
         </div>
@@ -838,14 +840,14 @@ function SecurityTab() {
 }
 
 // Settings Tab Component
-function SettingsTab({ user }) {
+function SettingsTab({ user, t }) {
   return (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold text-stone-900">Account Settings</h3>
+      <h3 className="text-lg font-semibold text-stone-900">{t('account.settings')}</h3>
       <div className="space-y-4">
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">Language</h4>
+            <h4 className="font-medium text-stone-900">{t('account.language')}</h4>
             <p className="text-sm text-stone-500">English</p>
           </div>
           <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
@@ -856,7 +858,7 @@ function SettingsTab({ user }) {
         </div>
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">Currency</h4>
+            <h4 className="font-medium text-stone-900">{t('account.currency')}</h4>
             <p className="text-sm text-stone-500">US Dollar (USD)</p>
           </div>
           <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
@@ -867,8 +869,8 @@ function SettingsTab({ user }) {
         </div>
         <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
           <div>
-            <h4 className="font-medium text-stone-900">Two-Factor Authentication</h4>
-            <p className="text-sm text-stone-500">Add an extra layer of security</p>
+            <h4 className="font-medium text-stone-900">{t('account.twoFactorAuth')}</h4>
+            <p className="text-sm text-stone-500">{t('account.twoFactorAuthDesc')}</p>
           </div>
           <input type="checkbox" className="rounded" />
         </div>

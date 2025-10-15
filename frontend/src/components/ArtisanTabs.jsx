@@ -41,6 +41,7 @@ const getGroupedSubcategories = () => {
 
 // Artisan-specific tab components
 export function OverviewTab({ profile, onSave, isSaving }) {
+  const { t } = useTranslation();
   
   const [overview, setOverview] = useState({
     artisanName: profile.artisanName || '',
@@ -677,6 +678,7 @@ export function OverviewTab({ profile, onSave, isSaving }) {
 }
 
 export function OperationsTab({ profile, onSave, isSaving }) {
+  const { t } = useTranslation();
   const [operations, setOperations] = useState({
     productionMethods: profile.operationDetails?.productionMethods || '',
     certifications: profile.operationDetails?.certifications || [],
@@ -811,6 +813,7 @@ export function OperationsTab({ profile, onSave, isSaving }) {
 }
 
 export function HoursTab({ profile, onSave, isSaving }) {
+  const { t } = useTranslation();
   const [hours, setHours] = useState({
     monday: profile.hours?.schedule?.monday || { open: '09:00', close: '17:00', closed: false },
     tuesday: profile.hours?.schedule?.tuesday || { open: '09:00', close: '17:00', closed: false },
@@ -980,6 +983,7 @@ export function HoursTab({ profile, onSave, isSaving }) {
 }
 
 export function DeliveryTab({ profile, onSave, isSaving }) {
+  const { t } = useTranslation();
   // Enhanced CSS styles for beautiful, user-friendly sliders
   const sliderStyles = `
     /* Base slider styling */

@@ -48,7 +48,6 @@ const Login = lazy(() => import("./components/login.jsx"));
 const Register = lazy(() => import("./components/register.jsx"));
 const Signup = lazy(() => import("./components/register.jsx")); // Alias for signup route
 const Dashboard = lazy(() => import("./components/dashboard/DashboardFixed.jsx"));
-const Artisans = lazy(() => import("./components/artisans.jsx"));
 const Profile = lazy(() => import("./components/Profile.jsx"));
 const Account = lazy(() => import("./components/Account.jsx"));
 const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
@@ -67,7 +66,7 @@ const LoginDebug = import.meta.env.MODE === 'development'
   : null;
 const ArtisanDetails = lazy(() => import("./components/ArtisanDetails.jsx"));
 const ArtisanShop = lazy(() => import("./components/ArtisanShop.jsx"));
-const FindArtisans = lazy(() => import("./components/FindArtisans.jsx"));
+const Artisans = lazy(() => import("./components/artisans.jsx"));
 const Community = lazy(() => import("./components/Community.jsx"));
 const EventDetails = lazy(() => import("./components/EventDetails.jsx"));
 const Cart = lazy(() => import("./components/Cart.jsx"));

@@ -16,10 +16,16 @@ const syncLanguagePreference = (profile) => {
   }
 };
 
+// Track if we've already warned to avoid console spam
+let hasWarned = false;
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    console.warn('useAuth called before AuthProvider is ready, returning fallback context');
+    if (!hasWarned) {
+      console.warn('useAuth called before AuthProvider is ready, returning fallback context');
+      hasWarned = true;
+    }
     // Return a fallback context to prevent crashes
     return {
       user: null,
@@ -27,11 +33,11 @@ export const useAuth = () => {
       isLoading: true,
       isInitialized: false,
       isProviderReady: false,
-      login: async () => { console.warn('Auth not initialized'); },
-      logout: () => { console.warn('Auth not initialized'); },
-      updateUser: async () => { console.warn('Auth not initialized'); },
-      refreshUser: async () => { console.warn('Auth not initialized'); },
-      setUser: () => { console.warn('Auth not initialized'); }
+      login: async () => { /* Auth not initialized */ },
+      logout: () => { /* Auth not initialized */ },
+      updateUser: async () => { /* Auth not initialized */ },
+      refreshUser: async () => { /* Auth not initialized */ },
+      setUser: () => { /* Auth not initialized */ }
     };
   }
   return context;

@@ -44,24 +44,66 @@ export default function OrderConfirmation() {
   });
 
   useEffect(() => {
-    if (location.state?.orders && location.state?.message) {
-      setOrderData({
-        orders: location.state.orders,
-        message: location.state.message,
-        guestInfo: location.state.guestInfo,
-        orderSummary: location.state.orderSummary,
-        selectedPickupTimes: location.state.selectedPickupTimes,
-        isPickupOrder: location.state.isPickupOrder
-      });
-      setIsLoading(false);
-      
-      // Clear the state to prevent showing again on refresh
-      window.history.replaceState({}, document.title);
-    } else {
-      // If no order data in state, redirect to home
-      navigate('/', { replace: true });
-    }
-  }, [location.state, navigate]);
+    const loadOrderData = async () => {
+      // Check if we have full order data (patron/guest flow)
+      if (location.state?.orders && location.state?.message) {
+        setOrderData({
+          orders: location.state.orders,
+          message: location.state.message,
+          guestInfo: location.state.guestInfo,
+          orderSummary: location.state.orderSummary,
+          selectedPickupTimes: location.state.selectedPickupTimes,
+          isPickupOrder: location.state.isPickupOrder
+        });
+        setIsLoading(false);
+      } 
+      // Check if we have orderId (wallet flow)
+      else if (location.state?.orderId && location.state?.message) {
+        console.log('📦 Fetching order details for wallet order:', location.state.orderId);
+        
+        try {
+          // Fetch the order details
+          const response = await orderService.getOrderById(location.state.orderId);
+          
+          console.log('📦 Order fetch response:', response);
+          
+          // orderService.getOrderById returns the order directly (not wrapped)
+          const order = response;
+          
+          if (order && order._id) {
+            console.log('✅ Order loaded successfully:', order._id);
+            setOrderData({
+              orders: [order], // Wrap in array
+              message: location.state.message,
+              guestInfo: null,
+              orderSummary: {
+                total: order.totalAmount || 0,
+                itemCount: order.items?.length || 0,
+                items: order.items || []
+              },
+              isPickupOrder: order.deliveryMethod === 'pickup'
+            });
+            setIsLoading(false);
+          } else {
+            console.error('❌ Invalid order data:', order);
+            toast.error('Failed to load order details');
+            navigate('/orders', { replace: true });
+          }
+        } catch (error) {
+          console.error('❌ Error fetching order:', error);
+          toast.error('Failed to load order details');
+          navigate('/orders', { replace: true });
+        }
+      }
+      else if (!orderData) {
+        // Only redirect if we don't have order data already loaded
+        console.log('⚠️ No order data in state, redirecting to home');
+        navigate('/', { replace: true });
+      }
+    };
+    
+    loadOrderData();
+  }, [location.state]);
 
   // Calculate delivery distance when order data is loaded
   useEffect(() => {
@@ -591,20 +633,30 @@ export default function OrderConfirmation() {
                     itemsTotal: order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0)
                   });
                   
-                  if (order.deliveryFee !== undefined && order.deliveryFee !== null) {
+                  // If order has delivery fee > 0, use it
+                  if (order.deliveryFee !== undefined && order.deliveryFee !== null && order.deliveryFee > 0) {
                     console.log('✅ Using order.deliveryFee:', order.deliveryFee);
                     return sum + order.deliveryFee;
                   }
+                  
+                  // If order.deliveryFee is 0 but it's a delivery order, check artisan's fee
+                  if ((order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery') &&
+                      order.artisan?.deliveryFee !== undefined && order.artisan.deliveryFee > 0) {
+                    console.log('✅ Using artisan.deliveryFee as fallback:', order.artisan.deliveryFee);
+                    return sum + order.artisan.deliveryFee;
+                  }
+                  
                   // Calculate from total - subtotal
                   const orderSubtotal = order.subtotal || order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0) || 0;
                   const orderTotal = order.totalAmount || 0;
                   const calculatedFee = Math.max(0, orderTotal - orderSubtotal);
-                  console.log('🔢 Calculated delivery fee:', {
-                    orderTotal,
-                    orderSubtotal,
-                    calculatedFee
-                  });
-                  return sum + calculatedFee;
+                  if (calculatedFee > 0) {
+                    console.log('✅ Calculated delivery fee from total - subtotal:', calculatedFee);
+                    return sum + calculatedFee;
+                  }
+                  
+                  console.log('💰 No delivery fee (pickup or free delivery)');
+                  return sum;
                 }, 0);
                 
                 console.log('📊 Final delivery fee display:', calculatedDeliveryFee);
@@ -872,21 +924,8 @@ export default function OrderConfirmation() {
                       <div className="flex-1">
                         <h4 className="text-sm font-medium text-emerald-800 mb-2">📍 Pickup Location</h4>
                         
-                        {/* Pickup Location Description */}
-                        {pickupOrder.artisan?.fulfillment?.methods?.pickup?.location && (
-                          <div className="mb-3">
-                            <p className="text-sm font-medium text-emerald-800 mb-1">Location Details</p>
-                            <p className="text-sm text-emerald-700">
-                              {typeof pickupOrder.artisan.fulfillment.methods.pickup.location === 'string' 
-                                ? pickupOrder.artisan.fulfillment.methods.pickup.location
-                                : `${pickupOrder.artisan.fulfillment.methods.pickup.location.street}, ${pickupOrder.artisan.fulfillment.methods.pickup.location.city}`}
-                            </p>
-                          </div>
-                        )}
-                        
                         {/* Pickup Address */}
                         <div className="mb-3">
-                          <p className="text-sm font-medium text-emerald-800 mb-1">🏠 Pickup Address</p>
                           <p className="text-sm text-emerald-700 mt-1">
                             {pickupOrder.artisan.pickupAddress.street}<br />
                             {pickupOrder.artisan.pickupAddress.city}, {pickupOrder.artisan.pickupAddress.state} {pickupOrder.artisan.pickupAddress.zipCode}

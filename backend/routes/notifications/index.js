@@ -34,20 +34,20 @@ const generateSubjectLine = (status, orderNumber, deliveryMethod = 'pickup') => 
 // Helper function to generate order timeline HTML
 const generateOrderTimelineHTML = (currentStatus, deliveryMethod = 'pickup') => {
   const pickupSteps = [
-    { id: 'pending', label: 'Order Placed', emoji: '📝' },
-    { id: 'confirmed', label: 'Confirmed', emoji: '✅' },
-    { id: 'preparing', label: 'Preparing', emoji: '👨‍🍳' },
-    { id: 'ready_for_pickup', label: 'Ready for Pickup', emoji: '✨' },
-    { id: 'picked_up', label: 'Picked Up', emoji: '📦' }
+    { id: 'pending', label: 'Order Placed', number: '1' },
+    { id: 'confirmed', label: 'Confirmed', number: '2' },
+    { id: 'preparing', label: 'Preparing', number: '3' },
+    { id: 'ready_for_pickup', label: 'Ready for Pickup', number: '4' },
+    { id: 'picked_up', label: 'Picked Up', number: '5' }
   ];
   
   const deliverySteps = [
-    { id: 'pending', label: 'Order Placed', emoji: '📝' },
-    { id: 'confirmed', label: 'Confirmed', emoji: '✅' },
-    { id: 'preparing', label: 'Preparing', emoji: '👨‍🍳' },
-    { id: 'ready_for_delivery', label: 'Ready', emoji: '✨' },
-    { id: 'out_for_delivery', label: 'Out for Delivery', emoji: '🚚' },
-    { id: 'delivered', label: 'Delivered', emoji: '📬' }
+    { id: 'pending', label: 'Order Placed', number: '1' },
+    { id: 'confirmed', label: 'Confirmed', number: '2' },
+    { id: 'preparing', label: 'Preparing', number: '3' },
+    { id: 'ready_for_delivery', label: 'Ready', number: '4' },
+    { id: 'out_for_delivery', label: 'Out for Delivery', number: '5' },
+    { id: 'delivered', label: 'Delivered', number: '6' }
   ];
   
   const steps = deliveryMethod === 'pickup' ? pickupSteps : deliverySteps;
@@ -55,35 +55,31 @@ const generateOrderTimelineHTML = (currentStatus, deliveryMethod = 'pickup') => 
   const isCancelled = currentStatus === 'cancelled' || currentStatus === 'declined';
   
   const stepsHTML = steps.map((step, index) => {
-    const isCompleted = index < currentStepIndex;
+    const isCompleted = index <= currentStepIndex;
     const isCurrent = index === currentStepIndex;
     const isPending = index > currentStepIndex;
     
     const bgColor = isCancelled && index === 0 ? '#fee2e2' :
-                    isCompleted ? '#d1fae5' :
-                    isCurrent ? '#dbeafe' :
-                    '#f3f4f6';
-    
-    const borderColor = isCancelled && index === 0 ? '#dc2626' :
-                        isCompleted ? '#10b981' :
-                        isCurrent ? '#f59e0b' :
-                        '#d1d5db';
+                    isCompleted ? '#10b981' :
+                    isPending ? '#f3f4f6' :
+                    '#dbeafe';
     
     const textColor = isCancelled && index === 0 ? '#991b1b' :
-                     isCompleted ? '#047857' :
-                     isCurrent ? '#d97706' :
+                     isCompleted ? '#ffffff' :
                      '#6b7280';
     
     const connector = index < steps.length - 1 ? `
       <div class="timeline-connector" style="flex: 1; height: 2px; background: ${isCompleted ? '#10b981' : '#d1d5db'}; margin: 0 5px; align-self: center;"></div>
     ` : '';
     
+    const displayIcon = isCancelled && index === 0 ? 'X' : isCompleted ? '✓' : step.number;
+    
     return `
       <div style="display: flex; flex-direction: column; align-items: center; flex: 1;">
-        <div class="timeline-icon" style="width: 40px; height: 40px; border-radius: 50%; background: ${bgColor}; border: 2px solid ${borderColor}; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 8px;">
-          ${isCancelled && index === 0 ? '❌' : isCompleted ? '✓' : step.emoji}
+        <div class="timeline-icon" style="width: 40px; height: 40px; border-radius: 50%; background: ${bgColor}; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 600; margin-bottom: 8px; color: ${textColor};">
+          ${displayIcon}
         </div>
-        <div class="timeline-step" style="text-align: center; font-size: 11px; color: ${textColor}; font-weight: ${isCurrent ? '600' : '400'}; max-width: 80px; line-height: 1.2;">
+        <div class="timeline-step" style="text-align: center; font-size: 11px; color: #6b7280; font-weight: ${isCurrent ? '600' : '400'}; max-width: 80px; line-height: 1.2;">
           ${step.label}
         </div>
       </div>
@@ -93,7 +89,7 @@ const generateOrderTimelineHTML = (currentStatus, deliveryMethod = 'pickup') => 
   
   return `
     <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">Order Progress</h3>
+      <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">Order Status</h3>
       <div style="display: flex; align-items: flex-start; justify-content: space-between;">
         ${stepsHTML}
       </div>
@@ -212,8 +208,10 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
       <h3 style="color: #047857; margin-top: 0;">📍 Pickup Information</h3>
       ${orderData.pickupAddress ? `
         <p style="margin: 5px 0; color: #666;">
-          ${orderData.pickupAddress.street}<br>
-          ${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}
+          ${typeof orderData.pickupAddress === 'string' 
+            ? orderData.pickupAddress 
+            : `${orderData.pickupAddress.street}<br>${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}`
+          }
         </p>
       ` : '<p style="margin: 5px 0;">Pickup location will be confirmed by the artisan</p>'}
       ${orderData.pickupTime ? `
@@ -225,12 +223,15 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
           ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
         </div>
       ` : ''}
-      ${orderData.patronInfo || orderData.guestInfo ? `
+      ${orderData.patronInfo || orderData.customerInfo || orderData.guestInfo ? `
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
           <h4 style="color: #047857; margin: 0 0 10px 0;">Customer Information</h4>
-          <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.guestInfo).lastName}</p>
-          ${(orderData.patronInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.guestInfo).email}</p>` : ''}
-          ${(orderData.patronInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.guestInfo).phone}</p>` : ''}
+          ${(orderData.patronInfo?.isArtisan || orderData.customerInfo?.isArtisan) ? `
+            <p style="margin: 5px 0; color: #047857;"><strong>Business:</strong> ${(orderData.patronInfo || orderData.customerInfo).businessName || (orderData.patronInfo || orderData.customerInfo).artisanName} ✨</p>
+          ` : ''}
+          <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).lastName}</p>
+          ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).email}</p>` : ''}
+          ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).phone}</p>` : ''}
         </div>
       ` : ''}
     </div>
@@ -399,66 +400,80 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
   `;
 };
 
-// Generate order confirmation HTML template (enhanced version)
+// Generate order confirmation HTML template (enhanced version for handmade marketplace)
 const generateOrderConfirmationHTML = (recipientName, orderData) => {
   const orderItems = orderData.items?.map(item => 
-    `<div class="product-item responsive-flex" style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eee;">
+    `<div class="product-item responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e7e5e4;">
       <div style="flex: 1;">
-        <div style="font-weight: 600; color: #333; margin-bottom: 4px;">${item.productName || item.product?.name || item.name || 'Item'}</div>
-        <div style="font-size: 14px; color: #666;">Quantity: ${item.quantity} × $${(item.unitPrice || 0).toFixed(2)}</div>
+        <div style="font-weight: 600; color: #292524; margin-bottom: 6px; font-size: 15px;">${item.productName || item.product?.name || item.name || 'Item'}</div>
+        <div style="font-size: 13px; color: #78716c;">
+          Quantity: ${item.quantity} × $${(item.unitPrice || item.price || 0).toFixed(2)}
+          ${item.productType === 'made_to_order' ? ' <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px;">Handcrafted</span>' : ''}
+        </div>
       </div>
-      <div class="product-price" style="font-weight: 600; color: #333; align-self: center; white-space: nowrap;">$${((item.unitPrice || 0) * (item.quantity || 0)).toFixed(2)}</div>
+      <div class="product-price" style="font-weight: 700; color: #78350f; align-self: center; white-space: nowrap; font-size: 15px;">$${((item.unitPrice || item.price || 0) * (item.quantity || 0)).toFixed(2)}</div>
     </div>`
-  ).join('') || '<p style="text-align: center; color: #666;">No items</p>';
+  ).join('') || '<p style="text-align: center; color: #78716c;">No items</p>';
 
   const isPickupOrder = orderData.deliveryMethod === 'pickup';
+  const orderNumber = orderData.orderNumber || orderData.orderId?.slice(-8) || 'N/A';
+  const artisanName = orderData.artisanInfo?.name || orderData.artisanName || 'Local Artisan';
   
-  // Enhanced delivery/pickup info
+  // Enhanced delivery/pickup info with artisan marketplace styling
   const deliveryInfo = isPickupOrder ? `
-    <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-      <h3 style="color: #047857; margin-top: 0;">📍 Pickup Information</h3>
+    <div style="background: #f0fdf4; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #d1fae5;">
+      <h3 style="color: #166534; margin: 0 0 15px 0; font-size: 18px;">Pickup Details</h3>
       ${orderData.pickupAddress ? `
-        <p style="margin: 5px 0; color: #666;">
-          <strong>Pickup Address:</strong><br>
-          ${orderData.pickupAddress.street}<br>
-          ${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}
-        </p>
-      ` : '<p style="margin: 5px 0;">Pickup location will be confirmed by the artisan</p>'}
+        <div style="margin-bottom: 15px;">
+          <p style="margin: 0 0 8px 0; color: #14532d; font-weight: 600; font-size: 14px;">Location:</p>
+          <p style="margin: 0; color: #166534; line-height: 1.6;">
+            ${typeof orderData.pickupAddress === 'string' 
+              ? orderData.pickupAddress 
+              : `${orderData.pickupAddress.street}<br>${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}`
+            }
+          </p>
+        </div>
+      ` : '<p style="margin: 0; color: #166534;">Pickup location will be confirmed by your artisan</p>'}
       ${orderData.pickupTime ? `
-        <p style="margin: 10px 0 5px 0;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+        <div style="background: #dcfce7; padding: 12px; border-radius: 8px; margin-top: 15px;">
+          <p style="margin: 0; color: #166534;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+        </div>
       ` : ''}
       ${orderData.artisanInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
-          <p style="margin: 5px 0; color: #047857;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
-          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Contact:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
-          ${orderData.artisanInfo.email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${orderData.artisanInfo.email}</p>` : ''}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #d1fae5;">
+          <p style="margin: 0 0 12px 0; color: #14532d; font-weight: 600;">Artisan Contact:</p>
+          <p style="margin: 6px 0; color: #166534;">${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 6px 0; color: #166534;">Phone: ${orderData.artisanInfo.phone}</p>` : ''}
+          ${orderData.artisanInfo.email ? `<p style="margin: 6px 0; color: #166534;">Email: ${orderData.artisanInfo.email}</p>` : ''}
+          ${orderData.artisanInfo.pickupInstructions ? `
+          <div style="background: #dcfce7; padding: 12px; border-radius: 6px; margin-top: 12px;">
+            <p style="margin: 0; color: #166534; font-size: 13px;"><strong>Special Instructions:</strong> ${orderData.artisanInfo.pickupInstructions}</p>
+          </div>
+          ` : ''}
         </div>
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
-    <div style="background: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-      <h3 style="color: #d97706; margin-top: 0;">🚚 Delivery Information</h3>
-      <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
-      <p style="margin: 5px 0; color: #666;">
-        ${orderData.deliveryAddress.street}<br>
-        ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
-      </p>
-      ${orderData.deliveryInfo ? `
-        <div style="margin-top: 15px; padding: 15px; background: #fff7ed; border-radius: 6px;">
-          <p style="margin: 5px 0; color: #d97706;"><strong>📏 Distance:</strong> ${orderData.deliveryInfo.formattedDistance}</p>
-          <p style="margin: 5px 0; color: #d97706;"><strong>⏱️ Estimated Time:</strong> ${orderData.deliveryInfo.formattedEstimatedTime}</p>
-          ${orderData.deliveryInfo.estimatedArrivalTime ? `
-            <p style="margin: 5px 0; color: #d97706;"><strong>🕐 Expected Arrival:</strong> ${new Date(orderData.deliveryInfo.estimatedArrivalTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
-          ` : ''}
+    <div style="background: #fef7ed; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #fed7aa;">
+      <h3 style="color: #92400e; margin: 0 0 15px 0; font-size: 18px;">Delivery Details</h3>
+      <div style="margin-bottom: 15px;">
+        <p style="margin: 0 0 8px 0; color: #78350f; font-weight: 600; font-size: 14px;">Delivery Address:</p>
+        <p style="margin: 0; color: #92400e; line-height: 1.6;">
+          ${orderData.deliveryAddress.street}<br>
+          ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
+        </p>
+      </div>
+      ${orderData.estimatedDeliveryTime ? `
+        <div style="background: #fed7aa; padding: 12px; border-radius: 8px; margin-top: 15px;">
+          <p style="margin: 0; color: #78350f;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
         </div>
-      ` : orderData.estimatedDeliveryTime ? `
-        <p style="margin: 10px 0 5px 0;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
       ` : ''}
       ${orderData.artisanInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #fde68a;">
-          <p style="margin: 5px 0; color: #d97706;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
-          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Contact:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
-          ${orderData.artisanInfo.email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${orderData.artisanInfo.email}</p>` : ''}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #fed7aa;">
+          <p style="margin: 0 0 12px 0; color: #78350f; font-weight: 600;">Artisan Contact:</p>
+          <p style="margin: 6px 0; color: #92400e;">${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 6px 0; color: #92400e;">Phone: ${orderData.artisanInfo.phone}</p>` : ''}
+          ${orderData.artisanInfo.email ? `<p style="margin: 6px 0; color: #92400e;">Email: ${orderData.artisanInfo.email}</p>` : ''}
         </div>
       ` : ''}
     </div>
@@ -474,98 +489,111 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Order Confirmation</title>
+      <title>Order Confirmation - BazaarMkt</title>
       <style>
-        /* Mobile-friendly styles */
         @media only screen and (max-width: 600px) {
           .email-container { padding: 10px !important; }
-          .header { padding: 20px !important; font-size: 14px !important; }
-          .header h1 { font-size: 24px !important; }
+          .header { padding: 20px !important; }
           .content { padding: 15px !important; }
-          .timeline-step { font-size: 9px !important; max-width: 60px !important; }
-          .timeline-icon { width: 32px !important; height: 32px !important; font-size: 16px !important; }
-          .product-item { flex-direction: column !important; align-items: flex-start !important; }
+          .product-item { flex-direction: column !important; }
           .product-price { margin-top: 8px !important; }
-          .order-summary { flex-direction: column !important; }
-          .order-summary p { margin: 3px 0 !important; }
-          h2 { font-size: 20px !important; }
-          h3 { font-size: 16px !important; }
         }
-        
-        /* Print-friendly styles */
-        @media print {
-          body { background: white !important; }
-          .email-container { max-width: 100% !important; padding: 0 !important; }
-          .header { 
-            background: #f59e0b !important; 
-            -webkit-print-color-adjust: exact !important; 
-            print-color-adjust: exact !important; 
-          }
-          .no-print { display: none !important; }
-          .timeline-connector { background: #000 !important; }
-          a { text-decoration: none !important; color: #000 !important; }
-          .page-break { page-break-after: always; }
-        }
-        
-        /* General responsive utilities */
-        .responsive-table { width: 100%; border-collapse: collapse; }
-        .responsive-flex { display: flex; flex-wrap: wrap; }
       </style>
     </head>
-    <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;" class="email-container">
-      <div class="header" style="background: linear-gradient(135deg, #f59e0b 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Order Confirmed!</h1>
-        <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Thank you for your order, ${recipientName}!</p>
+    <body style="font-family: Georgia, 'Times New Roman', serif; line-height: 1.7; color: #292524; max-width: 600px; margin: 0 auto; padding: 0; background: #fafaf9;">
+      
+      <!-- Header with artisan marketplace feel -->
+      <div class="header" style="background: linear-gradient(to right, #78350f, #92400e); padding: 40px 30px; text-align: center;">
+        <h1 style="color: #fef3c7; margin: 0; font-size: 32px; font-weight: 400; letter-spacing: 1px; font-family: Georgia, serif;">BazaarMkt</h1>
+        <p style="color: #fde68a; margin: 8px 0 0 0; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase;">Handcrafted with Care</p>
+        <div style="background: #fef3c7; color: #78350f; padding: 10px 20px; margin: 20px auto 0; display: inline-block; border-radius: 6px; font-weight: 600;">
+          Order #${orderNumber}
+        </div>
       </div>
       
-      <div class="content" style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-        <h2 style="color: #333; margin-top: 0;">Order Details</h2>
-        <div class="order-summary" style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-          <p style="margin: 5px 0;"><strong>Order Number:</strong> #${orderData.orderNumber}</p>
-          <p style="margin: 5px 0;"><strong>Order Date:</strong> ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
-          <p style="margin: 5px 0;"><strong>Delivery Fee:</strong> $${orderData.deliveryFee.toFixed(2)} ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}</p>
-          ` : ''}
-          <p style="margin: 5px 0;"><strong>Total Amount:</strong> <span style="color: #f59e0b; font-size: 18px; font-weight: bold;">$${(orderData.totalAmount || 0).toFixed(2)}</span></p>
+      <!-- Content Section -->
+      <div class="content" style="background: #fafaf9; padding: 35px 30px;">
+        
+        <!-- Greeting -->
+        <p style="color: #57534e; font-size: 16px; margin: 0 0 25px 0;">
+          Hello ${recipientName},
+        </p>
+        <p style="color: #57534e; font-size: 15px; margin: 0 0 30px 0; line-height: 1.8;">
+          Thank you for supporting local artisans! Your order from <strong style="color: #78350f;">${artisanName}</strong> has been confirmed and is being prepared with care.
+        </p>
+        
+        <!-- Order Summary Card -->
+        <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #e7e5e4; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h2 style="color: #78350f; margin: 0 0 20px 0; font-size: 20px; border-bottom: 2px solid #fef3c7; padding-bottom: 12px;">Order Summary</h2>
+          <div style="margin-bottom: 15px;">
+            <p style="margin: 8px 0; color: #57534e;"><span style="color: #78716c;">Order Number:</span> <strong>#${orderNumber}</strong></p>
+            <p style="margin: 8px 0; color: #57534e;"><span style="color: #78716c;">Date:</span> ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p style="margin: 8px 0; color: #57534e;"><span style="color: #78716c;">Artisan:</span> <strong>${artisanName}</strong></p>
+          </div>
         </div>
         
+        <!-- Order Status Timeline -->
         ${generateOrderTimelineHTML(initialStatus, orderData.deliveryMethod)}
         
-        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #333; margin-top: 0;">Order Items</h3>
+        <!-- Order Items Card -->
+        <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #e7e5e4; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h3 style="color: #78350f; margin: 0 0 20px 0; font-size: 18px; border-bottom: 2px solid #fef3c7; padding-bottom: 12px;">Your Handcrafted Items</h3>
           ${orderItems}
-          ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
-          <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 10px 0; margin-top: 10px; border-top: 1px solid #e5e5e5;">
-            <div style="font-size: 14px; color: #666;">
-              Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
+          
+          <!-- Pricing Breakdown -->
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e7e5e4;">
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span style="color: #78716c; font-size: 14px;">Subtotal:</span>
+              <span style="color: #57534e; font-weight: 600;">$${(orderData.subtotal || orderData.totalAmount || 0).toFixed(2)}</span>
             </div>
-            <div style="font-size: 14px; color: #666;">$${orderData.deliveryFee.toFixed(2)}</div>
-          </div>
-          ` : ''}
-          <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #333;">
-            <div style="font-weight: bold; font-size: 16px;">Total</div>
-            <div style="font-weight: bold; font-size: 16px; color: #f59e0b;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
+            ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+              <span style="color: #78716c; font-size: 14px;">
+                Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
+              </span>
+              <span style="color: #57534e; font-weight: 600;">$${orderData.deliveryFee.toFixed(2)}</span>
+            </div>
+            ` : ''}
+            <div style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #78350f;">
+              <span style="font-weight: 700; font-size: 18px; color: #292524;">Total</span>
+              <span style="font-weight: 700; font-size: 20px; color: #78350f;">$${(orderData.totalAmount || 0).toFixed(2)}</span>
+            </div>
           </div>
         </div>
         
         ${deliveryInfo}
         
-        <div style="background: #e0e7ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #3730a3; margin-top: 0;">${nextAction.title}</h3>
-          <p style="margin: 5px 0 10px 0; color: #312e81;">${nextAction.message}</p>
-          <div style="background: #eef2ff; padding: 12px; border-radius: 6px; font-weight: 600; color: #4338ca;">
-            ${nextAction.action}
+        <!-- Next Steps -->
+        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 25px; border-radius: 12px; margin: 25px 0;">
+          <h3 style="color: #78350f; margin: 0 0 12px 0; font-size: 18px;">${nextAction.title}</h3>
+          <p style="margin: 0 0 15px 0; color: #57534e; line-height: 1.7;">${nextAction.message}</p>
+          <div style="background: #ffffff; padding: 15px; border-radius: 8px; border-left: 4px solid #78350f;">
+            <p style="margin: 0; color: #78350f; font-weight: 600; font-size: 14px;">${nextAction.action}</p>
           </div>
         </div>
         
-        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin-top: 25px;">
-          <h3 style="color: #2d5a2d; margin-top: 0;">Need Help?</h3>
-          <p style="margin: 0;">If you have any questions about your order, please contact us at bazaar@bazaarmkt.ca</p>
+        <!-- Support Section -->
+        <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin-top: 30px; border: 1px solid #e7e5e4; text-align: center;">
+          <h3 style="color: #78350f; margin: 0 0 15px 0;">Questions About Your Order?</h3>
+          <p style="margin: 0 0 15px 0; color: #57534e; line-height: 1.7;">
+            Our team is here to help! Reach out anytime.
+          </p>
+          <a href="mailto:bazaar@bazaarmkt.ca" style="display: inline-block; background: #78350f; color: #fef3c7; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+            Contact Support
+          </a>
         </div>
         
-        <div style="text-align: center; margin-top: 30px;">
-          <p style="color: #666; font-size: 14px;">Thank you for choosing BazaarMkt!</p>
-          <p style="color: #666; font-size: 14px;">Contact: bazaar@bazaarmkt.ca</p>
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e7e5e4;">
+          <p style="color: #78716c; font-size: 13px; margin: 8px 0; font-style: italic;">
+            "Supporting Local Artisans, One Handcrafted Product at a Time"
+          </p>
+          <p style="color: #a8a29e; font-size: 12px; margin: 20px 0 5px 0;">
+            © ${new Date().getFullYear()} BazaarMkt - Handmade Marketplace
+          </p>
+          <p style="color: #a8a29e; font-size: 12px; margin: 5px 0;">
+            <a href="mailto:bazaar@bazaarmkt.ca" style="color: #78350f; text-decoration: none;">bazaar@bazaarmkt.ca</a>
+          </p>
         </div>
       </div>
     </body>
@@ -616,62 +644,93 @@ const sendBrevoEmail = async (userId, notificationData, db) => {
   const { title, message, orderNumber, updateDetails, type, updateType, status } = notificationData;
   const recipientName = `${user.firstName} ${user.lastName}`;
   
-  // Prepare comprehensive order data for templates with all necessary information
-  const orderData = order ? {
-    orderNumber: orderNumber || order._id.toString(),
-    totalAmount: order.totalAmount,
-    items: order.items,
-    deliveryMethod: order.deliveryMethod,
-    deliveryAddress: order.deliveryAddress,
-    artisanName: artisan?.businessName || artisan?.artisanName || order.artisanName,
-    pickupAddress: order.pickupAddress, // Use order's pickup address, not artisan's business address
-    pickupTime: order.pickupTimeWindow?.timeSlotLabel || order.pickupTime,
-    estimatedDeliveryTime: order.estimatedDeliveryTime,
-    status: order.status,
-    // Customer/Guest information
-    customerName: order.isGuestOrder 
-      ? `${order.guestInfo?.firstName || ''} ${order.guestInfo?.lastName || ''}`.trim()
-      : recipientName,
-    customerEmail: order.isGuestOrder ? order.guestInfo?.email : user.email,
-    customerPhone: order.isGuestOrder ? order.guestInfo?.phone : user.phone,
-    isGuest: order.isGuestOrder || false
-  } : {
-    orderNumber: orderNumber,
-    totalAmount: updateDetails?.totalAmount || 0,
-    items: [],
-    deliveryMethod: 'pickup',
-    status: status || updateDetails?.newStatus || 'pending',
-    customerName: recipientName,
-    customerEmail: user.email,
-    isGuest: false
-  };
-  
-  // Use the comprehensive order update email template
-  try {
-    const { sendOrderUpdateEmail } = await import('../../frontend/src/services/brevoService.js');
-    
-    if (type === 'order_completion' || type === 'new_order' || type === 'order_placed' || type === 'order_confirmed') {
-      // Use order completion template for new orders
-      const { sendOrderCompletionEmail } = await import('../../frontend/src/services/brevoService.js');
-      await sendOrderCompletionEmail(orderData, user.email, recipientName);
-    } else {
-      // Use order update template for status updates
-      await sendOrderUpdateEmail(
-        orderData,
-        user.email,
-        recipientName,
-        type || 'order_status_update',
-        updateDetails || { newStatus: status, status: status }
-      );
-    }
-    
-    console.log('✅ Brevo email sent using comprehensive template to:', user.email);
-    return;
-  } catch (templateError) {
-    console.warn('⚠️ Failed to use comprehensive template, falling back to basic template:', templateError);
+  // Use orderData from notificationData if provided (already has artisan info), otherwise build it
+  let orderData;
+  if (notificationData.orderData && notificationData.orderData.artisanInfo) {
+    // Use the pre-built orderData from order creation (has artisan info already)
+    console.log('✅ Using pre-built orderData from notification (includes artisan info)');
+    console.log('📋 Artisan info details:', {
+      hasArtisanInfo: !!notificationData.orderData.artisanInfo,
+      artisanName: notificationData.orderData.artisanInfo?.name,
+      artisanEmail: notificationData.orderData.artisanInfo?.email,
+      artisanPhone: notificationData.orderData.artisanInfo?.phone,
+      hasPickupAddress: !!notificationData.orderData.artisanInfo?.pickupAddress,
+      pickupAddressType: typeof notificationData.orderData.artisanInfo?.pickupAddress,
+      pickupAddress: notificationData.orderData.artisanInfo?.pickupAddress,
+      hasPickupInstructions: !!notificationData.orderData.artisanInfo?.pickupInstructions
+    });
+    orderData = notificationData.orderData;
+  } else if (order) {
+    // Build orderData from fetched order
+    console.log('⚠️ Building orderData from database (notification missing artisan info)');
+    orderData = {
+      orderNumber: orderNumber || order._id.toString().slice(-8),
+      orderId: order._id.toString(),
+      totalAmount: order.totalAmount,
+      subtotal: order.subtotal,
+      deliveryFee: order.deliveryFee,
+      items: order.items,
+      deliveryMethod: order.deliveryMethod,
+      deliveryAddress: order.deliveryAddress,
+      artisanName: artisan?.businessName || artisan?.artisanName || order.artisanName,
+      // Use artisan's pickup address from fulfillment structure
+      pickupAddress: (() => {
+        if (!artisan) return order.pickupAddress;
+        let addr = null;
+        if (artisan.fulfillment?.methods?.pickup?.enabled) {
+          addr = artisan.fulfillment.methods.pickup.useBusinessAddress ? 
+                 artisan.address : artisan.fulfillment.methods.pickup.location;
+        }
+        return addr || artisan.pickupAddress || artisan.address || order.pickupAddress;
+      })(),
+      pickupTime: order.pickupTimeWindows ? 
+        Object.values(order.pickupTimeWindows)[0]?.fullLabel : 
+        (order.pickupTimeWindow?.timeSlotLabel || order.pickupTime),
+      estimatedDeliveryTime: order.estimatedDeliveryTime,
+      status: order.status,
+      // Artisan information for customer emails
+      artisanInfo: artisan ? {
+        name: artisan.businessName || artisan.artisanName,
+        email: artisan.email || artisan.contactInfo?.email,
+        phone: artisan.phone || artisan.contactInfo?.phone,
+        pickupAddress: (() => {
+          let addr = null;
+          if (artisan.fulfillment?.methods?.pickup?.enabled) {
+            addr = artisan.fulfillment.methods.pickup.useBusinessAddress ? 
+                   artisan.address : artisan.fulfillment.methods.pickup.location;
+          }
+          return addr || artisan.pickupAddress || artisan.address;
+        })(),
+        pickupInstructions: artisan.fulfillment?.methods?.pickup?.instructions || 
+                          artisan.fulfillment?.pickupInstructions || 
+                          artisan.pickupInstructions
+      } : null,
+      // Customer/Guest information for artisan emails
+      customerName: order.isGuestOrder 
+        ? `${order.guestInfo?.firstName || ''} ${order.guestInfo?.lastName || ''}`.trim()
+        : recipientName,
+      customerEmail: order.isGuestOrder ? order.guestInfo?.email : user.email,
+      guestInfo: order.isGuestOrder ? order.guestInfo : null,
+      patronInfo: order.patron || (user ? { firstName: user.firstName, lastName: user.lastName, email: user.email } : null),
+      customerPhone: order.isGuestOrder ? order.guestInfo?.phone : user.phone,
+      isGuest: order.isGuestOrder || false
+    };
+  } else {
+    // Fallback minimal orderData
+    orderData = {
+      orderNumber: orderNumber,
+      totalAmount: updateDetails?.totalAmount || 0,
+      items: [],
+      deliveryMethod: 'pickup',
+      status: status || updateDetails?.newStatus || 'pending',
+      customerName: recipientName,
+      customerEmail: user.email,
+      isGuest: false
+    };
   }
   
-  // Fallback to basic template
+  // Use basic template (frontend imports cause module errors in backend context)
+  // The basic template is comprehensive and includes all order details
   let htmlContent;
   if (type === 'order_completion' || type === 'new_order' || type === 'order_placed' || type === 'order_confirmed') {
     htmlContent = generateOrderConfirmationHTML(recipientName, orderData);
@@ -730,79 +789,105 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData, db) => {
 
   const { title, message, orderNumber, updateDetails, type, updateType, orderId, status } = notificationData;
   
-  // Get order details if orderId is provided
-  let order = null;
-  let artisan = null;
-  if (orderId && db) {
-    order = await db.collection('orders').findOne({ 
-      _id: new (require('mongodb')).ObjectId(orderId) 
-    });
-    
-    // Get artisan details for pickup/delivery information
-    if (order && order.artisan) {
-      const artisanId = typeof order.artisan === 'object' ? order.artisan._id : order.artisan;
-      artisan = await db.collection('artisans').findOne({
-        _id: new (require('mongodb')).ObjectId(artisanId)
+  // Use orderData from notificationData if provided (already has artisan info), otherwise build it
+  let orderData;
+  if (notificationData.orderData && notificationData.orderData.artisanInfo) {
+    // Use the pre-built orderData from order creation (has artisan info already)
+    console.log('✅ Using pre-built orderData from notification for guest (includes artisan info)');
+    orderData = notificationData.orderData;
+  } else {
+    // Get order details if orderId is provided and build orderData
+    let order = null;
+    let artisan = null;
+    if (orderId && db) {
+      order = await db.collection('orders').findOne({ 
+        _id: new (require('mongodb')).ObjectId(orderId) 
       });
-    }
-  }
-  
-  // Prepare comprehensive order data for templates with all necessary information
-  const orderData = order ? {
-    orderNumber: orderNumber || order._id.toString(),
-    totalAmount: order.totalAmount,
-    items: order.items,
-    deliveryMethod: order.deliveryMethod,
-    deliveryAddress: order.deliveryAddress,
-    artisanName: artisan?.businessName || artisan?.artisanName || order.artisanName,
-    pickupAddress: order.pickupAddress, // Use order's pickup address, not artisan's business address
-    pickupTime: order.pickupTimeWindow?.timeSlotLabel || order.pickupTime,
-    estimatedDeliveryTime: order.estimatedDeliveryTime,
-    status: order.status,
-    // Customer/Guest information
-    customerName: order.isGuestOrder 
-      ? `${order.guestInfo?.firstName || ''} ${order.guestInfo?.lastName || ''}`.trim()
-      : guestName,
-    customerEmail: order.isGuestOrder ? order.guestInfo?.email : guestEmail,
-    customerPhone: order.isGuestOrder ? order.guestInfo?.phone : null,
-    isGuest: order.isGuestOrder || true
-  } : {
-    orderNumber: orderNumber,
-    totalAmount: updateDetails?.totalAmount || 0,
-    items: [],
-    deliveryMethod: 'pickup',
-    status: status || updateDetails?.newStatus || 'pending',
-    customerName: guestName,
-    customerEmail: guestEmail,
-    isGuest: true
-  };
-  
-  // Use the comprehensive order update email template
-  try {
-    const { sendOrderUpdateEmail } = await import('../../frontend/src/services/brevoService.js');
-    
-    if (type === 'order_completion' || type === 'order_placed' || type === 'order_confirmed') {
-      // Use order completion template for new orders
-      const { sendOrderCompletionEmail } = await import('../../frontend/src/services/brevoService.js');
-      await sendOrderCompletionEmail(orderData, guestEmail, guestName);
-    } else {
-      // Use order update template for status updates
-      await sendOrderUpdateEmail(
-        orderData,
-        guestEmail,
-        guestName,
-        type || 'order_status_update',
-        updateDetails || { newStatus: status, status: status }
-      );
+      
+      // Get artisan details for pickup/delivery information
+      if (order && order.artisan) {
+        const artisanId = typeof order.artisan === 'object' ? order.artisan._id : order.artisan;
+        artisan = await db.collection('artisans').findOne({
+          _id: new (require('mongodb')).ObjectId(artisanId)
+        });
+        
+        // Map fulfillment data to artisan for email template
+        if (artisan && artisan.fulfillment?.methods) {
+          if (artisan.fulfillment.methods.pickup && !artisan.pickupAddress) {
+            artisan.pickupAddress = artisan.fulfillment.methods.pickup.useBusinessAddress ? 
+              artisan.address : artisan.fulfillment.methods.pickup.location;
+          }
+          if (!artisan.pickupInstructions && artisan.fulfillment.methods.pickup?.instructions) {
+            artisan.pickupInstructions = artisan.fulfillment.methods.pickup.instructions;
+          }
+        }
+      }
     }
     
-    console.log('✅ Guest email sent using comprehensive template to:', guestEmail);
-    return;
-  } catch (templateError) {
-    console.warn('⚠️ Failed to use comprehensive template, falling back to basic template:', templateError);
+    console.log('⚠️ Building orderData from database for guest (notification missing artisan info)');
+    // Prepare comprehensive order data for templates with all necessary information
+    orderData = order ? {
+      orderNumber: orderNumber || order._id.toString().slice(-8),
+      orderId: order._id.toString(),
+      totalAmount: order.totalAmount,
+      subtotal: order.subtotal,
+      deliveryFee: order.deliveryFee,
+      items: order.items,
+      deliveryMethod: order.deliveryMethod,
+      deliveryAddress: order.deliveryAddress,
+      artisanName: artisan?.businessName || artisan?.artisanName || order.artisanName,
+      pickupAddress: (() => {
+        if (!artisan) return order.pickupAddress;
+        let addr = null;
+        if (artisan.fulfillment?.methods?.pickup?.enabled) {
+          addr = artisan.fulfillment.methods.pickup.useBusinessAddress ? 
+                 artisan.address : artisan.fulfillment.methods.pickup.location;
+        }
+        return addr || artisan.pickupAddress || artisan.address || order.pickupAddress;
+      })(),
+      pickupTime: order.pickupTimeWindows ? 
+        Object.values(order.pickupTimeWindows)[0]?.fullLabel : 
+        (order.pickupTimeWindow?.timeSlotLabel || order.pickupTime),
+      estimatedDeliveryTime: order.estimatedDeliveryTime,
+      status: order.status,
+      // Artisan information for customer/guest emails
+      artisanInfo: artisan ? {
+        name: artisan.businessName || artisan.artisanName,
+        email: artisan.email || artisan.contactInfo?.email,
+        phone: artisan.phone || artisan.contactInfo?.phone,
+        pickupAddress: (() => {
+          let addr = null;
+          if (artisan.fulfillment?.methods?.pickup?.enabled) {
+            addr = artisan.fulfillment.methods.pickup.useBusinessAddress ? 
+                   artisan.address : artisan.fulfillment.methods.pickup.location;
+          }
+          return addr || artisan.pickupAddress || artisan.address;
+        })(),
+        pickupInstructions: artisan.fulfillment?.methods?.pickup?.instructions || 
+                          artisan.fulfillment?.pickupInstructions || 
+                          artisan.pickupInstructions
+      } : null,
+      // Customer/Guest information
+      customerName: order.isGuestOrder 
+        ? `${order.guestInfo?.firstName || ''} ${order.guestInfo?.lastName || ''}`.trim()
+        : guestName,
+      customerEmail: order.isGuestOrder ? order.guestInfo?.email : guestEmail,
+      customerPhone: order.isGuestOrder ? order.guestInfo?.phone : null,
+      guestInfo: order.guestInfo,
+      isGuest: order.isGuestOrder || true
+    } : {
+      orderNumber: orderNumber,
+      totalAmount: updateDetails?.totalAmount || 0,
+      items: [],
+      deliveryMethod: 'pickup',
+      status: status || updateDetails?.newStatus || 'pending',
+      customerName: guestName,
+      customerEmail: guestEmail,
+      isGuest: true
+    };
   }
   
-  // Fallback to basic template
+  // Use backend email templates (comprehensive with all order details)
   let htmlContent;
   if (type === 'order_completion' || type === 'order_placed' || type === 'order_confirmed') {
     htmlContent = generateOrderConfirmationHTML(guestName, orderData);
@@ -1275,27 +1360,28 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
       preferenceType = 'security';
     }
     
+    // Determine if this is a seller or buyer notification for artisans (used for both email and push)
+    const isSellerNotification = type === 'new_order' || 
+                                 type === 'new_order_pending' ||
+                                 type === 'order_created_seller' ||
+                                 type === 'order_cancelled' ||  // Seller gets email when buyer cancels
+                                 type === 'courier_on_way' ||
+                                 type === 'delivery_cost_increase';
+    
+    const isBuyerNotification = type === 'order_created_buyer' ||
+                               type === 'order_confirmed' ||
+                               type === 'order_preparing' ||
+                               type === 'order_ready_for_pickup' ||
+                               type === 'order_ready_for_delivery' ||
+                               type === 'order_out_for_delivery' ||
+                               type === 'order_picked_up' ||
+                               type === 'order_delivered' ||
+                               type === 'order_declined';
+    
     // Email sending logic based on user role and notification type
     let shouldSendEmail = false;
     
     if (userRole === 'artisan') {
-      // Check if this is a seller notification or buyer notification
-      const isSellerNotification = type === 'new_order' || 
-                                   type === 'new_order_pending' ||
-                                   type === 'order_created_seller' ||
-                                   type === 'order_cancelled' ||  // Seller gets email when buyer cancels
-                                   type === 'courier_on_way' ||
-                                   type === 'delivery_cost_increase';
-      
-      const isBuyerNotification = type === 'order_created_buyer' ||
-                                 type === 'order_confirmed' ||
-                                 type === 'order_preparing' ||
-                                 type === 'order_ready_for_pickup' ||
-                                 type === 'order_ready_for_delivery' ||
-                                 type === 'order_out_for_delivery' ||
-                                 type === 'order_delivered' ||
-                                 type === 'order_declined';
-      
       // ARTISANS AS SELLERS: Send email for orders they're selling
       // ARTISANS AS BUYERS: Send email for orders they're buying (treat as patron)
       shouldSendEmail = isSellerNotification || isBuyerNotification || type === 'order_completed';
@@ -1310,9 +1396,16 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
       // They get in-app notifications for everything else (notification bell)
       shouldSendEmail = type === 'order_placed' ||           // Initial confirmation
                        type === 'order_confirmed' ||         // Artisan accepted
+                       type === 'order_preparing' ||         // Order being prepared
+                       type === 'order_ready_for_pickup' ||  // Ready for pickup
+                       type === 'order_ready_for_delivery' || // Ready for delivery
                        type === 'order_out_for_delivery' ||  // With tracking info
+                       type === 'order_picked_up' ||         // Picked up
+                       type === 'order_delivered' ||         // Delivered
+                       type === 'order_completed' ||         // Completed
                        type === 'delivery_refund' ||         // Refund processed
-                       type === 'order_declined';            // Order rejected
+                       type === 'order_declined' ||          // Order rejected
+                       type === 'order_cancelled';           // Order cancelled
       console.log(`📧 Patron (registered) notification: type=${type}, sendEmail=${shouldSendEmail}`);
     } else {
       // For other types, check preferences
@@ -1332,9 +1425,36 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
     }
     
     // Check push preferences for in-app notifications
-    const pushAllowed = await checkNotificationPreference(userId, preferenceType, 'push', db);
+    // For critical order updates, always send push notifications (buyers need to know!)
+    let shouldSendPush = false;
     
-    if (pushAllowed) {
+    if (userRole === 'artisan') {
+      // Artisans as buyers ALWAYS get in-app notifications for their purchases
+      shouldSendPush = isBuyerNotification || isSellerNotification || type === 'order_completed';
+      console.log(`🔔 Artisan push notification: type=${type}, shouldSendPush=${shouldSendPush}`);
+    } else if (isGuestOrder) {
+      // Guests don't have in-app access, so no push notification
+      shouldSendPush = false;
+    } else if (userRole === 'patron' || userRole === 'customer' || userRole === 'buyer') {
+      // Patrons ALWAYS get in-app notifications for order updates
+      shouldSendPush = type === 'order_placed' ||
+                       type === 'order_confirmed' ||
+                       type === 'order_preparing' ||
+                       type === 'order_ready_for_pickup' ||
+                       type === 'order_ready_for_delivery' ||
+                       type === 'order_out_for_delivery' ||
+                       type === 'order_picked_up' ||
+                       type === 'order_delivered' ||
+                       type === 'order_completed' ||
+                       type === 'order_declined' ||
+                       type === 'order_cancelled';
+      console.log(`🔔 Patron push notification: type=${type}, shouldSendPush=${shouldSendPush}`);
+    } else {
+      // For other types, check preferences
+      shouldSendPush = await checkNotificationPreference(userId, preferenceType, 'push', db);
+    }
+    
+    if (shouldSendPush && userId) {
       // Send platform notification
       const notificationsCollection = db.collection('notifications');
       
@@ -1356,11 +1476,13 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
       // Connection managed by middleware - no close needed
       
       console.log(`🔔 Platform notification sent to user ${userId}: ${title}`);
+    } else {
+      console.log(`⏭️ Skipping push notification for user ${userId} (${userRole}, type=${type})`);
     }
     
     return {
-      emailSent: emailAllowed,
-      pushSent: pushAllowed,
+      emailSent: shouldSendEmail,
+      pushSent: shouldSendPush,
       preferenceType
     };
   } catch (error) {

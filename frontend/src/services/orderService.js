@@ -102,7 +102,16 @@ export const orderService = {
     try {
       const response = await api.get(`${API_URL}/orders/${orderId}`);
       // API returns { success: true, data: { order: {...} } }
-      return response.data.data?.order || response.data.order || response.data;
+      // Return the unwrapped order with all populated data
+      const order = response.data.data?.order || response.data.order || response.data;
+      console.log('📦 getOrderById result:', { 
+        orderId, 
+        hasOrder: !!order,
+        hasArtisan: !!order?.artisan,
+        hasCustomer: !!order?.customer,
+        hasPatron: !!order?.patron
+      });
+      return order;
     } catch (error) {
       console.error('Error fetching order:', error);
       throw error;

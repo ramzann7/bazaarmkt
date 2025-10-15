@@ -98,18 +98,27 @@ class StripeService {
   /**
    * Create a payout to artisan's bank account
    * @param {string} accountId - Stripe Connect account ID
-   * @param {number} amount - Amount in cents
+   * @param {number} amount - Amount in dollars (will be converted to cents)
    * @param {string} currency - Currency code (default: CAD)
+   * @param {Object} metadata - Additional metadata for the payout
    * @returns {Object} - Payout object
    */
-  async createPayout(accountId, amount, currency = 'cad') {
+  async createPayout(accountId, amount, currency = 'cad', metadata = {}) {
     try {
-      const payout = await this.stripe.payouts.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: currency.toLowerCase(),
-        destination: accountId,
-        method: 'standard', // or 'instant' for faster payouts (higher fees)
-      });
+      // Create payout on the Connect account (not the platform account)
+      // This sends money from the Connect account balance to their bank account
+      const payout = await this.stripe.payouts.create(
+        {
+          amount: Math.round(amount * 100), // Convert to cents
+          currency: currency.toLowerCase(),
+          method: 'standard', // 2-3 business days (free)
+          statement_descriptor: 'BAZAAR Earnings',
+          metadata: metadata
+        },
+        {
+          stripeAccount: accountId // Critical: specify which Connect account
+        }
+      );
 
       return payout;
     } catch (error) {

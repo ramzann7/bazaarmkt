@@ -79,8 +79,9 @@ export default function Orders() {
       // Patron filtering
       switch (filter) {
         case 'in_progress':
+          // Show all orders except cancelled, declined, and completed (same as artisan)
           filteredOrders = allOrders.filter(order => 
-            ['pending', 'confirmed', 'preparing', 'ready_for_pickup', 'ready_for_delivery', 'out_for_delivery'].includes(order.status)
+            !['cancelled', 'completed', 'declined'].includes(order.status)
           );
           break;
         case 'delivered':
@@ -142,15 +143,28 @@ export default function Orders() {
       
       // Only load orders from API if not already loaded or force refresh
       if (!ordersLoaded || forceRefresh) {
-        console.log('📋 Loading all orders from API...');
+        console.log('📋 Making FRESH API call for orders (not using cache)...');
         let ordersData;
         if (actualUserRole === 'artisan') {
           // For artisans, load BOTH sales and purchases for priority queue
-          console.log(`📋 Loading ${orderType} orders for artisan (and both types for priority queue)...`);
+          console.log(`📋 Fetching ${orderType} orders from backend...`);
           const [salesData, purchasesData] = await Promise.all([
             orderService.getArtisanOrders(true, 'sales'),
             orderService.getArtisanOrders(true, 'purchases')
           ]);
+          
+          console.log('📥 API returned - Sales:', salesData.length, 'Purchases:', purchasesData.length);
+          
+          // DEBUG: Check if purchases have artisan data
+          if (purchasesData.length > 0) {
+            console.log('🔍 PURCHASES DATA CHECK:', {
+              firstOrderId: purchasesData[0]._id,
+              hasArtisan: !!purchasesData[0].artisan,
+              artisanName: purchasesData[0].artisan?.artisanName,
+              artisanType: typeof purchasesData[0].artisan,
+              hasPickupAddress: !!purchasesData[0].artisan?.pickupAddress
+            });
+          }
           
           // Store both for priority queue
           setAllSalesOrders(salesData);
@@ -167,6 +181,20 @@ export default function Orders() {
           type: orderType,
           statuses: ordersData.map(o => ({ id: o._id?.toString().slice(-8), status: o.status }))
         });
+        
+        // DEBUG: Check artisan data
+        if (ordersData.length > 0 && ordersData[0].artisan) {
+          console.log('🔍 First order artisan data:', {
+            hasArtisan: !!ordersData[0].artisan,
+            artisanName: ordersData[0].artisan?.artisanName,
+            hasPickupAddress: !!ordersData[0].artisan?.pickupAddress,
+            pickupStreet: ordersData[0].artisan?.pickupAddress?.street,
+            deliveryFee: ordersData[0].artisan?.deliveryFee,
+            orderDeliveryFee: ordersData[0].deliveryFee
+          });
+        } else if (ordersData.length > 0) {
+          console.log('❌ First order has NO artisan object!', ordersData[0]);
+        }
         
         setAllOrders(ordersData);
         setOrdersLoaded(true);
@@ -189,7 +217,8 @@ export default function Orders() {
     // Set up real-time updates every 2 minutes (less frequent)
     const interval = setInterval(loadUserAndOrders, 120000);
     return () => clearInterval(interval);
-  }, [loadUserAndOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Switch between sales and purchases when orderType changes (for artisans)
   useEffect(() => {
@@ -1094,10 +1123,10 @@ export default function Orders() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="font-medium">
-                      {isArtisan(userRole) ? '👤 Customer:' : '🏪 Artisan:'}
+                      {isArtisan(userRole) && orderType === 'sales' ? '👤 Customer:' : '🏪 Artisan:'}
                     </span> 
                     <span>
-                      {isArtisan(userRole) 
+                      {isArtisan(userRole) && orderType === 'sales'
                         ? (order.patron 
                             ? `${order.patron?.firstName} ${order.patron?.lastName}`
                             : `${order.guestInfo?.firstName} ${order.guestInfo?.lastName} (Guest)`

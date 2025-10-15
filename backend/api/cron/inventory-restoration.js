@@ -39,24 +39,6 @@ const connectDB = async () => {
 
 // Vercel serverless function handler
 module.exports = async (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  // Only allow GET requests (for cron jobs)
-  if (req.method !== 'GET') {
-    return res.status(405).json({
-      success: false,
-      message: 'Method not allowed'
-    });
-  }
-  
   try {
     // Verify cron authentication
     if (!verifyCronAuth(req)) {

@@ -168,36 +168,50 @@ const autoCapturePayments = async () => {
                   artisanAmount: artisanAmount,
                   stripeTransferId: transfer.id,
                   autoCaptured: true,
+                  'paymentHold.status': 'captured', // Update hold status
+                  'paymentHold.capturedAt': new Date(),
                   updatedAt: new Date()
                 }
               }
             );
             
-            // Update wallet balance
-            const walletsCollection = db.collection('wallets');
-            await walletsCollection.updateOne(
-              { artisanId: order.artisan },
-              {
-                $inc: { balance: artisanAmount },
-                $set: { updatedAt: new Date() }
-              },
-              { upsert: true }
-            );
-            
-            // Record wallet transaction
-            await recordWalletTransaction(db, {
-              artisanId: order.artisan,
-              type: 'order_revenue',
-              amount: artisanAmount,
-              description: `Auto-captured revenue from order #${order._id} (after ${(feeCalculation.feeRate * 100).toFixed(1)}% platform fee)`,
-              status: 'completed',
-              orderId: order._id,
-              stripeTransferId: transfer.id,
-              platformFee: platformFee,
-              platformFeeRate: feeCalculation.feeRate,
-              totalOrderAmount: order.totalAmount,
-              autoCaptured: true
-            });
+            // Process comprehensive revenue recognition using WalletService
+            // This ensures consistent fee calculations and record keeping
+            try {
+              const WalletService = require('../../services/WalletService');
+              const walletService = new WalletService(db);
+              
+              const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+              console.log('✅ Auto-capture revenue recognition completed:', revenueResult.data);
+            } catch (revenueError) {
+              console.error('❌ Error processing auto-capture revenue:', revenueError);
+              
+              // Fallback: Manual wallet update if processOrderCompletion fails
+              const walletsCollection = db.collection('wallets');
+              await walletsCollection.updateOne(
+                { artisanId: order.artisan },
+                {
+                  $inc: { balance: artisanAmount },
+                  $set: { updatedAt: new Date() }
+                },
+                { upsert: true }
+              );
+              
+              // Record basic transaction
+              await recordWalletTransaction(db, {
+                artisanId: order.artisan,
+                type: 'order_revenue',
+                amount: artisanAmount,
+                description: `Auto-captured revenue from order #${order._id}`,
+                status: 'completed',
+                orderId: order._id,
+                stripeTransferId: transfer.id,
+                platformFee: platformFee,
+                platformFeeRate: feeCalculation.feeRate,
+                totalOrderAmount: order.totalAmount,
+                autoCaptured: true
+              });
+            }
             
             capturedCount++;
             console.log(`✅ Successfully captured payment for order ${order._id}`);
@@ -248,6 +262,8 @@ module.exports = async (req, res) => {
       });
     }
     
+    console.log('⏰ Vercel Cron Job triggered - Auto-capturing payments');
+    
     const result = await autoCapturePayments();
     
     res.status(result.success ? 200 : 500).json(result);
@@ -256,7 +272,8 @@ module.exports = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Cron job handler failed',
-      error: error.message
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 };

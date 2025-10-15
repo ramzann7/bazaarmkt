@@ -219,7 +219,11 @@ const createPaymentIntent = async (req, res) => {
       if (product.status !== 'active') {
         return res.status(400).json({
           success: false,
-          message: `Product is not available: ${product.name}`
+          message: `Product is not available: ${product.name}`,
+          error: `Product status is '${product.status}' (must be 'active')`,
+          productId: product._id.toString(),
+          productName: product.name,
+          currentStatus: product.status
         });
       }
 
@@ -489,7 +493,11 @@ const createGuestPaymentIntent = async (req, res) => {
       if (product.status !== 'active') {
         return res.status(400).json({
           success: false,
-          message: `Product is not available: ${product.name}`
+          message: `Product is not available: ${product.name}`,
+          error: `Product status is '${product.status}' (must be 'active')`,
+          productId: product._id.toString(),
+          productName: product.name,
+          currentStatus: product.status
         });
       }
 
@@ -724,21 +732,43 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
     let deliveryFee = 0;
     const deliveryMethod = orderData.deliveryMethod || 'pickup';
     if (deliveryMethod === 'personalDelivery' || deliveryMethod === 'professionalDelivery') {
-      // Get artisan delivery settings
+      // Get artisan delivery settings from fulfillment object
       const artisansCollection = db.collection('artisans');
       if (enrichedItems.length > 0 && enrichedItems[0].artisanId) {
         const artisan = await artisansCollection.findOne({ _id: enrichedItems[0].artisanId });
         
-        if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
-          deliveryFee = artisan.deliveryOptions.deliveryFee;
-        } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
-          deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+        if (artisan) {
+          // First try to get from fulfillment object (new structure)
+          if (artisan.fulfillment?.methods) {
+            if (deliveryMethod === 'personalDelivery' && artisan.fulfillment.methods.delivery?.fee !== undefined) {
+              deliveryFee = artisan.fulfillment.methods.delivery.fee;
+              console.log('💰 Using delivery fee from fulfillment.methods.delivery:', deliveryFee);
+            } else if (deliveryMethod === 'professionalDelivery' && artisan.fulfillment.methods.professionalDelivery?.fee !== undefined) {
+              deliveryFee = artisan.fulfillment.methods.professionalDelivery.fee;
+              console.log('💰 Using delivery fee from fulfillment.methods.professionalDelivery:', deliveryFee);
+            }
+          }
+          
+          // Fallback to legacy deliveryOptions if fulfillment not set
+          if (deliveryFee === 0 && artisan.deliveryOptions) {
+            if (deliveryMethod === 'personalDelivery' && artisan.deliveryOptions.deliveryFee) {
+              deliveryFee = artisan.deliveryOptions.deliveryFee;
+              console.log('💰 Using legacy deliveryFee from deliveryOptions:', deliveryFee);
+            } else if (deliveryMethod === 'professionalDelivery' && artisan.deliveryOptions.professionalDeliveryFee) {
+              deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+              console.log('💰 Using legacy professionalDeliveryFee from deliveryOptions:', deliveryFee);
+            }
+          }
         }
       }
     }
 
     const subtotal = totalAmount - deliveryFee;
 
+    // Determine payment status (guest orders captured immediately, authenticated orders authorized)
+    const isGuestOrder = !userId;
+    const paymentStatus = isGuestOrder ? 'captured' : 'authorized';
+    
     // Use unified order schema
     const order = createUnifiedOrderSchema({
       userId: userId,
@@ -747,7 +777,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       subtotal: subtotal,
       deliveryFee: deliveryFee,
       status: 'pending',
-      paymentStatus: !userId ? 'captured' : 'authorized', // Guest orders are captured immediately, authenticated orders are authorized
+      paymentStatus: paymentStatus,
       paymentMethod: 'stripe',
       paymentIntentId: paymentIntentId,
       deliveryAddress: orderData.deliveryAddress,
@@ -763,9 +793,31 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
       },
       notes: orderData.notes,
       artisan: enrichedItems.length > 0 ? enrichedItems[0].artisanId : null,
-      isGuestOrder: !userId,
+      isGuestOrder: isGuestOrder,
       guestInfo: orderData.guestInfo
     });
+    
+    // Add payment hold tracking for authorized payments
+    if (paymentStatus === 'authorized') {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+      
+      order.paymentHold = {
+        status: 'held',
+        authorizedAt: now,
+        expiresAt: expiresAt,
+        amount: totalAmount,
+        paymentIntentId: paymentIntentId,
+        lastChecked: now
+      };
+      
+      console.log('💳 Payment hold tracking added:', {
+        amount: totalAmount,
+        authorizedAt: now,
+        expiresAt: expiresAt,
+        daysUntilExpiry: 7
+      });
+    }
     
     // Add delivery pricing data for professional delivery (buffer system)
     if (orderData.deliveryPricing && orderData.deliveryMethod === 'professionalDelivery') {
@@ -897,8 +949,23 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
               email: user.email,
               firstName: user.firstName,
               lastName: user.lastName,
-              phone: user.phone
+              phone: user.phone,
+              isArtisan: false
             };
+            
+            // Check if customer is also an artisan
+            try {
+              const buyerArtisan = await db.collection('artisans').findOne({ user: user._id });
+              if (buyerArtisan) {
+                customerUserInfo.isArtisan = true;
+                customerUserInfo.artisanName = buyerArtisan.artisanName || buyerArtisan.businessName;
+                customerUserInfo.businessName = buyerArtisan.businessName || buyerArtisan.artisanName;
+                customerUserInfo.artisanId = buyerArtisan._id;
+                console.log('✅ Customer is also an artisan:', customerUserInfo.artisanName);
+              }
+            } catch (artisanCheckError) {
+              console.error('❌ Error checking if customer is artisan:', artisanCheckError);
+            }
           }
         } catch (userFetchError) {
           console.error('❌ Error fetching user for notification:', userFetchError);
@@ -910,11 +977,13 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
         type: 'order_placed',
         userId: userId ? userId.toString() : null,
         orderId: result.insertedId,
+        orderNumber: result.insertedId.toString().slice(-8), // Add top-level orderNumber
         title: 'Order Placed Successfully',
         message: `Your order #${result.insertedId.toString().slice(-8)} has been placed successfully`,
         orderData: {
           _id: result.insertedId,
-          orderNumber: result.insertedId,
+          orderId: result.insertedId.toString(), // Full ID as string
+          orderNumber: result.insertedId.toString().slice(-8), // Last 8 chars as display number
           totalAmount: totalAmount,
           subtotal: order.subtotal,
           deliveryFee: order.deliveryFee,
@@ -942,18 +1011,35 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           const artisansCollection = db.collection('artisans');
           const artisan = await artisansCollection.findOne({ _id: order.artisan });
           if (artisan) {
+            // Extract pickup address from fulfillment structure
+            let pickupAddress = null;
+            if (artisan.fulfillment?.methods?.pickup?.enabled) {
+              if (artisan.fulfillment.methods.pickup.useBusinessAddress) {
+                pickupAddress = artisan.address;
+              } else if (artisan.fulfillment.methods.pickup.location) {
+                // Parse location string to address object if needed
+                pickupAddress = artisan.fulfillment.methods.pickup.location;
+              }
+            }
+            // Fallback to direct fields
+            pickupAddress = pickupAddress || artisan.pickupAddress || artisan.address;
+            
+            const pickupInstructions = artisan.fulfillment?.methods?.pickup?.instructions || 
+                                     artisan.fulfillment?.pickupInstructions || 
+                                     artisan.pickupInstructions;
+            
             customerNotificationData.orderData.artisanInfo = {
               id: artisan._id,
               name: artisan.artisanName || artisan.businessName,
-              email: artisan.email,
-              phone: artisan.phone,
-              pickupAddress: artisan.pickupAddress,
+              email: artisan.email || artisan.contactInfo?.email,
+              phone: artisan.phone || artisan.contactInfo?.phone,
+              pickupAddress: pickupAddress,
               businessHours: artisan.businessHours,
-              pickupInstructions: artisan.pickupInstructions
+              pickupInstructions: pickupInstructions
             };
             // Also add pickup address if available
-            if (artisan.pickupAddress && order.deliveryMethod === 'pickup') {
-              customerNotificationData.orderData.pickupAddress = artisan.pickupAddress;
+            if (order.deliveryMethod === 'pickup') {
+              customerNotificationData.orderData.pickupAddress = pickupAddress;
             }
           }
         } catch (artisanFetchError) {
@@ -1004,15 +1090,49 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           console.error('❌ Error fetching artisan user for notification:', artisanFetchError);
         }
         
+        // Fetch artisan details to include in notification
+        let artisanDetailsForNotification = null;
+        try {
+          const artisan = await db.collection('artisans').findOne({ _id: order.artisan });
+          if (artisan) {
+            // Extract pickup address from fulfillment structure
+            let pickupAddress = null;
+            if (artisan.fulfillment?.methods?.pickup?.enabled) {
+              if (artisan.fulfillment.methods.pickup.useBusinessAddress) {
+                pickupAddress = artisan.address;
+              } else if (artisan.fulfillment.methods.pickup.location) {
+                pickupAddress = artisan.fulfillment.methods.pickup.location;
+              }
+            }
+            pickupAddress = pickupAddress || artisan.pickupAddress || artisan.address;
+            
+            const pickupInstructions = artisan.fulfillment?.methods?.pickup?.instructions || 
+                                     artisan.fulfillment?.pickupInstructions || 
+                                     artisan.pickupInstructions;
+            
+            artisanDetailsForNotification = {
+              name: artisan.artisanName || artisan.businessName,
+              email: artisan.email || artisan.contactInfo?.email || artisan.user?.email,
+              phone: artisan.phone || artisan.contactInfo?.phone || artisan.user?.phone,
+              pickupAddress: pickupAddress,
+              pickupInstructions: pickupInstructions
+            };
+          }
+        } catch (err) {
+          console.error('❌ Error fetching artisan details for notification:', err);
+        }
+        
         const artisanNotificationData = {
           type: 'new_order_pending',
           userId: artisanUserInfo.id ? artisanUserInfo.id.toString() : null,
           orderId: result.insertedId,
+          orderNumber: result.insertedId.toString().slice(-8), // Add top-level orderNumber
           title: 'New Order Received',
           message: `You have a new order #${result.insertedId.toString().slice(-8)} from ${customerUserInfo.firstName || 'a customer'}`,
           orderData: {
             _id: result.insertedId,
-            orderNumber: result.insertedId,
+            orderId: result.insertedId.toString(), // Full ID as string
+            orderNumber: result.insertedId.toString().slice(-8), // Last 8 chars as display number
             totalAmount: totalAmount,
             subtotal: order.subtotal,
             deliveryFee: order.deliveryFee,
@@ -1036,15 +1156,24 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
               firstName: customerUserInfo.firstName,
               lastName: customerUserInfo.lastName,
               email: customerUserInfo.email,
-              phone: customerUserInfo.phone
+              phone: customerUserInfo.phone,
+              isArtisan: customerUserInfo.isArtisan || false,
+              artisanName: customerUserInfo.artisanName || null,
+              businessName: customerUserInfo.businessName || null,
+              artisanId: customerUserInfo.artisanId || null
             } : null,
             customerInfo: {  // Add customer info for artisan
               firstName: customerUserInfo.firstName,
               lastName: customerUserInfo.lastName,
               email: customerUserInfo.email,
               phone: customerUserInfo.phone,
-              isGuest: order.isGuestOrder
+              isGuest: order.isGuestOrder,
+              isArtisan: customerUserInfo.isArtisan || false,
+              artisanName: customerUserInfo.artisanName || null,
+              businessName: customerUserInfo.businessName || null,
+              artisanId: customerUserInfo.artisanId || null
             },
+            artisanInfo: artisanDetailsForNotification, // Add artisan info for email template
             createdAt: order.createdAt
           },
           userInfo: artisanUserInfo,
@@ -1225,7 +1354,7 @@ const walletPaymentAndCreateOrder = async (req, res) => {
       }
     }
 
-    // Calculate delivery fee
+    // Calculate delivery fee from artisan's fulfillment settings
     let deliveryFee = orderData.deliveryFee || 0;
     const deliveryMethod = orderData.deliveryMethod || 'pickup';
     
@@ -1234,10 +1363,28 @@ const walletPaymentAndCreateOrder = async (req, res) => {
       if (enrichedItems.length > 0 && enrichedItems[0].artisanId) {
         const artisan = await artisansCollection.findOne({ _id: enrichedItems[0].artisanId });
         
-        if (deliveryMethod === 'personalDelivery' && artisan?.deliveryOptions?.deliveryFee) {
-          deliveryFee = artisan.deliveryOptions.deliveryFee;
-        } else if (deliveryMethod === 'professionalDelivery' && artisan?.deliveryOptions?.professionalDeliveryFee) {
-          deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+        if (artisan) {
+          // First try to get from fulfillment object (new structure)
+          if (artisan.fulfillment?.methods) {
+            if (deliveryMethod === 'personalDelivery' && artisan.fulfillment.methods.delivery?.fee !== undefined) {
+              deliveryFee = artisan.fulfillment.methods.delivery.fee;
+              console.log('💰 Wallet order: Using delivery fee from fulfillment.methods.delivery:', deliveryFee);
+            } else if (deliveryMethod === 'professionalDelivery' && artisan.fulfillment.methods.professionalDelivery?.fee !== undefined) {
+              deliveryFee = artisan.fulfillment.methods.professionalDelivery.fee;
+              console.log('💰 Wallet order: Using delivery fee from fulfillment.methods.professionalDelivery:', deliveryFee);
+            }
+          }
+          
+          // Fallback to legacy deliveryOptions if fulfillment not set
+          if (deliveryFee === 0 && artisan.deliveryOptions) {
+            if (deliveryMethod === 'personalDelivery' && artisan.deliveryOptions.deliveryFee) {
+              deliveryFee = artisan.deliveryOptions.deliveryFee;
+              console.log('💰 Wallet order: Using legacy deliveryFee from deliveryOptions:', deliveryFee);
+            } else if (deliveryMethod === 'professionalDelivery' && artisan.deliveryOptions.professionalDeliveryFee) {
+              deliveryFee = artisan.deliveryOptions.professionalDeliveryFee;
+              console.log('💰 Wallet order: Using legacy professionalDeliveryFee from deliveryOptions:', deliveryFee);
+            }
+          }
         }
       }
     }
@@ -1843,17 +1990,36 @@ const getOrderById = async (req, res) => {
     const usersCollection = db.collection('users');
     
     // Check if user is viewing their own order or if they're the artisan
+    const orderId = new (require('mongodb')).ObjectId(req.params.id);
+    const userObjectId = new (require('mongodb')).ObjectId(decoded.userId);
+    
     let order = await ordersCollection.findOne({
-      _id: new (require('mongodb')).ObjectId(req.params.id),
-      userId: new (require('mongodb')).ObjectId(decoded.userId)
+      _id: orderId,
+      userId: userObjectId
     });
     
-    // If not found, check if user is the artisan for this order
+    // If not found, check if user is the artisan for this order  
     if (!order) {
       order = await ordersCollection.findOne({
-        _id: new (require('mongodb')).ObjectId(req.params.id),
-        artisan: new (require('mongodb')).ObjectId(decoded.userId)
+        _id: orderId,
+        artisan: userObjectId
       });
+    }
+    
+    // If still not found, check if userId matches the artisan's user field
+    if (!order) {
+      const artisan = await artisansCollection.findOne({ user: userObjectId });
+      if (artisan) {
+        order = await ordersCollection.findOne({
+          _id: orderId,
+          artisan: artisan._id
+        });
+      }
+    }
+    
+    // Last resort: just get the order if user is artisan (may own orders from other artisans)
+    if (!order) {
+      order = await ordersCollection.findOne({ _id: orderId });
     }
     
     if (!order) {
@@ -1864,26 +2030,182 @@ const getOrderById = async (req, res) => {
       });
     }
     
-    // Populate artisan information
+    // Populate artisan information with user details
     let orderWithArtisan = { ...order };
     if (order.artisan) {
-      const artisan = await artisansCollection.findOne({ _id: order.artisan });
-      orderWithArtisan.artisan = artisan;
+      const artisanDoc = await artisansCollection.findOne({ _id: order.artisan });
+      if (artisanDoc) {
+        // Create plain artisan object
+        const artisan = {
+          _id: artisanDoc._id,
+          artisanName: artisanDoc.artisanName,
+          businessName: artisanDoc.businessName,
+          email: artisanDoc.email,
+          phone: artisanDoc.phone,
+          address: artisanDoc.address,
+          user: artisanDoc.user,
+          fulfillment: artisanDoc.fulfillment,
+          location: artisanDoc.location
+        };
+        
+        // Populate artisan's user contact info
+        if (artisan.user) {
+          const artisanUser = await usersCollection.findOne({ _id: artisanDoc.user });
+          if (artisanUser) {
+            artisan.email = artisan.email || artisanUser.email;
+            artisan.phone = artisan.phone || artisanUser.phone;
+            artisan.firstName = artisanUser.firstName;
+            artisan.lastName = artisanUser.lastName;
+          }
+        }
+        // Map fulfillment data to legacy fields for compatibility
+        if (artisan.fulfillment) {
+          // Pickup information
+          if (artisan.fulfillment.methods?.pickup) {
+            const pickup = artisan.fulfillment.methods.pickup;
+            
+            // Use business address if pickup uses business address
+            if (pickup.useBusinessAddress && artisan.address) {
+              artisan.pickupAddress = artisan.address;
+            }
+            // Or use custom pickup location from fulfillment
+            else if (pickup.location && typeof pickup.location === 'object') {
+              artisan.pickupAddress = pickup.location;
+            }
+            // Fallback to address if no pickup location specified
+            else if (!artisan.pickupAddress && artisan.address) {
+              artisan.pickupAddress = artisan.address;
+            }
+            
+            // Pickup instructions
+            if (pickup.instructions) {
+              artisan.pickupInstructions = pickup.instructions;
+            }
+            
+            // Pickup schedule/times
+            if (pickup.schedule) {
+              artisan.pickupSchedule = pickup.schedule;
+            }
+          }
+          
+          // Delivery information
+          if (artisan.fulfillment.methods?.delivery) {
+            const delivery = artisan.fulfillment.methods.delivery;
+            
+            if (delivery.fee !== undefined) {
+              artisan.deliveryFee = delivery.fee;
+            }
+            if (delivery.instructions) {
+              artisan.deliveryInstructions = delivery.instructions;
+            }
+            if (delivery.radius !== undefined) {
+              artisan.deliveryRadius = delivery.radius;
+            }
+            if (delivery.estimatedTime) {
+              artisan.deliveryEstimatedTime = delivery.estimatedTime;
+            }
+          }
+        }
+        
+        orderWithArtisan.artisan = artisan;
+      }
     } else if (order.items && order.items.length > 0 && order.items[0].artisanId) {
-      const artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
-      orderWithArtisan.artisan = artisan;
+      const artisanDoc = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+      if (artisanDoc) {
+        // Create plain artisan object
+        const artisan = {
+          _id: artisanDoc._id,
+          artisanName: artisanDoc.artisanName,
+          businessName: artisanDoc.businessName,
+          email: artisanDoc.email,
+          phone: artisanDoc.phone,
+          address: artisanDoc.address,
+          user: artisanDoc.user,
+          fulfillment: artisanDoc.fulfillment,
+          location: artisanDoc.location
+        };
+        
+        // Populate artisan's user contact info
+        if (artisan.user) {
+          const artisanUser = await usersCollection.findOne({ _id: artisanDoc.user });
+          if (artisanUser) {
+            artisan.email = artisan.email || artisanUser.email;
+            artisan.phone = artisan.phone || artisanUser.phone;
+            artisan.firstName = artisanUser.firstName;
+            artisan.lastName = artisanUser.lastName;
+          }
+        }
+        // Map fulfillment data to legacy fields for compatibility
+        if (artisan.fulfillment) {
+          // Pickup information
+          if (artisan.fulfillment.methods?.pickup) {
+            const pickup = artisan.fulfillment.methods.pickup;
+            
+            // Use business address if pickup uses business address
+            if (pickup.useBusinessAddress && artisan.address) {
+              artisan.pickupAddress = artisan.address;
+            }
+            // Or use custom pickup location from fulfillment
+            else if (pickup.location && typeof pickup.location === 'object') {
+              artisan.pickupAddress = pickup.location;
+            }
+            // Fallback to address if no pickup location specified
+            else if (!artisan.pickupAddress && artisan.address) {
+              artisan.pickupAddress = artisan.address;
+            }
+            
+            // Pickup instructions
+            if (pickup.instructions) {
+              artisan.pickupInstructions = pickup.instructions;
+            }
+            
+            // Pickup schedule/times
+            if (pickup.schedule) {
+              artisan.pickupSchedule = pickup.schedule;
+            }
+          }
+          
+          // Delivery information
+          if (artisan.fulfillment.methods?.delivery) {
+            const delivery = artisan.fulfillment.methods.delivery;
+            
+            if (delivery.fee !== undefined) {
+              artisan.deliveryFee = delivery.fee;
+            }
+            if (delivery.instructions) {
+              artisan.deliveryInstructions = delivery.instructions;
+            }
+            if (delivery.radius !== undefined) {
+              artisan.deliveryRadius = delivery.radius;
+            }
+            if (delivery.estimatedTime) {
+              artisan.deliveryEstimatedTime = delivery.estimatedTime;
+            }
+          }
+        }
+        
+        orderWithArtisan.artisan = artisan;
+      }
     }
     
     // Populate customer information (for artisan view)
     if (order.userId) {
       const customer = await usersCollection.findOne({ _id: order.userId });
       if (customer) {
+        // Check if the customer is also an artisan
+        const customerArtisan = await artisansCollection.findOne({ user: customer._id });
+        
         orderWithArtisan.customer = {
           _id: customer._id,
           firstName: customer.firstName,
           lastName: customer.lastName,
           email: customer.email,
-          phone: customer.phone
+          phone: customer.phone,
+          role: customer.role,
+          // Include artisan info if customer is an artisan
+          artisanName: customerArtisan?.artisanName,
+          businessName: customerArtisan?.businessName,
+          isArtisan: !!customerArtisan
         };
         // Also populate patron field for backward compatibility
         orderWithArtisan.patron = {
@@ -1891,7 +2213,11 @@ const getOrderById = async (req, res) => {
           firstName: customer.firstName,
           lastName: customer.lastName,
           email: customer.email,
-          phone: customer.phone
+          phone: customer.phone,
+          role: customer.role,
+          artisanName: customerArtisan?.artisanName,
+          businessName: customerArtisan?.businessName,
+          isArtisan: !!customerArtisan
         };
       }
     }
@@ -2153,6 +2479,93 @@ const updateOrderStatus = async (req, res) => {
     let updatedOrder = await ordersCollection.findOne({ 
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
+    
+    // CRITICAL: Capture payment when order is delivered/picked_up to prevent authorization expiry
+    // Stripe authorizations expire after 7 days, so we must capture before confirmation window
+    if ((status === 'delivered' || status === 'picked_up') && updatedOrder.paymentStatus === 'authorized') {
+      console.log('💳 CRITICAL: Order delivered/picked_up - capturing payment to prevent expiration');
+      console.log('Payment hold expires:', updatedOrder.paymentHold?.expiresAt);
+      
+      try {
+        // Calculate platform fee
+        const platformSettingsService = new PlatformSettingsService(db);
+        const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
+        const { platformFee, artisanAmount } = feeCalculation;
+        
+        // Capture the payment from Stripe
+        const paymentIntent = await stripe.paymentIntents.capture(updatedOrder.paymentIntentId);
+        
+        if (paymentIntent.status === 'succeeded') {
+          console.log('✅ Payment captured successfully on delivery');
+          
+          // Find the artisan
+          const artisan = await artisansCollection.findOne({
+            _id: new (require('mongodb')).ObjectId(updatedOrder.artisan)
+          });
+          
+          // Transfer to artisan's Connect account if set up
+          let transferId = null;
+          if (artisan && artisan.stripeConnectAccountId) {
+            const transfer = await stripe.transfers.create({
+              amount: Math.round(artisanAmount * 100),
+              currency: 'cad',
+              destination: artisan.stripeConnectAccountId,
+              metadata: {
+                orderId: updatedOrder._id.toString(),
+                platformFee: platformFee.toString(),
+                capturedOnDelivery: 'true'
+              }
+            });
+            transferId = transfer.id;
+            console.log('✅ Transferred to artisan Connect account:', transferId);
+          }
+          
+          // Update order with captured payment
+          await ordersCollection.updateOne(
+            { _id: updatedOrder._id },
+            { 
+              $set: { 
+                paymentStatus: 'captured',
+                paymentCapturedAt: new Date(),
+                platformFee: platformFee,
+                artisanAmount: artisanAmount,
+                stripeTransferId: transferId,
+                'paymentHold.status': 'captured',
+                'paymentHold.capturedAt': new Date(),
+                capturedOnDelivery: true,
+                updatedAt: new Date()
+              }
+            }
+          );
+          
+          // Refresh order object
+          updatedOrder = await ordersCollection.findOne({ 
+            _id: new (require('mongodb')).ObjectId(req.params.id) 
+          });
+          
+          console.log('✅ Payment captured on delivery - safe from expiration');
+          
+          // Process revenue recognition immediately when payment is captured
+          // Don't wait for patron confirmation - artisan fulfilled their obligation
+          try {
+            console.log('💰 Processing revenue recognition on delivery...');
+            
+            const { createWalletService } = require('../../services');
+            const walletService = await createWalletService();
+            
+            const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+            console.log('✅ Revenue recognized on delivery:', revenueResult.data);
+          } catch (revenueError) {
+            console.error('❌ Error processing revenue on delivery:', revenueError);
+            // Don't fail the delivery status update if revenue processing fails
+            // Auto-capture cron or confirmation will retry
+          }
+        }
+      } catch (captureError) {
+        console.error('❌ CRITICAL: Failed to capture payment on delivery:', captureError);
+        // Don't fail status update, log for manual intervention
+      }
+    }
     
     // For guest orders, automatically complete them when marked as delivered
     // since guests don't have a way to confirm delivery
@@ -2452,6 +2865,36 @@ const updateOrderStatus = async (req, res) => {
         _id: updatedOrder.artisan._id || updatedOrder.artisan 
       });
       
+      // Extract contact info from contactInfo object if needed
+      if (artisanForEmail) {
+        if (!artisanForEmail.email && artisanForEmail.contactInfo?.email) {
+          artisanForEmail.email = artisanForEmail.contactInfo.email;
+        }
+        if (!artisanForEmail.phone && artisanForEmail.contactInfo?.phone) {
+          artisanForEmail.phone = artisanForEmail.contactInfo.phone;
+        }
+      }
+      
+      // Extract pickup address from fulfillment structure if needed
+      if (artisanForEmail && !artisanForEmail.pickupAddress) {
+        if (artisanForEmail.fulfillment?.methods?.pickup?.enabled) {
+          if (artisanForEmail.fulfillment.methods.pickup.useBusinessAddress) {
+            artisanForEmail.pickupAddress = artisanForEmail.address;
+          } else if (artisanForEmail.fulfillment.methods.pickup.location) {
+            artisanForEmail.pickupAddress = artisanForEmail.fulfillment.methods.pickup.location;
+          }
+        }
+        // Fallback to address if still no pickup address
+        artisanForEmail.pickupAddress = artisanForEmail.pickupAddress || artisanForEmail.address;
+      }
+      
+      // Extract pickup instructions from fulfillment if needed
+      if (artisanForEmail && !artisanForEmail.pickupInstructions) {
+        artisanForEmail.pickupInstructions = artisanForEmail.fulfillment?.methods?.pickup?.instructions ||
+                                            artisanForEmail.fulfillment?.pickupInstructions ||
+                                            artisanForEmail.pickupInstructions;
+      }
+      
       // Enhance delivery info with Uber tracking data for out_for_delivery status
       let enhancedDeliveryInfo = deliveryInfo;
       if (finalStatus === 'out_for_delivery' && updatedOrder.deliveryMethod === 'professionalDelivery' && updatedOrder.uberDelivery) {
@@ -2468,6 +2911,8 @@ const updateOrderStatus = async (req, res) => {
       // Enhance orderData with artisan information for email templates
       const enhancedOrderData = {
         ...updatedOrder,
+        orderId: updatedOrder._id.toString(), // Full ID as string
+        orderNumber: updatedOrder._id.toString().slice(-8), // Last 8 chars for display
         artisanInfo: artisanForEmail ? {
           id: artisanForEmail._id,
           name: artisanForEmail.artisanName || artisanForEmail.businessName,
@@ -2479,6 +2924,18 @@ const updateOrderStatus = async (req, res) => {
           deliveryInstructions: artisanForEmail.deliveryInstructions
         } : null
       };
+      
+      console.log('📧 Enhanced orderData for notification:', {
+        orderId: enhancedOrderData.orderId,
+        orderNumber: enhancedOrderData.orderNumber,
+        hasArtisanInfo: !!enhancedOrderData.artisanInfo,
+        artisanName: enhancedOrderData.artisanInfo?.name,
+        artisanEmail: enhancedOrderData.artisanInfo?.email,
+        artisanPhone: enhancedOrderData.artisanInfo?.phone,
+        hasPickupAddress: !!enhancedOrderData.artisanInfo?.pickupAddress,
+        pickupAddressType: typeof enhancedOrderData.artisanInfo?.pickupAddress,
+        pickupAddress: enhancedOrderData.artisanInfo?.pickupAddress
+      });
 
       // Send notification to patron (customer)
       const patronNotificationData = {
@@ -2610,19 +3067,115 @@ const getArtisanOrders = async (req, res) => {
     
     // If requesting purchases, return orders where this user is the buyer
     if (orderType === 'purchases') {
-      const orders = await ordersCollection
+      console.log('🛒 PURCHASES: Fetching orders for artisan as buyer');
+      
+      const purchaseOrders = await ordersCollection
         .find({ userId: new (require('mongodb')).ObjectId(decoded.userId) })
         .sort({ createdAt: -1 })
         .limit(parseInt(req.query.limit) || 50)
         .toArray();
       
+      console.log(`✅ Found ${purchaseOrders.length} purchase orders`);
+      
+      // Populate artisan information for each purchase order
+      const usersCollection = db.collection('users');
+      const ordersWithArtisanInfo = await Promise.all(purchaseOrders.map(async (order) => {
+        let artisan = null;
+        let customerInfo = null;
+        
+        // Get customer info (the buyer - which is this artisan user)
+        if (order.userId) {
+          const customer = await usersCollection.findOne({ _id: order.userId });
+          if (customer) {
+            const customerArtisan = await artisansCollection.findOne({ user: order.userId });
+            customerInfo = {
+              _id: customer._id,
+              firstName: customer.firstName,
+              lastName: customer.lastName,
+              email: customer.email,
+              phone: customer.phone,
+              role: customer.role,
+              artisanName: customerArtisan?.artisanName,
+              businessName: customerArtisan?.businessName,
+              isArtisan: !!customerArtisan
+            };
+          }
+        }
+        
+        // Get artisan from order.artisan or items[0].artisanId (the seller)
+        const artisanId = order.artisan || order.items?.[0]?.artisanId;
+        
+        if (artisanId) {
+          const artisanDoc = await artisansCollection.findOne({ _id: artisanId });
+          if (artisanDoc) {
+            artisan = {
+              _id: artisanDoc._id,
+              artisanName: artisanDoc.artisanName,
+              businessName: artisanDoc.businessName,
+              email: artisanDoc.email,
+              phone: artisanDoc.phone,
+              address: artisanDoc.address,
+              user: artisanDoc.user,
+              fulfillment: artisanDoc.fulfillment,
+              location: artisanDoc.location
+            };
+            
+            // Populate user contact info
+            if (artisan.user) {
+              const artisanUser = await usersCollection.findOne({ _id: artisanDoc.user });
+              if (artisanUser) {
+                artisan.email = artisan.email || artisanUser.email;
+                artisan.phone = artisan.phone || artisanUser.phone;
+                artisan.firstName = artisanUser.firstName;
+                artisan.lastName = artisanUser.lastName;
+              }
+            }
+            
+            // Map fulfillment data
+            if (artisan.fulfillment?.methods?.pickup) {
+              const pickup = artisan.fulfillment.methods.pickup;
+              if (pickup.useBusinessAddress && artisan.address) {
+                artisan.pickupAddress = artisan.address;
+              } else if (pickup.location && typeof pickup.location === 'object') {
+                artisan.pickupAddress = pickup.location;
+              } else if (!artisan.pickupAddress && artisan.address) {
+                artisan.pickupAddress = artisan.address;
+              }
+              if (pickup.instructions) artisan.pickupInstructions = pickup.instructions;
+              if (pickup.schedule) artisan.pickupSchedule = pickup.schedule;
+            }
+            
+            if (artisan.fulfillment?.methods?.delivery) {
+              const delivery = artisan.fulfillment.methods.delivery;
+              if (delivery.fee !== undefined) artisan.deliveryFee = delivery.fee;
+              if (delivery.instructions) artisan.deliveryInstructions = delivery.instructions;
+              if (delivery.radius !== undefined) artisan.deliveryRadius = delivery.radius;
+            }
+            
+            console.log('✅ Populated artisan for purchase:', artisan.artisanName, 'pickup:', !!artisan.pickupAddress);
+          }
+        }
+        
+        console.log('✅ Populated customer for purchase:', customerInfo?.firstName, 'isArtisan:', customerInfo?.isArtisan, 'artisanName:', customerInfo?.artisanName);
+        
+        return { 
+          ...order, 
+          artisan,
+          customer: customerInfo,
+          patron: customerInfo // For backward compatibility
+        };
+      }));
+      
+      console.log(`📤 Returning ${ordersWithArtisanInfo.length} populated purchase orders`);
+      
       return res.json({
         success: true,
         data: {
-          orders,
-          count: orders.length,
+          orders: ordersWithArtisanInfo,
+          count: ordersWithArtisanInfo.length,
           orderType: 'purchases'
-        }
+        },
+        orders: ordersWithArtisanInfo // Add for frontend compatibility
       });
     }
     
@@ -2811,7 +3364,21 @@ const getArtisanOrders = async (req, res) => {
       // Get patron information if order has userId (not a guest order)
       if (order.userId && !order.isGuestOrder) {
         patronInfo = await usersCollection.findOne({ _id: order.userId });
-        console.log('🔍 Looked up patron for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
+        
+        // Check if patron is also an artisan (artisan buying from another artisan)
+        if (patronInfo) {
+          const patronArtisan = await artisansCollection.findOne({ user: order.userId });
+          if (patronArtisan) {
+            patronInfo = {
+              ...patronInfo,
+              artisanName: patronArtisan.artisanName,
+              businessName: patronArtisan.businessName,
+              isArtisan: true
+            };
+          }
+        }
+        
+        console.log('🔍 Looked up patron for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || patronInfo?.artisanName || 'not found');
       }
       
       // Handle guest orders - use guestInfo if available
@@ -2820,7 +3387,8 @@ const getArtisanOrders = async (req, res) => {
           firstName: order.guestInfo.firstName,
           lastName: order.guestInfo.lastName,
           email: order.guestInfo.email,
-          phone: order.guestInfo.phone
+          phone: order.guestInfo.phone,
+          isGuest: true
         };
         console.log('🔍 Using guest info for order', order._id.toString().slice(-8), ':', patronInfo?.firstName || 'not found');
       }
@@ -2885,8 +3453,35 @@ const getArtisanOrders = async (req, res) => {
             artisanId: item.artisanId
           };
         })),
-        // Use the fully populated artisan object (includes pickup address)
-        artisan: artisan,
+        // Use the fully populated artisan object with fulfillment data mapped
+        artisan: (() => {
+          if (!artisan) return artisan;
+          
+          // Map fulfillment data for this order's artisan
+          if (artisan.fulfillment) {
+            if (artisan.fulfillment.methods?.pickup) {
+              const pickup = artisan.fulfillment.methods.pickup;
+              if (pickup.useBusinessAddress && artisan.address) {
+                artisan.pickupAddress = artisan.address;
+              } else if (pickup.location && typeof pickup.location === 'object') {
+                artisan.pickupAddress = pickup.location;
+              } else if (!artisan.pickupAddress && artisan.address) {
+                artisan.pickupAddress = artisan.address;
+              }
+              if (pickup.instructions) artisan.pickupInstructions = pickup.instructions;
+              if (pickup.schedule) artisan.pickupSchedule = pickup.schedule;
+            }
+            
+            if (artisan.fulfillment.methods?.delivery) {
+              const delivery = artisan.fulfillment.methods.delivery;
+              if (delivery.fee !== undefined) artisan.deliveryFee = delivery.fee;
+              if (delivery.instructions) artisan.deliveryInstructions = delivery.instructions;
+              if (delivery.radius !== undefined) artisan.deliveryRadius = delivery.radius;
+            }
+          }
+          
+          return artisan;
+        })(),
         patron: patronInfo
       };
     }));
@@ -2980,6 +3575,8 @@ const getPatronOrders = async (req, res) => {
       .limit(parseInt(req.query.limit) || 50)
       .toArray();
     
+    console.log(`✅ Found ${orders.length} orders for patron`);
+    
     // Populate artisan information for each order using artisanId from items
     const usersCollection = db.collection('users');
     const ordersWithArtisan = await Promise.all(orders.map(async (order) => {
@@ -2987,20 +3584,80 @@ const getPatronOrders = async (req, res) => {
       
       // Use artisanId from order items to lookup artisan information from artisans collection
       if (order.items && order.items.length > 0 && order.items[0].artisanId) {
-        artisan = await artisansCollection.findOne({ _id: order.items[0].artisanId });
+        const artisanDoc = await artisansCollection.findOne({ _id: order.items[0].artisanId });
         
-        // Fetch associated user for email and phone
-        if (artisan && artisan.user) {
-          const artisanUser = await usersCollection.findOne({ _id: artisan.user });
-          if (artisanUser) {
-            // Merge user contact info into artisan object
-            artisan = {
-              ...artisan,
-              email: artisan.email || artisanUser.email,
-              phone: artisan.phone || artisanUser.phone,
-              firstName: artisanUser.firstName,
-              lastName: artisanUser.lastName
-            };
+        if (artisanDoc) {
+          // Create plain object from MongoDB document
+          artisan = {
+            _id: artisanDoc._id,
+            artisanName: artisanDoc.artisanName,
+            businessName: artisanDoc.businessName,
+            email: artisanDoc.email,
+            phone: artisanDoc.phone,
+            address: artisanDoc.address,
+            user: artisanDoc.user,
+            fulfillment: artisanDoc.fulfillment,
+            location: artisanDoc.location
+          };
+          
+          // Fetch associated user for email and phone
+          if (artisan.user) {
+            const artisanUser = await usersCollection.findOne({ _id: artisanDoc.user });
+            if (artisanUser) {
+              artisan.email = artisan.email || artisanUser.email;
+              artisan.phone = artisan.phone || artisanUser.phone;
+              artisan.firstName = artisanUser.firstName;
+              artisan.lastName = artisanUser.lastName;
+            }
+          }
+        }
+        
+        // Map fulfillment data to legacy fields for compatibility
+        if (artisan && artisan.fulfillment) {
+          // Pickup information
+          if (artisan.fulfillment.methods?.pickup) {
+            const pickup = artisan.fulfillment.methods.pickup;
+            
+            // Use business address if pickup uses business address
+            if (pickup.useBusinessAddress && artisan.address) {
+              artisan.pickupAddress = artisan.address;
+            }
+            // Or use custom pickup location from fulfillment
+            else if (pickup.location && typeof pickup.location === 'object') {
+              artisan.pickupAddress = pickup.location;
+            }
+            // Fallback to address
+            else if (!artisan.pickupAddress && artisan.address) {
+              artisan.pickupAddress = artisan.address;
+            }
+            
+            // Pickup instructions
+            if (pickup.instructions) {
+              artisan.pickupInstructions = pickup.instructions;
+            }
+            
+            // Pickup schedule/times
+            if (pickup.schedule) {
+              artisan.pickupSchedule = pickup.schedule;
+            }
+          }
+          
+          // Delivery information
+          if (artisan.fulfillment.methods?.delivery) {
+            const delivery = artisan.fulfillment.methods.delivery;
+            
+            if (delivery.fee !== undefined) {
+              artisan.deliveryFee = delivery.fee;
+            }
+            if (delivery.instructions) {
+              artisan.deliveryInstructions = delivery.instructions;
+            }
+            if (delivery.radius !== undefined) {
+              artisan.deliveryRadius = delivery.radius;
+            }
+            if (delivery.estimatedTime) {
+              artisan.deliveryEstimatedTime = delivery.estimatedTime;
+            }
           }
         }
         
@@ -3850,6 +4507,8 @@ const capturePaymentAndTransfer = async (req, res) => {
             platformFee: platformFee,
             artisanAmount: artisanAmount,
             stripeTransferId: transfer.id,
+            'paymentHold.status': 'captured', // Update hold status
+            'paymentHold.capturedAt': new Date(),
             updatedAt: new Date()
           }
         }
@@ -3973,6 +4632,8 @@ const autoCapturePayment = async (req, res) => {
                   artisanAmount: artisanAmount,
                   stripeTransferId: transfer.id,
                   autoCaptured: true,
+                  'paymentHold.status': 'captured', // Update hold status
+                  'paymentHold.capturedAt': new Date(),
                   updatedAt: new Date()
                 }
               }
@@ -4153,6 +4814,87 @@ const confirmOrderReceipt = async (req, res) => {
       });
     }
     
+    // SAFETY CHECK: Ensure payment is captured
+    // Payment should already be captured when order was marked delivered/picked_up
+    // But if somehow it's still authorized, capture it now as a safety measure
+    if (order.paymentStatus === 'authorized') {
+      console.log('⚠️ WARNING: Payment still authorized on confirmation - capturing now as safety measure');
+      
+      try {
+        const artisansCollection = db.collection('artisans');
+        const platformSettingsService = new PlatformSettingsService(db);
+        const feeCalculation = await platformSettingsService.calculatePlatformFee(order.totalAmount, 'order');
+        const { platformFee, artisanAmount } = feeCalculation;
+        
+        // Capture payment
+        const paymentIntent = await stripe.paymentIntents.capture(order.paymentIntentId);
+        
+        if (paymentIntent.status === 'succeeded') {
+          // Transfer to artisan Connect account
+          const artisan = await artisansCollection.findOne({ _id: order.artisan });
+          let transferId = null;
+          
+          if (artisan && artisan.stripeConnectAccountId) {
+            const transfer = await stripe.transfers.create({
+              amount: Math.round(artisanAmount * 100),
+              currency: 'cad',
+              destination: artisan.stripeConnectAccountId,
+              metadata: {
+                orderId: order._id.toString(),
+                platformFee: platformFee.toString(),
+                capturedOnConfirmation: 'true'
+              }
+            });
+            transferId = transfer.id;
+          }
+          
+          // Update payment status
+          await ordersCollection.updateOne(
+            { _id: order._id },
+            { 
+              $set: { 
+                paymentStatus: 'captured',
+                paymentCapturedAt: new Date(),
+                platformFee: platformFee,
+                artisanAmount: artisanAmount,
+                stripeTransferId: transferId,
+                'paymentHold.status': 'captured',
+                'paymentHold.capturedAt': new Date(),
+                capturedOnConfirmation: true
+              }
+            }
+          );
+          
+          console.log('✅ Payment captured on confirmation (safety fallback)');
+          
+          // Process revenue recognition immediately after capture
+          try {
+            const { createWalletService } = require('../../services');
+            const walletService = await createWalletService();
+            
+            // Refresh order to get updated payment info
+            const refreshedOrder = await ordersCollection.findOne({ _id: order._id });
+            
+            const revenueResult = await walletService.processOrderCompletion(refreshedOrder, db);
+            console.log('✅ Revenue recognized on capture (safety fallback):', revenueResult.data);
+          } catch (revenueError) {
+            console.error('❌ Error processing revenue on capture:', revenueError);
+            // Continue - revenue will be processed on completion if needed
+          }
+        }
+      } catch (captureError) {
+        console.error('❌ Failed to capture payment on confirmation:', captureError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to capture payment. Please contact support.',
+          error: captureError.message
+        });
+      }
+    } else {
+      console.log('✅ Payment already captured - proceeding with confirmation');
+    }
+    
+    // Update order status to completed
     const result = await ordersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(req.params.id) },
       { 
@@ -4168,29 +4910,42 @@ const confirmOrderReceipt = async (req, res) => {
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
     
-    // Process revenue recognition and wallet crediting
-    try {
-      if (updatedOrder.artisan) {
-        console.log('💰 Starting revenue processing for order:', {
-          orderId: updatedOrder._id,
-          artisanId: updatedOrder.artisan,
-          totalAmount: updatedOrder.totalAmount,
-          subtotal: updatedOrder.subtotal,
-          deliveryFee: updatedOrder.deliveryFee
-        });
-        
-        const { createWalletService } = require('../../services');
-        const walletService = await createWalletService();
-        
-        const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
-        console.log('✅ Revenue recognition completed successfully:', revenueResult.data);
-      } else {
-        console.warn('⚠️ No artisan found on order - skipping revenue processing');
+    // Check if revenue was already processed (should be if payment captured on delivery)
+    const revenuesCollection = db.collection('revenues');
+    const existingRevenue = await revenuesCollection.findOne({ 
+      orderId: updatedOrder._id 
+    });
+    
+    if (!existingRevenue) {
+      console.log('💰 Revenue not yet processed - processing now on confirmation');
+      
+      // Process revenue recognition and wallet crediting
+      try {
+        if (updatedOrder.artisan) {
+          console.log('💰 Starting revenue processing for order:', {
+            orderId: updatedOrder._id,
+            artisanId: updatedOrder.artisan,
+            totalAmount: updatedOrder.totalAmount,
+            subtotal: updatedOrder.subtotal,
+            deliveryFee: updatedOrder.deliveryFee,
+            paymentStatus: updatedOrder.paymentStatus
+          });
+          
+          const { createWalletService } = require('../../services');
+          const walletService = await createWalletService();
+          
+          const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+          console.log('✅ Revenue recognition completed successfully:', revenueResult.data);
+        } else {
+          console.warn('⚠️ No artisan found on order - skipping revenue processing');
+        }
+      } catch (revenueError) {
+        console.error('❌ Error processing revenue recognition:', revenueError);
+        console.error('❌ Revenue error stack:', revenueError.stack);
+        // Don't fail the receipt confirmation if revenue processing fails
       }
-    } catch (revenueError) {
-      console.error('❌ Error processing revenue recognition:', revenueError);
-      console.error('❌ Revenue error stack:', revenueError.stack);
-      // Don't fail the receipt confirmation if revenue processing fails
+    } else {
+      console.log('✅ Revenue already processed on delivery - skipping duplicate processing');
     }
     
     // Send notification to artisan that order receipt has been confirmed

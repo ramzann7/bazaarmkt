@@ -2002,10 +2002,27 @@ const Cart = () => {
     try {
       setPaymentLoading(true);
       
-      // Use current wallet balance from state (already loaded and updated after top-ups)
-      const walletBalance = currentWalletBalance || 0;
+      // Fetch fresh wallet balance to ensure we have the latest after any top-ups
+      let walletBalance = currentWalletBalance || 0;
       
-      console.log('💰 Wallet checkout using state balance:', {
+      try {
+        console.log('💰 Fetching fresh wallet balance before checkout...');
+        const freshBalanceResponse = await walletService.getWalletBalance();
+        const freshBalance = freshBalanceResponse?.data?.balance || freshBalanceResponse?.balance;
+        
+        if (freshBalance !== undefined && freshBalance !== null) {
+          walletBalance = freshBalance;
+          setCurrentWalletBalance(freshBalance);
+          console.log('💰 Using fresh balance from API:', freshBalance);
+        } else {
+          console.log('💰 Using state balance:', currentWalletBalance);
+        }
+      } catch (balanceError) {
+        console.error('❌ Error fetching fresh balance, using state:', balanceError);
+        walletBalance = currentWalletBalance || 0;
+      }
+      
+      console.log('💰 Wallet checkout using balance:', {
         stateBalance: currentWalletBalance,
         walletBalance
       });
@@ -2169,6 +2186,9 @@ const Cart = () => {
     const amount = data?.transaction?.amount || data?.amount || 0;
     const newBalance = data?.newBalance || data?.balance || (currentWalletBalance + amount);
     
+    console.log('💰 Top-up complete - new balance:', newBalance);
+    
+    // Update state
     setCurrentWalletBalance(newBalance);
     
     // Close the modal
@@ -2182,13 +2202,30 @@ const Cart = () => {
       toast.success('Wallet topped up successfully!');
     }
     
-    // Retry the payment automatically
-    toast('Retrying payment with updated balance...', { icon: '🔄' });
-    
-    // Wait a moment for the toast to be visible
-    setTimeout(async () => {
-      await handleWalletCheckout();
-    }, 1000);
+    // Fetch fresh balance from API to ensure accuracy
+    try {
+      const freshBalance = await walletService.getWalletBalance();
+      const confirmedBalance = freshBalance?.data?.balance || freshBalance?.balance || newBalance;
+      
+      console.log('💰 Fresh balance from API:', confirmedBalance);
+      setCurrentWalletBalance(confirmedBalance);
+      
+      // Retry the payment automatically with confirmed balance
+      toast('Retrying payment with updated balance...', { icon: '🔄' });
+      
+      // Wait a moment for state to update, then retry checkout
+      setTimeout(async () => {
+        await handleWalletCheckout();
+      }, 500);
+      
+    } catch (balanceError) {
+      console.error('❌ Error fetching fresh balance:', balanceError);
+      // Use the newBalance from top-up response
+      toast('Retrying payment...', { icon: '🔄' });
+      setTimeout(async () => {
+        await handleWalletCheckout();
+      }, 500);
+    }
   };
 
   // Handle wallet top-up cancel

@@ -73,6 +73,10 @@ const processScheduledPayouts = async () => {
     let errorCount = 0;
     const results = [];
     
+    // Import Stripe service for payouts
+    const StripeService = require('../../services/stripeService');
+    const stripeService = new StripeService();
+    
     for (const wallet of walletsDueForPayout) {
       try {
         // Get artisan information
@@ -92,62 +96,130 @@ const processScheduledPayouts = async () => {
           continue;
         }
         
-        // For now, we'll simulate the payout since Stripe Connect requires proper setup
-        // In production, this would use the StripeService to create actual payouts
-        console.log(`💰 Processing payout for artisan ${artisan.artisanName}: $${payoutAmount}`);
-        
-        // Create payout transaction record
-        const payoutTransaction = {
-          artisanId: wallet.artisanId,
-          type: 'payout',
-          amount: -payoutAmount, // Negative for outgoing
-          description: `Weekly payout - ${wallet.payoutSettings.schedule}`,
-          status: 'completed',
-          reference: `PAYOUT-${Date.now()}`,
-          balanceAfter: 0, // Balance after payout
-          metadata: {
-            payoutDate: now,
-            schedule: wallet.payoutSettings.schedule,
-            originalBalance: payoutAmount
-          },
-          createdAt: now,
-          updatedAt: now
-        };
-        
-        await transactionsCollection.insertOne(payoutTransaction);
-        
-        // Calculate next payout date
-        let nextPayoutDate;
-        if (wallet.payoutSettings.schedule === 'weekly') {
-          nextPayoutDate = new Date(now);
-          nextPayoutDate.setDate(now.getDate() + 7);
-        } else if (wallet.payoutSettings.schedule === 'monthly') {
-          nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        // Verify Stripe Connect account exists
+        if (!artisan.stripeConnectAccountId) {
+          console.log(`⚠️ Artisan ${artisan.artisanName} has no Stripe Connect account - skipping payout`);
+          errorCount++;
+          results.push({
+            artisanId: artisan._id,
+            artisanName: artisan.artisanName,
+            amount: payoutAmount,
+            status: 'error',
+            error: 'No Stripe Connect account. Please set up bank information.'
+          });
+          continue;
         }
         
-        // Update wallet balance and payout settings
-        await walletsCollection.updateOne(
-          { _id: wallet._id },
-          {
-            $set: {
-              balance: 0,
-              'payoutSettings.lastPayoutDate': now,
-              'payoutSettings.nextPayoutDate': nextPayoutDate,
-              'metadata.totalPayouts': (wallet.metadata?.totalPayouts || 0) + payoutAmount,
-              updatedAt: now
-            }
+        console.log(`💰 Processing payout for artisan ${artisan.artisanName}: $${payoutAmount}`);
+        
+        try {
+          // Verify Stripe Connect account status
+          const accountStatus = await stripeService.getAccountStatus(artisan.stripeConnectAccountId);
+          
+          if (!accountStatus.payouts_enabled) {
+            console.log(`⚠️ Payouts not enabled for ${artisan.artisanName} - account may need verification`);
+            errorCount++;
+            results.push({
+              artisanId: artisan._id,
+              artisanName: artisan.artisanName,
+              amount: payoutAmount,
+              status: 'error',
+              error: 'Stripe account requires verification before payouts can be enabled.'
+            });
+            continue;
           }
-        );
-        
-        processedCount++;
-        results.push({
-          artisanId: artisan._id,
-          artisanName: artisan.artisanName,
-          amount: payoutAmount,
-          status: 'success'
-        });
-        
-        console.log(`✅ Payout processed for artisan ${artisan.artisanName}: $${payoutAmount}`);
+          
+          // Create actual Stripe payout to artisan's bank account
+          const payout = await stripeService.createPayout(
+            artisan.stripeConnectAccountId,
+            payoutAmount,
+            'cad',
+            {
+              artisanId: artisan._id.toString(),
+              artisanName: artisan.artisanName,
+              payoutDate: now.toISOString(),
+              walletId: wallet._id.toString(),
+              schedule: wallet.payoutSettings.schedule
+            }
+          );
+          
+          console.log(`✅ Stripe payout created: ${payout.id} for ${artisan.artisanName} - $${payoutAmount}`);
+          
+          // Create payout transaction record with Stripe payout ID
+          const payoutTransaction = {
+            artisanId: wallet.artisanId,
+            userId: wallet.userId, // Add user ID for easier lookup
+            type: 'payout',
+            amount: -payoutAmount, // Negative for outgoing
+            description: `Weekly payout to bank account`,
+            status: 'pending', // Pending until Stripe confirms (webhook will update to completed)
+            reference: `PAYOUT-${Date.now()}`,
+            stripePayoutId: payout.id, // Store Stripe payout ID
+            balanceAfter: 0, // Balance after payout
+            metadata: {
+              payoutDate: now,
+              schedule: wallet.payoutSettings.schedule,
+              originalBalance: payoutAmount,
+              stripeAccount: artisan.stripeConnectAccountId,
+              expectedArrival: new Date(payout.arrival_date * 1000), // Convert Unix timestamp
+              payoutMethod: payout.method
+            },
+            createdAt: now,
+            updatedAt: now
+          };
+          
+          await transactionsCollection.insertOne(payoutTransaction);
+          
+          // Calculate next payout date
+          let nextPayoutDate;
+          if (wallet.payoutSettings.schedule === 'weekly') {
+            nextPayoutDate = new Date(now);
+            nextPayoutDate.setDate(now.getDate() + 7);
+          } else if (wallet.payoutSettings.schedule === 'monthly') {
+            nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          }
+          
+          // Update wallet balance and payout settings
+          await walletsCollection.updateOne(
+            { _id: wallet._id },
+            {
+              $set: {
+                balance: 0,
+                'payoutSettings.lastPayoutDate': now,
+                'payoutSettings.nextPayoutDate': nextPayoutDate,
+                'metadata.totalPayouts': (wallet.metadata?.totalPayouts || 0) + payoutAmount,
+                'metadata.lastPayoutId': payout.id,
+                updatedAt: now
+              }
+            }
+          );
+          
+          processedCount++;
+          results.push({
+            artisanId: artisan._id,
+            artisanName: artisan.artisanName,
+            amount: payoutAmount,
+            stripePayoutId: payout.id,
+            expectedArrival: new Date(payout.arrival_date * 1000),
+            status: 'success'
+          });
+          
+          console.log(`✅ Payout processed for artisan ${artisan.artisanName}: $${payoutAmount} (arrives in 2-3 business days)`);
+          
+        } catch (stripeError) {
+          console.error(`❌ Stripe payout failed for ${artisan.artisanName}:`, stripeError.message);
+          errorCount++;
+          results.push({
+            artisanId: artisan._id,
+            artisanName: artisan.artisanName,
+            amount: payoutAmount,
+            status: 'error',
+            error: stripeError.message
+          });
+          
+          // Don't zero out wallet balance if payout failed
+          // Artisan can still receive payout next cycle
+        }
         
       } catch (error) {
         console.error(`❌ Error processing payout for wallet ${wallet._id}:`, error);
@@ -178,24 +250,6 @@ const processScheduledPayouts = async () => {
 
 // Vercel serverless function handler
 module.exports = async (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  // Only allow GET requests (for cron jobs)
-  if (req.method !== 'GET') {
-    return res.status(405).json({
-      success: false,
-      message: 'Method not allowed'
-    });
-  }
-  
   try {
     // Verify cron authentication
     if (!verifyCronAuth(req)) {

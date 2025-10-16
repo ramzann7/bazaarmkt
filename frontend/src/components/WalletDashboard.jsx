@@ -52,7 +52,7 @@ const WalletDashboard = () => {
         setArtisanProfile(response.data.user.artisan);
         
         // Check if bank info is configured
-        const bankInfo = response.data.user.artisan.bankInfo;
+        const bankInfo = response.data.user.artisan.financial?.bankInfo;
         const isConfigured = bankInfo && 
           bankInfo.accountHolderName && 
           bankInfo.institutionNumber && 
@@ -300,7 +300,7 @@ const WalletDashboard = () => {
                 <div className="text-xs text-stone-500 pt-2 border-t border-stone-200">
                   <p>• Payouts are processed automatically every Friday</p>
                   <p>• Funds typically arrive within 2-3 business days</p>
-                  <p>• Bank account: {artisanProfile?.bankInfo?.accountNumber ? `****${artisanProfile.bankInfo.accountNumber.slice(-4)}` : 'Configured'}</p>
+                  <p>• Bank account: {artisanProfile?.financial?.bankInfo?.accountNumber ? `****${artisanProfile.financial.bankInfo.accountNumber.slice(-4)}` : 'Configured'}</p>
                 </div>
               </>
             ) : (

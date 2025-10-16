@@ -2031,7 +2031,7 @@ function PaymentTab({ profile, onSave, isSaving, safeRefreshUser }) {
             )}
 
         {/* Stripe Connect Setup */}
-        {profile.artisan?.bankInfo && profile.artisan.bankInfo.accountNumber && (
+        {profile.artisan?.financial?.bankInfo && profile.artisan.financial.bankInfo.accountNumber && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start">
               <CreditCardIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-2" />

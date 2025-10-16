@@ -1,0 +1,27 @@
+{
+  "note": "Cron jobs disabled until Vercel plan is upgraded to Pro",
+  "crons": [
+    {
+      "path": "/api/cron/payouts",
+      "schedule": "0 13 * * 5",
+      "description": "Weekly payouts - Every Friday at 1:00 PM UTC (9:00 AM EST)"
+    },
+    {
+      "path": "/api/cron/auto-capture-payments",
+      "schedule": "0 * * * *",
+      "description": "Auto-capture payments - Every hour"
+    },
+    {
+      "path": "/api/cron/check-expired-authorizations",
+      "schedule": "0 */6 * * *",
+      "description": "Check expired authorizations - Every 6 hours"
+    },
+    {
+      "path": "/api/cron/inventory-restoration",
+      "schedule": "0 6 * * *",
+      "description": "Inventory restoration - Daily at 6:00 AM UTC (2:00 AM EST)"
+    }
+  ],
+  "instructions": "To re-enable cron jobs, copy the 'crons' array above back into vercel.json"
+}
+

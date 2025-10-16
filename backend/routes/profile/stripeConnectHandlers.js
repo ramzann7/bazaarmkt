@@ -50,7 +50,7 @@ const setupStripeConnect = async (req, res) => {
     }
     
     // Check if bank info exists
-    if (!artisan.bankInfo || !artisan.bankInfo.accountNumber) {
+    if (!artisan.financial?.bankInfo || !artisan.financial.bankInfo.accountNumber) {
       return res.status(400).json({
         success: false,
         message: 'Bank information is required. Please add your bank details in Profile > Setup > Bank Information first.'

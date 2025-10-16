@@ -83,10 +83,10 @@ const normalizeArtisanData = (artisan) => {
   }
   
   // Decrypt bank information if present
-  if (artisan.bankInfo) {
+  if (artisan.financial?.bankInfo) {
     try {
       const { decryptBankInfo } = require('../../utils/encryption');
-      artisan.bankInfo = decryptBankInfo(artisan.bankInfo);
+      artisan.financial.bankInfo = decryptBankInfo(artisan.financial.bankInfo);
     } catch (error) {
       console.error('⚠️ Failed to decrypt bank info for artisan:', artisan._id, error.message);
       // Keep encrypted data if decryption fails

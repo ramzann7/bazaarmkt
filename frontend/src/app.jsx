@@ -55,7 +55,6 @@ const SmartRedirect = lazy(() => import("./components/SmartRedirect.jsx"));
 const Orders = lazy(() => import("./components/Orders.jsx"));
 const SearchResults = lazy(() => import("./components/SearchResults.jsx"));
 const MyWallet = lazy(() => import("./components/MyWallet.jsx"));
-const TestReferenceData = lazy(() => import("./components/TestReferenceData.jsx"));
 
 // Debug routes - only loaded in development
 const UserRoleCheck = import.meta.env.MODE === 'development' 
@@ -194,7 +193,6 @@ function AppRoutes() {
         />
         <Route path="/order-confirmation" element={<OrderConfirmation />} />
         <Route path="/search" element={<SearchResults />} />
-        <Route path="/test-reference" element={<TestReferenceData />} />
 
         {/* Debug routes - only available in development */}
         {import.meta.env.MODE === 'development' && (

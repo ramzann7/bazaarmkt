@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BellIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { BellIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { BellIcon as BellIconSolid } from '@heroicons/react/24/solid';
 import axios from 'axios';
 import config from '../config/environment.js';

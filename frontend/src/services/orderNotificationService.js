@@ -9,6 +9,7 @@ class OrderNotificationService {
     this.listeners = new Map();
     this.pendingOrders = new Set();
     this.notificationSound = null;
+    this.lastLoginCheckTime = 0;
     this.initializeNotificationSound();
   }
 
@@ -102,15 +103,23 @@ class OrderNotificationService {
       }
     }, pollInterval);
 
-    // Also check immediately
-    this.checkForNewOrders().catch(error => {
-      console.error('❌ Error in initial order check:', error);
-    });
+    // Check immediately only if no recent login check (prevent duplicate on login)
+    const timeSinceLastLoginCheck = Date.now() - this.lastLoginCheckTime;
+    if (timeSinceLastLoginCheck > 2000) {
+      this.checkForNewOrders().catch(error => {
+        console.error('❌ Error in initial order check:', error);
+      });
+    }
   }
 
   // Check for new orders and order updates
   async checkForNewOrders(isLoginTriggered = false) {
     try {
+      // Track login-triggered checks to prevent duplicates
+      if (isLoginTriggered) {
+        this.lastLoginCheckTime = Date.now();
+      }
+      
       const token = authToken.getToken();
       if (!token) {
         // Only log once per session to avoid spam
@@ -127,9 +136,7 @@ class OrderNotificationService {
       // Cache user profile to avoid repeated API calls
       if (!this.cachedProfile || isLoginTriggered) {
         const { getProfile } = await import('./authservice');
-        console.log('🔍 Loading profile for order notifications...');
         this.cachedProfile = await getProfile();
-        console.log('🔍 Profile cached:', this.cachedProfile ? 'Found profile' : 'Profile is null/undefined');
       }
       
       const profile = this.cachedProfile;
@@ -176,6 +183,7 @@ class OrderNotificationService {
 
       // Check for new orders
       const currentPendingIds = new Set(pendingOrders.map(order => order._id));
+      const hadPreviousOrders = this.pendingOrders.size > 0;
       const newOrders = pendingOrders.filter(order => 
         !this.pendingOrders.has(order._id)
       );
@@ -187,8 +195,15 @@ class OrderNotificationService {
       let ordersToNotify = [];
       
       if (isLoginTriggered && pendingOrders.length > 0) {
-        // For login-triggered notifications, show all pending orders
-        ordersToNotify = pendingOrders;
+        // For login-triggered notifications, only notify if there are actually NEW orders
+        // Don't re-notify about orders the user already knows about
+        if (!hadPreviousOrders) {
+          // First time loading (fresh login), show all pending orders
+          ordersToNotify = pendingOrders;
+        } else {
+          // Subsequent check, only show truly new orders
+          ordersToNotify = newOrders;
+        }
       } else if (newOrders.length > 0) {
         // For regular polling, only show new orders
         ordersToNotify = newOrders;

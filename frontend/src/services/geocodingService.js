@@ -20,17 +20,12 @@ class GeocodingService {
       if (!isIncompleteAddress) {
         const cached = cacheService.get(cacheKey);
         if (cached) {
-          console.log('📍 Using cached geocode for:', address);
           return cached;
         }
-      } else {
-        console.log('🔍 Skipping cache for incomplete address:', address);
       }
 
       // Rate limiting
       await this.rateLimit();
-
-      console.log('🌍 Geocoding address:', address);
       
       const params = new URLSearchParams({
         q: address,
@@ -66,8 +61,6 @@ class GeocodingService {
         address: result.address,
         confidence: this.calculateConfidence(result)
       };
-
-      console.log('✅ Geocoded successfully:', coordinates);
       
       // Only cache complete addresses with good confidence
       if (!isIncompleteAddress && coordinates.confidence >= 60) {

@@ -1289,31 +1289,6 @@ const walletPaymentAndCreateOrder = async (req, res) => {
     
     // Calculate total amount
     const totalAmount = orderData.totalAmount || 0;
-    
-    // Check wallet balance
-    try {
-      const walletBalanceData = await walletService.getWalletBalance(userId);
-      const walletBalance = walletBalanceData.balance;
-      
-      if (walletBalance < totalAmount) {
-        return res.status(400).json({
-          success: false,
-          message: 'Insufficient wallet balance. Please top up your wallet.',
-          data: {
-            required: totalAmount,
-            available: walletBalance,
-            shortfall: totalAmount - walletBalance
-          }
-        });
-      }
-    } catch (balanceError) {
-      console.error('❌ Error checking wallet balance:', balanceError);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to verify wallet balance',
-        error: balanceError.message
-      });
-    }
 
     // Enrich order items with complete product data
     const ordersCollection = db.collection('orders');
@@ -1391,29 +1366,36 @@ const walletPaymentAndCreateOrder = async (req, res) => {
 
     const subtotal = totalAmount - deliveryFee;
 
-    // Deduct funds from wallet
+    // Verify wallet has sufficient funds (but don't deduct yet)
+    // Funds will be deducted when order is delivered/picked up
     try {
-      const orderId = new (require('mongodb')).ObjectId();
-      const orderNumber = orderId.toString().slice(-8);
+      const walletBalanceData = await walletService.getWalletBalance(userId);
+      const walletBalance = walletBalanceData.balance;
       
-      await walletService.deductFunds(
-        userId,
-        totalAmount,
-        `Purchase - Order #${orderNumber}`,
-        { orderId: orderId.toString(), orderNumber, paymentMethod: 'wallet' }
-      );
+      if (walletBalance < totalAmount) {
+        return res.status(400).json({
+          success: false,
+          message: 'Insufficient wallet balance. Please top up your wallet.',
+          data: {
+            required: totalAmount,
+            available: walletBalance,
+            shortfall: totalAmount - walletBalance
+          }
+        });
+      }
       
-      console.log(`✅ Deducted $${totalAmount} from wallet for order #${orderNumber}`);
-    } catch (deductError) {
-      console.error('❌ Error deducting funds from wallet:', deductError);
+      console.log(`✅ Wallet balance verified: $${walletBalance} >= $${totalAmount}`);
+    } catch (balanceError) {
+      console.error('❌ Error verifying wallet balance:', balanceError);
       return res.status(500).json({
         success: false,
-        message: 'Failed to process wallet payment',
-        error: deductError.message
+        message: 'Failed to verify wallet balance',
+        error: balanceError.message
       });
     }
 
     // Create order using unified schema
+    // Payment will be processed when order is delivered/picked up
     const order = createUnifiedOrderSchema({
       userId: userId,
       items: enrichedItems,
@@ -1421,7 +1403,7 @@ const walletPaymentAndCreateOrder = async (req, res) => {
       subtotal: subtotal,
       deliveryFee: deliveryFee,
       status: 'pending',
-      paymentStatus: 'paid', // Wallet payment is immediate
+      paymentStatus: 'pending', // Will be 'paid' when order is delivered/picked up
       paymentMethod: 'wallet',
       paymentIntentId: `wallet_${Date.now()}_${userId}`,
       deliveryAddress: orderData.deliveryAddress,
@@ -2396,7 +2378,22 @@ const updateOrderStatus = async (req, res) => {
     
     // Restore inventory if order is declined or cancelled
     // Note: Cancelled status can be set by admins or system, patrons use dedicated /cancel endpoint
+    // No wallet refund needed since payment is only deducted on delivery/pickup
     if (status === 'declined' || status === 'cancelled') {
+      // Update payment status to cancelled (no funds were deducted yet)
+      if (order.paymentMethod === 'wallet' && order.paymentStatus === 'pending') {
+        await ordersCollection.updateOne(
+          { _id: order._id },
+          {
+            $set: {
+              paymentStatus: 'cancelled',
+              cancelledAt: new Date()
+            }
+          }
+        );
+        console.log(`✅ Wallet order payment cancelled (no deduction occurred)`);
+      }
+      
       const productsCollection = db.collection('products');
       
       console.log(`🔄 Restoring inventory for ${status} order:`, order._id);
@@ -2480,24 +2477,154 @@ const updateOrderStatus = async (req, res) => {
       _id: new (require('mongodb')).ObjectId(req.params.id) 
     });
     
-    // CRITICAL: Process revenue when order is delivered/picked_up
+    // CRITICAL: Process payment and revenue when order is delivered/picked_up
     if (status === 'delivered' || status === 'picked_up') {
       
-      // WALLET PAYMENTS: Recognize revenue immediately on delivery/pickup
-      // Payment already taken from buyer, seller fulfilled obligation
-      if (updatedOrder.paymentMethod === 'wallet' && updatedOrder.paymentStatus === 'paid') {
-        console.log('💰 Wallet order delivered/picked_up - processing revenue recognition');
-        
-        try {
-          const { createWalletService } = require('../../services');
-          const walletService = await createWalletService();
+      // WALLET PAYMENTS: Deduct from buyer and process revenue
+      if (updatedOrder.paymentMethod === 'wallet') {
+        // Deduct funds from buyer's wallet if not already done
+        if (updatedOrder.paymentStatus === 'pending') {
+          console.log('💰 Wallet order delivered/picked_up - deducting payment from buyer');
           
-          const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
-          console.log('✅ Wallet order revenue recognized on delivery/pickup:', revenueResult.data);
-        } catch (revenueError) {
-          console.error('❌ Error processing wallet order revenue:', revenueError);
-          // Don't fail the status update if revenue processing fails
-          // Will retry on confirmation if needed
+          try {
+            const { createWalletService } = require('../../services');
+            const walletService = await createWalletService();
+            
+            // Deduct funds from buyer's wallet
+            await walletService.deductFunds(
+              updatedOrder.userId.toString(),
+              updatedOrder.totalAmount,
+              `Purchase - Order #${updatedOrder._id.toString().slice(-8)}`,
+              { 
+                orderId: updatedOrder._id.toString(), 
+                orderNumber: updatedOrder._id.toString().slice(-8), 
+                paymentMethod: 'wallet',
+                status: status
+              }
+            );
+            
+            // Update order payment status
+            await ordersCollection.updateOne(
+              { _id: updatedOrder._id },
+              {
+                $set: {
+                  paymentStatus: 'paid',
+                  paidAt: new Date(),
+                  paymentProcessedOnStatus: status
+                }
+              }
+            );
+            
+            // Refresh order object
+            updatedOrder = await ordersCollection.findOne({ 
+              _id: new (require('mongodb')).ObjectId(req.params.id) 
+            });
+            
+            console.log(`✅ Deducted $${updatedOrder.totalAmount} from buyer's wallet on ${status}`);
+            
+            // Send notification to buyer about payment
+            try {
+              const usersCollection = db.collection('users');
+              const buyerUser = await usersCollection.findOne({ _id: updatedOrder.userId });
+              
+              if (buyerUser) {
+                await sendNotificationDirect({
+                  userId: updatedOrder.userId.toString(),
+                  type: 'order_payment_processed',
+                  title: 'Payment Processed',
+                  message: `Payment of $${updatedOrder.totalAmount.toFixed(2)} has been deducted from your wallet for order #${updatedOrder._id.toString().slice(-8)}`,
+                  orderId: updatedOrder._id,
+                  orderNumber: updatedOrder._id.toString().slice(-8),
+                  orderData: updatedOrder,
+                  data: {
+                    amount: updatedOrder.totalAmount,
+                    status: status
+                  }
+                }, db);
+              }
+            } catch (notifError) {
+              console.error('❌ Error sending payment notification:', notifError);
+            }
+          } catch (deductError) {
+            console.error('❌ Error deducting wallet payment on delivery/pickup:', deductError);
+            // Don't fail the status update, but log for manual intervention
+            // Payment can be retried on confirmation
+          }
+        } else if (updatedOrder.paymentStatus === 'paid') {
+          console.log('💰 Wallet payment already processed for this order');
+        }
+        
+        // Process revenue recognition (credit to seller's wallet)
+        if (updatedOrder.paymentStatus === 'paid') {
+          console.log('💰 Wallet order delivered/picked_up - processing revenue recognition');
+          
+          try {
+            // Get artisan user ID for revenue crediting
+            const artisan = await artisansCollection.findOne({ 
+              _id: updatedOrder.artisan._id || updatedOrder.artisan 
+            });
+            
+            if (artisan && artisan.user) {
+              const { createWalletService } = require('../../services');
+              const walletService = await createWalletService();
+              
+              // Calculate platform fee (15% default)
+              const PlatformSettingsService = require('../../services/platformSettingsService');
+              const platformSettingsService = new PlatformSettingsService(db);
+              const feeCalculation = await platformSettingsService.calculatePlatformFee(
+                updatedOrder.subtotal || updatedOrder.totalAmount,
+                'order'
+              );
+              
+              const { platformFee, artisanAmount } = feeCalculation;
+              
+              console.log('💰 Revenue calculation:', {
+                totalAmount: updatedOrder.totalAmount,
+                subtotal: updatedOrder.subtotal,
+                platformFee,
+                artisanAmount
+              });
+              
+              // Credit seller's wallet with their portion
+              await walletService.addFunds(
+                artisan.user.toString(),
+                artisanAmount,
+                'order_completion',
+                {
+                  orderId: updatedOrder._id.toString(),
+                  orderNumber: updatedOrder._id.toString().slice(-8),
+                  totalAmount: updatedOrder.totalAmount,
+                  platformFee: platformFee,
+                  artisanAmount: artisanAmount
+                }
+              );
+              
+              // Record revenue in revenues collection for analytics
+              const revenuesCollection = db.collection('revenues');
+              await revenuesCollection.insertOne({
+                orderId: updatedOrder._id,
+                artisanId: artisan._id,
+                artisanUserId: artisan.user,
+                totalAmount: updatedOrder.totalAmount,
+                subtotal: updatedOrder.subtotal || updatedOrder.totalAmount,
+                deliveryFee: updatedOrder.deliveryFee || 0,
+                platformFee: platformFee,
+                artisanAmount: artisanAmount,
+                paymentMethod: 'wallet',
+                status: 'recognized',
+                recognizedAt: new Date(),
+                createdAt: new Date()
+              });
+              
+              console.log(`✅ Revenue recognized: $${artisanAmount} credited to seller's wallet (platform fee: $${platformFee})`);
+            } else {
+              console.warn('⚠️ Artisan not found for revenue recognition');
+            }
+          } catch (revenueError) {
+            console.error('❌ Error processing wallet order revenue:', revenueError);
+            // Don't fail the status update if revenue processing fails
+            // Will retry on confirmation if needed
+          }
         }
       }
       
@@ -2507,85 +2634,102 @@ const updateOrderStatus = async (req, res) => {
         console.log('💳 CRITICAL: Order delivered/picked_up - capturing payment to prevent expiration');
         console.log('Payment hold expires:', updatedOrder.paymentHold?.expiresAt);
         
-        try {
-          // Calculate platform fee
-          const platformSettingsService = new PlatformSettingsService(db);
-          const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
-          const { platformFee, artisanAmount } = feeCalculation;
-          
-          // Capture the payment from Stripe
-          const paymentIntent = await stripe.paymentIntents.capture(updatedOrder.paymentIntentId);
-        
-        if (paymentIntent.status === 'succeeded') {
-          console.log('✅ Payment captured successfully on delivery');
-          
-          // Find the artisan
-          const artisan = await artisansCollection.findOne({
-            _id: new (require('mongodb')).ObjectId(updatedOrder.artisan)
-          });
-          
-          // Transfer to artisan's Connect account if set up
-          let transferId = null;
-          if (artisan && artisan.financial?.stripeConnectAccountId) {
-            const transfer = await stripe.transfers.create({
-              amount: Math.round(artisanAmount * 100),
-              currency: 'cad',
-              destination: artisan.financial.stripeConnectAccountId,
-              metadata: {
-                orderId: updatedOrder._id.toString(),
-                platformFee: platformFee.toString(),
-                capturedOnDelivery: 'true'
+        // Check if Stripe is configured
+        if (!stripe) {
+          console.error('❌ CRITICAL: Stripe not configured - cannot capture payment!');
+          console.error('❌ STRIPE_SECRET_KEY is missing from environment');
+          console.error('❌ Order:', updatedOrder._id, 'payment will expire!');
+          // Don't fail the status update, but log critical error
+        } else {
+          try {
+            // Calculate platform fee
+            const platformSettingsService = new PlatformSettingsService(db);
+            const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
+            const { platformFee, artisanAmount } = feeCalculation;
+            
+            console.log('💰 Platform fee calculation:', { platformFee, artisanAmount, total: updatedOrder.totalAmount });
+            
+            // Capture the payment from Stripe
+            console.log('🔄 Attempting to capture payment intent:', updatedOrder.paymentIntentId);
+            const paymentIntent = await stripe.paymentIntents.capture(updatedOrder.paymentIntentId);
+            
+            if (paymentIntent.status === 'succeeded') {
+              console.log('✅ Payment captured successfully on delivery');
+              
+              // Find the artisan
+              const artisan = await artisansCollection.findOne({
+                _id: new (require('mongodb')).ObjectId(updatedOrder.artisan)
+              });
+              
+              // Transfer to artisan's Connect account if set up
+              let transferId = null;
+              if (artisan && artisan.financial?.stripeConnectAccountId) {
+                const transfer = await stripe.transfers.create({
+                  amount: Math.round(artisanAmount * 100),
+                  currency: 'cad',
+                  destination: artisan.financial.stripeConnectAccountId,
+                  metadata: {
+                    orderId: updatedOrder._id.toString(),
+                    platformFee: platformFee.toString(),
+                    capturedOnDelivery: 'true'
+                  }
+                });
+                transferId = transfer.id;
+                console.log('✅ Transferred to artisan Connect account:', transferId);
               }
-            });
-            transferId = transfer.id;
-            console.log('✅ Transferred to artisan Connect account:', transferId);
-          }
-          
-          // Update order with captured payment
-          await ordersCollection.updateOne(
-            { _id: updatedOrder._id },
-            { 
-              $set: { 
-                paymentStatus: 'captured',
-                paymentCapturedAt: new Date(),
-                platformFee: platformFee,
-                artisanAmount: artisanAmount,
-                stripeTransferId: transferId,
-                'paymentHold.status': 'captured',
-                'paymentHold.capturedAt': new Date(),
-                capturedOnDelivery: true,
-                updatedAt: new Date()
+              
+              // Update order with captured payment
+              await ordersCollection.updateOne(
+                { _id: updatedOrder._id },
+                { 
+                  $set: { 
+                    paymentStatus: 'captured',
+                    paymentCapturedAt: new Date(),
+                    platformFee: platformFee,
+                    artisanAmount: artisanAmount,
+                    stripeTransferId: transferId,
+                    'paymentHold.status': 'captured',
+                    'paymentHold.capturedAt': new Date(),
+                    capturedOnDelivery: true,
+                    updatedAt: new Date()
+                  }
+                }
+              );
+              
+              // Refresh order object
+              updatedOrder = await ordersCollection.findOne({ 
+                _id: new (require('mongodb')).ObjectId(req.params.id) 
+              });
+              
+              console.log('✅ Payment captured on delivery - safe from expiration');
+              
+              // Process revenue recognition immediately when payment is captured
+              // Don't wait for patron confirmation - artisan fulfilled their obligation
+              try {
+                console.log('💰 Processing revenue recognition on delivery...');
+                
+                const { createWalletService } = require('../../services');
+                const walletService = await createWalletService();
+                
+                const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+                console.log('✅ Revenue recognized on delivery:', revenueResult.data);
+              } catch (revenueError) {
+                console.error('❌ Error processing revenue on delivery:', revenueError);
+                // Don't fail the delivery status update if revenue processing fails
+                // Auto-capture cron or confirmation will retry
               }
             }
-          );
-          
-          // Refresh order object
-          updatedOrder = await ordersCollection.findOne({ 
-            _id: new (require('mongodb')).ObjectId(req.params.id) 
-          });
-          
-          console.log('✅ Payment captured on delivery - safe from expiration');
-          
-          // Process revenue recognition immediately when payment is captured
-          // Don't wait for patron confirmation - artisan fulfilled their obligation
-          try {
-            console.log('💰 Processing revenue recognition on delivery...');
-            
-            const { createWalletService } = require('../../services');
-            const walletService = await createWalletService();
-            
-            const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
-            console.log('✅ Revenue recognized on delivery:', revenueResult.data);
-          } catch (revenueError) {
-            console.error('❌ Error processing revenue on delivery:', revenueError);
-            // Don't fail the delivery status update if revenue processing fails
-            // Auto-capture cron or confirmation will retry
+          } catch (captureError) {
+            console.error('❌ CRITICAL: Failed to capture payment on delivery');
+            console.error('Error type:', captureError.constructor.name);
+            console.error('Error message:', captureError.message);
+            console.error('Error code:', captureError.code);
+            console.error('Full error:', JSON.stringify(captureError, null, 2));
+            console.error('Order ID:', updatedOrder._id);
+            console.error('Payment Intent ID:', updatedOrder.paymentIntentId);
+            // Don't fail status update, log for manual intervention
           }
         }
-      } catch (captureError) {
-        console.error('❌ CRITICAL: Failed to capture payment on delivery:', captureError);
-        // Don't fail status update, log for manual intervention
-      }
       }
     }
     
@@ -2643,12 +2787,58 @@ const updateOrderStatus = async (req, res) => {
         
         // Process revenue recognition for guest order completion
         try {
-          if (updatedOrder.artisan) {
-            const { createWalletService } = require('../../services');
-            const walletService = await createWalletService();
+          if (updatedOrder.artisan && updatedOrder.paymentStatus === 'captured') {
+            const artisan = await artisansCollection.findOne({ _id: updatedOrder.artisan });
             
-            const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
-            console.log('✅ Guest order revenue recognition completed:', revenueResult.data);
+            if (artisan && artisan.user) {
+              const { createWalletService } = require('../../services');
+              const walletService = await createWalletService();
+              
+              // Calculate platform fee
+              const PlatformSettingsService = require('../../services/platformSettingsService');
+              const platformSettingsService = new PlatformSettingsService(db);
+              const feeCalculation = await platformSettingsService.calculatePlatformFee(
+                updatedOrder.subtotal || updatedOrder.totalAmount,
+                'order'
+              );
+              
+              const { platformFee, artisanAmount } = feeCalculation;
+              
+              // Credit seller's wallet
+              await walletService.addFunds(
+                artisan.user.toString(),
+                artisanAmount,
+                'order_completion',
+                {
+                  orderId: updatedOrder._id.toString(),
+                  orderNumber: updatedOrder._id.toString().slice(-8),
+                  totalAmount: updatedOrder.totalAmount,
+                  platformFee: platformFee,
+                  artisanAmount: artisanAmount,
+                  guestOrder: true
+                }
+              );
+              
+              // Record revenue
+              const revenuesCollection = db.collection('revenues');
+              await revenuesCollection.insertOne({
+                orderId: updatedOrder._id,
+                artisanId: artisan._id,
+                artisanUserId: artisan.user,
+                totalAmount: updatedOrder.totalAmount,
+                subtotal: updatedOrder.subtotal || updatedOrder.totalAmount,
+                deliveryFee: updatedOrder.deliveryFee || 0,
+                platformFee: platformFee,
+                artisanAmount: artisanAmount,
+                paymentMethod: updatedOrder.paymentMethod,
+                status: 'recognized',
+                recognizedAt: new Date(),
+                createdAt: new Date(),
+                isGuestOrder: true
+              });
+              
+              console.log(`✅ Guest order revenue recognized: $${artisanAmount} credited to seller's wallet`);
+            }
           }
         } catch (revenueError) {
           console.error('❌ Error processing guest order revenue recognition:', revenueError);
@@ -2882,6 +3072,23 @@ const updateOrderStatus = async (req, res) => {
         patronUserInfo = await usersCollection.findOne({ _id: updatedOrder.userId });
       }
       
+      // Fallback for legacy orders with missing userId
+      if (!patronUserInfo && !updatedOrder.isGuestOrder && !updatedOrder.userId) {
+        console.log('⚠️ Legacy order with missing userId - attempting to find patron info');
+        
+        // Try to find user by email if patron field exists
+        if (updatedOrder.patron?.email) {
+          patronUserInfo = await usersCollection.findOne({ email: updatedOrder.patron.email });
+          console.log(patronUserInfo ? '✅ Found patron by email' : '❌ Could not find patron');
+        }
+        
+        // If still not found, use patron field directly if it exists
+        if (!patronUserInfo && updatedOrder.patron) {
+          console.log('ℹ️ Using patron field directly for customer info');
+          patronUserInfo = updatedOrder.patron;
+        }
+      }
+      
       // Get artisan information for email
       const artisanForEmail = await artisansCollection.findOne({ 
         _id: updatedOrder.artisan._id || updatedOrder.artisan 
@@ -2944,6 +3151,21 @@ const updateOrderStatus = async (req, res) => {
           businessHours: artisanForEmail.businessHours,
           pickupInstructions: artisanForEmail.pickupInstructions,
           deliveryInstructions: artisanForEmail.deliveryInstructions
+        } : null,
+        // Add patron/customer info for artisan emails (showing who the buyer is)
+        patronInfo: patronUserInfo ? {
+          firstName: patronUserInfo.firstName || 'Customer',
+          lastName: patronUserInfo.lastName || '',
+          email: patronUserInfo.email,
+          phone: patronUserInfo.phone,
+          isArtisan: patronUserInfo.isArtisan || false,
+          businessName: patronUserInfo.businessName || patronUserInfo.artisanName
+        } : updatedOrder.patron ? {
+          // Fallback to patron field for legacy orders
+          firstName: updatedOrder.patron.firstName || 'Customer',
+          lastName: updatedOrder.patron.lastName || '',
+          email: updatedOrder.patron.email,
+          phone: updatedOrder.patron.phone
         } : null
       };
       
@@ -2956,7 +3178,10 @@ const updateOrderStatus = async (req, res) => {
         artisanPhone: enhancedOrderData.artisanInfo?.phone,
         hasPickupAddress: !!enhancedOrderData.artisanInfo?.pickupAddress,
         pickupAddressType: typeof enhancedOrderData.artisanInfo?.pickupAddress,
-        pickupAddress: enhancedOrderData.artisanInfo?.pickupAddress
+        pickupAddress: enhancedOrderData.artisanInfo?.pickupAddress,
+        hasPatronInfo: !!enhancedOrderData.patronInfo,
+        patronName: enhancedOrderData.patronInfo ? `${enhancedOrderData.patronInfo.firstName} ${enhancedOrderData.patronInfo.lastName}` : 'N/A',
+        patronEmail: enhancedOrderData.patronInfo?.email
       });
 
       // Send notification to patron (customer)
@@ -2981,9 +3206,9 @@ const updateOrderStatus = async (req, res) => {
         userInfo: {
           id: updatedOrder.userId ? updatedOrder.userId.toString() : null,
           isGuest: updatedOrder.isGuestOrder || false,
-          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUserInfo?.email || null),
-          firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUserInfo?.firstName || null),
-          lastName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.lastName : (patronUserInfo?.lastName || null)
+          email: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.email : (patronUserInfo?.email || updatedOrder.patron?.email || null),
+          firstName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.firstName : (patronUserInfo?.firstName || updatedOrder.patron?.firstName || 'Customer'),
+          lastName: updatedOrder.isGuestOrder ? updatedOrder.guestInfo?.lastName : (patronUserInfo?.lastName || updatedOrder.patron?.lastName || '')
         },
         artisanInfo: artisanForEmail ? {
           id: artisanForEmail._id,
@@ -4838,11 +5063,53 @@ const confirmOrderReceipt = async (req, res) => {
       });
     }
     
-    // SAFETY CHECK: Ensure payment is captured
-    // Payment should already be captured when order was marked delivered/picked_up
-    // But if somehow it's still authorized, capture it now as a safety measure
-    if (order.paymentStatus === 'authorized') {
-      console.log('⚠️ WARNING: Payment still authorized on confirmation - capturing now as safety measure');
+    // WALLET PAYMENTS: Ensure payment was deducted when marked delivered/picked_up
+    if (order.paymentMethod === 'wallet' && order.paymentStatus === 'pending') {
+      console.log('⚠️ WARNING: Wallet payment still pending on confirmation - processing now as fallback');
+      
+      try {
+        const { createWalletService } = require('../../services');
+        const walletService = await createWalletService();
+        
+        await walletService.deductFunds(
+          order.userId.toString(),
+          order.totalAmount,
+          `Purchase - Order #${order._id.toString().slice(-8)}`,
+          { 
+            orderId: order._id.toString(), 
+            orderNumber: order._id.toString().slice(-8), 
+            paymentMethod: 'wallet',
+            processedOn: 'confirmation_fallback'
+          }
+        );
+        
+        await ordersCollection.updateOne(
+          { _id: order._id },
+          {
+            $set: {
+              paymentStatus: 'paid',
+              paidAt: new Date(),
+              paymentProcessedOnConfirmation: true
+            }
+          }
+        );
+        
+        console.log('✅ Wallet payment processed on confirmation (fallback)');
+      } catch (walletError) {
+        console.error('❌ Failed to process wallet payment on confirmation:', walletError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to process payment. Please contact support.',
+          error: walletError.message
+        });
+      }
+    }
+    
+    // Payment should ALREADY be captured when order was marked delivered/picked_up
+    // But handle the edge case where it wasn't captured as a safety fallback
+    if (order.paymentStatus === 'authorized' && order.paymentMethod !== 'wallet') {
+      console.log('⚠️ WARNING: Payment still authorized - capturing now as fallback');
+      console.log('⚠️ Ideally this should have been captured when order was marked delivered/picked_up');
       
       try {
         const artisansCollection = db.collection('artisans');
@@ -4854,6 +5121,8 @@ const confirmOrderReceipt = async (req, res) => {
         const paymentIntent = await stripe.paymentIntents.capture(order.paymentIntentId);
         
         if (paymentIntent.status === 'succeeded') {
+          console.log('✅ Payment captured successfully on confirmation (fallback)');
+          
           // Transfer to artisan Connect account
           const artisan = await artisansCollection.findOne({ _id: order.artisan });
           let transferId = null;
@@ -4870,6 +5139,7 @@ const confirmOrderReceipt = async (req, res) => {
               }
             });
             transferId = transfer.id;
+            console.log('✅ Transferred to artisan Connect account:', transferId);
           }
           
           // Update payment status
@@ -4890,32 +5160,26 @@ const confirmOrderReceipt = async (req, res) => {
           );
           
           console.log('✅ Payment captured on confirmation (safety fallback)');
-          
-          // Process revenue recognition immediately after capture
-          try {
-            const { createWalletService } = require('../../services');
-            const walletService = await createWalletService();
-            
-            // Refresh order to get updated payment info
-            const refreshedOrder = await ordersCollection.findOne({ _id: order._id });
-            
-            const revenueResult = await walletService.processOrderCompletion(refreshedOrder, db);
-            console.log('✅ Revenue recognized on capture (safety fallback):', revenueResult.data);
-          } catch (revenueError) {
-            console.error('❌ Error processing revenue on capture:', revenueError);
-            // Continue - revenue will be processed on completion if needed
-          }
         }
       } catch (captureError) {
         console.error('❌ Failed to capture payment on confirmation:', captureError);
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to capture payment. Please contact support.',
-          error: captureError.message
-        });
+        
+        // Check if payment was already captured
+        if (captureError.code === 'payment_intent_unexpected_state' || 
+            captureError.message?.includes('already been captured')) {
+          console.log('✅ Payment was already captured - proceeding with confirmation');
+        } else {
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to capture payment. Please contact support.',
+            error: captureError.message
+          });
+        }
       }
+    } else if (order.paymentStatus === 'captured') {
+      console.log('✅ Payment already captured - proceeding with receipt confirmation');
     } else {
-      console.log('✅ Payment already captured - proceeding with confirmation');
+      console.log('ℹ️ Payment status:', order.paymentStatus, '- proceeding with confirmation');
     }
     
     // Update order status to completed
@@ -4952,14 +5216,63 @@ const confirmOrderReceipt = async (req, res) => {
             totalAmount: updatedOrder.totalAmount,
             subtotal: updatedOrder.subtotal,
             deliveryFee: updatedOrder.deliveryFee,
-            paymentStatus: updatedOrder.paymentStatus
+            paymentStatus: updatedOrder.paymentStatus,
+            paymentMethod: updatedOrder.paymentMethod
           });
           
-          const { createWalletService } = require('../../services');
-          const walletService = await createWalletService();
-          
-          const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
-          console.log('✅ Revenue recognition completed successfully:', revenueResult.data);
+          // Only process revenue if payment was completed
+          if (updatedOrder.paymentStatus === 'paid' || updatedOrder.paymentStatus === 'captured') {
+            const artisan = await artisansCollection.findOne({ _id: updatedOrder.artisan });
+            
+            if (artisan && artisan.user) {
+              const { createWalletService } = require('../../services');
+              const walletService = await createWalletService();
+              
+              // Calculate platform fee
+              const PlatformSettingsService = require('../../services/platformSettingsService');
+              const platformSettingsService = new PlatformSettingsService(db);
+              const feeCalculation = await platformSettingsService.calculatePlatformFee(
+                updatedOrder.subtotal || updatedOrder.totalAmount,
+                'order'
+              );
+              
+              const { platformFee, artisanAmount } = feeCalculation;
+              
+              // Credit seller's wallet
+              await walletService.addFunds(
+                artisan.user.toString(),
+                artisanAmount,
+                'order_completion',
+                {
+                  orderId: updatedOrder._id.toString(),
+                  orderNumber: updatedOrder._id.toString().slice(-8),
+                  totalAmount: updatedOrder.totalAmount,
+                  platformFee: platformFee,
+                  artisanAmount: artisanAmount
+                }
+              );
+              
+              // Record revenue
+              await revenuesCollection.insertOne({
+                orderId: updatedOrder._id,
+                artisanId: artisan._id,
+                artisanUserId: artisan.user,
+                totalAmount: updatedOrder.totalAmount,
+                subtotal: updatedOrder.subtotal || updatedOrder.totalAmount,
+                deliveryFee: updatedOrder.deliveryFee || 0,
+                platformFee: platformFee,
+                artisanAmount: artisanAmount,
+                paymentMethod: updatedOrder.paymentMethod,
+                status: 'recognized',
+                recognizedAt: new Date(),
+                createdAt: new Date()
+              });
+              
+              console.log(`✅ Revenue recognized on confirmation: $${artisanAmount} credited to seller's wallet`);
+            }
+          } else {
+            console.warn(`⚠️ Payment not completed (status: ${updatedOrder.paymentStatus}), skipping revenue processing`);
+          }
         } else {
           console.warn('⚠️ No artisan found on order - skipping revenue processing');
         }
@@ -4995,34 +5308,42 @@ const confirmOrderReceipt = async (req, res) => {
           console.error('❌ Error fetching artisan user for notification:', artisanFetchError);
         }
         
-        const artisanNotificationData = {
-          type: 'order_receipt_confirmed',
-          userId: updatedOrder.artisan,
-          orderId: updatedOrder._id,
-          orderData: updatedOrder,
-          userEmail: artisanEmail, // ✅ Now includes actual email
-          orderNumber: updatedOrder._id.toString().slice(-8),
-          status: 'completed',
-          updateType: 'receipt_confirmed',
-          updateDetails: {
-            newStatus: 'completed',
-            previousStatus: updatedOrder.status,
-            reason: 'Order receipt confirmed by customer',
-            statusDisplayText: 'Completed',
-            receiptConfirmed: true
-          },
-          userInfo: {
-            id: updatedOrder.artisan,
-            isGuest: false,
-            email: artisanEmail, // ✅ Now includes actual email
-            firstName: artisanFirstName // ✅ Now includes actual name
-          },
-          message: `Order #${updatedOrder._id.toString().slice(-8)} receipt has been confirmed by the customer`,
-          title: `Order Receipt Confirmed - #${updatedOrder._id.toString().slice(-8)}`,
-          timestamp: new Date().toISOString()
-        };
+        // Get artisan user ID for notification
+        const artisan = await artisansCollection.findOne({ _id: updatedOrder.artisan });
+        const artisanUserId = artisan?.user?.toString();
         
-        await sendNotificationDirect(artisanNotificationData, db);
+        if (artisanUserId) {
+          const artisanNotificationData = {
+            type: 'order_receipt_confirmed',
+            userId: artisanUserId, // Fixed: Use artisan.user, not artisan._id
+            orderId: updatedOrder._id,
+            orderData: updatedOrder,
+            userEmail: artisanEmail, // ✅ Now includes actual email
+            orderNumber: updatedOrder._id.toString().slice(-8),
+            status: 'completed',
+            updateType: 'receipt_confirmed',
+            updateDetails: {
+              newStatus: 'completed',
+              previousStatus: updatedOrder.status,
+              reason: 'Order receipt confirmed by customer',
+              statusDisplayText: 'Completed',
+              receiptConfirmed: true
+            },
+            userInfo: {
+              id: artisanUserId, // Fixed: Use artisan.user
+              isGuest: false,
+              email: artisanEmail, // ✅ Now includes actual email
+              firstName: artisanFirstName // ✅ Now includes actual name
+            },
+            message: `Order #${updatedOrder._id.toString().slice(-8)} receipt has been confirmed by the customer`,
+            title: `Order Receipt Confirmed - #${updatedOrder._id.toString().slice(-8)}`,
+            timestamp: new Date().toISOString()
+          };
+          
+          await sendNotificationDirect(artisanNotificationData, db);
+        } else {
+          console.warn('⚠️ Could not find artisan user ID for receipt confirmation notification');
+        }
         console.log('✅ Artisan order receipt confirmation notification sent');
       }
     } catch (notificationError) {
@@ -5494,7 +5815,105 @@ const completeUberDelivery = async (order, db) => {
   console.log('✅ Order marked as delivered by Uber courier');
   
   // Get updated order
-  const updatedOrder = await ordersCollection.findOne({ _id: order._id });
+  let updatedOrder = await ordersCollection.findOne({ _id: order._id });
+  
+  // CRITICAL: Capture payment when Uber marks order as delivered
+  // This was the missing piece causing payments to not be captured!
+  if (updatedOrder.paymentStatus === 'authorized' && updatedOrder.paymentMethod !== 'wallet') {
+    console.log('💳 CRITICAL: Uber delivery completed - capturing payment');
+    
+    if (!stripe) {
+      console.error('❌ CRITICAL: Stripe not configured - cannot capture payment!');
+    } else {
+      try {
+        const platformSettingsService = new PlatformSettingsService(db);
+        const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
+        const { platformFee, artisanAmount } = feeCalculation;
+        
+        console.log('💰 Capturing payment for Uber delivery:', {
+          paymentIntentId: updatedOrder.paymentIntentId,
+          totalAmount: updatedOrder.totalAmount,
+          platformFee,
+          artisanAmount
+        });
+        
+        // Capture payment from Stripe
+        const paymentIntent = await stripe.paymentIntents.capture(updatedOrder.paymentIntentId);
+        
+        if (paymentIntent.status === 'succeeded') {
+          console.log('✅ Payment captured successfully via Uber delivery');
+          
+          // Transfer to artisan
+          const artisan = await artisansCollection.findOne({ _id: updatedOrder.artisan });
+          let transferId = null;
+          
+          if (artisan && artisan.financial?.stripeConnectAccountId) {
+            const transfer = await stripe.transfers.create({
+              amount: Math.round(artisanAmount * 100),
+              currency: 'cad',
+              destination: artisan.financial.stripeConnectAccountId,
+              metadata: {
+                orderId: updatedOrder._id.toString(),
+                platformFee: platformFee.toString(),
+                capturedOnUberDelivery: 'true'
+              }
+            });
+            transferId = transfer.id;
+            console.log('✅ Transferred to artisan via Uber delivery:', transferId);
+          }
+          
+          // Update order with payment capture info
+          await ordersCollection.updateOne(
+            { _id: updatedOrder._id },
+            {
+              $set: {
+                paymentStatus: 'captured',
+                paymentCapturedAt: new Date(),
+                platformFee: platformFee,
+                artisanAmount: artisanAmount,
+                stripeTransferId: transferId,
+                'paymentHold.status': 'captured',
+                'paymentHold.capturedAt': new Date(),
+                capturedOnUberDelivery: true
+              }
+            }
+          );
+          
+          // Refresh order
+          updatedOrder = await ordersCollection.findOne({ _id: updatedOrder._id });
+          
+          console.log('✅ Payment captured and transferred via Uber delivery');
+          
+          // Process revenue recognition immediately
+          try {
+            const { createWalletService } = require('../../services');
+            const walletService = await createWalletService();
+            const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+            console.log('✅ Revenue recognized on Uber delivery:', revenueResult.data);
+          } catch (revenueError) {
+            console.error('❌ Error processing revenue on Uber delivery:', revenueError);
+          }
+        }
+      } catch (captureError) {
+        console.error('❌ CRITICAL: Failed to capture payment on Uber delivery');
+        console.error('Error:', captureError.message);
+        console.error('Order ID:', updatedOrder._id);
+        // Don't fail the delivery completion, but log critical error
+      }
+    }
+  } else if (updatedOrder.paymentMethod === 'wallet' && updatedOrder.paymentStatus === 'paid') {
+    console.log('💰 Wallet order delivered via Uber - processing revenue');
+    try {
+      const { createWalletService } = require('../../services');
+      const walletService = await createWalletService();
+      const revenueResult = await walletService.processOrderCompletion(updatedOrder, db);
+      console.log('✅ Wallet revenue recognized on Uber delivery:', revenueResult.data);
+    } catch (revenueError) {
+      console.error('❌ Error processing wallet revenue on Uber delivery:', revenueError);
+    }
+  } else {
+    console.log('ℹ️ Payment already captured or different payment method:', updatedOrder.paymentStatus);
+  }
   
   // Send notification to patron
   try {

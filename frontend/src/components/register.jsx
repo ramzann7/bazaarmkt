@@ -27,7 +27,7 @@ export default function Register() {
     phone: "",
     role: defaultRole,
     artisanName: "",
-    businessType: "food_beverages",
+    businessType: "handmade_crafts",
     businessDescription: "",
     // Address fields
     street: "",

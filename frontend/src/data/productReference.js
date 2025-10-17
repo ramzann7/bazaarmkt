@@ -629,9 +629,9 @@ export const getSubcategoryName = (subcategoryKey, categoryKey) => {
 // Popular product names for search suggestions
 export const getFeaturedCategories = () => {
   return [
-    { key: 'food_beverages', name: 'Food & Beverages', icon: '🍽️' },
     { key: 'handmade_crafts', name: 'Handmade Crafts', icon: '🎨' },
-    { key: 'clothing_accessories', name: 'Clothing & Accessories', icon: '👕' }
+    { key: 'food_preserves', name: 'Food & Preserves', icon: '🍯' },
+    { key: 'home_garden', name: 'Home & Garden', icon: '🏠' }
   ];
 };
 

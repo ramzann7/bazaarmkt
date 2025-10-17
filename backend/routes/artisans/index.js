@@ -5,13 +5,50 @@ const jwt = require('jsonwebtoken');
 const imageUploadService = require('../../services/imageUploadService');
 const { mergeWithInventoryFilter } = require('../../utils/inventoryQueryHelper');
 
-// Get artisan by ID
+// Get artisan by ID or short ID from slug
 router.get('/:id', async (req, res) => {
   try {
     const { db } = req;
     const { id } = req.params;
     
-    const artisan = await db.collection('artisans').findOne({ _id: new ObjectId(id) });
+    let artisan = null;
+    let artisanObjectId = null;
+    
+    // Check if it's a valid 24-character ObjectId
+    if (/^[a-f\d]{24}$/i.test(id)) {
+      // Full ObjectId - use directly
+      artisanObjectId = new ObjectId(id);
+      artisan = await db.collection('artisans').findOne({ _id: artisanObjectId });
+    } else if (/^[a-f\d]{8,}$/i.test(id)) {
+      // Short ID from slug (8+ hex chars) - find by matching end of ObjectId
+      // Since ObjectId is stored as ObjectId type, we need to search by converting to string
+      // We'll use a regex on the stringified _id to match the ending
+      const regex = new RegExp(`${id.toLowerCase()}$`, 'i');
+      
+      // Use aggregation to convert _id to string and match
+      const results = await db.collection('artisans').aggregate([
+        {
+          $addFields: {
+            idString: { $toString: '$_id' }
+          }
+        },
+        {
+          $match: {
+            idString: regex
+          }
+        },
+        {
+          $limit: 1
+        }
+      ]).toArray();
+      
+      if (results.length > 0) {
+        artisan = results[0];
+        artisanObjectId = artisan._id;
+        // Remove the temporary idString field
+        delete artisan.idString;
+      }
+    }
     
     if (!artisan) {
       return res.status(404).json({ success: false, message: 'Artisan not found' });
@@ -20,7 +57,7 @@ router.get('/:id', async (req, res) => {
     // Get artisan's products if requested
     if (req.query.includeProducts === 'true') {
       const query = mergeWithInventoryFilter({ 
-        artisan: new ObjectId(id)
+        artisan: artisanObjectId
       });
       const products = await db.collection('products')
         .find(query)

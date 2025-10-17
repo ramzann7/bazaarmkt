@@ -3,8 +3,9 @@ import PriorityOrderCard from './PriorityOrderCard';
 import { getPriorityStatuses, calculatePriorityScore, getUrgencyLevel, groupBy } from '../utils/orderPriority';
 
 const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick, onQuickAction, userRole, updatingOrderId }) => {
-  // Get appropriate priority statuses based on user role
-  const PRIORITY_STATUSES = useMemo(() => getPriorityStatuses(userRole), [userRole]);
+  // Get priority statuses for both roles (artisans need both seller and buyer statuses)
+  const ARTISAN_STATUSES = useMemo(() => getPriorityStatuses('artisan'), []);
+  const PATRON_STATUSES = useMemo(() => getPriorityStatuses('patron'), []);
   
   // Calculate priority orders with scores and urgency
   const priorityOrders = useMemo(() => {
@@ -24,12 +25,34 @@ const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick
           return false;
         }
         
-        // Filter based on priority statuses
-        if (!PRIORITY_STATUSES[order.status]) return false;
-        
-        // For patrons, only show delivered/picked_up if not yet confirmed
-        if (userRole === 'patron' && (order.status === 'delivered' || order.status === 'picked_up')) {
-          return !order.walletCredit?.patronConfirmedAt;
+        // For artisans, check order type to use correct status list
+        if (userRole === 'artisan') {
+          // Determine if this is a sales or purchase order
+          const isSalesOrder = salesOrders?.some(so => so._id === order._id);
+          const isPurchaseOrder = purchasesOrders?.some(po => po._id === order._id);
+          
+          // Use artisan statuses for SALES (seller role)
+          if (isSalesOrder) {
+            if (!ARTISAN_STATUSES[order.status]) return false;
+          }
+          
+          // Use patron statuses for PURCHASES (buyer role)
+          if (isPurchaseOrder) {
+            if (!PATRON_STATUSES[order.status]) return false;
+            
+            // For purchases, only show delivered/picked_up if not yet confirmed
+            if ((order.status === 'delivered' || order.status === 'picked_up')) {
+              return !order.walletCredit?.patronConfirmedAt;
+            }
+          }
+        } else {
+          // For patrons, use patron statuses
+          if (!PATRON_STATUSES[order.status]) return false;
+          
+          // Only show delivered/picked_up if not yet confirmed
+          if ((order.status === 'delivered' || order.status === 'picked_up')) {
+            return !order.walletCredit?.patronConfirmedAt;
+          }
         }
         
         return true;
@@ -37,20 +60,25 @@ const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick
       .map(order => {
         // Determine if this is a sales or purchase order for artisans
         let orderType = 'order'; // Default for patrons
+        let effectiveUserRole = userRole; // Role to use for priority calculation
+        
         if (userRole === 'artisan') {
           const isSalesOrder = salesOrders?.some(so => so._id === order._id);
           orderType = isSalesOrder ? 'sales' : 'purchases';
+          
+          // For purchases, use patron role for priority calculation (artisan is the buyer)
+          effectiveUserRole = isSalesOrder ? 'artisan' : 'patron';
         }
         
         return {
           ...order,
           orderType, // Add order type for styling
-          priorityScore: calculatePriorityScore(order, userRole),
-          urgency: getUrgencyLevel(order, userRole),
+          priorityScore: calculatePriorityScore(order, effectiveUserRole),
+          urgency: getUrgencyLevel(order, effectiveUserRole),
           // Boost sales orders priority by adding 1000 points
           adjustedPriorityScore: orderType === 'sales' 
-            ? calculatePriorityScore(order, userRole) + 1000 
-            : calculatePriorityScore(order, userRole)
+            ? calculatePriorityScore(order, effectiveUserRole) + 1000 
+            : calculatePriorityScore(order, effectiveUserRole)
         };
       })
       .sort((a, b) => {
@@ -59,7 +87,7 @@ const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick
       });
     
     return processedOrders;
-  }, [orders, salesOrders, purchasesOrders, PRIORITY_STATUSES, userRole]);
+  }, [orders, salesOrders, purchasesOrders, ARTISAN_STATUSES, PATRON_STATUSES, userRole]);
   
   // Group by status for tabs
   const groupedOrders = useMemo(() => {
@@ -108,7 +136,7 @@ const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick
       
       {/* Status Tabs with Counts */}
       <div className="flex gap-4 mb-6 overflow-x-auto pb-2">
-        {Object.entries(PRIORITY_STATUSES).map(([status, config]) => {
+        {Object.entries(userRole === 'artisan' ? {...ARTISAN_STATUSES, ...PATRON_STATUSES} : PATRON_STATUSES).map(([status, config]) => {
           const count = groupedOrders[status]?.length || 0;
           if (count === 0) return null;
           
@@ -122,8 +150,14 @@ const PriorityOrderQueue = ({ orders, salesOrders, purchasesOrders, onOrderClick
                 return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
               case 'ready_for_pickup':
                 return 'bg-green-100 text-green-800 hover:bg-green-200';
+              case 'ready_for_delivery':
+                return 'bg-green-100 text-green-800 hover:bg-green-200';
               case 'out_for_delivery':
                 return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
+              case 'delivered':
+                return 'bg-teal-100 text-teal-800 hover:bg-teal-200';
+              case 'picked_up':
+                return 'bg-teal-100 text-teal-800 hover:bg-teal-200';
               default:
                 return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
             }

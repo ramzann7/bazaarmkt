@@ -56,19 +56,11 @@ const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, exte
   const [walletBalance, setWalletBalance] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   
-  console.log('🔷 WalletPaymentSection rendered with:', {
-    totalAmount,
-    walletBalance,
-    externalBalance,
-    userRole,
-    hasTopUpClick: !!onTopUpClick
-  });
 
   // Use external balance if provided and valid, otherwise fetch
   React.useEffect(() => {
     // Only fetch wallet balance for artisans
     if (userRole !== 'artisan') {
-      console.log('⚠️ WalletPaymentSection: User is not an artisan, skipping wallet balance fetch');
       setWalletBalance(0);
       setLoading(false);
       return;
@@ -79,7 +71,6 @@ const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, exte
     const hasValidExternalBalance = externalBalance !== null && externalBalance > 0;
     
     if (hasValidExternalBalance) {
-      console.log('💰 Using external balance:', externalBalance);
       setWalletBalance(externalBalance);
       setLoading(false);
       return;
@@ -89,12 +80,9 @@ const WalletPaymentSection = ({ totalAmount, onTopUpClick, onBalanceLoaded, exte
     const fetchBalance = async () => {
       try {
         setLoading(true);
-        console.log('🔄 Fetching wallet balance for artisan...');
         const response = await walletService.getWalletBalance();
-        console.log('💰 Wallet balance response:', response);
         
         const balance = response.success ? (response.data?.balance || 0) : 0;
-        console.log('💰 Setting wallet balance to:', balance);
         
         setWalletBalance(balance);
         
@@ -663,14 +651,6 @@ const Cart = () => {
       const isPatronUser = userProfile && userProfile.role === 'patron';
       const hasDeliveryAddress = deliveryForm && (deliveryForm.street || deliveryForm.city);
       
-      console.log('🔄 Loading delivery options with context:', {
-        isGuestUser,
-        isPatronUser,
-        hasDeliveryAddress,
-        userLocation,
-        deliveryForm
-      });
-      
       // Process each artisan's delivery options
       Object.entries(cartByArtisan).forEach(([artisanId, artisanData]) => {
         if (artisanData.artisan?.fulfillment?.methods) {
@@ -684,13 +664,6 @@ const Cart = () => {
           );
           
           options[artisanId] = processedOptions;
-          
-          console.log('🔄 Processed delivery options for artisan:', artisanId, {
-            pickup: processedOptions.pickup?.available,
-            personalDelivery: processedOptions.personalDelivery?.available,
-            professionalDelivery: processedOptions.professionalDelivery?.available,
-            professionalDeliveryData: processedOptions.professionalDelivery
-          });
           
           // Don't pre-select any delivery method - let user choose
           // methods[artisanId] will remain undefined until user selects
@@ -834,7 +807,6 @@ const Cart = () => {
                 // Fallback to cart item data if fetch fails
                 const fallbackProduct = item.product || item;
                 artisanEnhancedProducts.push(fallbackProduct);
-                console.warn(`⚠️ Could not fetch full details for ${item.name}, using fallback data`);
               }
             } catch (error) {
               console.error(`❌ Error fetching product details for ${item.name}:`, error);
@@ -2006,38 +1978,22 @@ const Cart = () => {
       let walletBalance = currentWalletBalance || 0;
       
       try {
-        console.log('💰 Fetching fresh wallet balance before checkout...');
         const freshBalanceResponse = await walletService.getWalletBalance();
         const freshBalance = freshBalanceResponse?.data?.balance || freshBalanceResponse?.balance;
         
         if (freshBalance !== undefined && freshBalance !== null) {
           walletBalance = freshBalance;
           setCurrentWalletBalance(freshBalance);
-          console.log('💰 Using fresh balance from API:', freshBalance);
-        } else {
-          console.log('💰 Using state balance:', currentWalletBalance);
         }
       } catch (balanceError) {
         console.error('❌ Error fetching fresh balance, using state:', balanceError);
         walletBalance = currentWalletBalance || 0;
       }
       
-      console.log('💰 Wallet checkout using balance:', {
-        stateBalance: currentWalletBalance,
-        walletBalance
-      });
-      
       // Calculate total including delivery fees
       const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const totalDeliveryFee = await getTotalDeliveryFees();
       const totalAmount = subtotal + totalDeliveryFee;
-      
-      console.log('💰 Wallet checkout:', {
-        balance: walletBalance,
-        totalAmount,
-        subtotal,
-        deliveryFee: totalDeliveryFee
-      });
       
       // Check if artisan has sufficient funds
       if (walletBalance < totalAmount) {
@@ -2142,6 +2098,11 @@ const Cart = () => {
         if (orderId) {
           // Clear cart
           await cartService.clearCart();
+          
+          // Trigger notification refresh for new order
+          window.dispatchEvent(new CustomEvent('newNotificationReceived', {
+            detail: { orderId, type: 'order_placed' }
+          }));
           
           // Navigate to order confirmation - same as patron flow
           navigate('/order-confirmation', {

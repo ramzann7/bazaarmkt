@@ -88,8 +88,8 @@ const generateOrderTimelineHTML = (currentStatus, deliveryMethod = 'pickup') => 
   }).join('');
   
   return `
-    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">Order Status</h3>
+    <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #e7e5e4; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <h3 style="color: #78350f; margin: 0 0 20px 0; font-size: 18px; border-bottom: 2px solid #fef3c7; padding-bottom: 12px;">Order Status</h3>
       <div style="display: flex; align-items: flex-start; justify-content: space-between;">
         ${stepsHTML}
       </div>
@@ -176,70 +176,88 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
   
   // Generate product items HTML if available
   const productsHTML = orderData.items && orderData.items.length > 0 ? `
-    <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-      <h3 style="color: #333; margin-top: 0;">Order Items</h3>
+    <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #e7e5e4; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <h3 style="color: #78350f; margin: 0 0 20px 0; font-size: 18px; border-bottom: 2px solid #fef3c7; padding-bottom: 12px;">Your Handcrafted Items</h3>
       ${orderData.items.map(item => `
-        <div class="product-item responsive-flex" style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;">
+        <div class="product-item responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e7e5e4;">
           <div style="flex: 1;">
-            <div style="font-weight: 600; color: #333;">${item.productName || item.product?.name || 'Product'}</div>
-            <div style="font-size: 14px; color: #666;">Quantity: ${item.quantity}</div>
+            <div style="font-weight: 600; color: #292524; margin-bottom: 6px; font-size: 15px;">${item.productName || item.product?.name || 'Product'}${item.productType === 'made_to_order' ? ' <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px;">Handcrafted</span>' : ''}</div>
+            <div style="font-size: 13px; color: #78716c;">Quantity: ${item.quantity} × $${(item.unitPrice || 0).toFixed(2)}</div>
           </div>
-          <div class="product-price" style="font-weight: 600; color: #f59e0b; white-space: nowrap;">$${((item.unitPrice || 0) * (item.quantity || 0)).toFixed(2)}</div>
+          <div class="product-price" style="font-weight: 700; color: #78350f; align-self: center; white-space: nowrap; font-size: 15px;">$${((item.unitPrice || 0) * (item.quantity || 0)).toFixed(2)}</div>
         </div>
       `).join('')}
-      ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
-      <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 10px 0; margin-top: 10px; border-top: 1px solid #e5e5e5;">
-        <div style="font-size: 14px; color: #666;">
-          Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
+      
+      <!-- Pricing Breakdown -->
+      <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e7e5e4;">
+        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+          <span style="color: #78716c; font-size: 14px;">Subtotal:</span>
+          <span style="color: #57534e; font-weight: 600;">$${(orderData.subtotal || orderData.totalAmount || 0).toFixed(2)}</span>
         </div>
-        <div style="font-size: 14px; color: #666;">$${orderData.deliveryFee.toFixed(2)}</div>
-      </div>
-      ` : ''}
-      <div class="responsive-flex" style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #333;">
-        <div style="font-weight: bold; font-size: 16px;">Total</div>
-        <div style="font-weight: bold; font-size: 16px; color: #f59e0b;">$${(orderData.totalAmount || 0).toFixed(2)}</div>
+        ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+          <span style="color: #78716c; font-size: 14px;">
+            Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
+          </span>
+          <span style="color: #57534e; font-weight: 600;">$${orderData.deliveryFee.toFixed(2)}</span>
+        </div>
+        ` : ''}
+        <div style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #78350f;">
+          <span style="font-weight: 700; font-size: 18px; color: #292524;">Total</span>
+          <span style="font-weight: 700; font-size: 20px; color: #78350f;">$${(orderData.totalAmount || 0).toFixed(2)}</span>
+        </div>
       </div>
     </div>
   ` : '';
   
   // Generate pickup/delivery info with artisan information and customer information
   const deliveryInfoHTML = orderData.deliveryMethod === 'pickup' ? `
-    <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981;">
-      <h3 style="color: #047857; margin-top: 0;">📍 Pickup Information</h3>
+    <div style="background: #f0fdf4; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #d1fae5;">
+      <h3 style="color: #166534; margin: 0 0 15px 0; font-size: 18px;">Pickup Details</h3>
       ${orderData.pickupAddress ? `
-        <p style="margin: 5px 0; color: #666;">
-          ${typeof orderData.pickupAddress === 'string' 
-            ? orderData.pickupAddress 
-            : `${orderData.pickupAddress.street}<br>${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}`
-          }
-        </p>
-      ` : '<p style="margin: 5px 0;">Pickup location will be confirmed by the artisan</p>'}
+        <div style="margin-bottom: 15px;">
+          <p style="margin: 0 0 8px 0; color: #14532d; font-weight: 600; font-size: 14px;">Location:</p>
+          <p style="margin: 0; color: #166534; line-height: 1.6;">
+            ${typeof orderData.pickupAddress === 'string' 
+              ? orderData.pickupAddress 
+              : `${orderData.pickupAddress.street}<br>${orderData.pickupAddress.city}, ${orderData.pickupAddress.state} ${orderData.pickupAddress.zipCode}`
+            }
+          </p>
+        </div>
+      ` : '<p style="margin: 0; color: #166534;">Pickup location will be confirmed by your artisan</p>'}
       ${orderData.pickupTime ? `
-        <p style="margin: 5px 0;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+        <div style="background: #dcfce7; padding: 12px; border-radius: 8px; margin-top: 15px;">
+          <p style="margin: 0; color: #166534;"><strong>Pickup Time:</strong> ${orderData.pickupTime}</p>
+        </div>
       ` : ''}
       ${orderData.artisanInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
-          <p style="margin: 5px 0; color: #047857;"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
-          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #d1fae5;">
+          <p style="margin: 0 0 12px 0; color: #14532d; font-weight: 600;">Artisan Contact:</p>
+          <p style="margin: 6px 0; color: #166534;">${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 6px 0; color: #166534;">Phone: ${orderData.artisanInfo.phone}</p>` : ''}
+          ${orderData.artisanInfo.email ? `<p style="margin: 6px 0; color: #166534;">Email: ${orderData.artisanInfo.email}</p>` : ''}
+          ${orderData.artisanInfo.pickupInstructions ? `
+          <div style="background: #dcfce7; padding: 12px; border-radius: 6px; margin-top: 12px;">
+            <p style="margin: 0; color: #166534; font-size: 13px;"><strong>Special Instructions:</strong> ${orderData.artisanInfo.pickupInstructions}</p>
+          </div>
+          ` : ''}
         </div>
       ` : ''}
       ${orderData.patronInfo || orderData.customerInfo || orderData.guestInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #d1fae5;">
-          <h4 style="color: #047857; margin: 0 0 10px 0;">Customer Information</h4>
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #d1fae5;">
+          <p style="margin: 0 0 12px 0; color: #14532d; font-weight: 600;">Customer Information:</p>
           ${(orderData.patronInfo?.isArtisan || orderData.customerInfo?.isArtisan) ? `
-            <p style="margin: 5px 0; color: #047857;"><strong>Business:</strong> ${(orderData.patronInfo || orderData.customerInfo).businessName || (orderData.patronInfo || orderData.customerInfo).artisanName} ✨</p>
+            <p style="margin: 6px 0; color: #166534;"><strong>Business:</strong> ${(orderData.patronInfo || orderData.customerInfo).businessName || (orderData.patronInfo || orderData.customerInfo).artisanName} ✨</p>
           ` : ''}
-          <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).lastName}</p>
-          ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).email}</p>` : ''}
-          ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).phone}</p>` : ''}
+          <p style="margin: 6px 0; color: #166534;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).lastName}</p>
+          ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).email ? `<p style="margin: 6px 0; color: #166534;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).email}</p>` : ''}
+          ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).phone ? `<p style="margin: 6px 0; color: #166534;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.customerInfo || orderData.guestInfo).phone}</p>` : ''}
         </div>
       ` : ''}
     </div>
   ` : orderData.deliveryAddress ? `
-    <div style="background: ${orderData.deliveryMethod === 'professionalDelivery' ? '#dbeafe' : '#fef3c7'}; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${orderData.deliveryMethod === 'professionalDelivery' ? '#2563eb' : '#f59e0b'};">
-      <h3 style="color: ${orderData.deliveryMethod === 'professionalDelivery' ? '#1e40af' : '#d97706'}; margin-top: 0;">
-        ${orderData.deliveryMethod === 'professionalDelivery' ? '🚚 Professional Courier Delivery' : '🚚 Delivery Information'}
-      </h3>
+    <div style="background: #fef7ed; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #fed7aa;">
+      <h3 style="color: #92400e; margin: 0 0 15px 0; font-size: 18px;">Delivery Details</h3>
       
       ${orderData.deliveryMethod === 'professionalDelivery' && orderData.deliveryInfo?.trackingUrl ? `
         <!-- Uber Tracking Section -->
@@ -274,36 +292,42 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
         ` : ''}
       ` : ''}
       
-      <p style="margin: 5px 0;"><strong>Delivery Address:</strong></p>
-      <p style="margin: 5px 0; color: #666;">
-        ${orderData.deliveryAddress.street}<br>
-        ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
-      </p>
+      <div style="margin-bottom: 15px;">
+        <p style="margin: 0 0 8px 0; color: #78350f; font-weight: 600; font-size: 14px;">Delivery Address:</p>
+        <p style="margin: 0; color: #92400e; line-height: 1.6;">
+          ${orderData.deliveryAddress.street}<br>
+          ${orderData.deliveryAddress.city}, ${orderData.deliveryAddress.state} ${orderData.deliveryAddress.zipCode}
+        </p>
+      </div>
       
       ${!orderData.deliveryInfo?.trackingUrl && orderData.deliveryInfo ? `
-        <div style="margin-top: 15px; padding: 15px; background: #fff7ed; border-radius: 6px;">
-          <p style="margin: 5px 0; color: #d97706;"><strong>📏 Distance:</strong> ${orderData.deliveryInfo.formattedDistance}</p>
-          <p style="margin: 5px 0; color: #d97706;"><strong>⏱️ Estimated Time:</strong> ${orderData.deliveryInfo.formattedEstimatedTime}</p>
+        <div style="background: #fed7aa; padding: 12px; border-radius: 8px; margin-top: 15px;">
+          <p style="margin: 0; color: #78350f;"><strong>📏 Distance:</strong> ${orderData.deliveryInfo.formattedDistance}</p>
+          <p style="margin: 0; color: #78350f;"><strong>⏱️ Estimated Time:</strong> ${orderData.deliveryInfo.formattedEstimatedTime}</p>
           ${orderData.deliveryInfo.estimatedArrivalTime ? `
-            <p style="margin: 5px 0; color: #d97706;"><strong>🕐 Expected Arrival:</strong> ${new Date(orderData.deliveryInfo.estimatedArrivalTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+            <p style="margin: 0; color: #78350f;"><strong>🕐 Expected Arrival:</strong> ${new Date(orderData.deliveryInfo.estimatedArrivalTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}</p>
           ` : ''}
         </div>
       ` : !orderData.deliveryInfo?.trackingUrl && orderData.estimatedDeliveryTime ? `
-        <p style="margin: 5px 0;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
+        <div style="background: #fed7aa; padding: 12px; border-radius: 8px; margin-top: 15px;">
+          <p style="margin: 0; color: #78350f;"><strong>Estimated Delivery:</strong> ${orderData.estimatedDeliveryTime}</p>
+        </div>
       ` : ''}
       
       ${orderData.artisanInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${orderData.deliveryMethod === 'professionalDelivery' ? '#bfdbfe' : '#fde68a'};">
-          <p style="margin: 5px 0; color: ${orderData.deliveryMethod === 'professionalDelivery' ? '#1e40af' : '#d97706'};"><strong>Artisan:</strong> ${orderData.artisanInfo.name}</p>
-          ${orderData.artisanInfo.phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${orderData.artisanInfo.phone}</p>` : ''}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #fed7aa;">
+          <p style="margin: 0 0 12px 0; color: #78350f; font-weight: 600;">Artisan Contact:</p>
+          <p style="margin: 6px 0; color: #92400e;">${orderData.artisanInfo.name}</p>
+          ${orderData.artisanInfo.phone ? `<p style="margin: 6px 0; color: #92400e;">Phone: ${orderData.artisanInfo.phone}</p>` : ''}
+          ${orderData.artisanInfo.email ? `<p style="margin: 6px 0; color: #92400e;">Email: ${orderData.artisanInfo.email}</p>` : ''}
         </div>
       ` : ''}
       ${orderData.patronInfo || orderData.guestInfo ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${orderData.deliveryMethod === 'professionalDelivery' ? '#bfdbfe' : '#fde68a'};">
-          <h4 style="color: ${orderData.deliveryMethod === 'professionalDelivery' ? '#1e40af' : '#d97706'}; margin: 0 0 10px 0;">Customer Information</h4>
-          <p style="margin: 5px 0; color: #666;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.guestInfo).lastName}</p>
-          ${(orderData.patronInfo || orderData.guestInfo).email ? `<p style="margin: 5px 0; color: #666;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.guestInfo).email}</p>` : ''}
-          ${(orderData.patronInfo || orderData.guestInfo).phone ? `<p style="margin: 5px 0; color: #666;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.guestInfo).phone}</p>` : ''}
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #fed7aa;">
+          <p style="margin: 0 0 12px 0; color: #78350f; font-weight: 600;">Customer Information:</p>
+          <p style="margin: 6px 0; color: #92400e;"><strong>Name:</strong> ${(orderData.patronInfo || orderData.guestInfo).firstName} ${(orderData.patronInfo || orderData.guestInfo).lastName}</p>
+          ${(orderData.patronInfo || orderData.guestInfo).email ? `<p style="margin: 6px 0; color: #92400e;"><strong>Email:</strong> ${(orderData.patronInfo || orderData.guestInfo).email}</p>` : ''}
+          ${(orderData.patronInfo || orderData.guestInfo).phone ? `<p style="margin: 6px 0; color: #92400e;"><strong>Phone:</strong> ${(orderData.patronInfo || orderData.guestInfo).phone}</p>` : ''}
         </div>
       ` : ''}
     </div>
@@ -311,9 +335,9 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
   
   // Build reason section if applicable
   const reasonSection = (isDeclined && hasReason) ? `
-    <div style="background: #fee2e2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626;">
-      <h3 style="color: #991b1b; margin-top: 0;">Reason for ${currentStatus === 'declined' ? 'Decline' : 'Cancellation'}</h3>
-      <p style="margin: 0; color: #7f1d1d; font-style: italic;">"${updateDetails.reason}"</p>
+    <div style="background: #fee2e2; padding: 25px; border-radius: 12px; margin: 25px 0; border: 1px solid #fecaca;">
+      <h3 style="color: #991b1b; margin: 0 0 15px 0; font-size: 18px;">Reason for ${currentStatus === 'declined' ? 'Decline' : 'Cancellation'}</h3>
+      <p style="margin: 0; color: #7f1d1d; font-style: italic; line-height: 1.7;">"${updateDetails.reason}"</p>
     </div>
   ` : '';
   
@@ -326,13 +350,12 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Order Update</title>
+      <title>Order Update - BazaarMkt</title>
       <style>
         /* Mobile-friendly styles */
         @media only screen and (max-width: 600px) {
           .email-container { padding: 10px !important; }
-          .header { padding: 20px !important; font-size: 14px !important; }
-          .header h1 { font-size: 24px !important; }
+          .header { padding: 20px !important; }
           .content { padding: 15px !important; }
           .timeline-step { font-size: 9px !important; max-width: 60px !important; }
           .timeline-icon { width: 32px !important; height: 32px !important; font-size: 16px !important; }
@@ -347,7 +370,7 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
           body { background: white !important; }
           .email-container { max-width: 100% !important; padding: 0 !important; }
           .header { 
-            background: #f59e0b !important; 
+            background: linear-gradient(to right, #78350f, #92400e) !important; 
             -webkit-print-color-adjust: exact !important; 
             print-color-adjust: exact !important; 
           }
@@ -356,20 +379,27 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
           a { text-decoration: none !important; color: #000 !important; }
           .page-break { page-break-after: always; }
         }
-        
-        /* General responsive utilities */
-        .responsive-table { width: 100%; border-collapse: collapse; }
-        .responsive-flex { display: flex; flex-wrap: wrap; }
       </style>
     </head>
-    <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;" class="email-container">
-      <div class="header" style="${headerGradient} padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">${isDeclined ? '⚠️' : '📢'} Order Update</h1>
-        <p style="color: white; margin: 10px 0 0 0; font-size: 16px;">Hello ${recipientName}!</p>
-        <p style="color: white; margin: 5px 0; font-size: 14px;">Order #${orderData.orderNumber}</p>
+    <body style="font-family: Georgia, 'Times New Roman', serif; line-height: 1.7; color: #292524; max-width: 600px; margin: 0 auto; padding: 0; background: #fafaf9;">
+      
+      <!-- Header with artisan marketplace feel -->
+      <div class="header" style="${isDeclined ? 'background: linear-gradient(to right, #991b1b, #7f1d1d);' : 'background: linear-gradient(to right, #78350f, #92400e);'} padding: 40px 30px; text-align: center;">
+        <h1 style="color: #fef3c7; margin: 0; font-size: 32px; font-weight: 400; letter-spacing: 1px; font-family: Georgia, serif;">BazaarMkt</h1>
+        <p style="color: #fde68a; margin: 8px 0 0 0; font-size: 14px; letter-spacing: 0.5px; text-transform: uppercase;">Handcrafted with Care</p>
+        <div style="background: #fef3c7; color: #78350f; padding: 10px 20px; margin: 20px auto 0; display: inline-block; border-radius: 6px; font-weight: 600;">
+          ${isDeclined ? '⚠️' : '📢'} Order #${orderData.orderNumber}
+        </div>
       </div>
       
-      <div class="content" style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+      <!-- Content Section -->
+      <div class="content" style="background: #fafaf9; padding: 35px 30px;">
+        
+        <!-- Greeting -->
+        <p style="color: #57534e; font-size: 16px; margin: 0 0 25px 0;">
+          Hello ${recipientName},
+        </p>
+        
         ${reasonSection}
         
         ${!isDeclined ? generateOrderTimelineHTML(currentStatus, orderData.deliveryMethod) : ''}
@@ -378,21 +408,37 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
         
         ${deliveryInfoHTML}
         
-        <div style="background: ${isDeclined ? '#fee2e2' : '#fef3c7'}; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid ${isDeclined ? '#dc2626' : '#f59e0b'};">
-          <h3 style="color: ${isDeclined ? '#991b1b' : '#d97706'}; margin-top: 0;">${nextAction.title}</h3>
-          <p style="margin: 5px 0 10px 0; color: ${isDeclined ? '#7f1d1d' : '#92400e'};">${nextAction.message}</p>
-          <div style="background: ${isDeclined ? '#fef2f2' : '#fef3c7'}; padding: 12px; border-radius: 6px; font-weight: 600; color: ${isDeclined ? '#7f1d1d' : '#d97706'};">
-            ${nextAction.action}
+        <!-- Next Steps -->
+        <div style="background: ${isDeclined ? 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);' : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);'} padding: 25px; border-radius: 12px; margin: 25px 0;">
+          <h3 style="color: ${isDeclined ? '#991b1b' : '#78350f'}; margin: 0 0 12px 0; font-size: 18px;">${nextAction.title}</h3>
+          <p style="margin: 0 0 15px 0; color: #57534e; line-height: 1.7;">${nextAction.message}</p>
+          <div style="background: #ffffff; padding: 15px; border-radius: 8px; border-left: 4px solid ${isDeclined ? '#dc2626' : '#78350f'};">
+            <p style="margin: 0; color: ${isDeclined ? '#991b1b' : '#78350f'}; font-weight: 600; font-size: 14px;">${nextAction.action}</p>
           </div>
         </div>
         
-        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin-top: 25px;">
-          <h3 style="color: #2d5a2d; margin-top: 0;">Need Help?</h3>
-          <p style="margin: 0;">If you have any questions about this update, please contact us at bazaar@bazaarmkt.ca</p>
+        <!-- Support Section -->
+        <div style="background: #ffffff; padding: 25px; border-radius: 12px; margin-top: 30px; border: 1px solid #e7e5e4; text-align: center;">
+          <h3 style="color: #78350f; margin: 0 0 15px 0;">Questions About Your Order?</h3>
+          <p style="margin: 0 0 15px 0; color: #57534e; line-height: 1.7;">
+            Our team is here to help! Reach out anytime.
+          </p>
+          <a href="mailto:bazaar@bazaarmkt.ca" style="display: inline-block; background: #78350f; color: #fef3c7; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 10px;">
+            Contact Support
+          </a>
         </div>
         
-        <div style="text-align: center; margin-top: 30px;">
-          <p style="color: #666; font-size: 14px;">Thank you for choosing BazaarMkt!</p>
+        <!-- Footer -->
+        <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #e7e5e4;">
+          <p style="color: #78716c; font-size: 13px; margin: 8px 0; font-style: italic;">
+            "Supporting Local Artisans, One Handcrafted Product at a Time"
+          </p>
+          <p style="color: #a8a29e; font-size: 12px; margin: 20px 0 5px 0;">
+            © ${new Date().getFullYear()} BazaarMkt - Handmade Marketplace
+          </p>
+          <p style="color: #a8a29e; font-size: 12px; margin: 5px 0;">
+            <a href="mailto:bazaar@bazaarmkt.ca" style="color: #78350f; text-decoration: none;">bazaar@bazaarmkt.ca</a>
+          </p>
         </div>
       </div>
     </body>
@@ -1344,9 +1390,30 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
     
     // Determine notification type for preference checking
     let preferenceType = 'promotions'; // default
-    if (type === 'order_update' || type === 'order_completion' || type === 'order_placed' || type === 'new_order_pending' || 
-        type === 'order_declined' || type === 'order_confirmed' || type === 'order_preparing' || type === 'order_ready' || 
-        type === 'order_completed') {
+    
+    // Map ALL order-related notifications to 'orderUpdates' preference
+    if (type === 'order_update' || 
+        type === 'order_completion' || 
+        type === 'order_placed' || 
+        type === 'order_created_buyer' ||
+        type === 'order_created_seller' ||
+        type === 'new_order_pending' || 
+        type === 'new_order' ||
+        type === 'order_declined' || 
+        type === 'order_confirmed' || 
+        type === 'order_preparing' || 
+        type === 'order_ready' || 
+        type === 'order_ready_for_pickup' ||
+        type === 'order_ready_for_delivery' ||
+        type === 'order_out_for_delivery' ||
+        type === 'order_picked_up' ||
+        type === 'order_delivered' ||
+        type === 'order_completed' ||
+        type === 'order_cancelled' ||
+        type === 'delivery_refund' ||
+        type === 'delivery_cost_increase' ||
+        type === 'courier_on_way' ||
+        type === 'order_receipt_confirmed') {
       preferenceType = 'orderUpdates';
     } else if (type === 'promotion' || type === 'seasonal_offer' || type === 'discount') {
       preferenceType = 'promotions';
@@ -1360,7 +1427,9 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
       preferenceType = 'security';
     }
     
-    // Determine if this is a seller or buyer notification for artisans (used for both email and push)
+    // Determine if this is a seller or buyer notification for artisans
+    
+    // Seller notifications that require EMAIL (all seller events)
     const isSellerNotification = type === 'new_order' || 
                                  type === 'new_order_pending' ||
                                  type === 'order_created_seller' ||
@@ -1368,45 +1437,78 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
                                  type === 'courier_on_way' ||
                                  type === 'delivery_cost_increase';
     
-    const isBuyerNotification = type === 'order_created_buyer' ||
-                               type === 'order_confirmed' ||
-                               type === 'order_preparing' ||
-                               type === 'order_ready_for_pickup' ||
-                               type === 'order_ready_for_delivery' ||
-                               type === 'order_out_for_delivery' ||
-                               type === 'order_picked_up' ||
-                               type === 'order_delivered' ||
-                               type === 'order_declined';
+    // Seller notifications that require ACTION (for in-app notifications only)
+    // Artisan sellers should ONLY get in-app notifications when they need to take action
+    const isActionableSellerNotification = type === 'new_order_pending' ||       // Needs to confirm/decline
+                                           type === 'order_cancelled' ||         // Buyer cancelled (informational)
+                                           type === 'delivery_cost_increase' ||  // Needs to approve excess cost
+                                           type === 'order_receipt_confirmed';   // Receipt confirmation
+    
+    const isBuyerNotification = type === 'order_placed' ||              // Initial confirmation
+                               type === 'order_created_buyer' ||        // Wallet payment order
+                               type === 'order_confirmed' ||            // Artisan accepted
+                               type === 'order_preparing' ||            // Being prepared
+                               type === 'order_ready_for_pickup' ||     // Ready for pickup
+                               type === 'order_ready_for_delivery' ||   // Ready for delivery
+                               type === 'order_out_for_delivery' ||     // In transit
+                               type === 'order_picked_up' ||            // Picked up
+                               type === 'order_delivered' ||            // Delivered
+                               type === 'order_completed' ||            // Completed
+                               type === 'delivery_refund' ||            // Delivery refund
+                               type === 'order_declined' ||             // Declined
+                               type === 'order_cancelled';              // Cancelled
     
     // Email sending logic based on user role and notification type
     let shouldSendEmail = false;
     
     if (userRole === 'artisan') {
-      // ARTISANS AS SELLERS: Send email for orders they're selling
-      // ARTISANS AS BUYERS: Send email for orders they're buying (treat as patron)
-      shouldSendEmail = isSellerNotification || isBuyerNotification || type === 'order_completed';
+      // ARTISANS AS SELLERS: Send email for key seller events
+      const shouldSendSellerEmail = isSellerNotification;
       
-      console.log(`📧 Artisan notification: type=${type}, isSeller=${isSellerNotification}, isBuyer=${isBuyerNotification}, sendEmail=${shouldSendEmail}`);
+      // ARTISANS AS BUYERS: Send email ONLY for key milestones (same as patrons)
+      const shouldSendBuyerEmail = isBuyerNotification && (
+        type === 'order_placed' ||
+        type === 'order_created_buyer' ||
+        type === 'order_confirmed' ||
+        type === 'order_ready_for_pickup' ||
+        type === 'order_ready_for_delivery' ||
+        type === 'order_out_for_delivery' ||
+        type === 'order_delivered' ||
+        type === 'delivery_refund' ||
+        type === 'order_declined' ||
+        type === 'order_cancelled'
+      );
+      
+      // Check user's email preferences for order updates
+      const emailPreference = await checkNotificationPreference(userId, preferenceType, 'email', db);
+      shouldSendEmail = (shouldSendSellerEmail || shouldSendBuyerEmail) && emailPreference;
+      
+      console.log(`📧 Artisan notification: type=${type}, isSeller=${isSellerNotification}, isBuyer=${isBuyerNotification}, emailPref=${emailPreference}, sendEmail=${shouldSendEmail}`);
     } else if (isGuestOrder) {
       // GUESTS: Send email for ALL status changes (they can't see in-app notifications)
       shouldSendEmail = true;
       console.log(`📧 Guest order notification: type=${type}, sendEmail=true (guest gets all emails)`);
     } else if (userRole === 'patron' || userRole === 'customer' || userRole === 'buyer') {
-      // PATRONS (REGISTERED): Send email ONLY for key events
-      // They get in-app notifications for everything else (notification bell)
-      shouldSendEmail = type === 'order_placed' ||           // Initial confirmation
-                       type === 'order_confirmed' ||         // Artisan accepted
-                       type === 'order_preparing' ||         // Order being prepared
-                       type === 'order_ready_for_pickup' ||  // Ready for pickup
-                       type === 'order_ready_for_delivery' || // Ready for delivery
-                       type === 'order_out_for_delivery' ||  // With tracking info
-                       type === 'order_picked_up' ||         // Picked up
-                       type === 'order_delivered' ||         // Delivered
-                       type === 'order_completed' ||         // Completed
-                       type === 'delivery_refund' ||         // Refund processed
-                       type === 'order_declined' ||          // Order rejected
-                       type === 'order_cancelled';           // Order cancelled
-      console.log(`📧 Patron (registered) notification: type=${type}, sendEmail=${shouldSendEmail}`);
+      // PATRONS (REGISTERED): Send email ONLY for key milestones (reduce inbox clutter)
+      // They get in-app notifications for ALL updates (notification bell)
+      const shouldSendPatronEmail = type === 'order_placed' ||           // Initial confirmation
+                                   type === 'order_created_buyer' ||     // Wallet payment confirmation
+                                   type === 'order_confirmed' ||         // Artisan accepted
+                                   // ❌ NOT order_preparing (in-app only)
+                                   type === 'order_ready_for_pickup' ||  // Ready for pickup
+                                   type === 'order_ready_for_delivery' || // Ready for delivery
+                                   type === 'order_out_for_delivery' ||  // With tracking info
+                                   // ❌ NOT order_picked_up (in-app only)
+                                   type === 'order_delivered' ||         // Delivered
+                                   // ❌ NOT order_completed (in-app only)
+                                   type === 'delivery_refund' ||         // Refund processed
+                                   type === 'order_declined' ||          // Order rejected
+                                   type === 'order_cancelled';           // Order cancelled
+      
+      // Check user's email preferences for order updates
+      const emailPreference = await checkNotificationPreference(userId, preferenceType, 'email', db);
+      shouldSendEmail = shouldSendPatronEmail && emailPreference;
+      console.log(`📧 Patron (registered) notification: type=${type}, emailPref=${emailPreference}, sendEmail=${shouldSendEmail}`);
     } else {
       // For other types, check preferences
       shouldSendEmail = await checkNotificationPreference(userId, preferenceType, 'email', db);
@@ -1425,30 +1527,53 @@ const sendPreferenceBasedNotification = async (userId, notificationData, db) => 
     }
     
     // Check push preferences for in-app notifications
-    // For critical order updates, always send push notifications (buyers need to know!)
+    // Role determines default behavior, but user preferences can override
     let shouldSendPush = false;
     
     if (userRole === 'artisan') {
-      // Artisans as buyers ALWAYS get in-app notifications for their purchases
-      shouldSendPush = isBuyerNotification || isSellerNotification || type === 'order_completed';
-      console.log(`🔔 Artisan push notification: type=${type}, shouldSendPush=${shouldSendPush}`);
+      // ARTISANS AS SELLERS: Only get in-app notifications when ACTION is required
+      // ARTISANS AS BUYERS: Get all buyer notifications (same as patrons)
+      const roleBasedPush = isBuyerNotification || isActionableSellerNotification;
+      
+      // Check user's push preferences for order updates
+      const pushPreference = await checkNotificationPreference(userId, preferenceType, 'push', db);
+      shouldSendPush = roleBasedPush && pushPreference;
+      
+      console.log(`🔔 ARTISAN NOTIFICATION DECISION:`, {
+        userId,
+        userRole,
+        type,
+        isBuyerNotification,
+        isSellerNotification,
+        isActionableSellerNotification,
+        roleBasedPush,
+        pushPreference,
+        shouldSendPush,
+        preferenceType
+      });
     } else if (isGuestOrder) {
       // Guests don't have in-app access, so no push notification
       shouldSendPush = false;
     } else if (userRole === 'patron' || userRole === 'customer' || userRole === 'buyer') {
-      // Patrons ALWAYS get in-app notifications for order updates
-      shouldSendPush = type === 'order_placed' ||
-                       type === 'order_confirmed' ||
-                       type === 'order_preparing' ||
-                       type === 'order_ready_for_pickup' ||
-                       type === 'order_ready_for_delivery' ||
-                       type === 'order_out_for_delivery' ||
-                       type === 'order_picked_up' ||
-                       type === 'order_delivered' ||
-                       type === 'order_completed' ||
-                       type === 'order_declined' ||
-                       type === 'order_cancelled';
-      console.log(`🔔 Patron push notification: type=${type}, shouldSendPush=${shouldSendPush}`);
+      // Patrons get in-app notifications for order updates based on their preferences
+      const roleBasedPush = type === 'order_placed' ||
+                           type === 'order_confirmed' ||
+                           type === 'order_preparing' ||
+                           type === 'order_ready_for_pickup' ||
+                           type === 'order_ready_for_delivery' ||
+                           type === 'order_out_for_delivery' ||
+                           type === 'order_picked_up' ||
+                           type === 'order_delivered' ||
+                           type === 'order_completed' ||
+                           type === 'delivery_refund' ||
+                           type === 'order_declined' ||
+                           type === 'order_cancelled';
+      
+      // Check user's push preferences for order updates
+      const pushPreference = await checkNotificationPreference(userId, preferenceType, 'push', db);
+      shouldSendPush = roleBasedPush && pushPreference;
+      
+      console.log(`🔔 Patron push notification: type=${type}, pushPref=${pushPreference}, shouldSendPush=${shouldSendPush}`);
     } else {
       // For other types, check preferences
       shouldSendPush = await checkNotificationPreference(userId, preferenceType, 'push', db);

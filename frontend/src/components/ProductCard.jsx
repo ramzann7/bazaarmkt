@@ -147,9 +147,13 @@ const ProductCard = ({
           </h3>
           
           {/* Artisan name */}
-          {product.artisan && (product.artisan.artisanName || product.artisan.businessName) ? (
+          {product.artisan && typeof product.artisan === 'object' && (product.artisan.artisanName || product.artisan.businessName) ? (
             <p className={`${compact ? 'text-[10px] mb-1' : 'text-xs sm:text-sm mb-2'} text-secondary/60 line-clamp-1`}>
               {t('productDetails.by')} {product.artisan.artisanName || product.artisan.businessName}
+            </p>
+          ) : product.artisan ? (
+            <p className={`${compact ? 'text-[10px] mb-1' : 'text-xs sm:text-sm mb-2'} text-secondary/60 line-clamp-1`}>
+              {t('productDetails.by')} Artisan
             </p>
           ) : (
             <div className={`h-4 w-24 bg-gray-200 animate-pulse rounded ${compact ? 'mb-1' : 'mb-2'}`}></div>
@@ -175,11 +179,20 @@ const ProductCard = ({
             </div>
             
             {/* Visit Shop Button - Subtle on Mobile, Prominent on Desktop */}
-            {showVisitShop && product.artisan?._id && !outOfStockStatus.isOutOfStock && (() => {
-              const artisanSlug = generateUniqueSlug(
-                product.artisan.artisanName || product.artisan.businessName, 
-                product.artisan._id
-              );
+            {showVisitShop && product.artisan && !outOfStockStatus.isOutOfStock && (() => {
+              // Handle both populated artisan object and ObjectId
+              const artisanId = typeof product.artisan === 'object' ? product.artisan._id : product.artisan;
+              const artisanName = typeof product.artisan === 'object' 
+                ? (product.artisan.artisanName || product.artisan.businessName)
+                : null;
+              
+              // Only show button if we have a valid artisan ID
+              if (!artisanId) return null;
+              
+              const artisanSlug = artisanName 
+                ? generateUniqueSlug(artisanName, artisanId)
+                : artisanId; // Fallback to just ID if name not available
+              
               return (
                 <Link
                   to={`/artisan/${artisanSlug}`}

@@ -116,10 +116,10 @@ export default function SearchResults() {
         console.warn('⚠️ Failed to load reference categories, using fallback');
         // Fallback categories based on common product categories
         setAvailableCategories([
-          { id: 'food_beverages', name: 'Food & Beverages', icon: '🍽️' },
           { id: 'handmade_crafts', name: 'Handmade Crafts', icon: '🎨' },
-          { id: 'clothing_accessories', name: 'Clothing & Accessories', icon: '👕' },
-          { id: 'home_garden', name: 'Home & Garden', icon: '🏡' },
+          { id: 'food_preserves', name: 'Food & Preserves', icon: '🍯' },
+          { id: 'home_garden', name: 'Home & Garden', icon: '🏠' },
+          { id: 'art_collectibles', name: 'Art & Collectibles', icon: '🎭' },
           { id: 'health_beauty', name: 'Health & Beauty', icon: '💄' },
           { id: 'services', name: 'Services', icon: '⚙️' }
         ]);
@@ -553,7 +553,7 @@ export default function SearchResults() {
       filtered = filtered.filter(product => {
         if (!product.category) return false;
         
-        // Direct match (for reference data keys like 'food_beverages')
+        // Direct match (for reference data keys like 'handmade_crafts', 'food_preserves', etc.)
         if (selectedCategories.includes(product.category)) return true;
         
         // Partial match for subcategories or related categories

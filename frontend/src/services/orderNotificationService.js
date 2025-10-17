@@ -89,7 +89,8 @@ class OrderNotificationService {
   startPolling() {
     // Check if user is authenticated to adjust polling frequency
     const token = authToken.getToken();
-    const pollInterval = token ? 120000 : 300000; // 2 min for authenticated, 5 min for guests
+    // 15 seconds for near real-time updates
+    const pollInterval = token ? 15000 : 300000; // 15s for authenticated, 5 min for guests
     
     // Poll for new orders
     this.pollInterval = setInterval(async () => {
@@ -265,6 +266,11 @@ class OrderNotificationService {
       // Notify about order updates
       if (ordersToNotify.length > 0) {
         this.notifyOrderUpdates(ordersToNotify, 'purchases');
+        
+        // Emit event for notification bell to refresh
+        window.dispatchEvent(new CustomEvent('newNotificationReceived', {
+          detail: { orders: ordersToNotify, type: 'purchases' }
+        }));
       }
 
     } catch (error) {
@@ -330,6 +336,11 @@ class OrderNotificationService {
       // Notify about order updates
       if (ordersToNotify.length > 0) {
         this.notifyOrderUpdates(ordersToNotify);
+        
+        // Emit event for notification bell to refresh
+        window.dispatchEvent(new CustomEvent('newNotificationReceived', {
+          detail: { orders: ordersToNotify, type: 'patron' }
+        }));
       }
 
     } catch (error) {
@@ -419,19 +430,32 @@ class OrderNotificationService {
 
   // Notify about order updates (for patrons and buying artisans)
   notifyOrderUpdates(updatedOrders, orderType = 'patron') {
-    // Filter for critical notifications only (action required or negative outcomes)
-    const criticalStatuses = ['ready_for_pickup', 'delivered', 'picked_up', 'cancelled', 'declined'];
-    const criticalOrders = updatedOrders.filter(order => criticalStatuses.includes(order.status) || order.costAbsorption?.required);
+    // Only show toasts for ACTION REQUIRED or NEGATIVE outcomes
+    // Other status updates will appear in notification bell silently
+    const actionRequiredStatuses = ['ready_for_pickup', 'delivered', 'picked_up'];
+    const negativeStatuses = ['cancelled', 'declined'];
     
-    // Play notification sound only for critical updates
-    if (criticalOrders.length > 0 && this.notificationSound) {
+    const actionRequiredOrders = updatedOrders.filter(order => 
+      actionRequiredStatuses.includes(order.status) || order.costAbsorption?.required
+    );
+    
+    const negativeOrders = updatedOrders.filter(order => 
+      negativeStatuses.includes(order.status)
+    );
+    
+    const toastOrders = [...actionRequiredOrders, ...negativeOrders];
+    
+    // Play notification sound only for action required or negative updates
+    if (toastOrders.length > 0 && this.notificationSound) {
       this.notificationSound();
     }
 
-    // Show toast notifications ONLY for critical actions that require attention
+    // Show toast notifications ONLY for critical actions
     import('react-hot-toast').then(({ default: toast }) => {
-      criticalOrders.forEach(order => {
+      toastOrders.forEach(order => {
         const isPurchase = orderType === 'purchases';
+        const isNegative = negativeStatuses.includes(order.status);
+        const requiresAction = actionRequiredStatuses.includes(order.status);
         
         const statusMessages = {
           'ready_for_pickup': isPurchase ? '🎉 Your purchase is ready for pickup!' : '🎉 Your order is ready for pickup!',
@@ -443,8 +467,8 @@ class OrderNotificationService {
 
         const actionRequiredMessages = {
           'ready_for_pickup': '⚡ ACTION REQUIRED: Pickup your order!',
-          'delivered': '⚡ ACTION REQUIRED: Confirm receipt of delivery!',
-          'picked_up': '⚡ ACTION REQUIRED: Confirm you picked up the order!'
+          'delivered': '⚡ ACTION REQUIRED: Confirm receipt!',
+          'picked_up': '⚡ ACTION REQUIRED: Confirm pickup!'
         };
 
         // Check for cost absorption notification
@@ -466,11 +490,9 @@ class OrderNotificationService {
 
         const message = statusMessages[order.status];
         const actionMessage = actionRequiredMessages[order.status];
-        const requiresAction = ['ready_for_pickup', 'delivered', 'picked_up'].includes(order.status);
-        const isNegative = ['cancelled', 'declined'].includes(order.status);
         
         // Use longer duration for action-required notifications
-        const duration = requiresAction ? 10000 : 8000;
+        const duration = requiresAction ? 10000 : 6000;
         
         if (requiresAction) {
           // Critical action-required notifications with prominent styling
@@ -478,7 +500,7 @@ class OrderNotificationService {
           toast.success(finalMessage, {
             duration: duration,
             style: {
-              background: '#10b981',
+              background: '#f59e0b',
               color: '#ffffff',
               fontWeight: 'bold',
               fontSize: '16px',
@@ -625,7 +647,7 @@ class OrderNotificationService {
   }
 
   // Manually trigger notification for order status updates
-  triggerOrderStatusUpdateNotification(orderData, newStatus, actorRole, targetRole = null) {
+  async triggerOrderStatusUpdateNotification(orderData, newStatus, actorRole, targetRole = null) {
     console.log('🔔 Manual order status update notification triggered', {
       orderId: orderData._id?.slice(-6),
       newStatus,
@@ -648,6 +670,68 @@ class OrderNotificationService {
     
     // Determine the recipient role (who should receive the notification)
     const recipientRole = targetRole || (actorRole === 'artisan' ? 'patron' : 'artisan');
+    
+    // CRITICAL CHECK: Only show toast if current user is the RECIPIENT
+    // Don't show toast to the person who made the change
+    try {
+      const { getProfile } = await import('../services/authservice');
+      const currentUserProfile = await getProfile();
+      const currentUserId = currentUserProfile._id;
+      const currentUserRole = currentUserProfile.role || currentUserProfile.userType;
+      
+      console.log('🔍 Checking if current user should receive toast:', {
+        currentUserId: currentUserId?.slice(-6),
+        currentUserRole,
+        recipientRole,
+        actorRole,
+        orderBuyerId: orderData.userId?.toString().slice(-6),
+        orderArtisanId: (orderData.artisan?._id || orderData.artisan)?.toString().slice(-6)
+      });
+      
+      // If current user is the actor who made the change, DON'T show toast
+      if (currentUserRole === actorRole) {
+        console.log('🔇 Skipping toast - current user is the actor who made the change');
+        return;
+      }
+      
+      // For patron recipients, verify current user is actually the buyer
+      if (recipientRole === 'patron') {
+        const isRecipient = orderData.userId?.toString() === currentUserId?.toString();
+        if (!isRecipient) {
+          console.log('🔇 Skipping toast - current user is not the buyer of this order');
+          return;
+        }
+        console.log('✅ Current user IS the buyer - showing toast');
+      }
+      
+      // For artisan recipients, verify current user is actually the seller
+      if (recipientRole === 'artisan') {
+        // For artisan recipients, we need to verify the current user is the seller
+        // This notification would be for buyer-initiated actions (cancel, confirm receipt)
+        const orderArtisanId = (orderData.artisan?._id || orderData.artisan)?.toString();
+        
+        // Skip if we can't determine the artisan
+        if (!orderArtisanId) {
+          console.log('🔇 Skipping toast - cannot determine order artisan');
+          return;
+        }
+        
+        // For artisans, we need to check if this user owns the artisan account
+        // This is complex because artisan.user != artisan._id
+        // For now, only show if current user role is artisan (they'll see their own orders)
+        if (currentUserRole !== 'artisan') {
+          console.log('🔇 Skipping toast - current user is not an artisan');
+          return;
+        }
+        
+        console.log('✅ Current user IS an artisan - showing toast (artisan will only see their own order notifications in practice)');
+      }
+      
+    } catch (profileError) {
+      console.error('❌ Error checking current user for toast notification:', profileError);
+      // If we can't determine current user, don't show toast to be safe
+      return;
+    }
     
     // Play notification sound only if this is a real recipient
     if (this.notificationSound && recipientRole !== actorRole) {

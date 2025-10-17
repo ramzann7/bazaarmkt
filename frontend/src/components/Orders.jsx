@@ -333,7 +333,9 @@ export default function Orders() {
         
         try {
           await orderService.confirmOrderReceipt(orderId);
-          // Success - keep optimistic update
+          // Success - reload orders from server to update priority queue
+          console.log('🔄 Refreshing orders after receipt confirmation...');
+          await loadUserAndOrders(true); // Force refresh from server
           setUpdatingOrderId(null);
         } catch (error) {
           // ROLLBACK: Revert to original status on error
@@ -417,6 +419,12 @@ export default function Orders() {
         
         // Success - keep optimistic update
         console.log('✅ Order status updated successfully:', orderId.toString().slice(-8), '->', newStatus);
+        
+        // Trigger notification refresh for buyer (if this is artisan updating their order)
+        window.dispatchEvent(new CustomEvent('orderStatusUpdated', {
+          detail: { orderId, newStatus, orderType: 'seller_update' }
+        }));
+        
         setUpdatingOrderId(null);
       } catch (error) {
         // ROLLBACK: Revert to original status on error

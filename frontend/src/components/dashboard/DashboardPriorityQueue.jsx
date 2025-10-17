@@ -18,8 +18,9 @@ export default function DashboardPriorityQueue() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
 
-  // Get priority statuses for artisans
-  const PRIORITY_STATUSES = useMemo(() => getPriorityStatuses('artisan'), []);
+  // Get priority statuses for both roles (artisans need both seller and buyer statuses)
+  const ARTISAN_STATUSES = useMemo(() => getPriorityStatuses('artisan'), []);
+  const PATRON_STATUSES = useMemo(() => getPriorityStatuses('patron'), []);
 
   useEffect(() => {
     loadPriorityOrders();
@@ -63,23 +64,42 @@ export default function DashboardPriorityQueue() {
             return false;
           }
           
-          // Filter based on priority statuses
-          return PRIORITY_STATUSES[order.status];
+          // Determine if this is a sales or purchase order
+          const isSalesOrder = salesOrders?.some(so => so._id === order._id);
+          const isPurchaseOrder = purchasesOrders?.some(po => po._id === order._id);
+          
+          // Use artisan statuses for SALES (seller role)
+          if (isSalesOrder) {
+            if (!ARTISAN_STATUSES[order.status]) return false;
+          }
+          
+          // Use patron statuses for PURCHASES (buyer role)
+          if (isPurchaseOrder) {
+            if (!PATRON_STATUSES[order.status]) return false;
+            
+            // For purchases, only show delivered/picked_up if not yet confirmed
+            if ((order.status === 'delivered' || order.status === 'picked_up')) {
+              return !order.walletCredit?.patronConfirmedAt;
+            }
+          }
+          
+          return true;
         })
         .map(order => {
           // Determine if this is a sales or purchase order
           const isSalesOrder = salesOrders?.some(so => so._id === order._id);
           const orderType = isSalesOrder ? 'sales' : 'purchases';
+          const effectiveUserRole = isSalesOrder ? 'artisan' : 'patron'; // Use patron role for purchases
           
           return {
             ...order,
             orderType,
-            priorityScore: calculatePriorityScore(order, 'artisan'),
-            urgency: getUrgencyLevel(order, 'artisan'),
+            priorityScore: calculatePriorityScore(order, effectiveUserRole),
+            urgency: getUrgencyLevel(order, effectiveUserRole),
             // Boost sales orders priority by adding 1000 points
             adjustedPriorityScore: orderType === 'sales' 
-              ? calculatePriorityScore(order, 'artisan') + 1000 
-              : calculatePriorityScore(order, 'artisan')
+              ? calculatePriorityScore(order, effectiveUserRole) + 1000 
+              : calculatePriorityScore(order, effectiveUserRole)
           };
         })
         .sort((a, b) => {
@@ -106,9 +126,14 @@ export default function DashboardPriorityQueue() {
       );
       
       // Filter out orders that are no longer in priority statuses
-      return updatedOrders.filter(order => 
-        PRIORITY_STATUSES[order.status] && !['cancelled', 'declined', 'completed'].includes(order.status)
-      );
+      // Use appropriate status list based on order type (sales vs purchases)
+      return updatedOrders.filter(order => {
+        if (['cancelled', 'declined', 'completed'].includes(order.status)) return false;
+        
+        // Check against correct status list
+        const statusList = order.orderType === 'sales' ? ARTISAN_STATUSES : PATRON_STATUSES;
+        return statusList[order.status];
+      });
     });
   };
 
@@ -142,6 +167,9 @@ export default function DashboardPriorityQueue() {
         
         try {
           await orderService.confirmOrderReceipt(orderId);
+          // Success - reload priority orders to ensure clean state
+          console.log('🔄 Refreshing priority queue after receipt confirmation...');
+          await loadPriorityOrders();
           // Note: Success notification handled by orderService
         } catch (error) {
           // Rollback on error
@@ -342,7 +370,7 @@ export default function DashboardPriorityQueue() {
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-orange-50 to-transparent z-10 pointer-events-none" />
         
         <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 snap-x scrollbar-thin scrollbar-thumb-orange-300 scrollbar-track-orange-100">
-          {Object.entries(PRIORITY_STATUSES).map(([status, config]) => {
+          {Object.entries({...ARTISAN_STATUSES, ...PATRON_STATUSES}).map(([status, config]) => {
             const count = groupedOrders[status]?.length || 0;
             if (count === 0) return null;
             
@@ -360,6 +388,10 @@ export default function DashboardPriorityQueue() {
                   return 'bg-green-100 text-green-800 hover:bg-green-200';
                 case 'out_for_delivery':
                   return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
+                case 'delivered':
+                  return 'bg-teal-100 text-teal-800 hover:bg-teal-200';
+                case 'picked_up':
+                  return 'bg-teal-100 text-teal-800 hover:bg-teal-200';
                 default:
                   return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
               }

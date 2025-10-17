@@ -217,7 +217,7 @@ export const registerUser = async (userData) => {
       
       // Use the artisanName from the form, or fallback to firstName + lastName
       userData.artisanName = artisanData.artisanName || userData.artisanName || `${userData.firstName} ${userData.lastName}`;
-      userData.type = artisanData.type || userData.businessType || 'food_beverages';
+      userData.type = artisanData.type || userData.businessType || 'handmade_crafts';
       userData.description = artisanData.description || userData.businessDescription || `Artisan profile for ${userData.firstName} ${userData.lastName}`;
     }
     

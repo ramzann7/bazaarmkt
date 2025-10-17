@@ -7,6 +7,7 @@ import CartDropdown from "./CartDropdown";
 import LanguageSwitcher from "./LanguageSwitcher";
 import MobileNavigation from "./mobile/MobileNavigation";
 import MobileSearchBar from "./mobile/MobileSearchBar";
+import NotificationBell from "./NotificationBell";
 import { 
   ShoppingBagIcon, 
   UserIcon, 
@@ -421,6 +422,11 @@ export default function Navbar() {
                 </span>
               )}
             </button>
+
+            {/* Notification Bell - Only for authenticated users */}
+            {isAuthenticated && !isGuest && (
+              <NotificationBell user={user} />
+            )}
 
             {/* Sign In / User Menu */}
             {!isAuthenticated ? (

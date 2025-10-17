@@ -24,8 +24,8 @@ const MobileProductForm = ({ product, onSave, onCancel }) => {
     price: product?.price || '',
     unit: product?.unit || 'piece',
     productType: product?.productType || 'ready_to_ship',
-    category: product?.category || 'food_beverages',
-    subcategory: product?.subcategory || 'baked_goods',
+    category: product?.category || 'handmade_crafts',
+    subcategory: product?.subcategory || 'jewelry_accessories',
     stock: product?.stock || 0,
     status: product?.status || 'active',
     image: product?.image || null
@@ -42,8 +42,8 @@ const MobileProductForm = ({ product, onSave, onCancel }) => {
         price: product.price || '',
         unit: product.unit || 'piece',
         productType: product.productType || 'ready_to_ship',
-        category: product.category || 'food_beverages',
-        subcategory: product.subcategory || 'baked_goods',
+        category: product.category || 'handmade_crafts',
+        subcategory: product.subcategory || 'jewelry_accessories',
         stock: product.stock || 0,
         status: product.status || 'active',
         image: product.image || null

@@ -14,7 +14,6 @@ export const pickupTimeService = {
     
     // Calculate earliest available date based on product types
     const earliestAvailableDate = pickupTimeService.calculateEarliestAvailableDate(products);
-    console.log('📅 Earliest available date based on products:', earliestAvailableDate);
     
     // Default time slots if no schedule is provided
     const defaultTimeSlots = [

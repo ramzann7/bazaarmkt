@@ -59,19 +59,14 @@ export default function OrderConfirmation() {
       } 
       // Check if we have orderId (wallet flow)
       else if (location.state?.orderId && location.state?.message) {
-        console.log('📦 Fetching order details for wallet order:', location.state.orderId);
-        
         try {
           // Fetch the order details
           const response = await orderService.getOrderById(location.state.orderId);
-          
-          console.log('📦 Order fetch response:', response);
           
           // orderService.getOrderById returns the order directly (not wrapped)
           const order = response;
           
           if (order && order._id) {
-            console.log('✅ Order loaded successfully:', order._id);
             setOrderData({
               orders: [order], // Wrap in array
               message: location.state.message,
@@ -624,25 +619,14 @@ export default function OrderConfirmation() {
               ) && (() => {
                 // Calculate delivery fee: If not provided, calculate from totalAmount - subtotal
                 const calculatedDeliveryFee = orders.reduce((sum, order) => {
-                  console.log('💰 Calculating delivery fee for order:', {
-                    orderId: order._id,
-                    deliveryMethod: order.deliveryMethod,
-                    deliveryFee: order.deliveryFee,
-                    totalAmount: order.totalAmount,
-                    subtotal: order.subtotal,
-                    itemsTotal: order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0)
-                  });
-                  
                   // If order has delivery fee > 0, use it
                   if (order.deliveryFee !== undefined && order.deliveryFee !== null && order.deliveryFee > 0) {
-                    console.log('✅ Using order.deliveryFee:', order.deliveryFee);
                     return sum + order.deliveryFee;
                   }
                   
                   // If order.deliveryFee is 0 but it's a delivery order, check artisan's fee
                   if ((order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery') &&
                       order.artisan?.deliveryFee !== undefined && order.artisan.deliveryFee > 0) {
-                    console.log('✅ Using artisan.deliveryFee as fallback:', order.artisan.deliveryFee);
                     return sum + order.artisan.deliveryFee;
                   }
                   
@@ -651,15 +635,11 @@ export default function OrderConfirmation() {
                   const orderTotal = order.totalAmount || 0;
                   const calculatedFee = Math.max(0, orderTotal - orderSubtotal);
                   if (calculatedFee > 0) {
-                    console.log('✅ Calculated delivery fee from total - subtotal:', calculatedFee);
                     return sum + calculatedFee;
                   }
                   
-                  console.log('💰 No delivery fee (pickup or free delivery)');
                   return sum;
                 }, 0);
-                
-                console.log('📊 Final delivery fee display:', calculatedDeliveryFee);
                 
                 return (
                   <div className="flex justify-between items-center">

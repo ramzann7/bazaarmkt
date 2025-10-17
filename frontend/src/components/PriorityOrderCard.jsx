@@ -4,16 +4,36 @@ import { getPriorityStatuses, URGENCY_COLORS, getTimeAgo } from '../utils/orderP
 
 const PriorityOrderCard = ({ order, onClick, onQuickAction, userRole, isUpdating = false }) => {
   const { t } = useTranslation();
-  const PRIORITY_STATUSES = getPriorityStatuses(userRole);
+  const orderType = order.orderType || 'order'; // 'sales', 'purchases', or 'order' (patron)
+  
+  // For artisans, use correct status list based on order type
+  // Sales orders (seller) = artisan statuses
+  // Purchase orders (buyer) = patron statuses
+  const effectiveRole = (userRole === 'artisan' && orderType === 'purchases') ? 'patron' : userRole;
+  const PRIORITY_STATUSES = getPriorityStatuses(effectiveRole);
   const statusConfig = PRIORITY_STATUSES[order.status];
   const urgencyColor = order.urgency || 'normal';
-  const orderType = order.orderType || 'order'; // 'sales', 'purchases', or 'order' (patron)
   
   // Don't render cards for terminated statuses (cancelled, declined, completed)
   const terminatedStatuses = ['cancelled', 'declined', 'completed'];
   if (!statusConfig || terminatedStatuses.includes(order.status)) {
     return null;
   }
+
+  // Helper to get short status label
+  const getShortStatus = () => {
+    const shortLabels = {
+      'pending': 'Pending',
+      'confirmed': 'Confirmed',
+      'preparing': 'Preparing',
+      'ready_for_pickup': 'Ready',
+      'ready_for_delivery': 'Ready',
+      'out_for_delivery': 'In Transit',
+      'delivered': 'Delivered',
+      'picked_up': 'Picked Up'
+    };
+    return shortLabels[order.status] || statusConfig.label;
+  };
 
   const getUrgencyBadgeClass = () => {
     switch (urgencyColor) {
@@ -126,11 +146,16 @@ const PriorityOrderCard = ({ order, onClick, onQuickAction, userRole, isUpdating
       </div>
       
       {/* Order Header */}
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-bold text-gray-800">
-          #{order.orderNumber || order._id.toString().slice(-8).toUpperCase()}
-        </span>
-        <span className="text-2xl">{statusConfig.icon}</span>
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-bold text-gray-800">
+            #{order.orderNumber || order._id.toString().slice(-8).toUpperCase()}
+          </span>
+          {/* Short status indicator replacing icon */}
+          <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-md">
+            {getShortStatus()}
+          </span>
+        </div>
       </div>
       
       {/* Order Summary */}
@@ -190,17 +215,23 @@ const PriorityOrderCard = ({ order, onClick, onQuickAction, userRole, isUpdating
       {/* Quick Actions - Filter based on order type */}
       <div className="border-t pt-3 mt-3 flex gap-2">
         {statusConfig.actions && statusConfig.actions.length > 0 && (() => {
-          // For purchases (buying), only show cancel action when pending
+          // For purchases (buying), filter actions appropriately
           let allowedActions = statusConfig.actions;
           
           if (orderType === 'purchases') {
-            // Buying artisan can only cancel when pending
+            // Buying artisan can:
+            // - Cancel when pending
+            // - Confirm receipt when delivered/picked_up
             if (order.status === 'pending') {
               allowedActions = statusConfig.actions.filter(action => 
                 action.includes('Cancel')
               );
+            } else if (order.status === 'delivered' || order.status === 'picked_up') {
+              allowedActions = statusConfig.actions.filter(action => 
+                action.includes('Confirm Receipt')
+              );
             } else {
-              // No quick actions for purchases in other statuses
+              // No quick actions for other purchase statuses (just informational)
               allowedActions = [];
             }
           }
@@ -229,6 +260,8 @@ const PriorityOrderCard = ({ order, onClick, onQuickAction, userRole, isUpdating
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
                   : action.includes('Decline') || action.includes('Cancel')
                   ? 'bg-red-500 text-white hover:bg-red-600' 
+                  : action.includes('Confirm Receipt')
+                  ? 'bg-green-500 text-white hover:bg-green-600'
                   : 'bg-blue-500 text-white hover:bg-blue-600'
               }`}
             >

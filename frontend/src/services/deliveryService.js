@@ -85,13 +85,6 @@ export const deliveryService = {
 
   // Get delivery options for an artisan
   getDeliveryOptions: (artisan, userLocation = null, isGuestUser = false, isPatronUser = false, hasDeliveryAddress = false) => {
-    console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan);
-    console.log('🔄 Artisan fulfillment:', artisan.fulfillment);
-    console.log('🔄 User location:', userLocation);
-    console.log('🔄 Is guest user:', isGuestUser);
-    console.log('🔄 Is patron user:', isPatronUser);
-    console.log('🔄 Has delivery address:', hasDeliveryAddress);
-    
     // Extract delivery settings from new unified schema: fulfillment.methods
     const fulfillmentMethods = artisan.fulfillment?.methods || {};
     
@@ -110,17 +103,6 @@ export const deliveryService = {
         restrictions: ''
       }
     };
-
-    // Debug logging for delivery options
-    console.log('🔄 deliveryService.getDeliveryOptions called for artisan:', artisan.artisanName);
-    console.log('🔄 Raw delivery options:', options);
-    console.log('🔄 Professional delivery data:', fulfillmentMethods.professionalDelivery);
-    console.log('🔄 Personal delivery availability check:', {
-      delivery: options.delivery,
-      deliveryRadius: options.deliveryRadius,
-      deliveryFee: options.deliveryFee,
-      willBeAvailable: options.delivery || (options.deliveryRadius > 0 && options.deliveryFee >= 0)
-    });
 
     // Determine pickup address from new unified schema
     let pickupAddress = '';

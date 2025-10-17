@@ -187,8 +187,6 @@ export const orderService = {
   // Create order with wallet payment (artisans only)
   createWalletOrder: async (orderData) => {
     try {
-      console.log('💰 Creating order with wallet payment:', orderData);
-      
       const response = await api.post(`${API_URL}/orders/wallet-payment`, {
         orderData
       });
@@ -196,7 +194,6 @@ export const orderService = {
       // Clear product cache after successful order creation
       clearProductCaches();
       
-      console.log('✅ Wallet order created successfully:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Error creating wallet order:', error);

@@ -143,12 +143,23 @@ export default function ArtisanProductManagement() {
             if (response.data && response.data.product) {
               updatedProduct = response.data.product;
               console.log('✅ Inventory updated via API:', updatedProduct);
-            } else if (response.data) {
-              // Sometimes the response is the product itself
+            } else if (response.data && response.data.data && response.data.data.product) {
+              // Response is wrapped: {success, message, data: {product}}
+              updatedProduct = response.data.data.product;
+              console.log('✅ Inventory updated via API (wrapped response):', updatedProduct);
+            } else if (response.data && response.data.data) {
+              // Response is wrapped: {success, message, data: {...product}}
+              updatedProduct = response.data.data;
+              console.log('✅ Inventory updated via API (wrapped data):', updatedProduct);
+            } else if (response.data && response.data._id) {
+              // Response is the product directly
               updatedProduct = response.data;
               console.log('✅ Inventory updated via API (direct response):', updatedProduct);
             } else {
-              console.warn('⚠️ Inventory API response missing product data, using previous product');
+              console.warn('⚠️ Inventory API response missing product data, fetching fresh product data');
+              // Fetch the updated product to ensure we have complete data
+              updatedProduct = await productService.getProductById(selectedProduct._id);
+              console.log('✅ Fetched updated product:', updatedProduct);
             }
           }
         }
@@ -1082,8 +1093,8 @@ const ProductForm = ({ product, onSave, onCancel }) => {
     price: '',
     unit: 'piece',
     productType: 'ready_to_ship',
-    category: 'food_beverages',
-    subcategory: 'baked_goods',
+    category: 'handmade_crafts',
+    subcategory: 'jewelry_accessories',
     stock: 0,
     weight: '',
     dimensions: '',
@@ -1143,8 +1154,8 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         price: product.price || '',
         unit: product.unit || 'piece',
         productType: product.productType || 'ready_to_ship',
-        category: product.category || 'food_beverages',
-        subcategory: product.subcategory || 'baked_goods',
+        category: product.category || 'handmade_crafts',
+        subcategory: product.subcategory || 'jewelry_accessories',
         stock: inventoryValue,
         weight: product.weight || '',
         dimensions: product.dimensions || '',
@@ -1172,6 +1183,7 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         },
         nextAvailableDate: product.nextAvailableDate ? new Date(product.nextAvailableDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         nextAvailableTime: product.nextAvailableTime || '09:00',
+        availableQuantity: product.productType === 'scheduled_order' ? (product.availableQuantity || inventoryValue) : (prev.availableQuantity || 1),
         lowStockThreshold: product.lowStockThreshold || 5
       }));
       setImagePreview(product.image || null);
@@ -1232,8 +1244,8 @@ const ProductForm = ({ product, onSave, onCancel }) => {
         capacityPeriod: formData.capacityPeriod || 'daily'
       }),
       ...(formData.productType === 'scheduled_order' && {
-        stock: parseInt(formData.stock) || 0, // Keep stock for backward compatibility
-        availableQuantity: Math.max(parseInt(formData.stock) || 0, 1), // Map stock to availableQuantity, minimum 1
+        stock: parseInt(formData.availableQuantity || formData.stock) || 0, // Keep stock for backward compatibility
+        availableQuantity: Math.max(parseInt(formData.availableQuantity || formData.stock) || 0, 1), // Use availableQuantity field, minimum 1
         scheduleType: formData.scheduleType || 'daily',
         scheduleDetails: {
           frequency: formData.scheduleDetails?.frequency || 'every_day',
@@ -1895,7 +1907,24 @@ const ProductForm = ({ product, onSave, onCancel }) => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-                Total Capacity *
+                Total Production Capacity *
+          </label>
+              <input
+                type="number"
+                name="stock"
+                value={formData.stock}
+            onChange={handleChange}
+                min="1"
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
+                placeholder="Total items you can produce per period"
+              />
+              <p className="text-xs text-gray-500 mt-1">Total production capacity for the period selected below</p>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+                Max Per Order *
           </label>
               <input
                 type="number"
@@ -1905,9 +1934,9 @@ const ProductForm = ({ product, onSave, onCancel }) => {
                 min="1"
             required
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-[#D77A61] focus:border-[#D77A61]"
-                placeholder="Maximum inventory you can produce"
+                placeholder="Maximum items per order"
               />
-              <p className="text-xs text-gray-500 mt-1">Total number of items you can produce</p>
+              <p className="text-xs text-gray-500 mt-1">Maximum quantity a customer can order at once</p>
         </div>
         
         <div>

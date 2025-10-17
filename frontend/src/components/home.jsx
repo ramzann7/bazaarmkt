@@ -735,7 +735,7 @@ export default function Home() {
       leadTimeHours: 24,
       isOrganic: true,
       isGlutenFree: true,
-      category: "food_beverages",
+      category: "food_preserves",
       subcategory: "preserves_jams"
     },
     {
@@ -767,7 +767,7 @@ export default function Home() {
       leadTimeHours: 72,
       isOrganic: true,
       isGlutenFree: true,
-      category: "food_beverages",
+      category: "food_preserves",
       subcategory: "dairy_products"
     },
     {
@@ -802,7 +802,7 @@ export default function Home() {
       leadTimeHours: 6,
       isOrganic: false,
       isGlutenFree: false,
-      category: "food_beverages",
+      category: "food_preserves",
       subcategory: "baked_goods"
     },
     {

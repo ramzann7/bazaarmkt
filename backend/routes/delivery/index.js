@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const uberDirectService = require('../../services/uberDirectService');
-const GeocodingService = require('../../services/geocodingService');
+const geocodingService = require('../../services/geocodingService');
 
 /**
  * Get delivery quote
@@ -35,8 +35,7 @@ router.post('/uber-direct/quote', async (req, res) => {
     let pickup = { ...pickupLocation };
     let dropoff = { ...dropoffLocation };
 
-    // Initialize geocoding service with database
-    const geocodingService = new GeocodingService(req.db);
+    // Geocoding service is already initialized as singleton
     
     // Only geocode if coordinates are missing
     if (!pickup.latitude || !pickup.longitude) {
@@ -134,8 +133,7 @@ router.post('/uber-direct/quote-with-buffer', async (req, res) => {
     let pickup = { ...pickupLocation };
     let dropoff = { ...dropoffLocation };
 
-    // Initialize geocoding service with database
-    const geocodingService = new GeocodingService(req.db);
+    // Geocoding service is already initialized as singleton
     
     // Only geocode if coordinates are missing
     if (!pickup.latitude || !pickup.longitude) {

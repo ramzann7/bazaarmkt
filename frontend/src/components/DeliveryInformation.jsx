@@ -509,6 +509,192 @@ const DeliveryInformation = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Personal Information Section (Guest Users) - Shown FIRST for guests */}
+      {isGuest && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <UserIcon className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900">Your Contact Information</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      First Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={deliveryForm.firstName || ''}
+                      onChange={(e) => onDeliveryFormChange('firstName', e.target.value)}
+                      className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                      placeholder="Enter your first name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Last Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={deliveryForm.lastName || ''}
+                      onChange={(e) => onDeliveryFormChange('lastName', e.target.value)}
+                      className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                      placeholder="Enter your last name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      value={deliveryForm.email || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        onDeliveryFormChange('email', value);
+                        
+                        // Reset validation state when email changes
+                        if (value !== lastValidatedEmail) {
+                          setEmailValidation({});
+                          setLastValidatedEmail(null);
+                        }
+                        
+                        // Clear previous timeout
+                        if (emailValidationTimeout) {
+                          clearTimeout(emailValidationTimeout);
+                        }
+                        
+                        // Validate email when user stops typing (debounced)
+                        // Only if it's a valid email format
+                        if (isValidEmailFormat(value)) {
+                          const timeout = setTimeout(() => validateEmail(value), 500);
+                          setEmailValidationTimeout(timeout);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        // Trigger validation immediately on blur if email format is valid
+                        const value = e.target.value;
+                        if (isValidEmailFormat(value) && value !== lastValidatedEmail) {
+                          // Clear any pending timeout first
+                          if (emailValidationTimeout) {
+                            clearTimeout(emailValidationTimeout);
+                          }
+                          validateEmail(value);
+                        }
+                      }}
+                      className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 text-lg ${
+                        emailValidation.isPatron ? 'border-red-300 bg-red-50' : 
+                        emailValidation.isGuest ? 'border-green-300 bg-green-50' : 
+                        emailValidation.exists === false ? 'border-green-300' :
+                        'border-gray-300'
+                      }`}
+                      placeholder="Enter your email"
+                    />
+                    {/* Email Validation Feedback */}
+                    {isValidatingEmail && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                        <span>Checking email...</span>
+                      </div>
+                    )}
+                    {!isValidatingEmail && emailValidation.message && (
+                      <div className={`mt-2 flex items-center gap-2 text-sm ${
+                        emailValidation.isPatron ? 'text-red-600' : 
+                        emailValidation.isGuest || emailValidation.exists === false ? 'text-green-600' : 
+                        'text-gray-600'
+                      }`}>
+                        {emailValidation.isPatron ? (
+                          <XCircleIcon className="w-4 h-4" />
+                        ) : (
+                          <CheckCircleIcon className="w-4 h-4" />
+                        )}
+                        <span>{emailValidation.message}</span>
+                      </div>
+                    )}
+
+                    {/* Login Prompt for Existing Users */}
+                    {emailValidation.isPatron && (
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <UserIcon className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-red-800 mb-2">Account Found</h4>
+                            <p className="text-sm text-red-700 mb-3">
+                              This email is already registered. Please sign in to continue with your order and access your saved information.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <a
+                                href="/login"
+                                className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                              >
+                                Sign In to Continue
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEmailValidation({});
+                                  setLastValidatedEmail(null);
+                                }}
+                                className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-700 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors"
+                              >
+                                Use Different Email
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Account Creation Suggestion for New Users */}
+                    {emailValidation.exists === false && deliveryForm.email && (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <InformationCircleIcon className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-blue-800 mb-2">New to BazaarMkt?</h4>
+                            <p className="text-sm text-blue-700 mb-3">
+                              Create an account to save your information, track orders, and enjoy a faster checkout experience.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <a
+                                href="/register?type=patron"
+                                className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                Create Account
+                              </a>
+                              <span className="text-xs text-blue-600 self-center">
+                                or continue as guest below
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      value={deliveryForm.phone || ''}
+                      onChange={(e) => onDeliveryFormChange('phone', e.target.value)}
+                      className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                      placeholder="Enter your phone number"
+                    />
+                  </div>
+                </div>
+        </div>
+      )}
+
       {/* Delivery Method Selection - Mobile Optimized */}
       <div>
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Choose Delivery Method</h3>
@@ -1125,192 +1311,6 @@ const DeliveryInformation = ({
                 </div>
               </div>
             )}
-
-      {/* Personal Information Section (Guest Users) */}
-      {isGuest && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <UserIcon className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Your Contact Information</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      First Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={deliveryForm.firstName || ''}
-                      onChange={(e) => onDeliveryFormChange('firstName', e.target.value)}
-                      className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                      placeholder="Enter your first name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Last Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={deliveryForm.lastName || ''}
-                      onChange={(e) => onDeliveryFormChange('lastName', e.target.value)}
-                      className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                      placeholder="Enter your last name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      value={deliveryForm.email || ''}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        onDeliveryFormChange('email', value);
-                        
-                        // Reset validation state when email changes
-                        if (value !== lastValidatedEmail) {
-                          setEmailValidation({});
-                          setLastValidatedEmail(null);
-                        }
-                        
-                        // Clear previous timeout
-                        if (emailValidationTimeout) {
-                          clearTimeout(emailValidationTimeout);
-                        }
-                        
-                        // Validate email when user stops typing (debounced)
-                        // Only if it's a valid email format
-                        if (isValidEmailFormat(value)) {
-                          const timeout = setTimeout(() => validateEmail(value), 500);
-                          setEmailValidationTimeout(timeout);
-                        }
-                      }}
-                      onBlur={(e) => {
-                        // Trigger validation immediately on blur if email format is valid
-                        const value = e.target.value;
-                        if (isValidEmailFormat(value) && value !== lastValidatedEmail) {
-                          // Clear any pending timeout first
-                          if (emailValidationTimeout) {
-                            clearTimeout(emailValidationTimeout);
-                          }
-                          validateEmail(value);
-                        }
-                      }}
-                      className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 text-lg ${
-                        emailValidation.isPatron ? 'border-red-300 bg-red-50' : 
-                        emailValidation.isGuest ? 'border-green-300 bg-green-50' : 
-                        emailValidation.exists === false ? 'border-green-300' :
-                        'border-gray-300'
-                      }`}
-                      placeholder="Enter your email"
-                    />
-                    {/* Email Validation Feedback */}
-                    {isValidatingEmail && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
-                        <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                        <span>Checking email...</span>
-                      </div>
-                    )}
-                    {!isValidatingEmail && emailValidation.message && (
-                      <div className={`mt-2 flex items-center gap-2 text-sm ${
-                        emailValidation.isPatron ? 'text-red-600' : 
-                        emailValidation.isGuest || emailValidation.exists === false ? 'text-green-600' : 
-                        'text-gray-600'
-                      }`}>
-                        {emailValidation.isPatron ? (
-                          <XCircleIcon className="w-4 h-4" />
-                        ) : (
-                          <CheckCircleIcon className="w-4 h-4" />
-                        )}
-                        <span>{emailValidation.message}</span>
-                      </div>
-                    )}
-
-                    {/* Login Prompt for Existing Users */}
-                    {emailValidation.isPatron && (
-                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <UserIcon className="w-4 h-4 text-red-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-red-800 mb-2">Account Found</h4>
-                            <p className="text-sm text-red-700 mb-3">
-                              This email is already registered. Please sign in to continue with your order and access your saved information.
-                            </p>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <a
-                                href="/login"
-                                className="inline-flex items-center justify-center px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors"
-                              >
-                                Sign In to Continue
-                              </a>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEmailValidation({});
-                                  setLastValidatedEmail(null);
-                                }}
-                                className="inline-flex items-center justify-center px-4 py-2 border border-red-300 text-red-700 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors"
-                              >
-                                Use Different Email
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Account Creation Suggestion for New Users */}
-                    {emailValidation.exists === false && deliveryForm.email && (
-                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <InformationCircleIcon className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-blue-800 mb-2">New to BazaarMkt?</h4>
-                            <p className="text-sm text-blue-700 mb-3">
-                              Create an account to save your information, track orders, and enjoy a faster checkout experience.
-                            </p>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <a
-                                href="/register?type=patron"
-                                className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                Create Account
-                              </a>
-                              <span className="text-xs text-blue-600 self-center">
-                                or continue as guest below
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      value={deliveryForm.phone || ''}
-                      onChange={(e) => onDeliveryFormChange('phone', e.target.value)}
-                      className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-                      placeholder="Enter your phone number"
-                    />
-                  </div>
-                </div>
-        </div>
-      )}
 
       {/* Continue Button */}
       <div className="mt-8">

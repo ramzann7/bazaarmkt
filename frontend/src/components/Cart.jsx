@@ -2508,9 +2508,37 @@ const Cart = () => {
                 <span className="font-medium">${subtotal.toFixed(2)}</span>
               </div>
               {totalDeliveryFee > 0 && (
-                <div className="flex justify-between text-stone-600">
-                  <span>Delivery Fee</span>
-                  <span className="font-medium">${totalDeliveryFee.toFixed(2)}</span>
+                <div>
+                  <div className="flex justify-between text-stone-600">
+                    <span>Delivery Fee</span>
+                    <span className="font-medium">${totalDeliveryFee.toFixed(2)}</span>
+                  </div>
+                  {/* Show buffer breakdown for professional delivery */}
+                  {Object.entries(selectedDeliveryMethods).some(([_, method]) => method === 'professionalDelivery') && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs font-semibold text-blue-900 mb-1">Professional Delivery Details:</p>
+                      {Object.entries(selectedDeliveryMethods).map(([artisanId, method]) => {
+                        if (method !== 'professionalDelivery') return null;
+                        const quote = uberDirectQuotes[artisanId];
+                        if (!quote) return null;
+                        const artisanName = cartByArtisan[artisanId]?.artisan?.artisanName || 'Artisan';
+                        
+                        return (
+                          <div key={artisanId} className="text-xs text-blue-800 space-y-1 mb-2 last:mb-0">
+                            <p className="font-medium">{artisanName}:</p>
+                            <div className="ml-3 space-y-0.5">
+                              <p>• Estimated: ${quote.estimatedFee?.toFixed(2) || '0.00'}</p>
+                              <p>• Buffer ({quote.bufferPercentage || 20}%): ${quote.buffer?.toFixed(2) || '0.00'}</p>
+                              <p className="font-semibold">• You pay: ${quote.fee?.toFixed(2) || '0.00'}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <p className="text-xs text-blue-700 mt-2 italic">
+                        💡 Buffer protects against surge pricing. Any unused amount will be automatically refunded to your wallet.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="border-t border-gray-200 pt-3 mt-3">
@@ -2521,38 +2549,6 @@ const Cart = () => {
               </div>
             </div>
           </div>
-
-          {/* Guest Details Section - For Guests Only */}
-          {isGuest && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-              <h2 className="text-xl font-semibold text-stone-800 mb-4">Your Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3">
-                  <UserIcon className="w-5 h-5 text-stone-500" />
-                  <div>
-                    <p className="text-xs text-stone-500">Name</p>
-                    <p className="font-medium text-stone-800">
-                      {deliveryForm.firstName} {deliveryForm.lastName}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <EnvelopeIcon className="w-5 h-5 text-stone-500" />
-                  <div>
-                    <p className="text-xs text-stone-500">Email</p>
-                    <p className="font-medium text-stone-800">{deliveryForm.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <PhoneIcon className="w-5 h-5 text-stone-500" />
-                  <div>
-                    <p className="text-xs text-stone-500">Phone</p>
-                    <p className="font-medium text-stone-800">{deliveryForm.phone || 'Not provided'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Delivery Section - Collapsible */}
           <div className="mb-6">

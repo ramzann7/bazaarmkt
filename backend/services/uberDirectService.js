@@ -11,7 +11,7 @@ class UberDirectService {
     const isSandbox = process.env.UBER_ENVIRONMENT === 'sandbox' || process.env.UBER_SANDBOX === 'true';
     
     this.baseURL = process.env.UBER_DIRECT_BASE_URL || (isSandbox ? 'https://sandbox-api.uber.com' : 'https://api.uber.com');
-    this.authURL = process.env.UBER_AUTH_URL || 'https://login.uber.com';
+    this.authURL = process.env.UBER_AUTH_URL || (isSandbox ? 'https://auth.uber.com' : 'https://login.uber.com');
     this.isSandbox = isSandbox;
     
     // Support both UBER_DIRECT_* and UBER_* variable names for backwards compatibility
@@ -43,15 +43,11 @@ class UberDirectService {
 
       const authEndpoint = `${this.authURL}/oauth/v2/token`;
       
-      // Try different scopes based on environment
-      const possibleScopes = [
-        'delivery',           // Most common for Uber Direct
-        'delivery.sandbox',   // Sandbox version
-        'eats.deliveries',    // Uber Eats deliveries
-        'direct_delivery'     // Alternative naming
-      ];
-      
-      const scopeToTry = this.isSandbox ? 'delivery.sandbox' : 'delivery';
+      // Uber Direct uses different scopes based on environment
+      // For sandbox, try multiple scopes as Uber's documentation is inconsistent
+      const scopeToTry = this.isSandbox 
+        ? 'eats.deliveries' // Sandbox often uses eats.deliveries
+        : 'delivery';        // Production uses delivery
       
       console.log('🔐 Attempting Uber OAuth:', {
         endpoint: authEndpoint,

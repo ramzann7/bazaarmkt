@@ -156,6 +156,10 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Uber Direct Webhook - Register after database middleware (needs req.db)
+const uberWebhookRoutes = require('./routes/webhooks/uber');
+app.use('/api/webhooks', uberWebhookRoutes);
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });

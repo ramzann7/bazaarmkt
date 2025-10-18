@@ -406,8 +406,20 @@ export default function DashboardFixed() {
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Avatar and Info */}
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <UserIcon className="w-8 h-8 text-amber-600" />
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {user.profilePicture ? (
+                  <img 
+                    src={user.profilePicture} 
+                    alt={`${user.firstName} ${user.lastName}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '<svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>';
+                    }}
+                  />
+                ) : (
+                  <UserIcon className="w-8 h-8 text-amber-600" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg sm:text-xl font-semibold text-stone-800 font-display truncate">

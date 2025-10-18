@@ -41,16 +41,6 @@ const MyWallet = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full mb-6 shadow-lg">
-            <WalletIcon className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-stone-800 mb-3 font-display">{t('wallet.title')}</h1>
-          <p className="text-lg text-stone-600 max-w-2xl mx-auto">
-            {t('wallet.subtitle')}
-          </p>
-        </div>
 
       {/* Top-up Modal */}
       {showTopUp && (

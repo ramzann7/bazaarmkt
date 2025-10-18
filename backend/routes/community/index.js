@@ -5,6 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
+const { ObjectId } = require('mongodb');
 const { auth } = require('../../middleware');
 const handlers = require('./handlers');
 const validation = require('./validation');
@@ -61,53 +63,74 @@ const getPosts = async (req, res) => {
     });
     pipeline.push({ $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } });
 
-    // Add population stages if requested
-    if (populate && populate.includes('artisan')) {
-      
-      // Populate artisan information directly from artisans collection
-      pipeline.push({
-        $lookup: {
-          from: 'artisans',
-          localField: 'artisan',
-          foreignField: '_id',
-          as: 'artisanData',
-          pipeline: [
-            { $project: { artisanName: 1, businessName: 1, type: 1, profileImage: 1, businessImage: 1, user: 1 } },
-            // Also get the artisan's user data
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'user',
-                foreignField: '_id',
-                as: 'userInfo',
-                pipeline: [
-                  { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
-                ]
-              }
-            },
-            { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } }
-          ]
-        }
-      });
-      pipeline.push({ $unwind: { path: '$artisanData', preserveNullAndEmptyArrays: true } });
-    }
+    // ALWAYS populate artisan information if post has artisan field
+    pipeline.push({
+      $lookup: {
+        from: 'artisans',
+        localField: 'artisan',
+        foreignField: '_id',
+        as: 'artisanData',
+        pipeline: [
+          { $project: { artisanName: 1, businessName: 1, type: 1, profileImage: 1, businessImage: 1, user: 1 } },
+          // Also get the artisan's user data
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'user',
+              foreignField: '_id',
+              as: 'userInfo',
+              pipeline: [
+                { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
+              ]
+            }
+          },
+          { $unwind: { path: '$userInfo', preserveNullAndEmptyArrays: true } }
+        ]
+      }
+    });
+    pipeline.push({ $unwind: { path: '$artisanData', preserveNullAndEmptyArrays: true } });
 
     if (populate && populate.includes('likes')) {
-      // Likes are embedded in posts, just add count and data
+      // Likes are embedded in posts, handle both array and integer types
       pipeline.push({
         $addFields: {
-          likesCount: { $size: '$likes' },
-          likesData: '$likes'
+          likesCount: {
+            $cond: {
+              if: { $isArray: '$likes' },
+              then: { $size: '$likes' },
+              else: { $ifNull: ['$likes', 0] }
+            }
+          },
+          likesData: {
+            $cond: {
+              if: { $isArray: '$likes' },
+              then: '$likes',
+              else: []
+            }
+          }
         }
       });
     }
 
     if (populate && populate.includes('comments')) {
       // Comments are referenced by ObjectId array - populate them with full author data
+      // Handle both array and integer types for comments field
+      pipeline.push({
+        $addFields: {
+          commentsArray: {
+            $cond: {
+              if: { $isArray: '$comments' },
+              then: '$comments',
+              else: []
+            }
+          }
+        }
+      });
+      
       pipeline.push({
         $lookup: {
           from: 'communitycomments',
-          localField: 'comments',
+          localField: 'commentsArray',
           foreignField: '_id',
           as: 'commentsData',
           pipeline: [
@@ -135,16 +158,45 @@ const getPosts = async (req, res) => {
       });
       pipeline.push({
         $addFields: {
-          commentsCount: { $size: '$comments' },
-          commentsPreview: '$commentsData'
+          commentsCount: {
+            $cond: {
+              if: { $isArray: '$comments' },
+              then: { $size: '$comments' },
+              else: { $ifNull: ['$comments', 0] }
+            }
+          },
+          comments: '$commentsData'
         }
       });
     }
 
     const posts = await postsCollection.aggregate(pipeline).toArray();
     
-    // Transform posts to match frontend expectations
-    const transformedPosts = posts.map((post) => {
+    // For posts without artisan field, look up artisan by author ID
+    const postsWithArtisans = await Promise.all(posts.map(async (post) => {
+      let artisanData = post.artisanData;
+      
+      // If no artisan data but author is an artisan (role=artisan), look up their artisan profile
+      if (!artisanData && post.authorData?.role === 'artisan') {
+        console.log('🔍 Post missing artisan data, looking up for user:', post.authorData._id);
+        const artisan = await db.collection('artisans').findOne({ 
+          user: new ObjectId(post.authorData._id)
+        });
+        console.log('✅ Artisan lookup result:', artisan ? artisan.artisanName : 'not found');
+        
+        if (artisan) {
+          artisanData = {
+            _id: artisan._id,
+            artisanName: artisan.artisanName,
+            businessName: artisan.businessName,
+            type: artisan.type,
+            businessImage: artisan.businessImage,
+            userInfo: post.authorData
+          };
+          console.log('✅ Added artisan data to post:', artisanData.artisanName);
+        }
+      }
+      
       const likes = post.likesData || post.likes || [];
       const isLiked = currentUserId ? likes.some(like => like.user.toString() === currentUserId) : false;
       
@@ -152,13 +204,15 @@ const getPosts = async (req, res) => {
         ...post,
         // Frontend expects populated data directly in these fields
         author: post.authorData || post.author,
-        artisan: post.artisanData || post.artisan,
+        artisan: artisanData || post.artisan,
         comments: post.commentsData || post.commentsPreview || post.comments,
         likes: likes,
         likeCount: likes.length,
         isLiked: isLiked
       };
-    });
+    }));
+    
+    const transformedPosts = postsWithArtisans;
     
     // Connection managed by middleware - no close needed
 
@@ -466,7 +520,7 @@ const likePost = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { postId } = req.params;
+    const postId = req.params.id; // Route uses :id not :postId
 
     if (!ObjectId.isValid(postId)) {
       return res.status(400).json({
@@ -583,18 +637,21 @@ const getComments = async (req, res) => {
           foreignField: '_id',
           as: 'authorData',
           pipeline: [
-            { $project: { firstName: 1, lastName: 1, profileImage: 1 } }
+            { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
           ]
         }
       },
-      { $unwind: '$authorData' }
+      { $unwind: { path: '$authorData', preserveNullAndEmptyArrays: true } }
     ]).toArray();
 
     // Connection managed by middleware - no close needed
 
     res.json({
       success: true,
-      data: comments,
+      data: comments.map(comment => ({
+        ...comment,
+        author: comment.authorData
+      })),
       count: comments.length
     });
   } catch (error) {
@@ -610,8 +667,10 @@ const getComments = async (req, res) => {
 // Create comment
 const createComment = async (req, res) => {
   try {
+    console.log('📝 Create comment - Start');
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) {
+      console.log('❌ No token provided');
       return res.status(401).json({
         success: false,
         message: 'No token provided'
@@ -619,10 +678,14 @@ const createComment = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const { postId } = req.params;
+    console.log('✅ Token decoded:', decoded.userId);
+    
+    const postId = req.params.id; // Route uses :id not :postId
     const { content } = req.body;
+    console.log('📝 Post ID:', postId, 'Content length:', content?.length);
 
     if (!ObjectId.isValid(postId)) {
+      console.log('❌ Invalid post ID format');
       return res.status(400).json({
         success: false,
         message: 'Invalid post ID'
@@ -630,6 +693,7 @@ const createComment = async (req, res) => {
     }
 
     if (!content || content.trim().length === 0) {
+      console.log('❌ Empty content');
       return res.status(400).json({
         success: false,
         message: 'Comment content is required'
@@ -641,10 +705,12 @@ const createComment = async (req, res) => {
     const postsCollection = db.collection('communityposts');
     const artisansCollection = db.collection('artisans');
 
+    console.log('🔍 Checking if user is artisan...');
     // Check if user is an artisan
     const artisan = await artisansCollection.findOne({
       user: new ObjectId(decoded.userId)
     });
+    console.log('✅ Artisan found:', !!artisan);
 
     const comment = {
       post: new ObjectId(postId),
@@ -682,7 +748,7 @@ const createComment = async (req, res) => {
           foreignField: '_id',
           as: 'authorData',
           pipeline: [
-            { $project: { firstName: 1, lastName: 1, profileImage: 1 } }
+            { $project: { firstName: 1, lastName: 1, profilePicture: 1 } }
           ]
         }
       },
@@ -694,7 +760,7 @@ const createComment = async (req, res) => {
           foreignField: '_id',
           as: 'artisanData',
           pipeline: [
-            { $project: { artisanName: 1, profileImage: 1, businessImage: 1 } }
+            { $project: { artisanName: 1, businessImage: 1 } }
           ]
         }
       },
@@ -876,13 +942,13 @@ const getCommunityStats = async (req, res) => {
 // ============================================================================
 
 // Posts
-router.get('/posts', validation.validatePostsQuery, handlers.getPosts);
-router.post('/posts', auth.verifyJWT, validation.validateCreatePost, handlers.createPost);
-router.put('/posts/:id', auth.verifyJWT, validation.validateUpdatePost, handlers.updatePost);
-router.delete('/posts/:id', auth.verifyJWT, validation.validateObjectId('id'), handlers.deletePost);
-router.post('/posts/:id/like', auth.verifyJWT, validation.validateObjectId('id'), handlers.likePost);
-router.get('/posts/:id/comments', validation.validateObjectId('id'), handlers.getComments);
-router.post('/posts/:id/comments', auth.verifyJWT, validation.validateCreateComment, handlers.createComment);
+router.get('/posts', validation.validatePostsQuery, getPosts);
+router.post('/posts', auth.verifyJWT, validation.validateCreatePost, createPost);
+router.put('/posts/:id', auth.verifyJWT, validation.validateUpdatePost, updatePost);
+router.delete('/posts/:id', auth.verifyJWT, validation.validateObjectId('id'), deletePost);
+router.post('/posts/:id/like', auth.verifyJWT, validation.validateObjectId('id'), likePost);
+router.get('/posts/:id/comments', validation.validateObjectId('id'), getComments);
+router.post('/posts/:id/comments', auth.verifyJWT, validation.validateCreateComment, createComment);
 
 // Leaderboard
 router.get('/leaderboard/engagement', validation.validateLeaderboardQuery, handlers.getEngagementLeaderboard);

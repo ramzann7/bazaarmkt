@@ -5,42 +5,14 @@ const API_BASE_URL = config.API_URL;
 
 class CommunityService {
   constructor() {
-    this.api = api.create({
-      baseURL: `${API_BASE_URL}/community`,
-      withCredentials: true,
-    });
-
-    // Request interceptor to add auth token
-    this.api.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
-      (error) => {
-        return Promise.reject(error);
-      }
-    );
-
-    // Response interceptor for error handling
-    this.api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token');
-          window.location.href = '/login';
-        }
-        return Promise.reject(error);
-      }
-    );
+    // Use the shared API client which already has auth interceptors configured
+    this.baseURL = `${API_BASE_URL}/community`;
   }
 
   // Community Posts
   async getPosts(params = {}) {
     try {
-      const response = await this.api.get('/posts', { params });
+      const response = await api.get(`${this.baseURL}/posts`, { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -50,7 +22,7 @@ class CommunityService {
 
   async createPost(postData) {
     try {
-      const response = await this.api.post('/posts', postData);
+      const response = await api.post(`${this.baseURL}/posts`, postData);
       return response.data;
     } catch (error) {
       console.error('Error creating post:', error);
@@ -60,7 +32,7 @@ class CommunityService {
 
   async updatePost(postId, postData) {
     try {
-      const response = await this.api.put(`/posts/${postId}`, postData);
+      const response = await api.put(`${this.baseURL}/posts/${postId}`, postData);
       return response.data;
     } catch (error) {
       console.error('Error updating post:', error);
@@ -70,7 +42,7 @@ class CommunityService {
 
   async deletePost(postId) {
     try {
-      const response = await this.api.delete(`/posts/${postId}`);
+      const response = await api.delete(`${this.baseURL}/posts/${postId}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting post:', error);
@@ -80,7 +52,7 @@ class CommunityService {
 
   async likePost(postId) {
     try {
-      const response = await this.api.post(`/posts/${postId}/like`);
+      const response = await api.post(`${this.baseURL}/posts/${postId}/like`);
       return response.data;
     } catch (error) {
       console.error('Error liking post:', error);
@@ -90,7 +62,7 @@ class CommunityService {
 
   async unlikePost(postId) {
     try {
-      const response = await this.api.delete(`/posts/${postId}/like`);
+      const response = await api.delete(`${this.baseURL}/posts/${postId}/like`);
       return response.data;
     } catch (error) {
       console.error('Error unliking post:', error);
@@ -101,7 +73,7 @@ class CommunityService {
   // Comments
   async getComments(postId) {
     try {
-      const response = await this.api.get(`/posts/${postId}/comments`);
+      const response = await api.get(`${this.baseURL}/posts/${postId}/comments`);
       return response.data;
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -111,7 +83,7 @@ class CommunityService {
 
   async createComment(postId, commentData) {
     try {
-      const response = await this.api.post(`/posts/${postId}/comments`, commentData);
+      const response = await api.post(`${this.baseURL}/posts/${postId}/comments`, commentData);
       return response.data;
     } catch (error) {
       console.error('Error creating comment:', error);
@@ -121,7 +93,7 @@ class CommunityService {
 
   async updateComment(commentId, commentData) {
     try {
-      const response = await this.api.put(`/comments/${commentId}`, commentData);
+      const response = await api.put(`${this.baseURL}/comments/${commentId}`, commentData);
       return response.data;
     } catch (error) {
       console.error('Error updating comment:', error);
@@ -131,7 +103,7 @@ class CommunityService {
 
   async deleteComment(commentId) {
     try {
-      const response = await this.api.delete(`/comments/${commentId}`);
+      const response = await api.delete(`${this.baseURL}/comments/${commentId}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -142,7 +114,7 @@ class CommunityService {
   // Community Stats
   async getCommunityStats() {
     try {
-      const response = await this.api.get('/stats');
+      const response = await api.get(`${this.baseURL}/stats`);
       return response.data;
     } catch (error) {
       console.error('Error fetching community stats:', error);
@@ -153,7 +125,7 @@ class CommunityService {
   // Leaderboard
   async getLeaderboard() {
     try {
-      const response = await this.api.get('/leaderboard');
+      const response = await api.get(`${this.baseURL}/leaderboard`);
       return response.data;
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
@@ -163,7 +135,7 @@ class CommunityService {
 
   async getEngagementLeaderboard() {
     try {
-      const response = await this.api.get('/leaderboard/engagement');
+      const response = await api.get(`${this.baseURL}/leaderboard/engagement`);
       return response.data;
     } catch (error) {
       console.error('Error fetching engagement leaderboard:', error);
@@ -174,7 +146,7 @@ class CommunityService {
   // Artisan Incentives
   async getArtisanIncentives() {
     try {
-      const response = await this.api.get('/incentives');
+      const response = await api.get(`${this.baseURL}/incentives`);
       return response.data;
     } catch (error) {
       console.error('Error fetching artisan incentives:', error);
@@ -184,7 +156,7 @@ class CommunityService {
 
   async redeemReward(rewardId) {
     try {
-      const response = await this.api.post('/incentives/redeem', { rewardId });
+      const response = await api.post(`${this.baseURL}/incentives/redeem`, { rewardId });
       return response.data;
     } catch (error) {
       console.error('Error redeeming reward:', error);
@@ -195,7 +167,7 @@ class CommunityService {
   // Badges
   async getBadges() {
     try {
-      const response = await this.api.get('/badges');
+      const response = await api.get(`${this.baseURL}/badges`);
       return response.data;
     } catch (error) {
       console.error('Error fetching badges:', error);
@@ -206,7 +178,7 @@ class CommunityService {
   // Artisan Points
   async getArtisanPoints() {
     try {
-      const response = await this.api.get('/points');
+      const response = await api.get(`${this.baseURL}/points`);
       return response.data;
     } catch (error) {
       console.error('Error fetching artisan points:', error);
@@ -217,7 +189,7 @@ class CommunityService {
   // RSVP Methods
   async rsvpToEvent(postId) {
     try {
-      const response = await this.api.post(`/posts/${postId}/rsvp`);
+      const response = await api.post(`${this.baseURL}/posts/${postId}/rsvp`);
       return response.data;
     } catch (error) {
       console.error('Error RSVPing to event:', error);
@@ -227,7 +199,7 @@ class CommunityService {
 
   async cancelRSVP(postId) {
     try {
-      const response = await this.api.delete(`/posts/${postId}/rsvp`);
+      const response = await api.delete(`${this.baseURL}/posts/${postId}/rsvp`);
       return response.data;
     } catch (error) {
       console.error('Error cancelling RSVP:', error);
@@ -237,7 +209,7 @@ class CommunityService {
 
   async getEventRSVPs(postId) {
     try {
-      const response = await this.api.get(`/posts/${postId}/rsvps`);
+      const response = await api.get(`${this.baseURL}/posts/${postId}/rsvps`);
       return response.data;
     } catch (error) {
       console.error('Error fetching event RSVPs:', error);
@@ -248,7 +220,7 @@ class CommunityService {
   // Poll Methods
   async voteOnPoll(postId, optionIndex) {
     try {
-      const response = await this.api.post(`/posts/${postId}/poll/vote`, { optionIndex });
+      const response = await api.post(`${this.baseURL}/posts/${postId}/poll/vote`, { optionIndex });
       return response.data;
     } catch (error) {
       console.error('Error voting on poll:', error);
@@ -258,7 +230,7 @@ class CommunityService {
 
   async getPollResults(postId) {
     try {
-      const response = await this.api.get(`/posts/${postId}/poll/results`);
+      const response = await api.get(`${this.baseURL}/posts/${postId}/poll/results`);
       return response.data;
     } catch (error) {
       console.error('Error fetching poll results:', error);

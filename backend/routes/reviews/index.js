@@ -121,7 +121,7 @@ const getProductReviews = async (req, res) => {
           localField: 'userId',
           foreignField: '_id',
           as: 'user',
-          pipeline: [{ $project: { firstName: 1, lastName: 1 } }]
+          pipeline: [{ $project: { firstName: 1, lastName: 1, profilePicture: 1 } }]
         }
       },
       { $unwind: '$user' }
@@ -191,7 +191,7 @@ const getArtisanReviews = async (req, res) => {
           localField: 'user',
           foreignField: '_id',
           as: 'user',
-          pipeline: [{ $project: { firstName: 1, lastName: 1 } }]
+          pipeline: [{ $project: { firstName: 1, lastName: 1, profilePicture: 1 } }]
         }
       },
       { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } }

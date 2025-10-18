@@ -1054,10 +1054,22 @@ export default function BusinessDetails() {
                 <div key={review._id} className="border-b border-gray-200 pb-4 last:border-b-0">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                        <span className="text-orange-600 font-medium text-sm">
-                          {review.user?.firstName?.charAt(0) || 'U'}
-                        </span>
+                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center overflow-hidden">
+                        {review.user?.profilePicture ? (
+                          <img 
+                            src={review.user.profilePicture} 
+                            alt={`${review.user?.firstName} ${review.user?.lastName}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = `<span class="text-orange-600 font-medium text-sm">${review.user?.firstName?.charAt(0) || 'U'}</span>`;
+                            }}
+                          />
+                        ) : (
+                          <span className="text-orange-600 font-medium text-sm">
+                            {review.user?.firstName?.charAt(0) || 'U'}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">

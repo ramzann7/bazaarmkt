@@ -32,12 +32,15 @@ import {
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import communityService from '../services/communityService';
-import { authToken } from '../services/authservice';
+import { useAuth } from '../contexts/AuthContext';
+import { getMyProducts } from '../services/productService';
+import { cartService } from '../services/cartService';
 import AuthPopup from './AuthPopup';
 
 export default function Community() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -45,7 +48,6 @@ export default function Community() {
   const [showEditPost, setShowEditPost] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null);
-  const [user, setUser] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [trendingPosts, setTrendingPosts] = useState([]);
   const [expandedComments, setExpandedComments] = useState({});
@@ -53,6 +55,8 @@ export default function Community() {
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [myProducts, setMyProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [newPost, setNewPost] = useState({
     title: '',
     content: '',
@@ -83,8 +87,7 @@ export default function Community() {
       productId: '',
       productName: '',
       productPrice: '',
-      productLink: '',
-      discountCode: ''
+      productImage: ''
     },
     // Poll fields
     poll: {
@@ -176,9 +179,27 @@ export default function Community() {
 
 
   useEffect(() => {
-    loadUser();
     loadLeaderboard();
   }, []);
+
+  // Load products when user is an artisan and product showcase is selected
+  useEffect(() => {
+    if (user && user.role === 'artisan' && newPost.type === 'product_showcase' && showCreatePost) {
+      console.log('🎯 Triggering product load - user is artisan, type is product_showcase, modal is open');
+      loadMyProducts();
+    }
+  }, [user, newPost.type, showCreatePost]);
+
+  // Debug: Log user state
+  useEffect(() => {
+    console.log('🔍 Community - User State:', {
+      hasUser: !!user,
+      isAuthenticated,
+      userId: user?._id,
+      userEmail: user?.email,
+      userRole: user?.role
+    });
+  }, [user, isAuthenticated]);
 
   // Handle image selection
   const handleImageSelect = (e) => {
@@ -215,22 +236,48 @@ export default function Community() {
     setImageFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const loadUser = async () => {
+  // Load user's products for product showcase
+  const loadMyProducts = async () => {
+    if (!user || user.role !== 'artisan') {
+      console.log('❌ Cannot load products - user is not an artisan:', { hasUser: !!user, role: user?.role });
+      return;
+    }
+    
+    console.log('🔄 Loading products for artisan:', user._id);
     try {
-      const token = authToken.getToken();
-      if (token) {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://bazaarmkt.ca/api'}/auth/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      }
+      setLoadingProducts(true);
+      const products = await getMyProducts();
+      console.log('✅ Products loaded:', products.length, 'products');
+      setMyProducts(products);
     } catch (error) {
-      console.error('Error loading user:', error);
+      console.error('❌ Error loading products:', error);
+      toast.error('Failed to load your products');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  // Handle product selection from dropdown
+  const handleProductSelect = (productId) => {
+    console.log('🛍️ Product selected:', productId);
+    const selectedProduct = myProducts.find(p => p._id === productId);
+    console.log('📦 Selected product details:', selectedProduct);
+    
+    if (selectedProduct) {
+      const productData = {
+        productId: selectedProduct._id,
+        productName: selectedProduct.name,
+        productPrice: selectedProduct.price,
+        productImage: selectedProduct.images?.[0] || selectedProduct.image || ''
+      };
+      console.log('✅ Setting product in newPost:', productData);
+      
+      setNewPost({
+        ...newPost,
+        product: productData
+      });
+    } else {
+      console.log('❌ Product not found in myProducts array');
     }
   };
 
@@ -239,17 +286,19 @@ export default function Community() {
       setLoading(true);
       const response = await communityService.getPosts({
         type: selectedFilter === 'all' ? undefined : selectedFilter,
-        limit: 20,
+        limit: 6,
         populate: 'artisan,comments,likes'
       });
       if (response.success) {
-        // Debug: Check what frontend received
-        if (response.data[0]?.artisan) {
-          console.log('📥 FRONTEND RECEIVED - First post artisan:', {
-            artisanName: response.data[0].artisan.artisanName,
-            hasBusinessImage: !!response.data[0].artisan.images?.business,
-            businessImageLength: response.data[0].artisan.images?.business?.length || 0,
-            artisanKeys: Object.keys(response.data[0].artisan)
+        // Debug: Check product showcase posts
+        const productPosts = response.data.filter(p => p.type === 'product_showcase');
+        if (productPosts.length > 0) {
+          console.log('🛍️ Product showcase posts:', productPosts.length);
+          console.log('📦 First product post:', {
+            hasProduct: !!productPosts[0].product,
+            productId: productPosts[0].product?.productId,
+            productName: productPosts[0].product?.productName,
+            productKeys: Object.keys(productPosts[0].product || {})
           });
         }
         setPosts(response.data);
@@ -351,12 +400,17 @@ export default function Community() {
   const handleLikePost = async (postId) => {
     // Check if user is logged in
     if (!user) {
+      console.log('❌ Cannot like post - user not logged in');
       showLoginPrompt('like');
       return;
     }
 
+    console.log('👍 Attempting to like post:', postId, 'User:', user._id);
+
     try {
       const response = await communityService.likePost(postId);
+      console.log('✅ Like response:', response);
+      
       if (response.success) {
         const updatedPosts = posts.map(post => 
           post._id === postId 
@@ -370,8 +424,9 @@ export default function Community() {
         setTrendingPosts(trending);
       }
     } catch (error) {
-      console.error('Error liking post:', error);
-      toast.error('Failed to like post');
+      console.error('❌ Error liking post:', error);
+      console.error('❌ Error details:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Failed to like post');
     }
   };
 
@@ -454,7 +509,13 @@ export default function Community() {
   const handleCreatePost = async (e) => {
     e.preventDefault();
     try {
-      const response = await communityService.createPost(newPost);
+      // Include images from imagePreviews in the post data
+      const postData = {
+        ...newPost,
+        images: imagePreviews // Add the image previews (base64) to the post
+      };
+      
+      const response = await communityService.createPost(postData);
       if (response.success) {
         setPosts([response.data, ...posts]);
         setNewPost({
@@ -484,8 +545,7 @@ export default function Community() {
             productId: '',
             productName: '',
             productPrice: '',
-            productLink: '',
-            discountCode: ''
+            productImage: ''
           },
           poll: {
             question: '',
@@ -496,6 +556,9 @@ export default function Community() {
           taggedArtisans: [],
           taggedProducts: []
         });
+        // Clear image previews after successful post
+        setImagePreviews([]);
+        setImageFiles([]);
         setShowCreatePost(false);
         toast.success('Post created successfully!');
       }
@@ -584,8 +647,7 @@ export default function Community() {
             productId: '',
             productName: '',
             productPrice: '',
-            productLink: '',
-            discountCode: ''
+            productImage: ''
           },
           poll: {
             question: '',
@@ -622,20 +684,28 @@ export default function Community() {
   const handleAddComment = async (postId) => {
     // Check if user is logged in
     if (!user) {
+      console.log('❌ Cannot add comment - user not logged in');
       showLoginPrompt('comment');
       return;
     }
 
-    if (!newComment[postId]?.trim()) return;
+    if (!newComment[postId]?.trim()) {
+      console.log('❌ Cannot add comment - empty content');
+      return;
+    }
+    
+    console.log('💬 Attempting to add comment to post:', postId, 'User:', user._id);
     
     try {
       const response = await communityService.createComment(postId, {
         content: newComment[postId]
       });
+      console.log('✅ Comment response:', response);
+      
       if (response.success) {
         const updatedPosts = posts.map(post => 
           post._id === postId 
-            ? { ...post, comments: [...post.comments, response.data], commentCount: (post.commentCount || 0) + 1 }
+            ? { ...post, comments: [...(post.comments || []), response.data], commentCount: (post.commentCount || 0) + 1 }
             : post
         );
         setPosts(updatedPosts);
@@ -648,8 +718,9 @@ export default function Community() {
         toast.success('Comment added!');
       }
     } catch (error) {
-      console.error('Error adding comment:', error);
-      toast.error('Failed to add comment');
+      console.error('❌ Error adding comment:', error);
+      console.error('❌ Error details:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Failed to add comment');
     }
   };
 
@@ -861,10 +932,7 @@ export default function Community() {
           typeSpecificDetails.push(`💰 Price: $${post.product.productPrice}`);
         }
         
-        if (post.product.discountCode) {
-          typeSpecificDetails.push(`🎟️ Discount Code: ${post.product.discountCode}`);
-        }
-        
+        typeSpecificDetails.push('🛒 Click the product card to add to cart!');
         typeSpecificDetails.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       }
       
@@ -933,9 +1001,9 @@ export default function Community() {
       {/* Post Header - Mobile Optimized */}
       <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4">
         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500">
-          {(post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage || post.authorData?.profilePicture) ? (
+          {(post.authorData?.profilePicture || post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage) ? (
             <img 
-              src={post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage || post.authorData?.profilePicture} 
+              src={post.authorData?.profilePicture || post.artisan?.userInfo?.profilePicture || post.artisan?.profileImage || post.artisan?.businessImage} 
               alt={post.artisan?.artisanName || `${post.authorData?.firstName} ${post.authorData?.lastName}`}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -963,14 +1031,6 @@ export default function Community() {
         </div>
       </div>
       
-      {/* Post Image - Mobile Optimized */}
-      {post.images && post.images.length > 0 && (
-        <img 
-          src={post.images[0]} 
-          alt={post.title}
-          className="w-full h-48 sm:h-56 object-cover"
-        />
-      )}
       
       {/* Post Title - Mobile Optimized */}
       <h2 className="text-lg sm:text-xl font-semibold text-text px-3 sm:px-4 mt-3 sm:mt-4 mb-2">{post.title}</h2>
@@ -978,7 +1038,64 @@ export default function Community() {
       {/* Post Content - Mobile Optimized */}
       <div className="px-3 sm:px-4 pb-3 sm:pb-4">
         <p className="text-sm sm:text-base text-muted leading-relaxed whitespace-pre-wrap">{post.content}</p>
+      </div>
+      
+      {/* Product Card - Compact, After Content */}
+      {post.type === 'product_showcase' && post.product && (post.product.productId || post.product.productName) && (
+        <div className="mx-3 sm:mx-4 mb-4">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-3 flex items-center gap-3">
+            {post.product.productImage && (
+              <img 
+                src={post.product.productImage} 
+                alt={post.product.productName}
+                className="w-14 h-14 object-cover rounded flex-shrink-0 opacity-90"
+              />
+            )}
+            
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-800 text-sm line-clamp-1">{post.product.productName}</p>
+              <p className="text-green-700 font-bold text-lg">${post.product.productPrice}</p>
+            </div>
+            
+            <button
+              onClick={async () => {
+                if (!user) {
+                  toast.error('Please log in to add items to cart');
+                  navigate('/login');
+                  return;
+                }
+                
+                try {
+                  const productToAdd = {
+                    _id: post.product.productId,
+                    name: post.product.productName,
+                    price: post.product.productPrice,
+                    image: post.product.productImage,
+                    images: [post.product.productImage],
+                    artisan: {
+                      _id: post.artisan?._id || post.artisan,
+                      artisanName: post.artisan?.artisanName || 'Shop'
+                    }
+                  };
+                  
+                  console.log('🛒 Adding product to cart:', productToAdd);
+                  await cartService.addToCart(productToAdd, 1, user._id);
+                  toast.success(`Added to cart!`);
+                } catch (error) {
+                  console.error('❌ Error adding to cart:', error);
+                  toast.error(error.message || 'Failed to add to cart');
+                }
+              }}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-colors text-xs font-medium"
+            >
+              <ShoppingCartIcon className="w-4 h-4" />
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+      )}
         
+      <div className="px-3 sm:px-4">
         {/* Event Details */}
         {post.type === 'event' && post.event && (
           <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
@@ -1094,38 +1211,6 @@ export default function Community() {
           </div>
         )}
 
-        {/* Product Showcase Details */}
-        {post.type === 'product_showcase' && post.product && (
-          <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="font-semibold text-green-900 mb-2">{post.product.productName}</h4>
-                <div className="flex items-center space-x-4 mb-3">
-                  <div className="flex items-center space-x-2">
-                    <CurrencyDollarIcon className="w-5 h-5 text-green-600" />
-                    <span className="font-bold text-green-900 text-lg">{post.product.productPrice}</span>
-                  </div>
-                  {post.product.discountCode && (
-                    <span className="bg-green-200 text-green-800 px-2 py-1 rounded text-sm font-medium">
-                      Code: {post.product.discountCode}
-                    </span>
-                  )}
-                </div>
-                {post.product.productLink && (
-                  <a 
-                    href={post.product.productLink} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    <ShoppingCartIcon className="w-4 h-4" />
-                    <span>View Product</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Poll Details */}
         {post.type === 'poll' && post.poll && (
@@ -1204,19 +1289,22 @@ export default function Community() {
         )}
           </div>
 
-      {/* Post Images */}
-      {post.images && post.images.length > 0 && (
-        <div className="mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {post.images.map((image, index) => (
+      {/* Post Images - Subtle Grid (Hidden for Product Showcase) */}
+      {post.type !== 'product_showcase' && post.images && post.images.length > 0 && (
+        <div className="mb-4 px-3 sm:px-4">
+          <div className="grid grid-cols-2 gap-2">
+            {post.images.slice(0, 4).map((image, index) => (
               <img
                 key={index}
-                src={image.url}
+                src={image.url || image}
                 alt={image.alt || `Post image ${index + 1}`}
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-24 sm:h-32 object-cover rounded-md opacity-85 hover:opacity-100 transition-opacity"
               />
             ))}
           </div>
+          {post.images.length > 4 && (
+            <p className="text-xs text-gray-500 mt-1 text-center">+{post.images.length - 4} more images</p>
+          )}
         </div>
       )}
 
@@ -1248,7 +1336,7 @@ export default function Community() {
           className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-muted hover:text-accent transition-colors min-h-[44px] px-2 -mx-2"
         >
           <span className="text-base">💬</span>
-          <span>{post.comments?.length || 0}</span>
+          {post.comments?.length > 0 && <span>{post.comments.length}</span>}
         </button>
         
         <button
@@ -1306,38 +1394,9 @@ export default function Community() {
       {/* Comments Section */}
       {expandedComments[post._id] && (
         <div className="mt-4 pt-4 border-t border-gray-100">
-          {/* Add Comment */}
-          {user && (
-            <div className="flex items-start space-x-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-orange-500 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
-                  {user.firstName?.charAt(0) || 'U'}
-                </span>
-              </div>
-              <div className="flex-1">
-                <textarea
-                  value={newComment[post._id] || ''}
-                  onChange={(e) => setNewComment({ ...newComment, [post._id]: e.target.value })}
-                  placeholder="Add a comment..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                  rows="2"
-                />
-                <div className="flex justify-end mt-2">
-            <button
-                    onClick={() => handleAddComment(post._id)}
-                    disabled={!newComment[post._id]?.trim()}
-                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Comment
-            </button>
-          </div>
-        </div>
-            </div>
-          )}
-
-          {/* Existing Comments */}
+          {/* Existing Comments - Show First */}
           {post.comments && post.comments.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 mb-4">
               {post.comments.map((comment) => (
                 <div key={comment._id} className="flex items-start space-x-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-gradient-to-br from-orange-400 to-amber-500 ring-2 ring-orange-100">
@@ -1375,6 +1434,47 @@ export default function Community() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          
+          {/* Add New Comment - Show After Existing Comments */}
+          {user && (
+            <div className="flex items-start space-x-3 pt-4 border-t border-gray-100">
+              <div className="w-8 h-8 bg-gradient-to-br from-accent to-orange-500 rounded-full flex items-center justify-center overflow-hidden">
+                {user.profilePicture ? (
+                  <img 
+                    src={user.profilePicture} 
+                    alt={`${user.firstName} ${user.lastName}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = `<span class="text-white font-bold text-sm">${user.firstName?.charAt(0) || 'U'}</span>`;
+                    }}
+                  />
+                ) : (
+                  <span className="text-white font-bold text-sm">
+                    {user.firstName?.charAt(0) || 'U'}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1">
+                <textarea
+                  value={newComment[post._id] || ''}
+                  onChange={(e) => setNewComment({ ...newComment, [post._id]: e.target.value })}
+                  placeholder="Add a comment..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+                  rows="2"
+                />
+                <div className="flex justify-end mt-2">
+                  <button
+                    onClick={() => handleAddComment(post._id)}
+                    disabled={!newComment[post._id]?.trim()}
+                    className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Comment
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1575,8 +1675,10 @@ export default function Community() {
                           </button>
                           <div className="flex items-center space-x-1">
                             <span className="text-xs text-gray-600">by</span>
-                            <span className="text-xs font-medium text-primary">
-                              {post.artisan?.artisanName || 'Unknown'}
+                            <span className="text-xs font-medium text-accent">
+                              {post.artisan?.artisanName || 
+                               post.artisanData?.artisanName ||
+                               'Community Member'}
                             </span>
                           </div>
                         </div>
@@ -1608,6 +1710,7 @@ export default function Community() {
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowCreatePost(false);
                     setShowEditPost(false);
@@ -1635,7 +1738,14 @@ export default function Community() {
                       <button
                         key={type.id}
                         type="button"
-                        onClick={() => setNewPost({ ...newPost, type: type.id })}
+                        onClick={() => {
+                          setNewPost({ ...newPost, type: type.id });
+                          // Trigger product load if switching to product showcase
+                          if (type.id === 'product_showcase' && user?.role === 'artisan') {
+                            console.log('📦 Product showcase selected - loading products');
+                            setTimeout(() => loadMyProducts(), 100);
+                          }
+                        }}
                         className={`p-4 rounded-xl border-2 transition-all ${
                           newPost.type === type.id
                             ? 'border-orange-500 bg-orange-50 shadow-md'
@@ -1649,6 +1759,65 @@ export default function Community() {
                   </div>
         </div>
         
+                {/* Product Selection - Show First for Product Showcase */}
+                {newPost.type === 'product_showcase' && (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <h3 className="text-base font-semibold text-green-800 mb-3 flex items-center">
+                      🛍️ Select Your Product
+                    </h3>
+                    
+                    {loadingProducts ? (
+                      <div className="text-sm text-gray-600 p-3 bg-white rounded border">Loading your products...</div>
+                    ) : myProducts.length > 0 ? (
+                      <div>
+                        <select
+                          value={newPost.product.productId}
+                          onChange={(e) => handleProductSelect(e.target.value)}
+                          className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white text-gray-900"
+                          required
+                        >
+                          <option value="">-- Select a product to showcase --</option>
+                          {myProducts.map((product) => (
+                            <option key={product._id} value={product._id}>
+                              {product.name} - ${product.price}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {newPost.product.productId && (
+                          <div className="mt-3 p-2 bg-white rounded border border-gray-200 flex items-center space-x-2">
+                            {newPost.product.productImage && (
+                              <img 
+                                src={newPost.product.productImage} 
+                                alt={newPost.product.productName}
+                                className="w-10 h-10 object-cover rounded opacity-85"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-800 text-xs truncate">{newPost.product.productName}</p>
+                              <p className="text-green-700 font-bold text-xs">${newPost.product.productPrice}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-3">
+                        <p className="mb-2 text-xs">📦 You don't have any products in your shop yet.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCreatePost(false);
+                            navigate('/my-products');
+                          }}
+                          className="text-green-700 text-xs font-medium hover:underline"
+                        >
+                          → Add products to your shop first
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Contextual Tips */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
@@ -1703,56 +1872,58 @@ export default function Community() {
                   />
           </div>
 
-                {/* Image Upload Section */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Add Images (Optional)
-                  </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-orange-400 transition-colors">
-                    <input
-                      type="file"
-                      id="post-images"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageSelect}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="post-images"
-                      className="cursor-pointer block text-center"
-                    >
-                      <PhotoIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-sm font-medium text-gray-700 mb-1">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        PNG, JPG, GIF up to 5MB (max 4 images)
-                      </p>
+                {/* Image Upload Section - Hide for Product Showcase */}
+                {newPost.type !== 'product_showcase' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      Add Images (Optional)
                     </label>
-                  </div>
-                  
-                  {/* Image Previews */}
-                  {imagePreviews.length > 0 && (
-                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {imagePreviews.map((preview, index) => (
-                        <div key={index} className="relative group">
-                          <img
-                            src={preview}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <XCircleIcon className="w-5 h-5" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-orange-400 transition-colors">
+                      <input
+                        type="file"
+                        id="post-images"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="post-images"
+                        className="cursor-pointer block text-center"
+                      >
+                        <PhotoIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG, GIF up to 5MB (max 4 images)
+                        </p>
+                      </label>
                     </div>
-                  )}
-                </div>
+                    
+                    {/* Image Previews */}
+                    {imagePreviews.length > 0 && (
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <XCircleIcon className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Recipe Specific Fields */}
                 {newPost.type === 'recipe' && (
@@ -2003,73 +2174,6 @@ export default function Community() {
                   </div>
                 )}
 
-                {/* Product Showcase Fields */}
-                {newPost.type === 'product_showcase' && (
-                  <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-                    <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
-                      🛍️ Product Details
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                        <input
-                          type="text"
-                          value={newPost.product.productName}
-                          onChange={(e) => setNewPost({
-                            ...newPost,
-                            product: { ...newPost.product, productName: e.target.value }
-                          })}
-                          placeholder="My Amazing Product"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                        <input
-                          type="text"
-                          value={newPost.product.productPrice}
-                          onChange={(e) => setNewPost({
-                            ...newPost,
-                            product: { ...newPost.product, productPrice: e.target.value }
-                          })}
-                          placeholder="$29.99"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Product Link</label>
-                        <input
-                          type="url"
-                          value={newPost.product.productLink}
-                          onChange={(e) => setNewPost({
-                            ...newPost,
-                            product: { ...newPost.product, productLink: e.target.value }
-                          })}
-                          placeholder="https://yourshop.com/product/..."
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Discount Code (Optional)</label>
-                        <input
-                          type="text"
-                          value={newPost.product.discountCode}
-                          onChange={(e) => setNewPost({
-                            ...newPost,
-                            product: { ...newPost.product, discountCode: e.target.value }
-                          })}
-                          placeholder="SAVE20"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Poll Fields */}
                 {newPost.type === 'poll' && (
                   <div className="bg-primary-50 p-6 rounded-lg border border-primary-200">
@@ -2171,12 +2275,12 @@ export default function Community() {
                   >
                     Cancel
                   </button>
-              <button
+                  <button
                     type="submit"
-                    className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-              >
+                    className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors font-medium"
+                  >
                     {showEditPost ? 'Update Post' : 'Create Post'}
-              </button>
+                  </button>
                 </div>
               </form>
             </div>

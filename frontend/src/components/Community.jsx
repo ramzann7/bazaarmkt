@@ -1019,12 +1019,13 @@ export default function Community() {
           )}
         </div>
         <div>
-          <button
-            onClick={() => navigate(`/artisan/${post.artisan?._id}`)}
-            className="font-semibold text-text hover:text-accent transition-colors text-left"
-          >
-            {post.artisan?.artisanName}
-          </button>
+          <div className="font-semibold text-text">
+            {post.artisan?.artisanName || 
+             post.artisanData?.artisanName || 
+             (post.authorData?.firstName && post.authorData?.lastName 
+               ? `${post.authorData.firstName} ${post.authorData.lastName}` 
+               : 'Community Member')}
+          </div>
           <div className="text-sm text-muted">
             {formatTimeAgo(post.createdAt)} • {post.type.replace('_', ' ')}
           </div>
@@ -1504,14 +1505,13 @@ export default function Community() {
                       <button
                         key={type.id}
                         onClick={() => setSelectedFilter(type.id)}
-                        className={`px-2 sm:px-2.5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 min-h-[36px] sm:min-h-[40px] ${
+                        className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 min-h-[36px] sm:min-h-[40px] ${
                           selectedFilter === type.id
                             ? 'bg-accent text-white border-transparent'
                             : 'bg-white text-gray-600 border border-gray-100 hover:bg-gray-50'
                         }`}
                       >
-                        <span className="hidden sm:inline">{type.name}</span>
-                        <span className="sm:hidden">{type.icon}</span>
+                        {type.name}
                       </button>
                     ))}
                   </div>

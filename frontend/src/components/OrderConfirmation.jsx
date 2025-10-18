@@ -617,20 +617,25 @@ export default function OrderConfirmation() {
               {orders.some(order => 
                 (order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery')
               ) && (() => {
-                // Calculate delivery fee: If not provided, calculate from totalAmount - subtotal
+                // Calculate delivery fee with priority for professional delivery pricing
                 const calculatedDeliveryFee = orders.reduce((sum, order) => {
-                  // If order has delivery fee > 0, use it
+                  // For professional delivery, prioritize deliveryPricing.chargedAmount (includes buffer)
+                  if (order.deliveryMethod === 'professionalDelivery' && order.deliveryPricing?.chargedAmount) {
+                    return sum + parseFloat(order.deliveryPricing.chargedAmount);
+                  }
+                  
+                  // For other delivery methods, use order.deliveryFee
                   if (order.deliveryFee !== undefined && order.deliveryFee !== null && order.deliveryFee > 0) {
                     return sum + order.deliveryFee;
                   }
                   
-                  // If order.deliveryFee is 0 but it's a delivery order, check artisan's fee
+                  // Fallback: check artisan's fee
                   if ((order.deliveryMethod === 'personalDelivery' || order.deliveryMethod === 'professionalDelivery') &&
                       order.artisan?.deliveryFee !== undefined && order.artisan.deliveryFee > 0) {
                     return sum + order.artisan.deliveryFee;
                   }
                   
-                  // Calculate from total - subtotal
+                  // Last resort: calculate from total - subtotal
                   const orderSubtotal = order.subtotal || order.items?.reduce((s, item) => s + ((item.price || item.unitPrice || 0) * item.quantity), 0) || 0;
                   const orderTotal = order.totalAmount || 0;
                   const calculatedFee = Math.max(0, orderTotal - orderSubtotal);

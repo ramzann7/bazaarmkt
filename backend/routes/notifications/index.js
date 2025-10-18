@@ -194,14 +194,33 @@ const generateOrderUpdateHTML = (recipientName, orderData, updateType, updateDet
           <span style="color: #78716c; font-size: 14px;">Subtotal:</span>
           <span style="color: #57534e; font-weight: 600;">$${(orderData.subtotal || orderData.totalAmount || 0).toFixed(2)}</span>
         </div>
-        ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+        ${(() => {
+          // For professional delivery, use deliveryPricing.chargedAmount (includes buffer)
+          const deliveryFee = orderData.deliveryMethod === 'professionalDelivery' && orderData.deliveryPricing?.chargedAmount
+            ? parseFloat(orderData.deliveryPricing.chargedAmount)
+            : orderData.deliveryFee || 0;
+          
+          return deliveryFee > 0 ? `
         <div style="display: flex; justify-content: space-between; padding: 8px 0;">
           <span style="color: #78716c; font-size: 14px;">
             Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
           </span>
-          <span style="color: #57534e; font-weight: 600;">$${orderData.deliveryFee.toFixed(2)}</span>
+          <span style="color: #57534e; font-weight: 600;">$${deliveryFee.toFixed(2)}</span>
+        </div>
+        ${orderData.deliveryMethod === 'professionalDelivery' && orderData.deliveryPricing?.estimatedFee ? `
+        <div style="padding: 8px 12px; background: #eff6ff; border-radius: 6px; margin-top: 8px;">
+          <p style="margin: 0; font-size: 12px; color: #1e40af;">
+            <strong>Delivery Details:</strong> Estimated $${parseFloat(orderData.deliveryPricing.estimatedFee).toFixed(2)} + 
+            20% buffer ($${parseFloat(orderData.deliveryPricing.buffer || 0).toFixed(2)}) = 
+            $${parseFloat(orderData.deliveryPricing.chargedAmount).toFixed(2)}
+          </p>
+          <p style="margin: 4px 0 0 0; font-size: 11px; color: #1e40af; font-style: italic;">
+            💡 Any unused buffer will be automatically refunded to your wallet.
+          </p>
         </div>
         ` : ''}
+          ` : '';
+        })()}
         <div style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #78350f;">
           <span style="font-weight: 700; font-size: 18px; color: #292524;">Total</span>
           <span style="font-weight: 700; font-size: 20px; color: #78350f;">$${(orderData.totalAmount || 0).toFixed(2)}</span>
@@ -462,8 +481,20 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
   ).join('') || '<p style="text-align: center; color: #78716c;">No items</p>';
 
   const isPickupOrder = orderData.deliveryMethod === 'pickup';
-  const orderNumber = orderData.orderNumber || orderData.orderId?.slice(-8) || 'N/A';
+  // Handle orderNumber with multiple fallbacks (orderId might be ObjectId or string)
+  const orderNumber = orderData.orderNumber || 
+                      (typeof orderData.orderId === 'string' ? orderData.orderId.slice(-8) : orderData.orderId?.toString().slice(-8)) ||
+                      (orderData._id ? (typeof orderData._id === 'string' ? orderData._id.slice(-8) : orderData._id.toString().slice(-8)) : null) ||
+                      'N/A';
   const artisanName = orderData.artisanInfo?.name || orderData.artisanName || 'Local Artisan';
+  
+  console.log('📧 generateOrderConfirmationHTML - orderNumber resolution:', {
+    inputOrderNumber: orderData.orderNumber,
+    inputOrderId: orderData.orderId,
+    inputOrderIdType: typeof orderData.orderId,
+    input_id: orderData._id,
+    finalOrderNumber: orderNumber
+  });
   
   // Enhanced delivery/pickup info with artisan marketplace styling
   const deliveryInfo = isPickupOrder ? `
@@ -592,14 +623,33 @@ const generateOrderConfirmationHTML = (recipientName, orderData) => {
               <span style="color: #78716c; font-size: 14px;">Subtotal:</span>
               <span style="color: #57534e; font-weight: 600;">$${(orderData.subtotal || orderData.totalAmount || 0).toFixed(2)}</span>
             </div>
-            ${orderData.deliveryFee && orderData.deliveryFee > 0 ? `
+            ${(() => {
+              // For professional delivery, use deliveryPricing.chargedAmount (includes buffer)
+              const deliveryFee = orderData.deliveryMethod === 'professionalDelivery' && orderData.deliveryPricing?.chargedAmount
+                ? parseFloat(orderData.deliveryPricing.chargedAmount)
+                : orderData.deliveryFee || 0;
+              
+              return deliveryFee > 0 ? `
             <div style="display: flex; justify-content: space-between; padding: 8px 0;">
               <span style="color: #78716c; font-size: 14px;">
                 Delivery Fee ${orderData.deliveryMethod === 'personalDelivery' ? '(Personal)' : orderData.deliveryMethod === 'professionalDelivery' ? '(Professional)' : ''}
               </span>
-              <span style="color: #57534e; font-weight: 600;">$${orderData.deliveryFee.toFixed(2)}</span>
+              <span style="color: #57534e; font-weight: 600;">$${deliveryFee.toFixed(2)}</span>
+            </div>
+            ${orderData.deliveryMethod === 'professionalDelivery' && orderData.deliveryPricing?.estimatedFee ? `
+            <div style="padding: 8px 12px; background: #eff6ff; border-radius: 6px; margin-top: 8px;">
+              <p style="margin: 0; font-size: 12px; color: #1e40af;">
+                <strong>Delivery Details:</strong> Estimated $${parseFloat(orderData.deliveryPricing.estimatedFee).toFixed(2)} + 
+                20% buffer ($${parseFloat(orderData.deliveryPricing.buffer || 0).toFixed(2)}) = 
+                $${parseFloat(orderData.deliveryPricing.chargedAmount).toFixed(2)}
+              </p>
+              <p style="margin: 4px 0 0 0; font-size: 11px; color: #1e40af; font-style: italic;">
+                💡 Any unused buffer will be automatically refunded to your wallet.
+              </p>
             </div>
             ` : ''}
+              ` : '';
+            })()}
             <div style="display: flex; justify-content: space-between; padding: 15px 0; margin-top: 10px; border-top: 2px solid #78350f;">
               <span style="font-weight: 700; font-size: 18px; color: #292524;">Total</span>
               <span style="font-weight: 700; font-size: 20px; color: #78350f;">$${(orderData.totalAmount || 0).toFixed(2)}</span>
@@ -695,15 +745,13 @@ const sendBrevoEmail = async (userId, notificationData, db) => {
   if (notificationData.orderData && notificationData.orderData.artisanInfo) {
     // Use the pre-built orderData from order creation (has artisan info already)
     console.log('✅ Using pre-built orderData from notification (includes artisan info)');
-    console.log('📋 Artisan info details:', {
+    console.log('📋 Order data details:', {
+      hasOrderNumber: !!notificationData.orderData.orderNumber,
+      orderNumber: notificationData.orderData.orderNumber,
+      hasOrderId: !!notificationData.orderData.orderId,
+      orderId: notificationData.orderData.orderId,
       hasArtisanInfo: !!notificationData.orderData.artisanInfo,
-      artisanName: notificationData.orderData.artisanInfo?.name,
-      artisanEmail: notificationData.orderData.artisanInfo?.email,
-      artisanPhone: notificationData.orderData.artisanInfo?.phone,
-      hasPickupAddress: !!notificationData.orderData.artisanInfo?.pickupAddress,
-      pickupAddressType: typeof notificationData.orderData.artisanInfo?.pickupAddress,
-      pickupAddress: notificationData.orderData.artisanInfo?.pickupAddress,
-      hasPickupInstructions: !!notificationData.orderData.artisanInfo?.pickupInstructions
+      artisanName: notificationData.orderData.artisanInfo?.name
     });
     orderData = notificationData.orderData;
   } else if (order) {
@@ -793,9 +841,28 @@ const sendBrevoEmail = async (userId, notificationData, db) => {
     htmlContent = generateOrderUpdateHTML(recipientName, orderData, updateType || 'status_change', updateDetails || {});
   }
   
+  // Ensure orderNumber is always set with fallback
+  if (!orderData.orderNumber && orderData.orderId) {
+    orderData.orderNumber = orderData.orderId.slice(-8);
+  }
+  if (!orderData.orderNumber && orderData._id) {
+    orderData.orderNumber = orderData._id.toString().slice(-8);
+  }
+  if (!orderData.orderNumber && orderNumber) {
+    orderData.orderNumber = orderNumber;
+  }
+  
   // Generate dynamic subject line based on status
   const currentStatus = orderData.status || updateDetails?.newStatus || status || 'pending';
-  const dynamicSubject = generateSubjectLine(currentStatus, orderData.orderNumber, orderData.deliveryMethod);
+  const finalOrderNumber = orderData.orderNumber || 'N/A';
+  const dynamicSubject = generateSubjectLine(currentStatus, finalOrderNumber, orderData.deliveryMethod);
+  
+  console.log('📧 Email subject and order number:', {
+    type,
+    currentStatus,
+    orderNumber: finalOrderNumber,
+    subject: dynamicSubject
+  });
   
   const emailData = {
     sender: {
@@ -950,9 +1017,28 @@ const sendGuestEmail = async (guestEmail, guestName, notificationData, db) => {
     htmlContent = generateOrderUpdateHTML(guestName, orderData, updateType || 'status_change', updateDetails || {});
   }
   
+  // Ensure orderNumber is always set with fallback
+  if (!orderData.orderNumber && orderData.orderId) {
+    orderData.orderNumber = orderData.orderId.slice(-8);
+  }
+  if (!orderData.orderNumber && orderData._id) {
+    orderData.orderNumber = orderData._id.toString().slice(-8);
+  }
+  if (!orderData.orderNumber && orderNumber) {
+    orderData.orderNumber = orderNumber;
+  }
+  
   // Generate dynamic subject line based on status
   const currentStatus = orderData.status || updateDetails?.newStatus || status || 'pending';
-  const dynamicSubject = generateSubjectLine(currentStatus, orderData.orderNumber, orderData.deliveryMethod);
+  const finalOrderNumber = orderData.orderNumber || 'N/A';
+  const dynamicSubject = generateSubjectLine(currentStatus, finalOrderNumber, orderData.deliveryMethod);
+  
+  console.log('📧 Email (guest) subject and order number:', {
+    type,
+    currentStatus,
+    orderNumber: finalOrderNumber,
+    subject: dynamicSubject
+  });
   
   const emailData = {
     sender: {

@@ -28,6 +28,9 @@ export default function AdminArtisanManagement() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedArtisan, setSelectedArtisan] = useState(null);
   const [showArtisanModal, setShowArtisanModal] = useState(false);
+  const [editingCommissionRate, setEditingCommissionRate] = useState(false);
+  const [commissionRate, setCommissionRate] = useState('');
+  const [platformDefaultRate, setPlatformDefaultRate] = useState(15);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -165,9 +168,56 @@ export default function AdminArtisanManagement() {
     }
   };
 
-  const handleViewArtisan = (artisan) => {
+  const handleViewArtisan = async (artisan) => {
     setSelectedArtisan(artisan);
+    setCommissionRate(artisan.financial?.commissionRate || platformDefaultRate);
+    setEditingCommissionRate(false);
     setShowArtisanModal(true);
+    
+    // Load platform default rate if not already loaded
+    if (!platformDefaultRate || platformDefaultRate === 15) {
+      try {
+        const rate = await adminService.getPlatformFeePercentage();
+        setPlatformDefaultRate(rate);
+        // Update commission rate if artisan doesn't have one set
+        if (!artisan.financial?.commissionRate) {
+          setCommissionRate(rate);
+        }
+      } catch (error) {
+        console.error('Error loading platform rate:', error);
+      }
+    }
+  };
+
+  const handleUpdateCommissionRate = async () => {
+    try {
+      const rate = parseFloat(commissionRate);
+      
+      if (isNaN(rate) || rate < 0 || rate > 100) {
+        toast.error('Commission rate must be between 0 and 100');
+        return;
+      }
+
+      await adminService.updateArtisanCommissionRate(selectedArtisan._id, rate);
+      
+      // Update local state
+      setArtisans(prev => prev.map(artisan => 
+        artisan._id === selectedArtisan._id 
+          ? { ...artisan, financial: { ...artisan.financial, commissionRate: rate } }
+          : artisan
+      ));
+      
+      setSelectedArtisan({
+        ...selectedArtisan,
+        financial: { ...selectedArtisan.financial, commissionRate: rate }
+      });
+      
+      setEditingCommissionRate(false);
+      toast.success(`Commission rate updated to ${rate}%`);
+    } catch (error) {
+      console.error('Error updating commission rate:', error);
+      toast.error('Failed to update commission rate');
+    }
   };
 
   const formatDate = (dateString) => {
@@ -618,6 +668,60 @@ export default function AdminArtisanManagement() {
                       </div>
                     </div>
                   )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Commission Rate</label>
+                    {editingCommissionRate ? (
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={commissionRate}
+                          onChange={(e) => setCommissionRate(e.target.value)}
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <span className="text-sm text-gray-700">%</span>
+                        <button
+                          onClick={handleUpdateCommissionRate}
+                          className="px-3 py-1 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCommissionRate(selectedArtisan.financial?.commissionRate || platformDefaultRate);
+                            setEditingCommissionRate(false);
+                          }}
+                          className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedArtisan.financial?.commissionRate || platformDefaultRate}%
+                        </span>
+                        {selectedArtisan.financial?.commissionRate !== platformDefaultRate && (
+                          <span className="text-xs text-gray-500">
+                            (Platform default: {platformDefaultRate}%)
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setEditingCommissionRate(true)}
+                          className="text-sm text-purple-600 hover:text-purple-800 flex items-center"
+                        >
+                          <PencilIcon className="w-4 h-4 mr-1" />
+                          Edit
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Platform takes this percentage from each order subtotal
+                    </p>
+                  </div>
                 </div>
               </div>
 

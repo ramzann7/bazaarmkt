@@ -192,6 +192,24 @@ export const updateArtisanVerification = async (artisanId, isVerified) => {
   }
 };
 
+// Update artisan commission rate
+export const updateArtisanCommissionRate = async (artisanId, commissionRate) => {
+  try {
+    const response = await api.patch(`${API_URL}/admin/artisans/${artisanId}/commission-rate`, 
+      { commissionRate },
+      {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error updating artisan commission rate:', error);
+    throw error;
+  }
+};
+
 // Get analytics data
 export const getAnalytics = async (period = 30) => {
   try {
@@ -395,6 +413,7 @@ export default {
   deleteProduct,
   updateArtisanStatus,
   updateArtisanVerification,
+  updateArtisanCommissionRate,
   getAnalytics,
   getPromotionalStats,
   getActivePromotions,

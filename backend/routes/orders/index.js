@@ -987,6 +987,7 @@ const confirmPaymentAndCreateOrder = async (req, res) => {
           totalAmount: totalAmount,
           subtotal: order.subtotal,
           deliveryFee: order.deliveryFee,
+          deliveryPricing: order.deliveryPricing, // Include professional delivery pricing with buffer
           status: 'pending',
           items: order.items,
           deliveryAddress: order.deliveryAddress,
@@ -1366,36 +1367,33 @@ const walletPaymentAndCreateOrder = async (req, res) => {
 
     const subtotal = totalAmount - deliveryFee;
 
-    // Verify wallet has sufficient funds (but don't deduct yet)
-    // Funds will be deducted when order is delivered/picked up
+    // Deduct wallet immediately to prevent abuse (artisan can't over-order)
+    // If order is cancelled/declined, wallet will be credited back
     try {
-      const walletBalanceData = await walletService.getWalletBalance(userId);
-      const walletBalance = walletBalanceData.balance;
+      await walletService.deductFunds(
+        userId,
+        totalAmount,
+        `Order payment for #${Date.now().toString().slice(-8)}`,
+        {
+          orderType: 'purchase',
+          deliveryMethod: orderData.deliveryMethod,
+          itemCount: enrichedItems.length,
+          reason: 'order_payment'
+        }
+      );
       
-      if (walletBalance < totalAmount) {
-        return res.status(400).json({
-          success: false,
-          message: 'Insufficient wallet balance. Please top up your wallet.',
-          data: {
-            required: totalAmount,
-            available: walletBalance,
-            shortfall: totalAmount - walletBalance
-          }
-        });
-      }
-      
-      console.log(`✅ Wallet balance verified: $${walletBalance} >= $${totalAmount}`);
-    } catch (balanceError) {
-      console.error('❌ Error verifying wallet balance:', balanceError);
-      return res.status(500).json({
+      console.log(`💰 Wallet deducted immediately: $${totalAmount} from user ${userId}`);
+    } catch (walletError) {
+      console.error('❌ Error deducting from wallet:', walletError);
+      return res.status(400).json({
         success: false,
-        message: 'Failed to verify wallet balance',
-        error: balanceError.message
+        message: walletError.message || 'Failed to process wallet payment',
+        error: walletError.message
       });
     }
 
     // Create order using unified schema
-    // Payment will be processed when order is delivered/picked up
+    // Wallet already deducted - will be refunded if cancelled/declined
     const order = createUnifiedOrderSchema({
       userId: userId,
       items: enrichedItems,
@@ -1403,7 +1401,7 @@ const walletPaymentAndCreateOrder = async (req, res) => {
       subtotal: subtotal,
       deliveryFee: deliveryFee,
       status: 'pending',
-      paymentStatus: 'pending', // Will be 'paid' when order is delivered/picked up
+      paymentStatus: 'paid', // Wallet already deducted
       paymentMethod: 'wallet',
       paymentIntentId: `wallet_${Date.now()}_${userId}`,
       deliveryAddress: orderData.deliveryAddress,
@@ -1492,11 +1490,25 @@ const walletPaymentAndCreateOrder = async (req, res) => {
         type: 'order_created_buyer',
         title: 'Order Placed Successfully',
         message: `Your order #${result.insertedId.toString().slice(-8)} has been placed. Payment of $${totalAmount.toFixed(2)} was deducted from your wallet.`,
+        orderNumber: result.insertedId.toString().slice(-8), // Add top-level orderNumber
         data: {
           orderId: result.insertedId.toString(),
           orderNumber: result.insertedId.toString().slice(-8),
           totalAmount: totalAmount,
           paymentMethod: 'wallet'
+        },
+        orderData: {
+          _id: result.insertedId,
+          orderId: result.insertedId.toString(),
+          orderNumber: result.insertedId.toString().slice(-8),
+          totalAmount: totalAmount,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          deliveryPricing: order.deliveryPricing,
+          status: 'pending',
+          items: order.items,
+          deliveryAddress: order.deliveryAddress,
+          deliveryMethod: order.deliveryMethod
         },
         priority: 'high'
       }, db);
@@ -1512,11 +1524,25 @@ const walletPaymentAndCreateOrder = async (req, res) => {
             type: 'order_created_seller',
             title: 'New Order Received',
             message: `You have a new order #${result.insertedId.toString().slice(-8)} from a fellow artisan!`,
+            orderNumber: result.insertedId.toString().slice(-8), // Add top-level orderNumber
             data: {
               orderId: result.insertedId.toString(),
               orderNumber: result.insertedId.toString().slice(-8),
               totalAmount: totalAmount,
               itemCount: enrichedItems.length
+            },
+            orderData: {
+              _id: result.insertedId,
+              orderId: result.insertedId.toString(),
+              orderNumber: result.insertedId.toString().slice(-8),
+              totalAmount: totalAmount,
+              subtotal: order.subtotal,
+              deliveryFee: order.deliveryFee,
+              deliveryPricing: order.deliveryPricing,
+              status: 'pending',
+              items: order.items,
+              deliveryAddress: order.deliveryAddress,
+              deliveryMethod: order.deliveryMethod
             },
             priority: 'high'
           }, db);
@@ -2377,21 +2403,40 @@ const updateOrderStatus = async (req, res) => {
     }
     
     // Restore inventory if order is declined or cancelled
-    // Note: Cancelled status can be set by admins or system, patrons use dedicated /cancel endpoint
-    // No wallet refund needed since payment is only deducted on delivery/pickup
     if (status === 'declined' || status === 'cancelled') {
-      // Update payment status to cancelled (no funds were deducted yet)
-      if (order.paymentMethod === 'wallet' && order.paymentStatus === 'pending') {
-        await ordersCollection.updateOne(
-          { _id: order._id },
-          {
-            $set: {
-              paymentStatus: 'cancelled',
-              cancelledAt: new Date()
+      // Refund wallet if payment was already deducted
+      if (order.paymentMethod === 'wallet' && order.paymentStatus === 'paid') {
+        try {
+          const WalletService = require('../../services/WalletService');
+          const walletService = new WalletService(db);
+          
+          await walletService.addFunds(
+            order.userId.toString(),
+            order.totalAmount,
+            `Refund for ${status} order #${order._id.toString().slice(-8)}`,
+            {
+              orderId: order._id,
+              orderNumber: order._id.toString().slice(-8),
+              reason: status === 'declined' ? 'order_declined' : 'order_cancelled',
+              refundAmount: order.totalAmount
             }
-          }
-        );
-        console.log(`✅ Wallet order payment cancelled (no deduction occurred)`);
+          );
+          
+          await ordersCollection.updateOne(
+            { _id: order._id },
+            {
+              $set: {
+                paymentStatus: 'refunded',
+                cancelledAt: new Date()
+              }
+            }
+          );
+          
+          console.log(`💰 Wallet refunded: $${order.totalAmount} to user ${order.userId.toString()}`);
+        } catch (refundError) {
+          console.error('❌ Error refunding wallet:', refundError);
+          // Continue with cancellation even if refund fails
+        }
       }
       
       const productsCollection = db.collection('products');
@@ -2568,19 +2613,16 @@ const updateOrderStatus = async (req, res) => {
               const { createWalletService } = require('../../services');
               const walletService = await createWalletService();
               
-              // Calculate platform fee (15% default)
-              const PlatformSettingsService = require('../../services/platformSettingsService');
-              const platformSettingsService = new PlatformSettingsService(db);
-              const feeCalculation = await platformSettingsService.calculatePlatformFee(
-                updatedOrder.subtotal || updatedOrder.totalAmount,
-                'order'
-              );
-              
-              const { platformFee, artisanAmount } = feeCalculation;
+              // Calculate platform fee using artisan's individual commission rate
+              const commissionRate = artisan.financial?.commissionRate || 15; // Default to 15% if not set
+              const subtotal = updatedOrder.subtotal || updatedOrder.totalAmount;
+              const platformFee = parseFloat((subtotal * (commissionRate / 100)).toFixed(2));
+              const artisanAmount = parseFloat((subtotal - platformFee).toFixed(2));
               
               console.log('💰 Revenue calculation:', {
                 totalAmount: updatedOrder.totalAmount,
                 subtotal: updatedOrder.subtotal,
+                commissionRate: `${commissionRate}%`,
                 platformFee,
                 artisanAmount
               });
@@ -2608,6 +2650,7 @@ const updateOrderStatus = async (req, res) => {
                 totalAmount: updatedOrder.totalAmount,
                 subtotal: updatedOrder.subtotal || updatedOrder.totalAmount,
                 deliveryFee: updatedOrder.deliveryFee || 0,
+                commissionRate: commissionRate, // Store artisan's commission rate
                 platformFee: platformFee,
                 artisanAmount: artisanAmount,
                 paymentMethod: 'wallet',
@@ -2642,12 +2685,23 @@ const updateOrderStatus = async (req, res) => {
           // Don't fail the status update, but log critical error
         } else {
           try {
-            // Calculate platform fee
-            const platformSettingsService = new PlatformSettingsService(db);
-            const feeCalculation = await platformSettingsService.calculatePlatformFee(updatedOrder.totalAmount, 'order');
-            const { platformFee, artisanAmount } = feeCalculation;
+            // Get artisan to use their commission rate
+            const artisan = await artisansCollection.findOne({
+              _id: new (require('mongodb')).ObjectId(updatedOrder.artisan)
+            });
             
-            console.log('💰 Platform fee calculation:', { platformFee, artisanAmount, total: updatedOrder.totalAmount });
+            // Calculate platform fee using artisan's individual commission rate
+            const commissionRate = artisan?.financial?.commissionRate || 15; // Default to 15% if not set
+            const subtotal = updatedOrder.subtotal || updatedOrder.totalAmount;
+            const platformFee = parseFloat((subtotal * (commissionRate / 100)).toFixed(2));
+            const artisanAmount = parseFloat((subtotal - platformFee).toFixed(2));
+            
+            console.log('💰 Platform fee calculation:', { 
+              commissionRate: `${commissionRate}%`,
+              platformFee, 
+              artisanAmount, 
+              total: updatedOrder.totalAmount 
+            });
             
             // Capture the payment from Stripe
             console.log('🔄 Attempting to capture payment intent:', updatedOrder.paymentIntentId);
@@ -2655,11 +2709,6 @@ const updateOrderStatus = async (req, res) => {
             
             if (paymentIntent.status === 'succeeded') {
               console.log('✅ Payment captured successfully on delivery');
-              
-              // Find the artisan
-              const artisan = await artisansCollection.findOne({
-                _id: new (require('mongodb')).ObjectId(updatedOrder.artisan)
-              });
               
               // Transfer to artisan's Connect account if set up
               let transferId = null;
@@ -2685,6 +2734,7 @@ const updateOrderStatus = async (req, res) => {
                   $set: { 
                     paymentStatus: 'captured',
                     paymentCapturedAt: new Date(),
+                    commissionRate: commissionRate, // Store artisan's commission rate
                     platformFee: platformFee,
                     artisanAmount: artisanAmount,
                     stripeTransferId: transferId,
@@ -2794,15 +2844,11 @@ const updateOrderStatus = async (req, res) => {
               const { createWalletService } = require('../../services');
               const walletService = await createWalletService();
               
-              // Calculate platform fee
-              const PlatformSettingsService = require('../../services/platformSettingsService');
-              const platformSettingsService = new PlatformSettingsService(db);
-              const feeCalculation = await platformSettingsService.calculatePlatformFee(
-                updatedOrder.subtotal || updatedOrder.totalAmount,
-                'order'
-              );
-              
-              const { platformFee, artisanAmount } = feeCalculation;
+              // Calculate platform fee using artisan's individual commission rate
+              const commissionRate = artisan.financial?.commissionRate || 15; // Default to 15% if not set
+              const subtotal = updatedOrder.subtotal || updatedOrder.totalAmount;
+              const platformFee = parseFloat((subtotal * (commissionRate / 100)).toFixed(2));
+              const artisanAmount = parseFloat((subtotal - platformFee).toFixed(2));
               
               // Credit seller's wallet
               await walletService.addFunds(
@@ -2828,6 +2874,7 @@ const updateOrderStatus = async (req, res) => {
                 totalAmount: updatedOrder.totalAmount,
                 subtotal: updatedOrder.subtotal || updatedOrder.totalAmount,
                 deliveryFee: updatedOrder.deliveryFee || 0,
+                commissionRate: commissionRate, // Store artisan's commission rate
                 platformFee: platformFee,
                 artisanAmount: artisanAmount,
                 paymentMethod: updatedOrder.paymentMethod,
@@ -4448,12 +4495,38 @@ const cancelOrder = async (req, res) => {
       });
     }
     
+    // Refund wallet if payment was already deducted
+    if (order.paymentMethod === 'wallet' && order.paymentStatus === 'paid') {
+      try {
+        const WalletService = require('../../services/WalletService');
+        const walletService = new WalletService(db);
+        
+        await walletService.addFunds(
+          decoded.userId,
+          order.totalAmount,
+          `Refund for cancelled order #${order._id.toString().slice(-8)}`,
+          {
+            orderId: order._id,
+            orderNumber: order._id.toString().slice(-8),
+            reason: 'order_cancelled_by_patron',
+            refundAmount: order.totalAmount
+          }
+        );
+        
+        console.log(`💰 Wallet refunded to patron: $${order.totalAmount}`);
+      } catch (refundError) {
+        console.error('❌ Error refunding wallet:', refundError);
+        // Continue with cancellation even if refund fails
+      }
+    }
+    
     // Update order status
     const result = await ordersCollection.updateOne(
       { _id: new (require('mongodb')).ObjectId(req.params.id) },
       { 
         $set: { 
           status: 'cancelled',
+          paymentStatus: order.paymentMethod === 'wallet' && order.paymentStatus === 'paid' ? 'refunded' : order.paymentStatus,
           updatedAt: new Date()
         }
       }
@@ -4706,10 +4779,23 @@ const capturePaymentAndTransfer = async (req, res) => {
       });
     }
     
-    // Calculate platform fee using platform settings
-    const platformSettingsService = new PlatformSettingsService(db);
-    const feeCalculation = await platformSettingsService.calculatePlatformFee(order.totalAmount, 'order');
-    const { platformFee, artisanAmount } = feeCalculation;
+    // Find the artisan first to get their commission rate
+    const artisan = await artisansCollection.findOne({
+      _id: new (require('mongodb')).ObjectId(order.artisan)
+    });
+    
+    if (!artisan || !artisan.financial?.stripeConnectAccountId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Artisan Stripe Connect account not found'
+      });
+    }
+    
+    // Calculate platform fee using artisan's individual commission rate
+    const commissionRate = artisan.financial?.commissionRate || 15; // Default to 15% if not set
+    const subtotal = order.subtotal || order.totalAmount;
+    const platformFee = parseFloat((subtotal * (commissionRate / 100)).toFixed(2));
+    const artisanAmount = parseFloat((subtotal - platformFee).toFixed(2));
     
     try {
       // Capture the payment
@@ -4719,18 +4805,6 @@ const capturePaymentAndTransfer = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Payment capture failed'
-        });
-      }
-      
-      // Find the artisan
-      const artisan = await artisansCollection.findOne({
-        _id: new (require('mongodb')).ObjectId(order.artisan)
-      });
-      
-      if (!artisan || !artisan.financial?.stripeConnectAccountId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Artisan Stripe Connect account not found'
         });
       }
       
@@ -4753,6 +4827,7 @@ const capturePaymentAndTransfer = async (req, res) => {
           $set: { 
             paymentStatus: 'captured',
             paymentCapturedAt: new Date(),
+            commissionRate: commissionRate, // Store artisan's commission rate
             platformFee: platformFee,
             artisanAmount: artisanAmount,
             stripeTransferId: transfer.id,

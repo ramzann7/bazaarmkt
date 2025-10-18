@@ -2172,6 +2172,65 @@ router.delete('/products/:id', verifyJWT, verifyAdminRole, deleteAdminProduct);
 router.get('/artisans', verifyJWT, verifyAdminRole, getAdminArtisans);
 router.patch('/artisans/:id/status', verifyJWT, verifyAdminRole, updateArtisanStatus);
 router.patch('/artisans/:id/verification', verifyJWT, verifyAdminRole, updateArtisanVerification);
+router.patch('/artisans/:id/commission-rate', verifyJWT, verifyAdminRole, async (req, res) => {
+  try {
+    const { commissionRate } = req.body;
+    const { id } = req.params;
+    
+    // Validate commission rate
+    if (commissionRate === undefined || commissionRate === null) {
+      return res.status(400).json({
+        success: false,
+        message: 'Commission rate is required'
+      });
+    }
+    
+    const rate = parseFloat(commissionRate);
+    
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Commission rate must be between 0 and 100'
+      });
+    }
+    
+    const db = req.db;
+    const artisansCollection = db.collection('artisans');
+    const {ObjectId} = require('mongodb');
+    
+    const result = await artisansCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          'financial.commissionRate': rate,
+          updatedAt: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artisan not found'
+      });
+    }
+    
+    console.log(`✅ Updated commission rate for artisan ${id} to ${rate}%`);
+    
+    res.json({
+      success: true,
+      message: 'Commission rate updated successfully',
+      data: { commissionRate: rate }
+    });
+  } catch (error) {
+    console.error('Error updating artisan commission rate:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update commission rate',
+      error: error.message
+    });
+  }
+});
 router.get('/users', verifyJWT, verifyAdminRole, getAdminUsers);
 router.patch('/users/:id/status', verifyJWT, verifyAdminRole, updateUserStatus);
 router.patch('/users/:id/role', verifyJWT, verifyAdminRole, updateUserRole);
